@@ -100,3 +100,35 @@ Observed result: pending implementation.
 Invalidation: any change to the catalog custody fields, canonical record
 identity, lock schema, Git acquisition rules, license hashing, or custody-state
 derivation requires the full fixture and offline gates to rerun.
+
+## CLM-0004 — gated autonomous feature completion
+
+Hypothesis: a feature process with a frozen contract, nested feedback loops,
+exact-head gates, independent review, bounded merge authority, completion
+feedback, and cleanup permits routine autonomous merges without hiding
+unsupported claims or consuming operator approval for correctness.
+
+Expected observation: one real tracer feature is merged after all design-spec
+0005 gates, its preview reproduces the result, the operator receives a concise
+commit-linked notice, and no harvested agent session or integrated worktree
+remains.
+
+Counterexample: stale CI authorizes merge; the agent grants validity to its own
+metadata; a falsifier escapes; feedback lacks a reproducible referent; an
+operator-owned effect is crossed; or cleanup discards or leaks work.
+
+Evaluation method: CI failure injection, exact-SHA comparison, independent
+review, visible preview, evidence audit, post-merge cleanup inspection, and the
+three-feature cybernetic evaluation in uncertainty 0003.
+
+Success threshold: every design-spec 0005 acceptance condition passes on the
+pilot feature and no operator-owned boundary is crossed.
+
+Consequence if falsified: suspend autonomous merges for the affected feature
+class, preserve the failed artifact, and strengthen or recut the named sensor
+or authority boundary.
+
+Observed result: pending implementation and pilot.
+
+Invalidation: changes to required gates, merge authority, completion notice,
+cleanup rules, or PR-to-spec identity require the pilot checks to rerun.

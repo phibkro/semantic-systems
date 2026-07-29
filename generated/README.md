@@ -9,7 +9,7 @@
 | assumption | 4 |
 | claim | 5 |
 | component | 20 |
-| decision | 5 |
+| decision | 6 |
 | deployment | 3 |
 | domain_machine | 1 |
 | effect | 1 |
@@ -21,12 +21,12 @@
 | obligation | 2 |
 | operation | 3 |
 | package | 1 |
-| question | 1 |
+| question | 2 |
 | realization | 4 |
 | responsibility | 2 |
 | runtime | 8 |
 | theory | 12 |
-| work_item | 23 |
+| work_item | 24 |
 
 - [System map](01-system-map.md)
 - [Theory-realization map](02-theory-realization.md)

@@ -1,0 +1,216 @@
+# Design spec 0005: autonomous development control loop
+
+Status: active
+
+Problem owner: operator and main research/integration agent
+
+Semantic frontier: development governance, verification, merge authority, and
+operator feedback
+
+## User journey
+
+The operator delegates an outcome and can observe its contract and progress
+without supervising routine execution. When a feature is complete, one pull
+request explains how to experience it, shows evidence from the exact commit,
+and is merged autonomously only after every gate passes. The operator receives
+a concise completion notice, while stale agents and worktrees are cleaned up.
+
+## Falsifiable claim
+
+Every nontrivial feature merged under this loop has:
+
+1. exactly one frozen design spec and one matching execution plan;
+2. one feature branch and pull request;
+3. fast, integration, and feature-acceptance gates run against the exact PR
+   head;
+4. an independent review or counterexample search;
+5. a semantic diff and evidence statement that preserve unsupported claims;
+6. a reproducible preview command;
+7. an operator completion notice; and
+8. no harvested agent session or integrated worktree left live.
+
+The claim is falsified by a merged feature with stale or missing checks,
+self-issued semantic validity, an unrecorded contract change, absent completion
+feedback, or leaked finished execution state.
+
+## Frozen deep-module contract
+
+### One unit of intent
+
+A nontrivial feature is one user-visible or semantically falsifiable journey.
+It owns one numeric ID across:
+
+```text
+design-specs/<id>-<slug>.md
+plans/active/<id>-<slug>.md
+scripts/accept/<id>-<slug>.sh
+one feature branch
+one pull request
+```
+
+The plan is mutable execution state. The design spec is the frozen problem
+contract. Learning may revise the spec only through an explicit semantic diff,
+invalidation statement, and renewed review.
+
+Trivial formatting, typo, generated refresh, and mechanically equivalent
+maintenance may skip the feature loop, but must still pass integration checks.
+
+### Feedback ladder
+
+The repository exposes three nested loops:
+
+1. **Fast loop** — seconds: formatting/lint, focused type or parse checks,
+   targeted tests, model validation, and generated drift relevant to the edit.
+2. **Integration loop** — minutes: all static checks, full tests, model
+   validation, and generated-view consistency in the pinned Nix environment.
+3. **Feature loop** — tracer-sized: the exact acceptance script, visible
+   end-to-end preview, independent review, evidence/assumption audit, and PR
+   checks on the exact commit.
+
+Deep assurance—proofs, fuzzing, model checking, schedule exploration,
+benchmarks, reproducibility, or cross-platform builds—is required only when
+the feature claim depends on it.
+
+Missing required tools fail a gate. They are not warnings. Host convenience
+checks may report unavailable tools, but only the pinned gate can authorize
+merge.
+
+### Cybernetic evaluation model
+
+The loop is evaluated as a control system:
+
+- design-spec falsifiers are the reference signal;
+- the repository and implementation process are the controlled system;
+- tests, analysis, review, and runtime scenarios are sensors;
+- gates compare observations with the contract;
+- edits, rework, and work dispatch are control actions;
+- dependency drift, nondeterministic agents, and concurrency are disturbances.
+
+The first evaluation records:
+
+- feedback latency by loop;
+- which failure modes each sensor can and cannot observe;
+- correlated sensors that may self-validate;
+- false acceptance and false rejection;
+- rework or oscillation caused by delayed/noisy feedback;
+- metrics that can be gamed without satisfying the user journey.
+
+No single metric becomes semantic authority. This model remains a research
+hypothesis under uncertainty 0003.
+
+### Pull-request gate
+
+The PR description is the durable completion report and contains:
+
+- design spec and semantic claim;
+- user-visible preview command and expected observation;
+- semantic diff;
+- exact checks run on the PR head;
+- evidence categories and supporting artifacts;
+- assumptions and unsupported claims;
+- independent reviewer/counterexamples;
+- deviations and next uncertainty.
+
+Required GitHub checks must identify the tested commit. A green result for an
+ancestor does not authorize merge. No unresolved review finding may remain.
+
+### Autonomous merge authority
+
+The main research/integration agent may merge a completed feature without
+waiting for operator approval when:
+
+- the implementation conforms to the frozen contract;
+- all required checks pass on the exact head;
+- independent review is resolved;
+- the preview works in the pinned environment;
+- evidence has not been upgraded beyond its artifacts;
+- generated views and plans are current; and
+- the action has no operator-owned external effect.
+
+Operator approval remains required for changing the project thesis, weakening
+evidence or trust meanings, incompatible public identity changes, legal or
+license judgments, secrets, paid/shared infrastructure, public deployment,
+irreversible data migration, or materially destructive action.
+
+### Completion feedback
+
+After merge, the main agent sends one concise operator notice:
+
+```text
+feature and PR/commit
+what is now experienceable
+one preview command
+checks and evidence categories
+assumptions / what remains unsupported
+next uncertainty
+cleanup status
+```
+
+The notice reports the committed referent, not an agent summary. It is
+informational: verified in-scope work does not wait for acknowledgement.
+
+### Execution-state cleanup
+
+An agent is not complete until its output is harvested and gated. Then:
+
+1. close its Herdr tab;
+2. integrate or explicitly reject its commit;
+3. remove a clean integrated worktree;
+4. delete the obsolete local feature branch when safe; and
+5. record remaining reusable artifacts or failures.
+
+Never remove an uncommitted or unintegrated worktree merely because its agent
+appears idle.
+
+## Oracle first
+
+The first oracle is one real feature PR—preferably tracer 0003 or custody 0004.
+It intentionally injects these failures before merge:
+
+- acceptance script missing or mismatched to the spec ID;
+- generated view stale;
+- check result bound to an ancestor commit;
+- unsupported evidence described as proof;
+- independent review missing;
+- preview command failing;
+- finished Herdr tab and integrated worktree left open.
+
+Each failure must block or visibly invalidate completion.
+
+## Acceptance
+
+1. Contributor and agent guidance describe the same loop.
+2. Fast, integration, and acceptance commands are executable in Nix.
+3. CI runs required checks on pull requests and exposes the tested SHA.
+4. The PR template captures every required completion field.
+5. One real feature passes the loop and is autonomously merged.
+6. Its completion notice is delivered with a reproducible preview.
+7. Finished sessions and integrated worktrees are cleaned.
+8. The cybernetic evaluation records latency, sensor coverage, correlation,
+   disturbances, and gaming risks without claiming proof.
+
+## Evidence claim and limits
+
+CI and acceptance runs are `runtime_validation`; static tools are
+`static_analysis`; scenario and mutation tests retain their actual test
+categories; review is `assertion`. Passing the loop establishes that recorded
+gates accepted one exact commit. It does not prove semantic correctness,
+complete test coverage, reviewer independence, supply-chain safety, or absence
+of correlated defects.
+
+## Kill criteria
+
+- A feature can merge without a frozen contract or exact-head gates.
+- An agent can validate its own semantic claim by editing metadata.
+- Process metrics replace the user-visible oracle.
+- Slow gates are placed in the fast loop without evidence they belong there.
+- PR ceremony creates fragments rather than one experienceable feature.
+- Autonomous merge crosses an operator-owned boundary.
+- Completion feedback lacks a reproducible referent.
+- Cleanup can discard unintegrated work.
+
+## Semantic diff
+
+This contract grants bounded merge authority after exact, inspectable gates and
+adds explicit completion feedback and execution cleanup. It changes no language
+semantics, evidence category meaning, or trust claim.

@@ -1,0 +1,82 @@
+{
+  "entities": [
+    {
+      "id": "decision.gated-autonomous-merges",
+      "kind": "decision",
+      "name": "Gate autonomous feature merges",
+      "summary": "The main integration agent may merge exact-head verified features and must report completion and clean execution state.",
+      "status": "accepted",
+      "tags": [
+        "work",
+        "governance",
+        "feedback"
+      ],
+      "attributes": {
+        "record": "decisions/0006-gated-autonomous-feature-merges.md"
+      }
+    },
+    {
+      "id": "question.cybernetic-development-evaluation",
+      "kind": "question",
+      "name": "Does a cybernetic model improve development evaluation?",
+      "summary": "Test whether explicit reference signals, sensors, delays, disturbances, and control actions expose actionable failure modes.",
+      "status": "open",
+      "tags": [
+        "research",
+        "cybernetics",
+        "feedback"
+      ],
+      "attributes": {
+        "record": "uncertainties/0003-cybernetic-development-evaluation.md"
+      }
+    },
+    {
+      "id": "work.autonomous-development-loop",
+      "kind": "work_item",
+      "name": "Establish the autonomous development control loop",
+      "summary": "Implement nested repository gates, exact-head PR completion, bounded merge authority, operator feedback, and cleanup.",
+      "status": "in_progress",
+      "tags": [
+        "tooling",
+        "governance",
+        "feedback"
+      ],
+      "attributes": {
+        "phase": "implementation",
+        "effort": 5,
+        "acceptance": [
+          "Fast, integration, and feature acceptance loops are executable",
+          "One real feature is gated and merged from an exact-head PR",
+          "The operator receives a reproducible completion notice",
+          "Finished sessions and integrated worktrees are cleaned",
+          "The first cybernetic evaluation records sensor and delay limits"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 5,
+          "testability": 5,
+          "reversibility": 4,
+          "integration_independence": 4,
+          "blast_radius": 3,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source": "decision.gated-autonomous-merges",
+      "target": "work.autonomous-development-loop",
+      "kind": "informs",
+      "summary": "The authority decision bounds implementation and merge behavior.",
+      "attributes": {}
+    },
+    {
+      "source": "question.cybernetic-development-evaluation",
+      "target": "work.autonomous-development-loop",
+      "kind": "informs",
+      "summary": "The open cybernetic hypothesis defines the evaluation slice without becoming doctrine.",
+      "attributes": {}
+    }
+  ]
+}

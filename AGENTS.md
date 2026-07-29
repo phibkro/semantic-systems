@@ -65,3 +65,12 @@ for concurrent writers. Treat the frozen contract as a deep-module boundary: a
 small, stable semantic interface hiding substantial implementation freedom and
 surfacing composable abstractions. The integrating agent owns semantic decisions,
 reviews committed artifacts on a clean tree, and commissions independent review.
+
+## Completion and merge
+
+For nontrivial features, follow design spec 0005: one frozen spec, one active
+plan, one acceptance script, and one completion PR. The main integration agent
+may merge after exact-head gates, independent review, preview, and evidence
+audit pass; operator-owned external effects still require approval. Report the
+merged commit and preview to the operator, then close harvested Herdr tabs and
+remove only clean, integrated worktrees.

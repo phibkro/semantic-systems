@@ -4,10 +4,12 @@
 
 ```mermaid
 flowchart LR
+    decision_gated_autonomous_merges["Gate autonomous feature merges"]
     decision_one_shot["One-shot handlers by default"]
     decision_stm_library["STM is a library effect"]
     decision_theory_identity["Laws participate in semantic identity"]
     work_actor_runtime["Implement minimal actor runtime"]
+    work_autonomous_development_loop["Establish the autonomous development control loop"]
     work_core_checker["Implement core checker"]
     work_deterministic_simulator_spec["Design deterministic concurrency simulator"]
     work_explorer_query_contract["Specify explorer query contract"]
@@ -30,6 +32,7 @@ flowchart LR
     work_theory_identity["Define normalized theory identity"]
     work_translation_validation_spec["Specify translation-validation seams"]
     work_wasm_contract_mapping["Research semantic contracts to WIT mapping"]
+    decision_gated_autonomous_merges -->|informs| work_autonomous_development_loop
     work_inventory_resolution_tracer -->|requires| decision_theory_identity
     work_normalized_core_format -->|blocks| work_kernel_spec
     work_lossless_frontend_spec -->|blocks| work_normalized_core_format
