@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { createHash } from "node:crypto";
-import { readFile, unlink, writeFile } from "node:fs/promises";
+import { readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 function stableStringify(value: unknown): string {
@@ -32,6 +32,15 @@ test("phone viewport exposes five views, search, drilldown, and provenance", asy
   await expect(
     page.getByRole("link", { name: "Open canonical source at exact commit" }),
   ).toHaveAttribute("href", /\/blob\/[0-9a-f]{40}\/model\//);
+
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Work", exact: true }).click();
+  const frontier = page.getByRole("region", { name: "Canonical work frontier" });
+  await expect(frontier.getByRole("heading", { name: /Ready frontier \(\d+\)/ })).toBeVisible();
+  await expect(
+    frontier.getByRole("heading", { name: /Scheduler-blocked work \(\d+\)/ }),
+  ).toBeVisible();
+  await expect(frontier.getByRole("button").first()).toBeVisible();
 });
 
 test("manifest and service worker operate at the Pages base path", async ({ page, request }) => {
@@ -123,7 +132,7 @@ test("a newer complete snapshot becomes visible, applies atomically, and cannot 
     await expect(page.getByText("Update available", { exact: true })).not.toBeVisible();
   } finally {
     await writeFile(versionPath, originalVersionText);
-    await unlink(nextPath).catch(() => undefined);
+    await rm(nextPath, { force: true });
   }
 });
 

@@ -22,7 +22,9 @@ the app from that secure local origin. The export command refuses a dirty tree
 or a commit other than exact `HEAD`, and the resulting UI is visibly marked
 `Local preview`. `CONTROL_ROOM_OBSERVED_AT` is available only for reproducible
 fixture observations. The protected Pages workflow is the only supported path
-that emits an `accepted_main` observation.
+that emits a `main_ci_assertion` observation. That field records a publisher
+assertion, not authenticated provenance or proof that the commit was accepted;
+the Pages deployment and GitHub Actions run are separate runtime observations.
 
 ## Acceptance
 

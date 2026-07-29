@@ -70,7 +70,7 @@ const NAVIGATION: Array<{
 ];
 
 const STATE_COPY: Record<DataState, { label: string; description: string }> = {
-  current: { label: "Current", description: "Accepted snapshot within its freshness window" },
+  current: { label: "Current", description: "Snapshot is within its freshness window" },
   update_available: {
     label: "Update available",
     description: "A newer complete snapshot has been verified",
@@ -78,7 +78,7 @@ const STATE_COPY: Record<DataState, { label: string; description: string }> = {
   stale: { label: "Stale", description: "Last valid snapshot is beyond its freshness window" },
   offline: { label: "Offline", description: "Using the last valid snapshot stored on this device" },
   invalid: { label: "Unavailable", description: "No complete, valid snapshot can be displayed" },
-  loading: { label: "Loading", description: "Checking the accepted public snapshot" },
+  loading: { label: "Loading", description: "Checking the published public snapshot" },
 };
 
 function statusTone(status: string | null): "default" | "secondary" | "outline" | "destructive" {
@@ -99,11 +99,19 @@ function StatusBanner({
 }) {
   const copy = STATE_COPY[result.state];
   const localPreview = result.snapshot?.metadata.observation_source === "local_preview";
-  const label = result.state === "current" && localPreview ? "Local preview" : copy.label;
+  const mainCiAssertion = result.snapshot?.metadata.observation_source === "main_ci_assertion";
+  const label =
+    result.state === "current" && localPreview
+      ? "Local preview"
+      : result.state === "current" && mainCiAssertion
+        ? "Main CI assertion"
+        : copy.label;
   const description =
     result.state === "current" && localPreview
-      ? "Clean committed worktree; accepted-main deployment not claimed"
-      : copy.description;
+      ? "Clean committed worktree; main-CI publication not claimed"
+      : result.state === "current" && mainCiAssertion
+        ? "The main workflow asserts this source; the field is not proof of acceptance"
+        : copy.description;
   const Icon =
     result.state === "offline" ? WifiOff : result.state === "current" ? CheckCircle2 : Clock3;
   return (
@@ -178,7 +186,7 @@ function Pulse({
         <Metric
           label="Blocked"
           value={snapshot.blocked_work_ids.length}
-          detail="Explicit work status"
+          detail="Scheduler-derived blockers"
         />
         <Metric
           label="Unsupported"
@@ -324,6 +332,73 @@ function EntityList({
           </CardContent>
         </Card>
       )}
+    </section>
+  );
+}
+
+function WorkFrontier({
+  snapshot,
+  onSelect,
+}: {
+  snapshot: PublicSnapshot;
+  onSelect: (entity: PublicEntity) => void;
+}) {
+  const entities = new Map(snapshot.entities.map((entity) => [entity.id, entity]));
+  const groups = [
+    {
+      title: "Ready frontier",
+      ids: snapshot.ready_work_ids,
+      description: "Derived by the canonical dependency scheduler.",
+      empty: "No work is currently scheduler-ready.",
+    },
+    {
+      title: "Scheduler-blocked work",
+      ids: snapshot.blocked_work_ids,
+      description: "Scheduler-derived blockers; canonical item status may differ.",
+      empty: "No work currently has scheduler-derived blockers.",
+    },
+  ];
+
+  return (
+    <section aria-label="Canonical work frontier" className="mb-5 grid gap-3 sm:grid-cols-2">
+      {groups.map((group) => {
+        const items = group.ids.flatMap((id) => {
+          const entity = entities.get(id);
+          return entity ? [entity] : [];
+        });
+        return (
+          <Card key={group.title}>
+            <CardHeader>
+              <h2 className="text-sm font-semibold">
+                {group.title} ({items.length})
+              </h2>
+              <p className="text-muted-foreground text-xs">{group.description}</p>
+            </CardHeader>
+            <CardContent>
+              {items.length ? (
+                <ul className="space-y-2">
+                  {items.map((entity) => (
+                    <li key={entity.id}>
+                      <button
+                        className="min-h-11 text-left text-sm font-semibold underline underline-offset-4"
+                        type="button"
+                        onClick={() => onSelect(entity)}
+                      >
+                        {entity.name}{" "}
+                        <span className="text-muted-foreground font-mono text-xs">
+                          ({entity.id})
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-muted-foreground text-sm">{group.empty}</p>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })}
     </section>
   );
 }
@@ -594,8 +669,8 @@ export default function App({ provided }: { provided?: SnapshotState }) {
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">Control Room</h1>
         <p className="text-muted-foreground mt-1 text-sm">
           Read-only{" "}
-          {result.snapshot?.metadata.observation_source === "accepted_main"
-            ? "accepted-main"
+          {result.snapshot?.metadata.observation_source === "main_ci_assertion"
+            ? "main-CI-asserted"
             : "committed local"}{" "}
           project projection
         </p>
@@ -646,6 +721,9 @@ export default function App({ provided }: { provided?: SnapshotState }) {
               <>
                 {view === "systems" && (
                   <ComponentTree snapshot={result.snapshot} onSelect={selectEntity} />
+                )}
+                {view === "work" && (
+                  <WorkFrontier snapshot={result.snapshot} onSelect={selectEntity} />
                 )}
                 <EntityList
                   snapshot={result.snapshot}

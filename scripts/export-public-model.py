@@ -24,7 +24,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--observation-source",
-        choices=("local_preview", "accepted_main"),
+        choices=("local_preview", "main_ci_assertion"),
         default="local_preview",
     )
     args = parser.parse_args()

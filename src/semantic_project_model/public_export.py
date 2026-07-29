@@ -32,7 +32,7 @@ class ExportError(ValueError):
 
 
 DeployedCheckStatus = Literal["not_checked", "passed", "failed"]
-ObservationSource = Literal["local_preview", "accepted_main"]
+ObservationSource = Literal["local_preview", "main_ci_assertion"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -172,7 +172,7 @@ def _validate_input(project: ProjectGraph, observation: ExportObservation) -> No
         raise ExportError("commit must be an exact lowercase 40-character Git object ID")
     if observation.freshness_seconds <= 0:
         raise ExportError("freshness_seconds must be positive")
-    if observation.observation_source not in {"local_preview", "accepted_main"}:
+    if observation.observation_source not in {"local_preview", "main_ci_assertion"}:
         raise ExportError("observation_source is invalid")
     _validate_utc_timestamp(observation.observed_at, "observed_at")
 
@@ -330,7 +330,10 @@ def _validate_public_shape(  # noqa: PLR0912
     _validate_utc_timestamp(metadata_value.get("generated_at"), "metadata.generated_at")
     _validate_utc_timestamp(metadata_value.get("observed_at"), "metadata.observed_at")
     _validate_utc_timestamp(version.get("observed_at"), "version.observed_at")
-    if metadata_value.get("observation_source") not in {"local_preview", "accepted_main"}:
+    if metadata_value.get("observation_source") not in {
+        "local_preview",
+        "main_ci_assertion",
+    }:
         raise ExportError("metadata.observation_source is invalid")
     for key in (
         "ready_work_ids",

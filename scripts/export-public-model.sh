@@ -18,11 +18,11 @@ if [ -n "$(git -C "$root" status --porcelain)" ]; then
   exit 1
 fi
 
-if [ "$observation_source" = "accepted_main" ] &&
+if [ "$observation_source" = "main_ci_assertion" ] &&
   { [ "${GITHUB_ACTIONS:-}" != "true" ] ||
     [ "${GITHUB_REF:-}" != "refs/heads/main" ] ||
     [ "${GITHUB_SHA:-}" != "$commit" ]; }; then
-  echo "error: accepted_main requires the exact main GitHub Actions context" >&2
+  echo "error: main_ci_assertion requires the exact main GitHub Actions context" >&2
   exit 1
 fi
 

@@ -177,8 +177,12 @@ tests, and three mobile Chromium/PWA scenarios. Independent review nevertheless
 rejected publication because the service worker could hide newer version data,
 the required status filter was absent, and this observation was initially
 attached to CLM-0003 instead of this claim. Those counterexamples are now the
-correction oracle; the claim remains open pending a green corrected artifact,
-independent re-review, and default Pages deployment.
+correction oracle. Corrected commit `2f60eee` passed its exact clean-tree local
+acceptance but independent re-review rejected three remaining claims: publisher
+assertion was presented as accepted provenance, browser tests could mutate the
+artifact after its final scan, and ready/blocked work identities were reduced
+to counts. The claim remains open pending a green successor, independent
+re-review, and default Pages deployment.
 
 Invalidation: any public schema, exporter, canonical model, freshness rule,
 service-worker update algorithm, workflow, or deployment-target change requires

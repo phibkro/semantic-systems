@@ -227,7 +227,7 @@ def test_real_canonical_model_exports_with_exact_provenance() -> None:
     )
 
 
-def test_public_export_wrapper_rejects_false_accepted_main_and_dirty_input(
+def test_public_export_wrapper_marks_main_as_asserted_and_rejects_dirty_input(
     tmp_path: Path,
 ) -> None:
     checkout = tmp_path / "checkout"
@@ -253,16 +253,18 @@ def test_public_export_wrapper_rejects_false_accepted_main_and_dirty_input(
     subprocess.run(["git", "add", "."], cwd=checkout, check=True)
     subprocess.run(["git", "commit", "-qm", "fixture"], cwd=checkout, check=True)
 
-    false_accepted = subprocess.run(
+    false_assertion = subprocess.run(
         ["sh", "scripts/export-public-model.sh"],
         cwd=checkout,
-        env={**os.environ, "CONTROL_ROOM_OBSERVATION_SOURCE": "accepted_main"},
+        env={**os.environ, "CONTROL_ROOM_OBSERVATION_SOURCE": "main_ci_assertion"},
         text=True,
         capture_output=True,
         check=False,
     )
-    assert false_accepted.returncode != 0
-    assert "accepted_main requires the exact main GitHub Actions context" in false_accepted.stderr
+    assert false_assertion.returncode != 0
+    assert (
+        "main_ci_assertion requires the exact main GitHub Actions context" in false_assertion.stderr
+    )
 
     head = subprocess.run(
         ["git", "rev-parse", "HEAD"],
@@ -271,12 +273,12 @@ def test_public_export_wrapper_rejects_false_accepted_main_and_dirty_input(
         text=True,
         capture_output=True,
     ).stdout.strip()
-    accepted = subprocess.run(
+    asserted = subprocess.run(
         ["sh", "scripts/export-public-model.sh"],
         cwd=checkout,
         env={
             **os.environ,
-            "CONTROL_ROOM_OBSERVATION_SOURCE": "accepted_main",
+            "CONTROL_ROOM_OBSERVATION_SOURCE": "main_ci_assertion",
             "GITHUB_ACTIONS": "true",
             "GITHUB_REF": "refs/heads/main",
             "GITHUB_SHA": head,
@@ -285,7 +287,7 @@ def test_public_export_wrapper_rejects_false_accepted_main_and_dirty_input(
         capture_output=True,
         check=False,
     )
-    assert accepted.returncode == 0, accepted.stderr
+    assert asserted.returncode == 0, asserted.stderr
 
     model_file = checkout / "model" / "work" / "control-room-pwa.json"
     model_file.write_text(f"{model_file.read_text()}\n")
@@ -308,6 +310,7 @@ def test_pages_uses_the_pinned_nix_gate_and_checks_every_workflow() -> None:
     assert "runs-on: ubuntu-24.04" in workflow
     assert "nix-2.34.8-x86_64-linux.tar.xz" in workflow
     assert "nix develop --command ./scripts/check.sh" in workflow
-    assert "CONTROL_ROOM_OBSERVATION_SOURCE: accepted_main" in workflow
+    assert "CONTROL_ROOM_OBSERVATION_SOURCE: main_ci_assertion" in workflow
     assert "playwright install" not in workflow
     assert "actionlint .github/workflows/*.yml" in fast_loop
+    assert workflow.rindex("Scan final public payload") > workflow.index("Exercise mobile PWA")

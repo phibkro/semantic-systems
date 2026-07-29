@@ -18,11 +18,11 @@ export const fixtureSnapshot: PublicSnapshot = {
     component: 2,
     evidence: 1,
     theory: 1,
-    work_item: 2,
+    work_item: 3,
   },
   ready_work_ids: ["work.ready"],
   active_work_ids: [],
-  blocked_work_ids: [],
+  blocked_work_ids: ["work.blocked"],
   completed_work_ids: ["work.done"],
   unsupported_claim_ids: ["claim.unsupported"],
   entities: [
@@ -116,6 +116,18 @@ export const fixtureSnapshot: PublicSnapshot = {
       name: "Completed work",
       summary: "A finished fixture item",
       status: "complete",
+      tags: ["work"],
+      source_url:
+        "https://github.com/phibkro/semantic-systems/blob/0123456789abcdef0123456789abcdef01234567/model/fixture.json",
+      evidence_category: null,
+      assumptions: [],
+    },
+    {
+      id: "work.blocked",
+      kind: "work_item",
+      name: "Dependency-blocked work",
+      summary: "A planned item whose scheduler dependencies are not complete",
+      status: "planned",
       tags: ["work"],
       source_url:
         "https://github.com/phibkro/semantic-systems/blob/0123456789abcdef0123456789abcdef01234567/model/fixture.json",

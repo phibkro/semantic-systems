@@ -16,7 +16,8 @@ making stale, offline, unsupported, and unavailable state visible.
   exact Markdown/Mermaid projections; the explorer query contract is complete.
 - A versioned allowlist exporter derives a content-addressed public snapshot
   from canonical model identities, exact commit metadata, strict UTC
-  observation time, and explicit `local_preview` or `accepted_main` provenance.
+  observation time, and explicit `local_preview` or `main_ci_assertion`
+  provenance.
 - The phone-first PWA implements Pulse, Systems, Semantics, Evidence, and Work
   views with search and status/relation filters, recursive component drilldown,
   provenance, typed relations, explicit freshness/offline state, and no
@@ -34,8 +35,10 @@ making stale, offline, unsupported, and unavailable state visible.
 
 - The first public view is accepted-commit near-real-time, not local-agent live
   telemetry.
-- Local exports are visibly `local_preview`; only the protected Pages workflow
-  may label an observation `accepted_main`.
+- Local exports are visibly `local_preview`; the Pages workflow labels its
+  observation `main_ci_assertion`. The field remains typed `assertion`
+  evidence, while the workflow and deployed origin are separate runtime
+  observations.
 - Public fields are allowlisted by a versioned schema.
 - The app is a read-only projection; semantic and evidence decisions remain in
   the project model.
@@ -178,6 +181,15 @@ recursive dump of model attributes or put a GitHub credential in the client.
   build, and the final payload scanner. The browser oracle performs an actual
   snapshot N-to-N+1 update and rejects rollback. Full exact-commit acceptance
   and independent re-review remain pending.
+- 2026-07-29: Independent re-review rejected exact commit `2f60eee` on three
+  remaining counterexamples: `accepted_main` overstated a forgeable publisher
+  assertion, Playwright mutated the payload after its last scan, and Work
+  exposed scheduler-derived ready/blocked facts only as counts while describing
+  blockers as explicit statuses. The correction renames the observation to
+  `main_ci_assertion` and documents its `assertion` evidence limit, rescans
+  after browser mutation immediately before upload, and exposes the canonical
+  work identities with scheduler-derived wording. A new exact-commit
+  acceptance and re-review are still required.
 
 ## Decisions and deviations
 

@@ -50,7 +50,7 @@ jobs:
       - name: Export exact public snapshot
         env:
           CONTROL_ROOM_COMMIT: ${{ github.sha }}
-          CONTROL_ROOM_OBSERVATION_SOURCE: accepted_main
+          CONTROL_ROOM_OBSERVATION_SOURCE: main_ci_assertion
         run: |
           echo "CONTROL_ROOM_OBSERVED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
           CONTROL_ROOM_OBSERVED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
@@ -68,13 +68,16 @@ jobs:
           CONTROL_ROOM_BASE: /semantic-systems/
         run: nix develop --command bun run --cwd apps/control-room build
 
-      - name: Scan final public payload
+      - name: Preflight public payload
         run: nix develop --command python scripts/check-public-artifact.py apps/control-room/dist
 
       - name: Exercise mobile PWA
         run: >-
           nix develop --command apps/control-room/node_modules/.bin/playwright test
           --config apps/control-room/playwright.config.mjs
+
+      - name: Scan final public payload
+        run: nix develop --command python scripts/check-public-artifact.py apps/control-room/dist
 
       - name: Configure Pages
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5

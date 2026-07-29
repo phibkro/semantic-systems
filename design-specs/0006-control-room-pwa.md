@@ -13,11 +13,13 @@ repository visibility itself is no longer frozen as private.
 
 Revision 2026-07-29 after independent rejection: observation provenance is now
 part of the public contract. A snapshot identifies itself as either a
-`local_preview` or an `accepted_main` observation; only the protected
-publication workflow may emit the latter. Mutable version and snapshot data
-must remain network-observable rather than service-worker precached. Pulse
-reports completed work identities without inventing chronology that the
-canonical model does not contain.
+`local_preview` or a `main_ci_assertion`. The latter is a publisher assertion,
+not authenticated provenance or proof of acceptance; the official Pages origin
+and exact GitHub Actions deployment run remain separate runtime observations.
+The wrapper rejects accidental local use but is not an authority boundary.
+Mutable version and snapshot data must remain network-observable rather than
+service-worker precached. Pulse reports completed work identities without
+inventing chronology that the canonical model does not contain.
 
 ## User journey
 
@@ -146,12 +148,14 @@ small screen and without relying on color alone.
 
 GitHub Pages represents accepted committed state, not local real-time state.
 Every successful `main` publication creates an immutable snapshot identified by
-commit and digest and marked `accepted_main`. A clean exact-HEAD local export is
-marked `local_preview` even when its commit is already accepted. The installed
-PWA polls a small version document while online, updates atomically when a
-newer complete snapshot exists, and retains the last valid snapshot for offline
-use. The application shell may be precached; the mutable version document and
-content snapshot may not be service-worker precached.
+commit and digest and marked `main_ci_assertion`. That label reports what the
+publisher asserted; it gains operational support only from the separately
+observed protected workflow and deployed origin. A clean exact-HEAD local
+export is marked `local_preview` even when its commit is already accepted. The
+installed PWA polls a small version document while online, updates atomically
+when a newer complete snapshot exists, and retains the last valid snapshot for
+offline use. The application shell may be precached; the mutable version
+document and content snapshot may not be service-worker precached.
 
 The interface always shows one of:
 

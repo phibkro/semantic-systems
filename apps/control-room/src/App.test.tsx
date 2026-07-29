@@ -21,7 +21,7 @@ describe("phone-first Control Room", () => {
     expect(screen.getByText(fixtureSnapshot.metadata.commit)).toBeVisible();
     expect(screen.getByText(fixtureSnapshot.metadata.digest)).toBeVisible();
     expect(screen.getByText("Local preview")).toBeVisible();
-    expect(screen.getByText(/accepted-main deployment not claimed/)).toBeVisible();
+    expect(screen.getByText(/main-CI publication not claimed/)).toBeVisible();
     expect(screen.getByRole("heading", { name: "Unsupported claims (1)" })).toBeVisible();
     expect(screen.getByText("claim.unsupported", { exact: false })).toBeVisible();
     expect(screen.getByRole("heading", { name: "Completed work (1)" })).toBeVisible();
@@ -64,6 +64,22 @@ describe("phone-first Control Room", () => {
 
     expect(screen.getByRole("button", { name: /Example evidence/ })).toBeVisible();
     expect(screen.queryByRole("button", { name: /window.pwned/ })).not.toBeInTheDocument();
+  });
+
+  it("exposes ready and scheduler-blocked work identities rather than counts alone", async () => {
+    const user = userEvent.setup();
+    render(<App provided={provided} />);
+
+    await user.click(screen.getByRole("button", { name: "Work" }));
+
+    const frontier = within(screen.getByRole("region", { name: "Canonical work frontier" }));
+    expect(frontier.getByRole("heading", { name: "Ready frontier (1)" })).toBeVisible();
+    expect(frontier.getByRole("button", { name: /Ready work.*work\.ready/ })).toBeVisible();
+    expect(frontier.getByRole("heading", { name: "Scheduler-blocked work (1)" })).toBeVisible();
+    expect(
+      frontier.getByRole("button", { name: /Dependency-blocked work.*work\.blocked/ }),
+    ).toBeVisible();
+    expect(screen.getByText(/Scheduler-derived blockers/)).toBeVisible();
   });
 
   it("exposes every system kind, recursive containment, and relation-kind filtering", async () => {

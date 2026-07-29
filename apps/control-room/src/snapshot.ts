@@ -71,7 +71,7 @@ export function isPublicSnapshot(value: unknown): value is PublicSnapshot {
     isUtcTimestamp(value.metadata.observed_at) &&
     typeof value.metadata.freshness_seconds === "number" &&
     (value.metadata.observation_source === "local_preview" ||
-      value.metadata.observation_source === "accepted_main")
+      value.metadata.observation_source === "main_ci_assertion")
   );
 }
 
