@@ -20,10 +20,11 @@ making stale, offline, unsupported, and unavailable state visible.
   evidence, source-to-artifact, work, and deployment views.
 - No public JSON export contract, web application, PWA, browser test, or Pages
   workflow exists.
-- `phibkro/semantic-systems` is private; GitHub Actions is enabled; GitHub Pages
-  currently returns 404 because no site is configured.
-- Official GitHub documentation says private-repository Pages requires GitHub
-  Pro, Team, or Enterprise and warns that Pages output is normally public.
+- `phibkro/semantic-systems` is public after a complete-history Gitleaks and
+  manual publication audit; GitHub secret scanning and push protection are
+  enabled.
+- GitHub Actions is enabled; GitHub Pages currently returns 404 because no site
+  is configured.
 
 ## Frozen boundary decisions
 
@@ -32,6 +33,8 @@ making stale, offline, unsupported, and unavailable state visible.
 - Public fields are allowlisted by a versioned schema.
 - The app is a read-only projection; semantic and evidence decisions remain in
   the project model.
+- The app uses Bun, React/Vite, shadcn/ui, Tailwind, React Flow, Oxlint, Oxfmt,
+  stable native TypeScript 7, Vitest, and Playwright.
 - Default Pages deployment precedes custom-domain attachment.
 - `semantic.phibkro.org` is the preferred custom address.
 
@@ -114,6 +117,15 @@ recursive dump of model attributes or put a GitHub credential in the client.
   is not yet configured.
 - 2026-07-29: Froze the public-export, freshness, read-only, PWA, and deployment
   boundaries before implementation.
+- 2026-07-29: Audited all 30 Git commits with Gitleaks 8.30.1 and a manual
+  credential/private-data scan; no leaks were found.
+- 2026-07-29: Made the repository public and verified GitHub secret scanning
+  and push protection are enabled.
+- 2026-07-29: Revised the frontend contract to the operator-selected modern
+  stack.
+- 2026-07-29: Corrected stale web-search information against the npm registry:
+  `typescript@7.0.2` is stable and owns `tsc`; the separate native-preview
+  package remains a development build. The app uses TypeScript 7 only.
 
 ## Decisions and deviations
 

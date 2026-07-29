@@ -16,7 +16,8 @@ its typed relations, provenance, evidence category, assumptions, and canonical
 source link.
 
 The first deployment is a GitHub Pages PWA generated from accepted `main`
-commits. Its preferred custom address is `semantic.phibkro.org`.
+commits in the public `phibkro/semantic-systems` repository. Its preferred
+custom address is `semantic.phibkro.org`.
 
 ## Falsifiable claim
 
@@ -82,8 +83,29 @@ It must not expose:
 - arbitrary model attributes that have not been admitted to the public schema;
 - uncommitted worktree state.
 
-Public-artifact inspection is an acceptance gate. A private source repository
-does not make a Pages artifact private.
+Public-artifact inspection remains an acceptance gate even after the source
+repository becomes public: Git history and build/runtime contexts can contain
+facts that are not part of the product's public projection.
+
+### Frontend and tooling stack
+
+The initial application uses established, composable tools:
+
+- Bun for package management, scripts, and the workspace runtime;
+- React and Vite for the static application;
+- shadcn/ui source components with Tailwind CSS for a phone-first interface;
+- React Flow (`@xyflow/react`) for the optional graph canvas, paired with
+  accessible lists and relation summaries;
+- Oxlint and Oxfmt as the authoritative JavaScript/TypeScript lint and format
+  gates;
+- stable native TypeScript 7 as the authoritative type checker;
+- Vitest for component and behavior tests;
+- Playwright with real service workers for mobile, install/update, offline, and
+  Pages-base-path acceptance.
+
+Generated shadcn components are repository-owned source and may be tailored to
+the product. Only components used by the user journey are added. The graph
+library owns viewport interaction, not project semantics or application state.
 
 ### Orthogonal phone-first views
 
@@ -176,7 +198,7 @@ because the fixture crashes or the application is absent.
 
 - a versioned public snapshot schema and exporter under the project-model
   boundary;
-- an app under `apps/control-room/`;
+- a Bun/Vite/React app under `apps/control-room/`;
 - deterministic exporter, UI, PWA, accessibility, and public-artifact tests;
 - a Pages build/deploy workflow and feature acceptance script;
 - canonical model, generated views, documentation, and completion records for
@@ -229,9 +251,9 @@ because the fixture crashes or the application is absent.
 
 Stop publication if the safe export cannot be expressed as an allowlist, a
 public artifact exposes private data, the client needs a repository credential,
-Pages cannot host the private-repository build under the account plan, or the
-first slice requires a mutable backend to be useful. Preserve the local preview
-and recut the deployment boundary rather than weakening privacy or truthfulness.
+or the first slice requires a mutable backend to be useful. Preserve the local
+preview and recut the deployment boundary rather than weakening privacy or
+truthfulness.
 
 ## Next uncertainty
 
