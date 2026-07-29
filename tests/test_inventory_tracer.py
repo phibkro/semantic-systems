@@ -42,9 +42,7 @@ def test_theory_identity_ignores_formatting_and_declaration_order() -> None:
     reordered["laws"] = list(reversed(reordered["laws"]))
 
     original = normalize_theory(theory)
-    equivalent = normalize_theory(
-        json.loads(json.dumps(reordered, indent=7, ensure_ascii=False))
-    )
+    equivalent = normalize_theory(json.loads(json.dumps(reordered, indent=7, ensure_ascii=False)))
 
     assert original.identity == equivalent.identity
     assert original.payload == equivalent.payload
@@ -92,9 +90,7 @@ def test_development_policy_selects_reference_and_rejects_broken() -> None:
         "reservations": {},
     }
     assert document["execution"]["matches_oracle"] is True
-    assert document["assumptions"] == [
-        "Python integer arithmetic is exact for fixture quantities."
-    ]
+    assert document["assumptions"] == ["Python integer arithmetic is exact for fixture quantities."]
 
     explanation = document["explanation"]
     assert explanation["rule"] == "resolve_inventory_deployment"
