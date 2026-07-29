@@ -24,9 +24,7 @@ def _edge(relation: Relation) -> str:
 
 def _doc(title: str, body: str) -> str:
     return (
-        f"# {title}\n\n"
-        "<!-- Generated. Edit model sources, not this file. -->\n\n"
-        f"{body.rstrip()}\n"
+        f"# {title}\n\n<!-- Generated. Edit model sources, not this file. -->\n\n{body.rstrip()}\n"
     )
 
 
@@ -44,21 +42,18 @@ def _mermaid(project: ProjectGraph, relations: tuple[Relation, ...], direction: 
 
 
 def system_map(project: ProjectGraph) -> str:
-    relations = tuple(
-        relation for relation in project.relations
-        if relation.kind == "contains"
-    )
+    relations = tuple(relation for relation in project.relations if relation.kind == "contains")
     return _doc(
         "System map",
-        "Recursive component and package containment.\n\n"
-        + _mermaid(project, relations, "TD"),
+        "Recursive component and package containment.\n\n" + _mermaid(project, relations, "TD"),
     )
 
 
 def theory_realization(project: ProjectGraph) -> str:
     kinds = {"theory", "realization", "handler", "domain_machine", "effect", "invariant"}
     relations = tuple(
-        relation for relation in project.relations
+        relation
+        for relation in project.relations
         if relation.kind in {"realizes", "requires", "extends", "refines", "preserves"}
         and (
             project.entities[relation.source_id].kind in kinds
@@ -66,7 +61,7 @@ def theory_realization(project: ProjectGraph) -> str:
         )
     )
     return _doc(
-        "Theory–realization map",
+        "Theory-realization map",
         "Semantic contracts and executable interpretations.\n\n"
         + _mermaid(project, relations, "LR"),
     )
@@ -74,14 +69,17 @@ def theory_realization(project: ProjectGraph) -> str:
 
 def concern_matrix(project: ProjectGraph) -> str:
     components = [
-        entity for entity in project.entities.values()
+        entity
+        for entity in project.entities.values()
         if entity.kind in {"component", "runtime", "handler"}
     ]
     assignments: dict[str, set[str]] = {}
     concerns: set[str] = set()
     for entity in components:
         raw = entity.attributes.get("responsibilities")
-        values = {item for item in raw if isinstance(item, str)} if isinstance(raw, list) else set()
+        values: set[str] = set()
+        if isinstance(raw, list):
+            values.update(item for item in raw if isinstance(item, str))
         assignments[entity.id] = values
         concerns.update(values)
 
@@ -102,11 +100,13 @@ def concern_matrix(project: ProjectGraph) -> str:
 
 def evidence_map(project: ProjectGraph) -> str:
     relations = tuple(
-        relation for relation in project.relations
+        relation
+        for relation in project.relations
         if relation.kind in {"supports", "discharges", "assumes", "validates", "covers"}
     )
     unsupported = [
-        claim for claim in project.by_kind("claim")
+        claim
+        for claim in project.by_kind("claim")
         if not project.incoming(claim.id, {"supports", "discharges"})
     ]
     suffix = ""
@@ -122,11 +122,13 @@ def evidence_map(project: ProjectGraph) -> str:
 
 def work_dependencies(project: ProjectGraph) -> str:
     allowed_ids = {
-        entity.id for entity in project.entities.values()
+        entity.id
+        for entity in project.entities.values()
         if entity.kind in {"work_item", "decision"}
     }
     relations = tuple(
-        relation for relation in project.relations
+        relation
+        for relation in project.relations
         if relation.source_id in allowed_ids
         and relation.target_id in allowed_ids
         and relation.kind in {"blocks", "requires", "informs"}
@@ -167,7 +169,8 @@ def delegation_frontier(project: ProjectGraph) -> str:
 
 def runtime_view(project: ProjectGraph) -> str:
     relations = tuple(
-        relation for relation in project.relations
+        relation
+        for relation in project.relations
         if relation.kind in {"hosts", "handles", "reads", "writes", "publishes", "sends"}
     )
     return _doc(
@@ -187,7 +190,7 @@ def index(project: ProjectGraph) -> str:
         "Generated project views",
         "\n".join(rows)
         + "\n\n- [System map](01-system-map.md)"
-        + "\n- [Theory–realization map](02-theory-realization.md)"
+        + "\n- [Theory-realization map](02-theory-realization.md)"
         + "\n- [Concern matrix](03-concern-matrix.md)"
         + "\n- [Evidence map](04-evidence-map.md)"
         + "\n- [Work dependencies](05-work-dependencies.md)"

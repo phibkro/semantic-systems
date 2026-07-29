@@ -36,7 +36,8 @@ def _tags(value: object, context: str) -> tuple[str, ...]:
         return ()
     if not isinstance(value, list):
         raise ProjectLoadError(f"{context} must be a list")
-    return tuple(_string(item, f"{context} item") for item in value)
+    items = cast(list[object], value)
+    return tuple(_string(item, f"{context} item") for item in items)
 
 
 def load_project(root: Path) -> ProjectGraph:
@@ -48,11 +49,14 @@ def load_project(root: Path) -> ProjectGraph:
     relations: list[Relation] = []
 
     for source in sorted(model_root.rglob("*.json")):
-        document = _mapping(json.loads(source.read_text(encoding="utf-8")), str(source))
-        raw_entities = document.get("entities", [])
-        raw_relations = document.get("relations", [])
-        if not isinstance(raw_entities, list) or not isinstance(raw_relations, list):
+        loaded: object = json.loads(source.read_text(encoding="utf-8"))
+        document = _mapping(loaded, str(source))
+        raw_entities_value = document.get("entities", [])
+        raw_relations_value = document.get("relations", [])
+        if not isinstance(raw_entities_value, list) or not isinstance(raw_relations_value, list):
             raise ProjectLoadError(f"{source}: entities and relations must be lists")
+        raw_entities = cast(list[object], raw_entities_value)
+        raw_relations = cast(list[object], raw_relations_value)
 
         for index, raw in enumerate(raw_entities):
             item = _mapping(raw, f"{source}: entities[{index}]")

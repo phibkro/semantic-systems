@@ -8,6 +8,10 @@ from typing import cast
 from semantic_project_model.graph import adjacency, find_cycle, longest_path
 from semantic_project_model.model import Entity, ProjectGraph
 
+DIRECT_DELEGATION_SCORE = 75
+REVIEW_DELEGATION_SCORE = 60
+BOUNDED_SPIKE_SCORE = 40
+
 
 @dataclass(frozen=True, slots=True)
 class WorkAssessment:
@@ -47,11 +51,11 @@ def _recommendation(entity: Entity, score: int) -> str:
     if isinstance(raw, dict) and isinstance(raw.get("human_review"), bool):
         review = raw["human_review"]
 
-    if score >= 75 and not review:
+    if score >= DIRECT_DELEGATION_SCORE and not review:
         return "delegate directly"
-    if score >= 60:
+    if score >= REVIEW_DELEGATION_SCORE:
         return "delegate with review"
-    if score >= 40:
+    if score >= BOUNDED_SPIKE_SCORE:
         return "bounded spike"
     return "human-led design"
 
@@ -92,9 +96,7 @@ def critical_path(project: ProjectGraph) -> tuple[str, ...]:
     edges = [
         (relation.target_id, relation.source_id)
         for relation in project.relations
-        if relation.kind == "blocks"
-        and relation.source_id in work
-        and relation.target_id in work
+        if relation.kind == "blocks" and relation.source_id in work and relation.target_id in work
     ]
     graph = adjacency(work, edges)
     if find_cycle(graph) is not None:

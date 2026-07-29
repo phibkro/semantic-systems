@@ -6,7 +6,7 @@ from collections.abc import Iterable
 
 
 def adjacency(nodes: Iterable[str], edges: Iterable[tuple[str, str]]) -> dict[str, set[str]]:
-    graph = {node: set() for node in nodes}
+    graph: dict[str, set[str]] = {node: set() for node in nodes}
     for source, target in edges:
         graph.setdefault(source, set()).add(target)
         graph.setdefault(target, set())
@@ -23,7 +23,7 @@ def find_cycle(graph: dict[str, set[str]]) -> tuple[str, ...] | None:
             return None
         if node in visiting:
             start = stack.index(node)
-            return tuple([*stack[start:], node])
+            return (*stack[start:], node)
         visiting.add(node)
         stack.append(node)
         for target in sorted(graph.get(node, set())):
@@ -43,7 +43,7 @@ def find_cycle(graph: dict[str, set[str]]) -> tuple[str, ...] | None:
 
 
 def topological_order(graph: dict[str, set[str]]) -> tuple[str, ...]:
-    indegree = {node: 0 for node in graph}
+    indegree = dict.fromkeys(graph, 0)
     for targets in graph.values():
         for target in targets:
             indegree[target] += 1
@@ -67,7 +67,7 @@ def topological_order(graph: dict[str, set[str]]) -> tuple[str, ...]:
 def longest_path(graph: dict[str, set[str]], weights: dict[str, int]) -> tuple[str, ...]:
     order = topological_order(graph)
     score = {node: weights.get(node, 1) for node in graph}
-    previous: dict[str, str | None] = {node: None for node in graph}
+    previous: dict[str, str | None] = dict.fromkeys(graph)
 
     for source in order:
         for target in graph[source]:

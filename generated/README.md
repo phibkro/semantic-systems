@@ -26,7 +26,7 @@
 | work_item | 22 |
 
 - [System map](01-system-map.md)
-- [Theory–realization map](02-theory-realization.md)
+- [Theory-realization map](02-theory-realization.md)
 - [Concern matrix](03-concern-matrix.md)
 - [Evidence map](04-evidence-map.md)
 - [Work dependencies](05-work-dependencies.md)

@@ -22,25 +22,43 @@ class ValidationIssue:
 def _list_of_strings(entity: Entity, key: str) -> tuple[str, ...]:
     value = entity.attributes.get(key)
     if isinstance(value, list) and all(isinstance(item, str) for item in value):
-        return tuple(value)
+        return tuple(item for item in value if isinstance(item, str))
     return ()
 
 
-def validate_project(project: ProjectGraph) -> tuple[ValidationIssue, ...]:
+def validate_project(project: ProjectGraph) -> tuple[ValidationIssue, ...]:  # noqa: PLR0912
     issues: list[ValidationIssue] = []
     phases = {
-        "research", "design", "implementation", "validation",
-        "optimization", "maintenance",
+        "research",
+        "design",
+        "implementation",
+        "validation",
+        "optimization",
+        "maintenance",
     }
     evidence_types = {
-        "proof", "derived", "analysis", "model_check", "test", "benchmark",
-        "runtime_check", "assertion", "assumption",
+        "proof",
+        "derived",
+        "analysis",
+        "model_check",
+        "test",
+        "example_test",
+        "property_test",
+        "benchmark",
+        "runtime_check",
+        "assertion",
+        "assumption",
     }
 
     for entity in project.entities.values():
         if entity.kind not in ENTITY_KINDS:
             issues.append(
-                ValidationIssue("error", "entity.kind", f"unsupported kind {entity.kind}", entity.id)
+                ValidationIssue(
+                    "error",
+                    "entity.kind",
+                    f"unsupported kind {entity.kind}",
+                    entity.id,
+                )
             )
         if not entity.id or any(char.isspace() for char in entity.id):
             issues.append(
@@ -83,15 +101,11 @@ def validate_project(project: ProjectGraph) -> tuple[ValidationIssue, ...]:
             )
         if relation.source_id not in project.entities:
             issues.append(
-                ValidationIssue(
-                    "error", "relation.source", f"missing source {relation.source_id}"
-                )
+                ValidationIssue("error", "relation.source", f"missing source {relation.source_id}")
             )
         if relation.target_id not in project.entities:
             issues.append(
-                ValidationIssue(
-                    "error", "relation.target", f"missing target {relation.target_id}"
-                )
+                ValidationIssue("error", "relation.target", f"missing target {relation.target_id}")
             )
 
     containment = [
@@ -103,11 +117,7 @@ def validate_project(project: ProjectGraph) -> tuple[ValidationIssue, ...]:
     ]
     cycle = find_cycle(adjacency(project.entities, containment))
     if cycle is not None:
-        issues.append(
-            ValidationIssue(
-                "error", "containment.cycle", " -> ".join(cycle)
-            )
-        )
+        issues.append(ValidationIssue("error", "containment.cycle", " -> ".join(cycle)))
 
     work_ids = {entity.id for entity in project.by_kind("work_item")}
     hard_dependencies = [
@@ -119,16 +129,17 @@ def validate_project(project: ProjectGraph) -> tuple[ValidationIssue, ...]:
     ]
     cycle = find_cycle(adjacency(work_ids, hard_dependencies))
     if cycle is not None:
-        issues.append(
-            ValidationIssue("error", "work.cycle", " -> ".join(cycle))
-        )
+        issues.append(ValidationIssue("error", "work.cycle", " -> ".join(cycle)))
 
-    for claim in project.by_kind("claim"):
-        if not project.incoming(claim.id, {"supports", "discharges"}):
-            issues.append(
-                ValidationIssue(
-                    "warning", "claim.unsupported", "claim has no evidence", claim.id
-                )
-            )
+    issues.extend(
+        ValidationIssue(
+            "warning",
+            "claim.unsupported",
+            "claim has no evidence",
+            claim.id,
+        )
+        for claim in project.by_kind("claim")
+        if not project.incoming(claim.id, {"supports", "discharges"})
+    )
 
     return tuple(issues)

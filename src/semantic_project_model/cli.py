@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 import sys
-from typing import Sequence
+from collections.abc import Sequence
+from pathlib import Path
 
 from semantic_project_model.loader import load_project
 from semantic_project_model.schedule import assess_work, critical_path
@@ -51,16 +51,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"work items: {len(assessments)}")
         print(f"ready frontier: {len(ready)}")
         for item in ready:
-            print(
-                f"  - {item.entity.name}: {item.recommendation} "
-                f"({item.agentability}/100)"
-            )
+            print(f"  - {item.entity.name}: {item.recommendation} ({item.agentability}/100)")
         path = critical_path(project)
         if path:
-            print(
-                "critical path: "
-                + " -> ".join(project.entities[item].name for item in path)
-            )
+            print("critical path: " + " -> ".join(project.entities[item].name for item in path))
         return 0
 
     if args.command == "generate":

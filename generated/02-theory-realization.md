@@ -1,4 +1,4 @@
-# Theory–realization map
+# Theory-realization map
 
 <!-- Generated. Edit model sources, not this file. -->
 
