@@ -5,9 +5,10 @@
 | Kind | Count |
 |---|---:|
 | agent | 2 |
+| artifact | 1 |
 | assumption | 1 |
 | claim | 4 |
-| component | 12 |
+| component | 20 |
 | decision | 3 |
 | deployment | 2 |
 | domain_machine | 1 |
@@ -17,11 +18,12 @@
 | human | 1 |
 | invariant | 1 |
 | obligation | 1 |
+| package | 1 |
 | realization | 3 |
 | responsibility | 2 |
-| runtime | 7 |
+| runtime | 8 |
 | theory | 11 |
-| work_item | 13 |
+| work_item | 22 |
 
 - [System map](01-system-map.md)
 - [Theory–realization map](02-theory-realization.md)

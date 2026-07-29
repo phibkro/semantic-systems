@@ -14,6 +14,7 @@ flowchart LR
     realization_inventory_pure["Inventory pure realization"]
     realization_inventory_stm["Inventory STM realization"]
     runtime_actors["Actor runtime"]
+    runtime_deterministic_simulator["Deterministic concurrency simulator"]
     runtime_stm["STM runtime"]
     theory_actor["Actor semantics"]
     theory_cbpv["Value/computation separation"]
@@ -34,6 +35,8 @@ flowchart LR
     realization_inventory_stm -->|realizes| domain_inventory_machine
     realization_inventory_stm -->|requires| theory_stm
     handler_inventory_events -->|realizes| theory_event_log
+    runtime_deterministic_simulator -->|realizes| theory_actor
+    runtime_deterministic_simulator -->|realizes| theory_stm
     theory_effects -->|requires| theory_cbpv
     theory_usage -->|requires| theory_cbpv
     theory_prop -->|requires| theory_usage

@@ -4,10 +4,12 @@
 
 ```mermaid
 flowchart TD
+    artifact_normalized_core["Normalized semantic core artifact"]
     assumption_memory_model["Target atomic memory model"]
     claim_inventory_invariant["Inventory transitions preserve non-negative quantities"]
     claim_model_valid["Bootstrap model is structurally valid"]
     claim_stm_serializable["STM commits are serializable"]
+    component_kernel["Trusted kernel"]
     evidence_inventory_proof["Inventory preservation proof"]
     evidence_inventory_tests["Inventory property tests"]
     evidence_model_tests["Project model tests"]
@@ -16,6 +18,7 @@ flowchart TD
     obligation_inventory_proof["Inventory preservation obligation"]
     realization_inventory_stm["Inventory STM realization"]
     work_inventory_proof["Prove inventory invariant"]
+    component_kernel -->|validates| artifact_normalized_core
     evidence_model_tests -->|supports| claim_model_valid
     obligation_inventory_proof -->|discharges| claim_inventory_invariant
     evidence_inventory_tests -->|supports| claim_inventory_invariant
