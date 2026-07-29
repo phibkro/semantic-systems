@@ -145,6 +145,24 @@ completion feedback, and cleanup.
   treats every reproduced bypass as a required failing oracle. Branch
   protection remains a serial external integration step after corrected check
   names are exercised on a real PR.
+- 2026-07-29: The correction reached commits
+  `306d2acbfbaadb7cabe441de302222219b2e8a16` and
+  `df0d3c6f4d567977f617628c1d5e19ad4b1167b8`. Main-agent gates passed with
+  40 focused feature-policy tests, 65 full tests, static/tooling checks,
+  model/generated consistency, acceptance 0005, and both Nix derivations.
+- 2026-07-29: A separate final read-only review rejected `df0d3c6`. Git rename
+  detection exposed only destination paths, allowing a nontrivial file or
+  feature plan to move under `generated/` and be accepted as trivial. The
+  review also showed that ignored `.research-cache` content changes the
+  `nix flake check path:.` verdict and can enter the Nix store; the documented
+  `bun install --ignore-scripts` path leaves all local hooks dormant; and this
+  plan's current-state bullets remained stale after their implementation.
+- 2026-07-29: The next bounded correction must observe both sides of
+  renames/copies, behaviorally exclude noncanonical ignored caches from both
+  flake source forms, explicitly activate hooks after the safe ignored-script
+  install, update current state without rewriting history, and bind CI locale,
+  timezone, and Python hash seed where the frozen contract requires a
+  deterministic verdict.
 
 ## Decisions and deviations
 
@@ -160,6 +178,11 @@ completion feedback, and cleanup.
   evidence for design spec 0005. Its passing gates establish only the verified
   positive subset above; they do not establish feature-gate authority or the
   frozen lifecycle contract.
+- Commits `306d2acbfbaadb7cabe441de302222219b2e8a16` and
+  `df0d3c6f4d567977f617628c1d5e19ad4b1167b8` are also not accepted
+  integration evidence. Their green suites establish the named positive
+  sensors and deletion/zero-plan rejection, but not rename-source authority,
+  cache-independent path-flake behavior, or fresh-clone hook attachment.
 
 ## Completion state
 
