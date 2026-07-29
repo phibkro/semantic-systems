@@ -106,18 +106,14 @@ def test_export_is_byte_deterministic_and_content_addressed(tmp_path: Path) -> N
         (
             lambda: replace(
                 fixture_graph(),
-                relations=(
-                    replace(fixture_graph().relations[0], target_id="claim.missing"),
-                ),
+                relations=(replace(fixture_graph().relations[0], target_id="claim.missing"),),
             ),
             "missing target identity",
         ),
         (
             lambda: replace(
                 fixture_graph(),
-                relations=(
-                    replace(fixture_graph().relations[0], kind="not_a_relation"),
-                ),
+                relations=(replace(fixture_graph().relations[0], kind="not_a_relation"),),
             ),
             "unsupported relation kind",
         ),
@@ -175,6 +171,4 @@ def test_real_canonical_model_exports_with_exact_provenance() -> None:
     assert snapshot["metadata"]["commit"] == COMMIT
     assert snapshot["metadata"]["observed_at"] == OBSERVED_AT
     assert snapshot["unsupported_claim_ids"]
-    assert all(
-        f"/blob/{COMMIT}/model/" in entity["source_url"] for entity in snapshot["entities"]
-    )
+    assert all(f"/blob/{COMMIT}/model/" in entity["source_url"] for entity in snapshot["entities"])
