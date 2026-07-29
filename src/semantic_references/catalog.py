@@ -18,6 +18,23 @@ from typing import cast
 from semantic_references.errors import CatalogError
 
 _ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]*(\.[a-z0-9][a-z0-9-]*)*$")
+_CONTROL_CHAR_MAX = 0x1F
+_DEL_CHAR = 0x7F
+
+
+def is_git_safe_value(value: str) -> bool:
+    """Reject values that could be misread as a CLI option or carry control bytes.
+
+    Applied to every catalog/lock field that is ever passed as a bare
+    positional argument to ``git`` (origin URLs, refs, aliases): a leading
+    ``-`` risks being parsed as an option, and control characters (including
+    ANSI escapes) have no legitimate place in a Git ref or URL.
+    """
+    if not value:
+        return False
+    if value.startswith("-"):
+        return False
+    return not any(ord(ch) <= _CONTROL_CHAR_MAX or ord(ch) == _DEL_CHAR for ch in value)
 
 
 @dataclass(frozen=True, slots=True)
@@ -136,9 +153,23 @@ def _validate_source(record: dict[str, object]) -> CatalogSource:
 
     kind = _require_str(record, "kind", source_id)
     origin = _require_str(record, "origin", source_id)
+    if not is_git_safe_value(origin):
+        raise CatalogError(
+            f"source {source_id!r}: 'origin' is not safe (option-like or has control characters)"
+        )
     local_hint = _optional_str(record, "local_hint", source_id)
     origin_aliases = _optional_str_list(record, "origin_aliases", source_id)
+    for alias in origin_aliases:
+        if not is_git_safe_value(alias):
+            raise CatalogError(
+                f"source {source_id!r}: origin_aliases entry {alias!r} is not safe "
+                "(option-like or has control characters)"
+            )
     track = _optional_str(record, "track", source_id)
+    if track is not None and not is_git_safe_value(track):
+        raise CatalogError(
+            f"source {source_id!r}: 'track' is not safe (option-like or has control characters)"
+        )
     license_paths_raw = _optional_str_list(record, "license_paths", source_id)
     classes = _optional_str_list(record, "classes", source_id)
     questions = _optional_str_list(record, "questions", source_id)

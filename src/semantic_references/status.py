@@ -38,6 +38,7 @@ class StatusReport:
     source_id: str
     state: CustodyState
     reasons: tuple[str, ...]
+    lock_only: bool = False
     origin: str | None = None
     track: str | None = None
     resolved_ref: str | None = None
@@ -49,6 +50,14 @@ class StatusReport:
 
     @property
     def strict_ok(self) -> bool:
+        """Whether this report satisfies strict status for the mode it ran in.
+
+        ``--lock-only`` never opens a checkout, so its success bar is a
+        structurally valid, undrifted lock (``locked_unmaterialized``); the
+        strict default still requires an actual verified materialization.
+        """
+        if self.lock_only:
+            return self.state == CustodyState.LOCKED_UNMATERIALIZED
         return self.state in _STRICT_OK_STATES
 
     def to_json(self) -> dict[str, object]:
@@ -114,12 +123,18 @@ def _check_licenses(target: Path, head: str, licenses: dict[str, LicenseObservat
 
 
 def _report_from_entry(
-    source_id: str, entry: LockEntry, state: CustodyState, reasons: tuple[str, ...]
+    source_id: str,
+    entry: LockEntry,
+    state: CustodyState,
+    reasons: tuple[str, ...],
+    *,
+    lock_only: bool = False,
 ) -> StatusReport:
     return StatusReport(
         source_id=source_id,
         state=state,
         reasons=reasons,
+        lock_only=lock_only,
         origin=entry.origin,
         track=entry.track,
         resolved_ref=entry.resolved_ref,
@@ -145,6 +160,7 @@ def compute_status(
             source_id=source.id,
             state=CustodyState.QUEUED_UNLOCKED,
             reasons=reasons,
+            lock_only=lock_only,
             origin=source.origin,
             track=source.track,
         )
@@ -155,6 +171,7 @@ def compute_status(
             entry,
             CustodyState.DRIFTED,
             ("catalog record no longer matches the digest recorded at lock time",),
+            lock_only=lock_only,
         )
 
     if lock_only:
@@ -163,6 +180,7 @@ def compute_status(
             entry,
             CustodyState.LOCKED_UNMATERIALIZED,
             ("--lock-only: checkout was not inspected",),
+            lock_only=True,
         )
 
     target = checkout_dir(references_root, source.id)

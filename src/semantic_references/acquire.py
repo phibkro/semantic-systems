@@ -70,6 +70,64 @@ def _hash_licenses(
     return licenses
 
 
+def _resolve_offline_repo(
+    source: CatalogSource, project_root: Path, cache_dir: Path, track: str
+) -> tuple[Path, str]:
+    if cache_dir.exists():
+        try:
+            gitutil.resolve_commit(cache_dir, track)
+        except AcquisitionError:
+            pass
+        else:
+            return cache_dir, "local-object-cache"
+    return resolve_local_sibling(source, project_root), "local-sibling"
+
+
+def _resolve_ref_offline(
+    repo_dir: Path, acquisition: str, track: str, existing_entry: LockEntry | None
+) -> str:
+    if acquisition == "local-sibling":
+        # A local sibling is a real, queryable repository (no network needed):
+        # ask it directly what a symbolic selector like HEAD concretely names.
+        return gitutil.resolve_track_ref(str(repo_dir), track)
+    # A bare object cache has no meaningful HEAD of its own, and asking the
+    # declared origin would require network access, which offline mode must
+    # never do. Best effort: keep whatever a prior resolution already found.
+    if existing_entry is not None and existing_entry.track == track:
+        return existing_entry.resolved_ref
+    return track
+
+
+def _lock_remote(
+    source: CatalogSource, track: str, cache_dir: Path
+) -> tuple[str, str, dict[str, LicenseObservation], str, str]:
+    """Fetch, fully validate in an isolated temp dir, and only then install the cache.
+
+    A failure at any point (fetch, hashing, license validation) leaves
+    ``cache_dir`` exactly as it was — a prior valid cache is never replaced
+    with a fetch that hasn't yet proven itself correct.
+    """
+    cache_dir.parent.mkdir(parents=True, exist_ok=True)
+    tmp_dir = Path(tempfile.mkdtemp(prefix=".lock-fetch-", dir=cache_dir.parent))
+    try:
+        gitutil.init_repo(tmp_dir)
+        gitutil.fetch_shallow_blobless(tmp_dir, source.origin, track)
+        commit = gitutil.resolve_commit(tmp_dir, "FETCH_HEAD")
+        tree = gitutil.tree_of_commit(tmp_dir, commit)
+        licenses = _hash_licenses(tmp_dir, source, commit)
+        fmt = gitutil.object_format(tmp_dir)
+        resolved_ref = gitutil.resolve_track_ref(source.origin, track)
+
+        # Only now, with everything validated, install the new cache.
+        if cache_dir.exists():
+            shutil.rmtree(cache_dir)
+        tmp_dir.replace(cache_dir)
+    except BaseException:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        raise
+    return commit, tree, licenses, fmt, resolved_ref
+
+
 def lock_source(
     source: CatalogSource,
     *,
@@ -84,52 +142,25 @@ def lock_source(
             f"source {source.id!r} has no 'track'/'license_paths' declared and cannot be locked"
         )
     track = source.track
-
     cache_dir = object_cache_dir(references_root, source.id)
 
     if offline:
-        if cache_dir.exists():
-            repo_dir = cache_dir
-            try:
-                commit = gitutil.resolve_commit(repo_dir, track)
-            except AcquisitionError:
-                repo_dir = resolve_local_sibling(source, project_root)
-                commit = gitutil.resolve_commit(repo_dir, track)
-                acquisition = "local-sibling"
-            else:
-                acquisition = "local-object-cache"
-        else:
-            repo_dir = resolve_local_sibling(source, project_root)
-            commit = gitutil.resolve_commit(repo_dir, track)
-            acquisition = "local-sibling"
+        repo_dir, acquisition = _resolve_offline_repo(source, project_root, cache_dir, track)
+        commit = gitutil.resolve_commit(repo_dir, track)
+        resolved_ref = _resolve_ref_offline(repo_dir, acquisition, track, existing_entry)
         origin_verified = False
+        tree = gitutil.tree_of_commit(repo_dir, commit)
+        licenses = _hash_licenses(repo_dir, source, commit)
+        fmt = gitutil.object_format(repo_dir)
     else:
-        cache_dir.parent.mkdir(parents=True, exist_ok=True)
-        tmp_dir = Path(tempfile.mkdtemp(prefix=".lock-fetch-", dir=cache_dir.parent))
-        try:
-            gitutil.init_repo(tmp_dir)
-            gitutil.fetch_shallow_blobless(tmp_dir, source.origin, track)
-            commit = gitutil.resolve_commit(tmp_dir, "FETCH_HEAD")
-            if cache_dir.exists():
-                shutil.rmtree(cache_dir)
-            tmp_dir.replace(cache_dir)
-        except BaseException:
-            shutil.rmtree(tmp_dir, ignore_errors=True)
-            raise
-        repo_dir = cache_dir
+        commit, tree, licenses, fmt, resolved_ref = _lock_remote(source, track, cache_dir)
         acquisition = "remote"
         origin_verified = True
-
-    tree = gitutil.tree_of_commit(repo_dir, commit)
-    licenses = _hash_licenses(repo_dir, source, commit)
-    fmt = gitutil.object_format(repo_dir)
 
     candidate = LockEntry(
         origin=source.origin,
         track=track,
-        # This implementation always fetches the declared selector by name, so the
-        # concrete ref resolved this time is that same selector.
-        resolved_ref=track,
+        resolved_ref=resolved_ref,
         object_format=fmt,
         commit=commit,
         tree=tree,

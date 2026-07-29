@@ -77,8 +77,14 @@ def materialize_source(
     allow_history_fallback: bool,
 ) -> Path:
     target = checkout_dir(references_root, source.id)
-    if _already_materialized(target, source, entry):
-        return target
+    if target.exists():
+        if _already_materialized(target, source, entry):
+            return target
+        raise AcquisitionError(
+            f"source {source.id!r}: an existing checkout at {target} does not match the "
+            "locked commit; refusing to overwrite or delete it — remove it manually first "
+            "if you want it rebuilt"
+        )
 
     tmp_parent = references_root / source.id
     tmp_parent.mkdir(parents=True, exist_ok=True)
@@ -90,8 +96,8 @@ def materialize_source(
             _materialize_remote(tmp_worktree, source, entry, allow_history_fallback)
         _verify_worktree(tmp_worktree, source, entry)
 
-        if target.exists():
-            shutil.rmtree(target)
+        # `target` is guaranteed absent here (checked above), so this is a
+        # plain install, never an overwrite of existing content.
         tmp_worktree.replace(target)
     except BaseException:
         shutil.rmtree(tmp_worktree, ignore_errors=True)
@@ -122,6 +128,19 @@ def _materialize_offline(
     gitutil.checkout_detached(tmp_worktree, entry.commit)
 
 
+def _fetch_shallow_if_matches(tmp_worktree: Path, origin: str, ref: str, want_commit: str) -> bool:
+    """Shallow-fetch ``ref`` and report whether it produced exactly ``want_commit``.
+
+    A fetch that succeeds but lands on a different commit (the ref moved) is
+    reported as a miss, not an error — the caller decides what to do next.
+    """
+    try:
+        resolved = gitutil.fetch_shallow_blobless(tmp_worktree, origin, ref)
+    except AcquisitionError:
+        return False
+    return resolved == want_commit
+
+
 def _materialize_remote(
     tmp_worktree: Path,
     source: CatalogSource,
@@ -129,19 +148,27 @@ def _materialize_remote(
     allow_history_fallback: bool,
 ) -> None:
     gitutil.init_repo(tmp_worktree)
-    try:
-        gitutil.fetch_shallow_blobless(tmp_worktree, source.origin, entry.commit)
-    except AcquisitionError as exc:
+
+    # 1. Exact shallow fetch of the locked commit itself. 2. Failing that, a
+    #    shallow fetch of the recorded ref, accepted only if it still
+    #    resolves to the locked commit (the branch hasn't moved).
+    exact_ok = _fetch_shallow_if_matches(tmp_worktree, source.origin, entry.commit, entry.commit)
+    ref_ok = exact_ok or _fetch_shallow_if_matches(
+        tmp_worktree, source.origin, entry.resolved_ref, entry.commit
+    )
+    if not ref_ok:
         if not allow_history_fallback:
             raise AcquisitionError(
-                f"source {source.id!r}: exact shallow fetch of {entry.commit} failed and "
-                "--allow-history-fallback was not given"
-            ) from exc
-        track = entry.track
-        gitutil.fetch_blobless_history(tmp_worktree, source.origin, track)
+                f"source {source.id!r}: exact shallow fetch of {entry.commit} failed, and "
+                f"a shallow fetch of tracked ref {entry.resolved_ref!r} did not resolve to "
+                "the locked commit; --allow-history-fallback was not given"
+            )
+        # 3. Broader blobless history fetch, explicitly opted into.
+        gitutil.fetch_blobless_history(tmp_worktree, source.origin, entry.track)
         if not gitutil.object_exists(tmp_worktree, entry.commit):
             raise AcquisitionError(
-                f"source {source.id!r}: locked commit {entry.commit} is not reachable from "
-                f"tracked ref {track!r} even after a broader history fetch"
-            ) from exc
+                f"source {source.id!r}: locked commit {entry.commit} is not reachable "
+                f"from tracked ref {entry.track!r} even after a broader history fetch"
+            )
+
     gitutil.checkout_detached(tmp_worktree, entry.commit)

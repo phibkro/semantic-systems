@@ -24,7 +24,14 @@ from semantic_references.errors import (
     LockFileError,
     NotLockableError,
 )
-from semantic_references.lockfile import Lock, load_lock, parse_lock_text, write_lock
+from semantic_references.lockfile import (
+    LicenseObservation,
+    Lock,
+    LockEntry,
+    load_lock,
+    parse_lock_text,
+    write_lock,
+)
 
 # --------------------------------------------------------------------------
 # Git fixture helpers
@@ -904,3 +911,431 @@ def test_cli_status_all_requires_id_or_all(tmp_path: Path) -> None:
     (project_root / "references" / "sources.toml").write_text("schema = 1\n")
     exit_code = cli.main(["--root", str(project_root), "status"])
     assert exit_code == cli.EXIT_USAGE_ERROR
+
+
+# --------------------------------------------------------------------------
+# Corrective fixes: gate findings on e2b8251
+# --------------------------------------------------------------------------
+
+
+def test_materialize_refuses_mismatched_existing_checkout_and_never_deletes_it(
+    tmp_path: Path, sibling: Path
+) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    references_root = project_root / ".references"
+    source = make_source()
+
+    entry_a = acquire.lock_source(
+        source,
+        project_root=project_root,
+        references_root=references_root,
+        generator="t",
+        offline=True,
+        existing_entry=None,
+    )
+    materialize_mod.materialize_source(
+        source,
+        entry_a,
+        project_root=project_root,
+        references_root=references_root,
+        offline=True,
+        allow_history_fallback=False,
+    )
+    target = materialize_mod.checkout_dir(references_root, source.id)
+    commit_a = gitutil.head_commit(target)
+    marker = target / "LICENSE"
+    marker_bytes = marker.read_bytes()
+
+    (sibling / "extra.txt").write_text("more\n")
+    commit_b = _commit_all(sibling, "advance")
+    assert commit_b != commit_a
+
+    entry_b = acquire.lock_source(
+        source,
+        project_root=project_root,
+        references_root=references_root,
+        generator="t",
+        offline=True,
+        existing_entry=entry_a,
+    )
+    assert entry_b.commit == commit_b
+
+    with pytest.raises(AcquisitionError, match="refusing to overwrite"):
+        materialize_mod.materialize_source(
+            source,
+            entry_b,
+            project_root=project_root,
+            references_root=references_root,
+            offline=True,
+            allow_history_fallback=False,
+        )
+
+    # the mismatched checkout must survive untouched — never deleted, never
+    # silently replaced.
+    assert target.exists()
+    assert gitutil.head_commit(target) == commit_a
+    assert marker.read_bytes() == marker_bytes
+
+
+def test_cache_replacement_preserves_prior_valid_cache_on_failed_relock(tmp_path: Path) -> None:
+    origin_repo = _init_repo(tmp_path / "origin", branch="main")
+    (origin_repo / "LICENSE").write_text("MIT\n")
+    _commit_all(origin_repo, "init")
+
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    references_root = project_root / ".references"
+    source = make_source(
+        source_id="remote.cache-demo",
+        origin=f"file://{origin_repo}",
+        local_hint=None,
+        track="main",
+    )
+
+    entry_a = acquire.lock_source(
+        source,
+        project_root=project_root,
+        references_root=references_root,
+        generator="t",
+        offline=False,
+        existing_entry=None,
+    )
+    cache_dir = acquire.object_cache_dir(references_root, source.id)
+    assert cache_dir.exists()
+    marker = cache_dir / "MARKER-KEEP"
+    marker.write_text("prior valid cache")
+
+    # Advance origin and remove the declared license — the next fetch will
+    # succeed, but license validation must fail *before* the cache is touched.
+    (origin_repo / "LICENSE").unlink()
+    _commit_all(origin_repo, "drop license")
+
+    with pytest.raises(AcquisitionError):
+        acquire.lock_source(
+            source,
+            project_root=project_root,
+            references_root=references_root,
+            generator="t",
+            offline=False,
+            existing_entry=entry_a,
+        )
+
+    # the prior valid cache (identified by our marker) must still be there,
+    # still resolving to the original locked commit.
+    assert marker.exists()
+    assert gitutil.object_exists(cache_dir, entry_a.commit)
+
+
+def test_remote_materialize_sequence_exact_then_ref_then_history_fallback(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    origin_repo = _init_repo(tmp_path / "origin", branch="main")
+    (origin_repo / "LICENSE").write_text("MIT\n")
+    commit_a = _commit_all(origin_repo, "init")
+    (origin_repo / "extra.txt").write_text("more\n")
+    _commit_all(origin_repo, "advance past locked commit")
+
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    references_root = project_root / ".references"
+    source = make_source(
+        source_id="remote.sequence-demo",
+        origin=f"file://{origin_repo}",
+        local_hint=None,
+        track="main",
+    )
+
+    entry = LockEntry(
+        origin=source.origin,
+        track="main",
+        resolved_ref="main",
+        object_format="sha1",
+        commit=commit_a,
+        tree=gitutil.tree_of_commit(origin_repo, commit_a),
+        catalog_digest=source.canonical_digest(),
+        retrieved_at="2026-01-01T00:00:00Z",
+        acquisition="remote",
+        origin_verified=True,
+        licenses={
+            "LICENSE": LicenseObservation(
+                mode="100644", size=4, sha256=hashlib.sha256(b"MIT\n").hexdigest()
+            )
+        },
+    )
+
+    real_fetch = gitutil.fetch_shallow_blobless
+    attempted_refs: list[str] = []
+
+    def fake_fetch(repo_dir: Path, url: str, ref: str) -> str:
+        attempted_refs.append(ref)
+        if ref == entry.commit:
+            # Simulate a server that disallows fetching an arbitrary SHA.
+            raise AcquisitionError("simulated: server refuses SHA fetch")
+        return real_fetch(repo_dir, url, ref)
+
+    monkeypatch.setattr(gitutil, "fetch_shallow_blobless", fake_fetch)
+
+    # The recorded ref ("main") has moved past the locked commit, so without
+    # history fallback this must fail — and it must have tried the exact
+    # commit first, then the recorded ref, in that order.
+    with pytest.raises(AcquisitionError, match="allow-history-fallback"):
+        materialize_mod.materialize_source(
+            source,
+            entry,
+            project_root=project_root,
+            references_root=references_root,
+            offline=False,
+            allow_history_fallback=False,
+        )
+    assert attempted_refs == [entry.commit, entry.resolved_ref]
+
+    # A distinct source id: the checkout dir must not already exist for it.
+    source2 = make_source(
+        source_id="remote.sequence-demo-2", origin=source.origin, local_hint=None, track="main"
+    )
+    target = materialize_mod.materialize_source(
+        source2,
+        entry,
+        project_root=project_root,
+        references_root=references_root,
+        offline=False,
+        allow_history_fallback=True,
+    )
+    assert gitutil.head_commit(target) == commit_a
+
+
+def test_lock_resolves_symbolic_head_offline_via_sibling(tmp_path: Path) -> None:
+    sibling_repo = _init_repo(tmp_path / "sibling", branch="trunk")
+    (sibling_repo / "LICENSE").write_text("MIT\n")
+    _commit_all(sibling_repo, "init")
+    _add_remote(sibling_repo, "https://example.com/demo.git")
+
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    references_root = project_root / ".references"
+    source = make_source()
+
+    entry = acquire.lock_source(
+        source,
+        project_root=project_root,
+        references_root=references_root,
+        generator="t",
+        offline=True,
+        existing_entry=None,
+    )
+    assert entry.track == "HEAD"
+    assert entry.resolved_ref == "refs/heads/trunk"
+
+
+def test_lock_resolves_symbolic_head_remote(tmp_path: Path) -> None:
+    origin_repo = _init_repo(tmp_path / "origin", branch="trunk")
+    (origin_repo / "LICENSE").write_text("MIT\n")
+    _commit_all(origin_repo, "init")
+
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    references_root = project_root / ".references"
+    source = make_source(
+        source_id="remote.head-demo", origin=f"file://{origin_repo}", local_hint=None, track="HEAD"
+    )
+
+    entry = acquire.lock_source(
+        source,
+        project_root=project_root,
+        references_root=references_root,
+        generator="t",
+        offline=False,
+        existing_entry=None,
+    )
+    assert entry.track == "HEAD"
+    assert entry.resolved_ref == "refs/heads/trunk"
+
+
+def test_git_invocations_disable_hooks(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    gitutil.init_repo(repo)
+    (repo / "file.txt").write_text("x\n")
+    _commit_all(repo, "init")
+
+    hooks_dir = repo / ".git" / "hooks"
+    marker = tmp_path / "hook-fired"
+    hook = hooks_dir / "post-checkout"
+    hook.write_text(f"#!/bin/sh\ntouch {marker}\n")
+    hook.chmod(0o755)
+
+    commit = gitutil.resolve_commit(repo, "HEAD")
+    gitutil.checkout_detached(repo, commit)
+
+    assert not marker.exists()
+
+
+def test_git_invocations_ignore_global_config(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake_home = tmp_path / "fake_home"
+    fake_home.mkdir()
+    (fake_home / ".gitconfig").write_text("[custody]\n  poisoned = true\n")
+    monkeypatch.setenv("HOME", str(fake_home))
+
+    repo = tmp_path / "repo2"
+    gitutil.init_repo(repo)
+    result = gitutil.run_git(["-C", str(repo), "config", "--get", "custody.poisoned"], check=False)
+    assert result.returncode != 0
+
+
+def test_rejects_option_like_origin() -> None:
+    text = """
+schema = 1
+[[source]]
+id = "demo"
+kind = "git"
+origin = "--upload-pack=evil"
+track = "HEAD"
+license_paths = ["LICENSE"]
+"""
+    with pytest.raises(CatalogError, match="origin"):
+        parse_catalog_text(text)
+
+
+def test_rejects_control_character_track() -> None:
+    text = (
+        "schema = 1\n"
+        "[[source]]\n"
+        'id = "demo"\n'
+        'kind = "git"\n'
+        'origin = "https://example.com/x.git"\n'
+        'track = "HEAD\\u001b[31m"\n'
+        'license_paths = ["LICENSE"]\n'
+    )
+    with pytest.raises(CatalogError, match="track"):
+        parse_catalog_text(text)
+
+
+def test_rejects_option_like_origin_alias() -> None:
+    text = """
+schema = 1
+[[source]]
+id = "demo"
+kind = "git"
+origin = "https://example.com/x.git"
+origin_aliases = ["-x"]
+track = "HEAD"
+license_paths = ["LICENSE"]
+"""
+    with pytest.raises(CatalogError, match="origin_aliases"):
+        parse_catalog_text(text)
+
+
+def test_rejects_unsafe_lock_source_id() -> None:
+    text = json.dumps(
+        {
+            "schema": "reference-lock-v1",
+            "generator": "g",
+            "sources": {
+                "../escape": {
+                    "origin": "https://example.com/x.git",
+                    "track": "HEAD",
+                    "resolved_ref": "HEAD",
+                    "object_format": "sha1",
+                    "commit": "a" * 40,
+                    "tree": "b" * 40,
+                    "catalog_digest": "c" * 64,
+                    "retrieved_at": "2026-01-01T00:00:00Z",
+                    "acquisition": "remote",
+                    "origin_verified": True,
+                    "licenses": {"LICENSE": {"mode": "100644", "size": 1, "sha256": "d" * 64}},
+                }
+            },
+        }
+    )
+    with pytest.raises(LockFileError, match="unsafe"):
+        parse_lock_text(text)
+
+
+def test_lock_only_status_succeeds_without_materialization(tmp_path: Path, sibling: Path) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    references_root = project_root / ".references"
+    source = make_source()
+
+    entry = acquire.lock_source(
+        source,
+        project_root=project_root,
+        references_root=references_root,
+        generator="t",
+        offline=True,
+        existing_entry=None,
+    )
+    lock = Lock(generator="t", sources={source.id: entry})
+
+    lock_only_report = status.compute_status(source, lock, references_root, lock_only=True)
+    assert lock_only_report.state == status.CustodyState.LOCKED_UNMATERIALIZED
+    assert lock_only_report.strict_ok
+
+    strict_default_report = status.compute_status(source, lock, references_root, lock_only=False)
+    assert strict_default_report.state == status.CustodyState.LOCKED_UNMATERIALIZED
+    assert not strict_default_report.strict_ok
+
+
+def test_cli_lock_only_status_exits_zero(tmp_path: Path, sibling: Path) -> None:
+    project_root = tmp_path / "project"
+    (project_root / "references").mkdir(parents=True)
+    (project_root / "references" / "sources.toml").write_text(
+        """
+schema = 1
+
+[[source]]
+id = "local.demo"
+kind = "local-git"
+origin = "https://example.com/demo.git"
+local_hint = "../sibling"
+track = "HEAD"
+license_paths = ["LICENSE"]
+"""
+    )
+
+    assert cli.main(["--root", str(project_root), "lock", "local.demo", "--offline"]) == 0
+    assert cli.main(["--root", str(project_root), "status", "local.demo"]) == 1
+    assert cli.main(["--root", str(project_root), "status", "local.demo", "--lock-only"]) == 0
+
+
+def test_cli_lock_all_is_transactional_on_partial_failure(tmp_path: Path, sibling: Path) -> None:
+    project_root = tmp_path / "project"
+    (project_root / "references").mkdir(parents=True)
+    (project_root / "references" / "sources.toml").write_text(
+        """
+schema = 1
+
+[[source]]
+id = "local.good"
+kind = "local-git"
+origin = "https://example.com/demo.git"
+local_hint = "../sibling"
+track = "HEAD"
+license_paths = ["LICENSE"]
+
+[[source]]
+id = "local.bad"
+kind = "local-git"
+origin = "https://example.com/nowhere.git"
+local_hint = "../missing-sibling"
+track = "HEAD"
+license_paths = ["LICENSE"]
+"""
+    )
+    lock_path = project_root / "references" / "sources.lock.json"
+
+    exit_code = cli.main(["--root", str(project_root), "lock", "--all", "--offline"])
+    assert exit_code == 1
+    assert not lock_path.exists()
+
+    # Now lock only the good one, establishing a valid baseline lock file.
+    assert cli.main(["--root", str(project_root), "lock", "local.good", "--offline"]) == 0
+    baseline_bytes = lock_path.read_bytes()
+
+    # Re-running --all again still fails on the bad source and must not
+    # rewrite the file at all — not even to re-affirm the good entry.
+    exit_code = cli.main(["--root", str(project_root), "lock", "--all", "--offline"])
+    assert exit_code == 1
+    assert lock_path.read_bytes() == baseline_bytes

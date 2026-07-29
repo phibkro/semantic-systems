@@ -123,7 +123,13 @@ def _cmd_lock(root: Path, source_id: str | None, all_sources: bool, offline: boo
                 continue
             entries[i] = entry
             print(f"{i}: locked at {entry.commit}")
-        write_lock(lock_path, Lock(generator=_GENERATOR, sources=entries))
+        if failures:
+            print(
+                "lock: one or more requested sources failed; writing no lock changes",
+                file=sys.stderr,
+            )
+        else:
+            write_lock(lock_path, Lock(generator=_GENERATOR, sources=entries))
     return 1 if failures else 0
 
 
