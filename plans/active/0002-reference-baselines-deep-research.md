@@ -72,6 +72,11 @@ experiment backlog.
   established before the concurrency clarification.
 - Native `/deep-research` comparison lane: completed in
   `semantic-deep-research-fable`; 109 inherited Fable 5/high agents.
+- Controlled routed treatment: running in `semantic-deep-research-fable` as
+  workflow `wf_a3592134-285`, task `wj3mrs8y3`. Its script is byte-identical
+  to the native workflow except metadata and five explicit model/effort
+  options: Fable/high scope, Opus/medium search, Sonnet/medium fetch,
+  Sonnet/medium verification, and Fable/high synthesis.
 - Workflow Sonnet/Opus children: running under explicit model routing in the
   custom lane.
 - Independent main-agent verification: pending synthesis.
@@ -157,6 +162,10 @@ Research-specific acceptance is the checklist in design spec 0002.
 - 2026-07-29: Saved provisional development insights and the native
   `/deep-research` telemetry before dispatching the controlled model-routed
   treatment.
+- 2026-07-29: Launched controlled routed treatment `wf_a3592134-285` with
+  native mechanics and budgets unchanged. The research output classifies
+  reuse as substantially as-is, adapted behind a project-owned boundary, or
+  fresh implementation/semantic synthesis.
 - 2026-07-29: Recorded the type-system refinement ladder as uncertainty 0002,
   without expanding the active semantic frontier.
 
