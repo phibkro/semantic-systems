@@ -24,6 +24,10 @@ limits, semantic diff, and kill criteria are frozen in design spec 0005.
 - GitHub reports that `main` currently has no branch protection. Required-check
   enforcement must be configured only after the final workflow check names are
   stable, then exercised by the pilot PR.
+- `nix flake check` currently passes only flake evaluation for the local
+  `x86_64-linux` dev shell and formatter; the flake exports no project test
+  derivation yet. It must not be reported as an integration-test gate until
+  `checks` actually run repository validation.
 - The active checker exposed a correlated-sensor failure mode when resolver and
   checker briefly shared the same adjudication function.
 
