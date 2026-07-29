@@ -15,6 +15,19 @@ function stableStringify(value: unknown): string {
   return JSON.stringify(value);
 }
 
+async function expectedObservationLabel(): Promise<"Local preview" | "Main CI assertion"> {
+  const data = path.resolve(import.meta.dirname, "../dist/data");
+  const version = JSON.parse(await readFile(path.join(data, "version.json"), "utf8")) as {
+    snapshot: string;
+  };
+  const snapshot = JSON.parse(await readFile(path.join(data, version.snapshot), "utf8")) as {
+    metadata: { observation_source: string };
+  };
+  if (snapshot.metadata.observation_source === "local_preview") return "Local preview";
+  if (snapshot.metadata.observation_source === "main_ci_assertion") return "Main CI assertion";
+  throw new Error(`unexpected observation source: ${snapshot.metadata.observation_source}`);
+}
+
 test("phone viewport exposes five views, search, drilldown, and provenance", async ({ page }) => {
   await page.goto(".");
 
@@ -113,7 +126,7 @@ test("a newer complete snapshot becomes visible, applies atomically, and cannot 
 
   try {
     await page.goto(".");
-    await expect(page.getByText("Local preview", { exact: true })).toBeVisible();
+    await expect(page.getByText(await expectedObservationLabel(), { exact: true })).toBeVisible();
     await page.evaluate(async () => {
       await navigator.serviceWorker.ready;
     });
@@ -138,7 +151,7 @@ test("a newer complete snapshot becomes visible, applies atomically, and cannot 
 
 test("installed shell visibly uses the last valid snapshot offline", async ({ context, page }) => {
   await page.goto(".");
-  await expect(page.getByText("Local preview", { exact: true })).toBeVisible();
+  await expect(page.getByText(await expectedObservationLabel(), { exact: true })).toBeVisible();
   await page.evaluate(async () => {
     await navigator.serviceWorker.ready;
   });
