@@ -106,6 +106,10 @@ posture:
   other complex reasoning.
 - Prefer Sonnet 5 for bounded mechanical implementation after the contract,
   owned paths, and executable acceptance commands are frozen.
+- Launch delegated Claude Code sessions with `--permission-mode auto`. Do not
+  use `dontAsk`: it converts routine read-only shell and network operations
+  into silent evidence gaps instead of routing them through the permission
+  classifier.
 - Let already-running delegated work finish unless it is blocked or has drifted
   outside its contract; apply this routing to new assignments.
 - Model output is advisory or contributory evidence, never semantic authority.
