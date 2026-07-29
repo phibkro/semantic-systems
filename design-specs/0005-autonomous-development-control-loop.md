@@ -102,6 +102,7 @@ Checks attach to the transition they can observe:
 |---|---|---|
 | Spec frozen | unique ID, falsifiers, ownership, dependencies, acceptance | implementation may start |
 | File save/watch | focused parse, type, format, and red/green oracle | advisory |
+| Commit message | checked-in Conventional Commits policy | bypassable local guard |
 | Pre-commit | fast read-only checks and targeted tests | bypassable local guard |
 | Pre-push | pinned integration suite and architecture boundaries | bypassable local guard |
 | PR open/synchronize/reopen | exact-head integration and feature acceptance | required server gate |
@@ -131,6 +132,19 @@ Specialized triggers include:
 - evidence metadata changes re-run category, subject, and assumption checks;
 - dependency/lock changes re-run custody and reproducibility checks;
 - architecture-boundary changes re-run forbidden-import and capability tests.
+
+### Commit identity and changelog signal
+
+Every new commit and pull-request title conforms to Conventional Commits. One
+checked-in commitlint configuration defines the grammar for the local
+`commit-msg` hook, pull-request commit range, merge queue, and squash title.
+The allowed types include the standard change types plus the project's
+meaningful `research`, `design`, `governance`, and `plans` categories.
+
+Commit syntax is a static metadata check, not evidence that a change is
+semantically compatible. CI is authoritative because local hooks are
+bypassable. A single invalid message reports the exact commit and violated
+rule; CI does not rewrite history or silently repair the title.
 
 ### Cybernetic evaluation model
 

@@ -37,7 +37,8 @@ limits, semantic diff, and kill criteria are frozen in design spec 0005.
 2. Required-tool fast and integration scripts.
 3. Feature acceptance-script convention.
 4. CI jobs with exact-head reporting.
-5. Lightweight contract/PR metadata validation.
+5. Conventional Commit and lightweight contract/PR metadata validation from
+   one checked-in configuration.
 6. Branch/ruleset inspection and minimal required-check configuration.
 7. Pilot on one completed tracer.
 8. Independent adversarial review.
@@ -116,6 +117,10 @@ completion feedback, and cleanup.
 - 2026-07-29: Audited all 30 commits with Gitleaks 8.30.1 and a manual
   publication scan, then made `phibkro/semantic-systems` public at operator
   request. Verified GitHub secret scanning and push protection are enabled.
+- 2026-07-29: Operator required Conventional Commits. Added the frozen
+  local-`commit-msg` plus PR-range/title and merge-queue enforcement contract;
+  CI remains authoritative and commit syntax remains metadata rather than
+  semantic evidence.
 
 ## Decisions and deviations
 
