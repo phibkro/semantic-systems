@@ -11,25 +11,25 @@ limits, semantic diff, and kill criteria are frozen in design spec 0005.
 
 ## Current state
 
-- The public repository has one GitHub Actions workflow running Ruff, format,
-  Pyright, pytest, model validation, and generated-view checks.
-- `scripts/check.sh` runs the integration suite, but silently warns when Ruff
-  or Pyright are missing.
-- Strict Ruff and Pyright configuration already exists.
-- Design specs and execution plans exist, but there is no PR template,
-  acceptance-script convention, exact-head contract check, or documented
-  autonomous merge boundary.
-- Completed Herdr tabs required manual cleanup; three harvested tabs were
-  closed on 2026-07-29.
-- GitHub reports that `main` currently has no branch protection. Required-check
-  enforcement must be configured only after the final workflow check names are
-  stable, then exercised by the pilot PR.
-- `nix flake check` currently passes only flake evaluation for the local
-  `x86_64-linux` dev shell and formatter; the flake exports no project test
-  derivation yet. It must not be reported as an integration-test gate until
-  `checks` actually run repository validation.
-- The active checker exposed a correlated-sensor failure mode when resolver and
-  checker briefly shared the same adjudication function.
+- The repository has required-tool fast and integration loops; required tools
+  fail closed in the pinned environment rather than degrading to warnings.
+- Pull requests have a machine-readable feature contract, completion template,
+  exact-head checkout, feature acceptance dispatch, and commit/title policy.
+- Merge-group and main-push ranges replay acceptance for changed feature plans,
+  while narrow zero-plan maintenance ranges are reported without representing
+  feature acceptance.
+- `nix flake check` exports real project checks for Python integration and
+  commit-policy conformance, with noncanonical cache inputs filtered from both
+  Git-flake and `path:.` evaluation.
+- Local commit, pre-commit, and pre-push hooks are checked in and explicitly
+  installed after the script-disabled frozen dependency install. They remain
+  advisory and bypassable.
+- GitHub branch protection now requires the three exact workflow contexts on
+  an up-to-date branch, applies them to administrators, requires linear
+  history and resolved conversations, and forbids force pushes and deletion.
+  The pilot PR must still exercise the protected merge transition.
+- Independent review resolution, operator completion feedback, Herdr cleanup,
+  and the real pilot merge remain open external gates.
 
 ## Implementation slices
 
@@ -163,6 +163,67 @@ completion feedback, and cleanup.
   install, update current state without rewriting history, and bind CI locale,
   timezone, and Python hash seed where the frozen contract requires a
   deterministic verdict.
+- 2026-07-29: The correction suite first recorded 14 intended red observations:
+  absent feature authority, placeholder PR identity, default-ignored commit
+  messages, stale mutable PR metadata, dynamic runtime selection, missing
+  lifecycle hooks, zero-filesystem-write overclaiming, executable/configured
+  input/upstream provenance drift, and root-cache Nix filtering. Production
+  correction added a real PR feature validator, range/release acceptance
+  dispatcher, acceptance 0005, strict local Commitlint execution, pinned
+  environment assertions, pre-push and fast pre-commit hooks, expanded
+  transition CI, adapted provenance checks, and cache-isolated validation.
+- 2026-07-29: First cybernetic measurement on the correction worktree observed
+  approximately 5.5 seconds for 35 focused process oracles, 4.5 seconds for the
+  fast loop, 7.6 seconds for the 60-test integration loop, and 5.9 seconds for
+  acceptance 0005. These are single-machine runtime observations, not stable
+  performance claims.
+- 2026-07-29: Sensor audit: pytest exercises feature-policy and dispatcher
+  counterexamples; Actionlint checks workflow structure; Ruff, Oxfmt, Oxlint,
+  Pyright, TypeScript 7, model validation, generated equality, and provenance
+  observe different artifact classes. Correlation remains: tests and
+  implementation share repository assumptions, while provenance and its
+  checker are co-versioned. Independent review and the committed-artifact gate
+  remain necessary.
+- 2026-07-29: Control disturbances and gaming risks remain visible. The
+  `trivial` path allowlist is deliberately conservative and may false-reject
+  legitimate maintenance. A nonempty PR section can contain a false statement,
+  so metadata validation cannot replace review. Edited/labeled PR events
+  invalidate stale metadata checks, but branch protection, merge queue, review
+  resolution, operator feedback, and Herdr cleanup are external state that
+  repository code must not fabricate.
+- 2026-07-29: Main-agent integration review found two further change-sensor
+  bypasses: range mode accepted a nontrivial change with no plan, and the Git
+  diff excluded deletions. Three new red counterexamples reproduced a direct
+  nontrivial zero-plan range, a `trivial` implementation deletion, and a
+  deleted feature plan. The sensor now observes the complete committed change
+  set and permits a zero-plan range only when every path belongs to the same
+  narrow trivial allowlist.
+- 2026-07-29: Final independent review reproduced rename-source false
+  acceptance, ignored-cache influence on `path:.`, dormant fresh-clone hooks,
+  stale current-state prose, and implicit process environment values. The
+  correction added red oracles before production changes, inventories both
+  sides of detected renames/copies, filters every current noncanonical cache
+  directory, documents and exercises explicit hook installation, refreshes
+  this current-state section, and binds UTC, C.UTF-8, and Python hash seed zero
+  in authoritative CI and pinned Nix environments.
+- 2026-07-29: The real pre-push journey exposed Git hook-local environment
+  variables leaking into temporary fixture repositories and mutating the
+  shared local Git metadata. No remote update occurred. Main and feature refs,
+  worktree content, and repository configuration were restored to independently
+  verified commits; the hook now clears every `git rev-parse --local-env-vars`
+  variable before the pinned integration gate, with a hermetic regression
+  oracle that passes in both checkout and Nix source contexts.
+- 2026-07-29: Opened pilot PR #1. Its first server run correctly rejected a
+  completed custody feature's stale `0004` acceptance wrapper as a second
+  feature identity. Removed that out-of-scope file; the corrected head passed
+  all three GitHub jobs plus local 141-test integration, acceptance 0005, the
+  actual pre-push path, and both Nix source forms.
+- 2026-07-29: Configured `main` protection with strict required contexts
+  `fast + integration (nix)`, `feature contract + acceptance`, and
+  `commit message + PR title policy`; enforcement includes administrators,
+  linear history, resolved conversations, and disabled force pushes/deletion.
+  The protected squash merge, main-push replay, completion notice, and cleanup
+  remain the final pilot observations.
 
 ## Decisions and deviations
 

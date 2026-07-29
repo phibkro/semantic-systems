@@ -1,22 +1,27 @@
 #!/usr/bin/env sh
+# Integration loop (design spec 0005): the fast loop plus every static check,
+# the full test suite and frozen dependency resolution, all in the pinned Nix
+# environment. Missing required tools fail this gate; they are never
+# downgraded to a warning, because a warning here would let an unverified
+# commit reach a PR.
 set -eu
-export PYTHONPATH="${PYTHONPATH:-}:src"
+cd "$(dirname "$0")/.."
 
-python -m compileall -q src tests
-python -m semantic_project_model validate
-python -m semantic_project_model generate --check
+require_tool() {
+  tool_name="$1"
+  if ! command -v "${tool_name}" >/dev/null 2>&1; then
+    echo "check: required tool '${tool_name}' is not installed. Run inside 'nix develop'." >&2
+    exit 1
+  fi
+}
 
-if command -v ruff >/dev/null 2>&1; then
-  ruff check .
-  ruff format --check .
-else
-  echo "warning: ruff is not installed" >&2
-fi
+require_tool pyright
+require_tool bun
+require_tool pytest
 
-if command -v pyright >/dev/null 2>&1; then
-  pyright
-else
-  echo "warning: pyright is not installed" >&2
-fi
+bun install --frozen-lockfile --ignore-scripts
 
-pytest
+./scripts/check-fast.sh
+
+pyright
+pytest -p no:cacheprovider

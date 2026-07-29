@@ -1,23 +1,207 @@
 name: Check
 
+# Repository sensors for design spec 0005. Local hooks are advisory. These jobs
+# become authoritative only after the main-agent configures branch protection
+# and merge queue against their stable names.
+
 on:
-  push:
   pull_request:
+    types: [opened, synchronize, reopened, edited, ready_for_review, labeled, unlabeled]
+  push:
+    branches: [main]
+    tags: ["v*"]
+  merge_group:
+    types: [checks_requested]
+  release:
+    types: [published]
+  schedule:
+    - cron: "23 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  TZ: UTC
+  LC_ALL: C.UTF-8
+  PYTHONHASHSEED: "0"
+
+concurrency:
+  group: check-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  validate:
-    runs-on: ubuntu-latest
+  checks:
+    name: fast + integration (nix)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout exact head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          python-version: "3.12"
-          cache: pip
-      - run: python -m pip install --upgrade pip
-      - run: python -m pip install -e ".[dev]"
-      - run: ruff check .
-      - run: ruff format --check .
-      - run: pyright
-      - run: pytest
-      - run: semproj validate
-      - run: semproj generate --check
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Report exact tested commit
+        env:
+          EXACT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          printf 'exact-head: %s\n' "${EXACT_HEAD}" | tee -a "$GITHUB_STEP_SUMMARY"
+          test "${EXACT_HEAD}" = "$(git rev-parse HEAD)"
+          test -z "$(git status --porcelain --untracked-files=no)"
+
+      - name: Install pinned Nix
+        uses: DeterminateSystems/nix-installer-action@ef8a148080ab6020fd15196c2084a2eea5ff2d25 # v22
+        with:
+          determinate: false
+          source-tag: v3.21.8
+          nix-package-url: https://releases.nixos.org/nix/nix-2.34.8/nix-2.34.8-x86_64-linux.tar.xz
+          diagnostic-endpoint: ""
+
+      - name: Assert environment identity
+        run: |
+          nix --version
+          test "$(nix --version)" = "nix (Nix) 2.34.8"
+          test "$(nix develop --command bun --version)" = "1.3.13"
+
+      - name: Install JS dependencies (frozen lockfile, no hook scripts)
+        run: nix develop --command bun install --frozen-lockfile --ignore-scripts
+
+      - name: Assert TypeScript identity
+        run: test "$(nix develop --command ./node_modules/.bin/tsc --version)" = "Version 7.0.2"
+
+      - name: Fast loop
+        run: nix develop --command ./scripts/check-fast.sh
+
+      - name: Integration loop
+        run: nix develop --command ./scripts/check.sh
+
+      - name: Flake checks
+        run: nix flake check
+
+      - name: Verify tracked artifacts are unchanged
+        run: |
+          if ! git diff --exit-code -- . || ! git diff --cached --exit-code -- .; then
+            printf 'tracked artifacts changed during verification\n' >&2
+            exit 1
+          fi
+
+  feature-authority:
+    name: feature contract + acceptance
+    if: github.event_name != 'schedule' && github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact head with full history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install pinned Nix
+        uses: DeterminateSystems/nix-installer-action@ef8a148080ab6020fd15196c2084a2eea5ff2d25 # v22
+        with:
+          determinate: false
+          source-tag: v3.21.8
+          nix-package-url: https://releases.nixos.org/nix/nix-2.34.8/nix-2.34.8-x86_64-linux.tar.xz
+          diagnostic-endpoint: ""
+
+      - name: Install frozen dependencies
+        run: nix develop --command bun install --frozen-lockfile --ignore-scripts
+
+      - name: Validate pull-request feature report
+        if: github.event_name == 'pull_request'
+        run: nix develop --command bun scripts/check-feature-contract.ts --event "$GITHUB_EVENT_PATH"
+
+      - name: Run pull-request feature acceptance
+        if: github.event_name == 'pull_request'
+        run: nix develop --command bun scripts/run-feature-acceptance.ts --mode pr --event "$GITHUB_EVENT_PATH"
+
+      - name: Run merge-group feature acceptance
+        if: github.event_name == 'merge_group'
+        env:
+          BASE_SHA: ${{ github.event.merge_group.base_sha }}
+          HEAD_SHA: ${{ github.sha }}
+        run: nix develop --command bun scripts/run-feature-acceptance.ts --mode range --base "${BASE_SHA}" --head "${HEAD_SHA}"
+
+      - name: Replay accepted main-push features
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          BASE_SHA: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: nix develop --command bun scripts/run-feature-acceptance.ts --mode range --base "${BASE_SHA}" --head "${HEAD_SHA}"
+
+      - name: Run every acceptance for release or tag
+        if: github.event_name == 'release' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
+        run: nix develop --command bun scripts/run-feature-acceptance.ts --mode release
+
+      - name: Verify tracked artifacts are unchanged
+        run: |
+          if ! git diff --exit-code -- . || ! git diff --cached --exit-code -- .; then
+            printf 'tracked artifacts changed during verification\n' >&2
+            exit 1
+          fi
+
+  commit-policy:
+    name: commit message + PR title policy
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact head with full history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up pinned Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.3.13
+
+      - name: Assert Bun identity and install frozen dependencies
+        run: |
+          test "$(bun --version)" = "1.3.13"
+          bun install --frozen-lockfile --ignore-scripts
+          test "$(./node_modules/.bin/tsc --version)" = "Version 7.0.2"
+
+      - name: Lint commit range (pull request)
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: ./node_modules/.bin/commitlint --from "${BASE_SHA}" --to "${HEAD_SHA}"
+
+      - name: Lint commit range (merge group)
+        if: github.event_name == 'merge_group'
+        env:
+          BASE_SHA: ${{ github.event.merge_group.base_sha }}
+          HEAD_SHA: ${{ github.sha }}
+        # GitHub creates transient merge-group merge commits that are not
+        # repository history. PR CI already linted every authored commit.
+        run: ./node_modules/.bin/commitlint --from "${BASE_SHA}" --to "${HEAD_SHA}" --git-log-args "--no-merges"
+
+      - name: Lint commit range (main push)
+        if: github.event_name == 'push'
+        env:
+          BASE_SHA: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: ./node_modules/.bin/commitlint --from "${BASE_SHA}" --to "${HEAD_SHA}"
+
+      - name: Lint pull-request title
+        if: github.event_name == 'pull_request'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: printf '%s\n' "${PR_TITLE}" | ./node_modules/.bin/commitlint
+
+      - name: Commit-policy provenance conformance
+        run: bun run check-commit-policy
+
+      - name: Verify tracked artifacts are unchanged
+        run: |
+          if ! git diff --exit-code -- . || ! git diff --cached --exit-code -- .; then
+            printf 'tracked artifacts changed during verification\n' >&2
+            exit 1
+          fi

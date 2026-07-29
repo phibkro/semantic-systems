@@ -38,23 +38,38 @@ platform, evidence, and trust policies.
 
 ## Validate
 
-Enter the pinned environment with `nix develop`, then run:
+Enter the pinned environment with `nix develop`, then run the fast loop while
+iterating and the integration loop before opening or updating a pull request:
 
 ```bash
+bun install --frozen-lockfile --ignore-scripts
+bun run hooks:install
+./scripts/check-fast.sh
 ./scripts/check.sh
 PYTHONPATH=src python -m semantic_project_model report
 ```
 
-Targeted commands are documented in `CONTRIBUTING.md`. Report checks that were
-not run or unavailable; never infer success.
+For one frozen feature, run its exact acceptance script:
+
+```bash
+./scripts/accept/<id>-<slug>.sh
+```
+
+A missing required tool fails these gates; it is never downgraded to a
+warning. `nix flake check` re-runs the hermetic subset (Python static checks,
+tests, and commit-policy conformance) as real sandboxed derivations. Commit
+messages and pull-request titles follow the Conventional Commits policy in
+`commitlint.config.ts`; see `CONTRIBUTING.md` for the full loop and commit
+provenance. Targeted commands are documented in `CONTRIBUTING.md`. Report
+checks that were not run or unavailable; never infer success.
 
 ## Current frontiers
 
 Inventory resolution 0001 is complete. Active frozen contracts are reference
-research 0002, independent resolution checking 0003, and reference-source
-custody 0004. Their plans under `plans/active/` own mutable execution state.
-Binder equivalence remains uncertainty 0001; do not silently expand
-`theory-norm-v0`.
+research 0002, independent resolution checking 0003, reference-source custody
+0004, the autonomous development loop 0005, and the control-room PWA 0006.
+Their plans under `plans/active/` own mutable execution state. Binder
+equivalence remains uncertainty 0001; do not silently expand `theory-norm-v0`.
 
 ## Delegation
 
@@ -86,4 +101,7 @@ plan, one acceptance script, and one completion PR. The main integration agent
 may merge after exact-head gates, independent review, preview, and evidence
 audit pass; operator-owned external effects still require approval. Report the
 merged commit and preview to the operator, then close harvested Herdr tabs and
-remove only clean, integrated worktrees.
+remove only clean, integrated worktrees. Local hooks are advisory. GitHub checks
+become required only through externally configured branch protection and merge
+queue; review resolution and post-merge Herdr cleanup remain main-agent gates,
+not repository-inferred facts.

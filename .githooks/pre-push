@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root="$(git rev-parse --show-toplevel)"
+mapfile -t git_local_env < <(git rev-parse --local-env-vars)
+unset "${git_local_env[@]}"
+cd "${root}"
+
+if ! command -v nix >/dev/null 2>&1; then
+  echo "pre-push: Nix is required for the pinned integration gate." >&2
+  exit 1
+fi
+
+nix develop --command ./scripts/check.sh

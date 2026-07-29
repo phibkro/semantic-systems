@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 1,
+  "block": {
+    "name": "ConventionalCommits",
+    "version": "1.0.0",
+    "digest": "sha256:f75a4a63e677b8bc6c10f90858aa18d75d84bed0e424949642dc13424ec402f1"
+  },
+  "upstream": {
+    "repository": "clamor",
+    "commit": "a8f52a02de1fc1eb3ad408e94adabfb5a9b54621",
+    "sourcePath": "packages/blocks/conventional-commits/src/index.ts",
+    "note": "Clamor exposes this block as a read-only plan and is private to public CI. This record pins the inspected definition; CI verifies the adapted local materialization against this record and does not claim to query Clamor."
+  },
+  "digestVerification": {
+    "method": "The upstream BlockDefinition was loaded at the pinned commit and definitionRef() was computed with Clamor's canonical kernel digest before materialization.",
+    "computedDigest": "sha256:f75a4a63e677b8bc6c10f90858aa18d75d84bed0e424949642dc13424ec402f1",
+    "matchesDeclared": true
+  },
+  "configuration": {
+    "allowedTypes": [
+      "build",
+      "chore",
+      "ci",
+      "docs",
+      "feat",
+      "fix",
+      "perf",
+      "refactor",
+      "revert",
+      "style",
+      "test",
+      "research",
+      "design",
+      "governance",
+      "plans"
+    ],
+    "sourceGlobs": ["*.js", "*.jsx", "*.ts", "*.tsx", "*.mjs", "*.cjs", "*.mts", "*.cts"]
+  },
+  "renderedClaims": [
+    {
+      "claimId": "githooks/commit-msg",
+      "path": ".githooks/commit-msg",
+      "kind": "exclusive_path",
+      "executable": true,
+      "contentDigest": "sha256:2d014b0921cda151d3a6131c7a280b5637300643623ab380c0c500032b833fa2"
+    },
+    {
+      "claimId": "githooks/pre-commit",
+      "path": ".githooks/pre-commit",
+      "kind": "exclusive_path",
+      "executable": true,
+      "contentDigest": "sha256:07dee35752c192c53afbb08253eaca5cb8ab52ef5ae4e211643844c115ef6c58"
+    },
+    {
+      "claimId": "commitlint-config",
+      "path": "commitlint.config.ts",
+      "kind": "exclusive_path",
+      "executable": false,
+      "contentDigest": "sha256:ebd783c4613bca5c54f7e1672abd22e04f0f9c9ac36cdb66f9f7079ab8d47a8c"
+    },
+    {
+      "claimId": "install-git-hooks",
+      "path": "scripts/install-git-hooks.ts",
+      "kind": "exclusive_path",
+      "executable": false,
+      "contentDigest": "sha256:1584a918cc48a38e51e83b5567ed04709d32c6e64ac879eeac1a570e18bcf3e1"
+    },
+    {
+      "claimId": "package/devDependencies/@commitlint/cli",
+      "path": "package.json",
+      "kind": "semantic_key",
+      "key": ["devDependencies", "@commitlint/cli"],
+      "value": "21.2.1"
+    },
+    {
+      "claimId": "package/devDependencies/@commitlint/config-conventional",
+      "path": "package.json",
+      "kind": "semantic_key",
+      "key": ["devDependencies", "@commitlint/config-conventional"],
+      "value": "21.2.0"
+    },
+    {
+      "claimId": "package/scripts/prepare",
+      "path": "package.json",
+      "kind": "semantic_key",
+      "key": ["scripts", "prepare"],
+      "value": "bun scripts/install-git-hooks.ts"
+    },
+    {
+      "claimId": "package/scripts/commitlint",
+      "path": "package.json",
+      "kind": "semantic_key",
+      "key": ["scripts", "commitlint"],
+      "value": "commitlint"
+    }
+  ],
+  "projectOwnedClaims": [
+    {
+      "claimId": "project/githooks/pre-push",
+      "path": ".githooks/pre-push",
+      "kind": "exclusive_path",
+      "executable": true,
+      "contentDigest": "sha256:eb9e699f7331da5bf648adae500131d179250ed49719ca3a4b2933efc94c660d"
+    }
+  ],
+  "adaptations": [
+    {
+      "id": "commitlint-default-ignores-disabled",
+      "path": "commitlint.config.ts",
+      "upstreamClaimId": "commitlint-config",
+      "rationale": "Design spec 0005 requires every commit and PR title to conform; merge, nonconventional revert, and version messages cannot use Commitlint's default exemptions."
+    },
+    {
+      "id": "pre-commit-fast-loop",
+      "path": ".githooks/pre-commit",
+      "upstreamClaimId": "githooks/pre-commit",
+      "rationale": "After exact staged-file formatting and linting, the advisory pre-commit transition runs the repository fast loop required by design spec 0005."
+    },
+    {
+      "id": "pre-push-integration",
+      "path": ".githooks/pre-push",
+      "rationale": "The project adds an advisory pre-push hook that clears Git hook-local repository variables before invoking the pinned Nix integration gate; this path is project-owned and absent from the upstream block."
+    }
+  ],
+  "deviationsFromBlock": [
+    "commitlint.config.ts and .githooks/pre-commit begin from upstream renders but are intentionally hardened as recorded adaptations, so they are not claimed byte-identical to Clamor.",
+    ".githooks/pre-push is a project-owned lifecycle hook, not an upstream block claim.",
+    "The package also pins Bun, Oxfmt, Oxlint, and stable TypeScript 7 for this repository; those choices are outside the upstream block's claim set."
+  ],
+  "conformance": {
+    "checkedBy": "scripts/check-commit-policy.ts",
+    "method": "Checks immutable upstream identity fields, exact configured inputs, required adaptation records, content digests, semantic package keys, and executable modes. It verifies local conformance to this checked record without claiming a live private-upstream query."
+  }
+}
