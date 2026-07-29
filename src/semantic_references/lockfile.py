@@ -25,7 +25,8 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, cast
 
-from semantic_references.errors import LockFileError
+from semantic_references.catalog import is_git_safe_value, validate_source_id
+from semantic_references.errors import CatalogError, LockFileError
 
 SCHEMA_NAME = "reference-lock-v1"
 _OBJECT_FORMAT_HEX_LENGTH = {"sha1": 40, "sha256": 64}
@@ -80,6 +81,11 @@ def _check_entry_strings(source_id: str, data: dict[str, object]) -> tuple[str, 
         value = data[name]
         if not isinstance(value, str) or not value:
             raise LockFileError(f"lock entry {source_id!r}: {name!r} must be a non-empty string")
+        if not is_git_safe_value(value):
+            raise LockFileError(
+                f"lock entry {source_id!r}: {name!r} is not safe "
+                "(option-like or has control characters)"
+            )
         values[name] = value
     return values["origin"], values["track"], values["resolved_ref"]
 
@@ -290,6 +296,10 @@ def parse_lock_text(text: str) -> Lock:
 
     sources: dict[str, LockEntry] = {}
     for source_id, entry_data in sources_raw.items():
+        try:
+            validate_source_id(source_id)
+        except CatalogError as exc:
+            raise LockFileError(f"lock file source id {source_id!r} is unsafe: {exc}") from exc
         sources[source_id] = LockEntry.from_json(source_id, entry_data)
 
     return Lock(generator=generator, sources=sources)

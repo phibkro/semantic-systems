@@ -18,14 +18,20 @@ from pathlib import Path
 
 from semantic_references.errors import AcquisitionError
 
-# Never prompt for credentials, never invoke a pager, never run hooks we didn't
-# ask for.
+# Never prompt for credentials, never invoke a pager, and never read system or
+# global config — every invocation must be reproducible regardless of the
+# calling user's ~/.gitconfig or /etc/gitconfig.
 _SAFE_ENV = {
     "GIT_TERMINAL_PROMPT": "0",
     "GIT_ASKPASS": "true",
     "GIT_PAGER": "cat",
     "GIT_CONFIG_NOSYSTEM": "1",
+    "GIT_CONFIG_GLOBAL": "/dev/null",
 }
+
+# Disable repository hooks on every invocation. There is no environment
+# variable for this, so it is prepended as a `-c` option to every command.
+_HARDENING_ARGS = ["-c", "core.hooksPath=/dev/null"]
 
 _LS_TREE_FIELD_COUNT = 4
 
@@ -46,7 +52,7 @@ def run_git(
     input_text: str | None = None,
 ) -> subprocess.CompletedProcess[str]:
     result = subprocess.run(
-        ["git", *args],
+        ["git", *_HARDENING_ARGS, *args],
         cwd=cwd,
         capture_output=True,
         text=True,
@@ -110,7 +116,7 @@ def ls_tree_entry(repo_dir: Path, commit: str, path: str) -> TreeEntry | None:
 
 def blob_sha256(repo_dir: Path, oid: str) -> str:
     result = subprocess.run(
-        ["git", "-C", str(repo_dir), "cat-file", "blob", oid],
+        ["git", *_HARDENING_ARGS, "-C", str(repo_dir), "cat-file", "blob", oid],
         capture_output=True,
         env=_env(None),
         check=False,
@@ -118,6 +124,27 @@ def blob_sha256(repo_dir: Path, oid: str) -> str:
     if result.returncode != 0:
         raise AcquisitionError(f"git cat-file blob {oid} failed: {result.stderr.decode().strip()}")
     return hashlib.sha256(result.stdout).hexdigest()
+
+
+def resolve_track_ref(location: str, track: str) -> str:
+    """Best-effort resolution of a symbolic ref (e.g. ``HEAD``) to a concrete ref.
+
+    Uses ``git ls-remote --symref``, which works against a local path or a
+    remote URL without checking anything out. Returns ``track`` unchanged if
+    the location can't be queried or does not expose a symref for it.
+    """
+    if location.startswith("-") or track.startswith("-"):
+        raise AcquisitionError("refusing to resolve a ref that looks like an option")
+    result = run_git(["ls-remote", "--symref", location, track], check=False)
+    if result.returncode != 0:
+        return track
+    for line in result.stdout.splitlines():
+        if not line.startswith("ref: "):
+            continue
+        target, _, queried = line[len("ref: ") :].partition("\t")
+        if queried.strip() == track:
+            return target.strip()
+    return track
 
 
 def remote_url(repo_dir: Path, name: str = "origin") -> str | None:
@@ -170,8 +197,15 @@ def init_repo(path: Path) -> None:
     run_git(["init", "-q", "-b", "custody", str(path)])
 
 
+def _reject_option_like(*values: str) -> None:
+    for value in values:
+        if value.startswith("-"):
+            raise AcquisitionError(f"refusing a value that looks like a CLI option: {value!r}")
+
+
 def fetch_shallow_blobless(repo_dir: Path, url: str, ref: str) -> str:
     """Fetch ``ref`` from ``url`` shallowly, without blobs or tags. Returns FETCH_HEAD."""
+    _reject_option_like(url, ref)
     run_git(
         ["-C", str(repo_dir), "fetch", "--depth=1", "--filter=blob:none", "--no-tags", url, ref],
     )
@@ -181,6 +215,7 @@ def fetch_shallow_blobless(repo_dir: Path, url: str, ref: str) -> str:
 
 def fetch_blobless_history(repo_dir: Path, url: str, ref: str) -> str:
     """Broader (unshallowed at the blob level, but still blob-filtered) history fetch."""
+    _reject_option_like(url, ref)
     run_git(
         ["-C", str(repo_dir), "fetch", "--filter=blob:none", "--no-tags", url, ref],
     )
@@ -189,6 +224,7 @@ def fetch_blobless_history(repo_dir: Path, url: str, ref: str) -> str:
 
 
 def checkout_detached(repo_dir: Path, commit: str) -> None:
+    _reject_option_like(commit)
     run_git(["-C", str(repo_dir), "checkout", "--detach", "--quiet", commit])
 
 
