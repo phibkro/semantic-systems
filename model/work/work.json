@@ -45,6 +45,21 @@
       }
     },
     {
+      "id": "decision.deep-module-contracts",
+      "kind": "decision",
+      "name": "Freeze semantic contracts as deep-module boundaries",
+      "summary": "Compact semantic interfaces hide implementation depth and expose composable behavior and evidence obligations.",
+      "status": "accepted",
+      "tags": [
+        "contracts",
+        "architecture",
+        "delegation"
+      ],
+      "attributes": {
+        "record": "decisions/0005-frozen-contracts-as-deep-modules.md"
+      }
+    },
+    {
       "id": "work.kernel-spec",
       "kind": "work_item",
       "name": "Specify minimal kernel calculus",

@@ -37,6 +37,8 @@ the same working directory.
 Explicit dependency edges and isolated ownership make the legitimate
 serialization points inspectable. This applies the project thesis to work
 itself: work depends on contracts rather than on an implicit global queue.
+Decision 0005 defines how a frozen contract must act as a deep-module boundary
+rather than a shallow copy of implementation structure.
 
 ## Confidence
 

@@ -170,6 +170,9 @@ Research-specific acceptance is the checklist in design spec 0002.
   decision 0004's dependency-aware parallel frontier. Independent contracts
   may progress concurrently; shared boundaries and final integration remain
   serialized.
+- 2026-07-29: Recorded decision 0005: frozen contracts coordinate parallel work
+  as shallow interfaces to deep modules, hiding implementation choices while
+  exposing composable semantics and evidence obligations.
 - 2026-07-29: Recorded the type-system refinement ladder as uncertainty 0002,
   without expanding the active semantic frontier.
 

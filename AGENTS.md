@@ -61,5 +61,7 @@ Do not silently expand `theory-norm-v0` while that question remains open.
 Delegate only after the relevant contract is frozen. Every assignment must name
 exact read/write paths, forbidden paths, assumptions, executable acceptance
 commands, expected deliverables, and autonomy level. Use separate Git worktrees
-for concurrent writers. The integrating agent owns semantic decisions, reviews
-committed artifacts on a clean tree, and commissions independent review.
+for concurrent writers. Treat the frozen contract as a deep-module boundary: a
+small, stable semantic interface hiding substantial implementation freedom and
+surfacing composable abstractions. The integrating agent owns semantic decisions,
+reviews committed artifacts on a clean tree, and commissions independent review.
