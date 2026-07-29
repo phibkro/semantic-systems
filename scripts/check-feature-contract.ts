@@ -88,7 +88,10 @@ export const changedPathsForRange = (
   requireSha(base, "base SHA");
   requireSha(head, "head SHA");
   const range = comparison === "pr" ? `${base}...${head}` : `${base}..${head}`;
-  const output = runGit(root, ["diff", "--name-only", "--diff-filter=ACMR", "-z", range]);
+  // Observe the complete committed change set. In particular, deletions are
+  // authority-relevant changes: excluding them would let a `trivial` marker
+  // remove implementation or contract files without being seen.
+  const output = runGit(root, ["diff", "--name-only", "-z", range]);
   return output.split("\0").filter((path) => path.length > 0);
 };
 
@@ -169,6 +172,9 @@ export const validateFeatureArtifacts = (
 const isTrivialPath = (path: string): boolean =>
   TRIVIAL_EXACT_PATHS.has(path) || TRIVIAL_PREFIXES.some((prefix) => path.startsWith(prefix));
 
+export const nonTrivialPaths = (paths: string[]): string[] =>
+  paths.filter((path) => !isTrivialPath(path));
+
 const featureIdsFromContractPaths = (paths: string[]): string[] => {
   const ids = new Set<string>();
   const patterns = [
@@ -204,7 +210,7 @@ export const validatePullRequestEvent = (root: string, eventPath: string): Featu
   const changedPaths = changedPathsForRange(root, base, head, "pr");
 
   if (featureId === "trivial") {
-    const nontrivial = changedPaths.filter((path) => !isTrivialPath(path));
+    const nontrivial = nonTrivialPaths(changedPaths);
     if (nontrivial.length > 0) {
       throw new Error(
         `Feature-ID: trivial cannot cover nontrivial paths: ${nontrivial.join(", ")}`,

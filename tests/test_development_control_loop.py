@@ -296,6 +296,31 @@ def test_trivial_marker_allows_readme_but_rejects_implementation(tmp_path: Path)
 
 
 @requires_bun
+def test_trivial_marker_rejects_deleted_implementation(tmp_path: Path) -> None:
+    repo, event, _, feature_head = _feature_repo(tmp_path)
+    (repo / "src").mkdir()
+    implementation = repo / "src" / "semantic.ts"
+    implementation.write_text("export const meaning = 1;\n")
+    assert _git(repo, "add", "src/semantic.ts").returncode == 0
+    implementation_head = _commit(repo, "feat: add implementation")
+
+    implementation.unlink()
+    deletion_head = _commit(repo, "chore: delete implementation")
+    payload = json.loads(event.read_text())
+    payload["pull_request"] = {
+        "base": {"sha": implementation_head},
+        "head": {"sha": deletion_head},
+        "body": _valid_pr_body("trivial"),
+    }
+    event.write_text(json.dumps(payload))
+
+    rejected = _run_feature_tool(FEATURE_POLICY, repo, "--event", str(event))
+    assert rejected.returncode != 0
+    assert "src/semantic.ts" in (rejected.stdout + rejected.stderr)
+    assert feature_head != implementation_head
+
+
+@requires_bun
 def test_feature_runner_dispatches_pr_and_range_acceptance(tmp_path: Path) -> None:
     repo, event, base, head = _feature_repo(tmp_path)
     pr = _run_feature_tool(FEATURE_RUNNER, repo, "--mode", "pr", "--event", str(event))
@@ -335,6 +360,49 @@ def test_range_runner_reports_zero_plan_maintenance(tmp_path: Path) -> None:
     )
     assert result.returncode == 0, result.stdout + result.stderr
     assert "zero changed feature plans" in result.stdout
+
+
+@requires_bun
+def test_range_runner_rejects_nontrivial_zero_plan_range(tmp_path: Path) -> None:
+    repo, _, _, feature_head = _feature_repo(tmp_path)
+    (repo / "src").mkdir()
+    (repo / "src" / "nontrivial.ts").write_text("export const bypass = true;\n")
+    assert _git(repo, "add", "src/nontrivial.ts").returncode == 0
+    nontrivial_head = _commit(repo, "feat: bypass feature authority")
+
+    result = _run_feature_tool(
+        FEATURE_RUNNER,
+        repo,
+        "--mode",
+        "range",
+        "--base",
+        feature_head,
+        "--head",
+        nontrivial_head,
+    )
+    assert result.returncode != 0
+    assert "src/nontrivial.ts" in (result.stdout + result.stderr)
+
+
+@requires_bun
+def test_range_runner_rejects_deleted_feature_plan(tmp_path: Path) -> None:
+    repo, _, _, feature_head = _feature_repo(tmp_path)
+    plan = repo / "plans" / "active" / "0005-fixture.md"
+    plan.unlink()
+    deletion_head = _commit(repo, "chore: delete feature plan")
+
+    result = _run_feature_tool(
+        FEATURE_RUNNER,
+        repo,
+        "--mode",
+        "range",
+        "--base",
+        feature_head,
+        "--head",
+        deletion_head,
+    )
+    assert result.returncode != 0
+    assert "0005-fixture" in (result.stdout + result.stderr)
 
 
 @requires_bun

@@ -13,6 +13,7 @@ import { spawnSync } from "node:child_process";
 
 import {
   changedPathsForRange,
+  nonTrivialPaths,
   validateFeatureArtifacts,
   validatePullRequestEvent,
 } from "./check-feature-contract.ts";
@@ -112,10 +113,17 @@ const run = (mode: Mode, root: string, args: Map<string, string>): void => {
       throw new Error("range mode requires --base <sha> --head <sha>");
     }
     const checkedOutHead = assertCheckedOutHead(root, head);
-    const featureIds = featureIdsFromPlans(changedPathsForRange(root, base, head, "range"));
+    const changedPaths = changedPathsForRange(root, base, head, "range");
+    const featureIds = featureIdsFromPlans(changedPaths);
     if (featureIds.length === 0) {
+      const nontrivial = nonTrivialPaths(changedPaths);
+      if (nontrivial.length > 0) {
+        throw new Error(
+          `range has no changed feature plan but contains nontrivial paths: ${nontrivial.join(", ")}`,
+        );
+      }
       console.log(
-        `feature-acceptance: commit ${checkedOutHead}; maintenance range ${base}..${head}; zero changed feature plans.`,
+        `feature-acceptance: commit ${checkedOutHead}; trivial maintenance range ${base}..${head}; zero changed feature plans.`,
       );
       return;
     }

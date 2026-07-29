@@ -191,6 +191,13 @@ completion feedback, and cleanup.
   invalidate stale metadata checks, but branch protection, merge queue, review
   resolution, operator feedback, and Herdr cleanup are external state that
   repository code must not fabricate.
+- 2026-07-29: Main-agent integration review found two further change-sensor
+  bypasses: range mode accepted a nontrivial change with no plan, and the Git
+  diff excluded deletions. Three new red counterexamples reproduced a direct
+  nontrivial zero-plan range, a `trivial` implementation deletion, and a
+  deleted feature plan. The sensor now observes the complete committed change
+  set and permits a zero-plan range only when every path belongs to the same
+  narrow trivial allowlist.
 
 ## Decisions and deviations
 
