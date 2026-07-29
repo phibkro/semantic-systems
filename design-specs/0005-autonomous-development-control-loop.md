@@ -61,6 +61,10 @@ The repository exposes three nested loops:
 
 1. **Fast loop** — seconds: formatting/lint, focused type or parse checks,
    targeted tests, model validation, and generated drift relevant to the edit.
+   Its red phase is executable behavior design, not merely test authorship:
+   state intended observations, forbidden observations, boundary behavior,
+   invariants, and adversarial counterexamples; then verify each oracle fails
+   for the intended reason before implementing the smallest conforming change.
 2. **Integration loop** — minutes: all static checks, full tests, model
    validation, and generated-view consistency in the pinned Nix environment.
 3. **Feature loop** — tracer-sized: the exact acceptance script, visible
@@ -70,6 +74,21 @@ The repository exposes three nested loops:
 Deep assurance—proofs, fuzzing, model checking, schedule exploration,
 benchmarks, reproducibility, or cross-platform builds—is required only when
 the feature claim depends on it.
+
+The implementation loop is:
+
+```text
+falsifiable behavior inventory
+-> executable positive, rejection, and adversarial oracles
+-> red for the intended semantic reason
+-> smallest implementation
+-> focused green
+-> neighboring integration green
+```
+
+A test that repeats an implementation detail, passes before the behavior
+exists, or cannot distinguish the intended failure from an unrelated crash
+does not establish the oracle.
 
 Missing required tools fail a gate. They are not warnings. Host convenience
 checks may report unavailable tools, but only the pinned gate can authorize

@@ -110,6 +110,9 @@ completion feedback, and cleanup.
   merge result, main push, release, schedule, and agent completion. Client
   hooks remain advisory; exact-head and merge-result server gates authorize
   publication.
+- 2026-07-29: Clarified that red is executable behavior design: intended,
+  forbidden, boundary, invariant, and adversarial observations are encoded
+  before implementation and must fail for the intended semantic reason.
 
 ## Decisions and deviations
 
