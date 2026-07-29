@@ -10,7 +10,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from semantic_tracer.jsonutil import DocumentError, require_object
+from semantic_tracer.jsonutil import DocumentError, require_key, require_object, require_str
 from semantic_tracer.types import JsonObject
 
 
@@ -22,6 +22,14 @@ def _read_json_files(directory: Path) -> list[JsonObject]:
     if not directory.exists():
         return []
     return [_read_json(path) for path in sorted(directory.glob("*.json"))]
+
+
+def _require_unique_ids(documents: list[JsonObject], context: str) -> None:
+    ids = [
+        require_str(require_key(document, "id", context), f"{context}.id") for document in documents
+    ]
+    if len(ids) != len(set(ids)):
+        raise DocumentError(f"{context} contains duplicate IDs")
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,6 +49,7 @@ def load_inventory(root: Path, policy_name: str) -> InventoryFixture:
     realizations = _read_json_files(root / "realizations")
     if not realizations:
         raise DocumentError(f"no realizations found under {root / 'realizations'}")
+    _require_unique_ids(realizations, "realizations")
 
     evidence_suites = _read_json_files(root / "evidence")
 

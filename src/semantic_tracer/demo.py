@@ -85,6 +85,15 @@ def run_demo(root: Path, policy: str = "development") -> DemoResult:
             "policy": require_str(require_key(fixture.policy, "id", "policy"), "policy.id"),
             "selected_realization": resolution.selected_realization,
             "reason_codes": list(resolution.reason_codes),
+            "assumptions": list(assumptions),
+            "change_options": (
+                []
+                if resolution.status == "selected"
+                else [
+                    "Inspect candidate reason codes and satisfy exactly one candidate.",
+                    "If several candidates are eligible, add an explicit future selection rule.",
+                ]
+            ),
         },
         children=tuple(candidate.explanation() for candidate in resolution.candidates),
     )

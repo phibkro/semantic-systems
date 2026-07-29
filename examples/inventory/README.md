@@ -27,11 +27,16 @@ Authored artifacts are separated by role:
 
 - `contracts/` — theory contract;
 - `realizations/` — operation bindings and assumptions;
-- `evidence/` — conformance-suite recipe;
+- `evidence/` — exact-theory-bound conformance-suite recipe, not evidence by
+  itself;
 - `policies/` — accepted evidence categories;
 - `scenarios/` — user-visible execution input and oracle.
 
-After implementation, run:
+The current recipe has nine finite cases. Running it produces separate
+`example_test` results for each exact realization identity; it does not
+produce proof evidence.
+
+Run:
 
 ```bash
 PYTHONPATH=src python -m semantic_tracer demo examples/inventory

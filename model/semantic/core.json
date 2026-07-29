@@ -167,7 +167,8 @@
         "events": [
           "Reserved",
           "Released",
-          "ReservationRejected"
+          "ReservationRejected",
+          "ReleaseRejected"
         ]
       }
     }

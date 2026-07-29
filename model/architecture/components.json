@@ -78,7 +78,7 @@
       "kind": "component",
       "name": "Realization resolver",
       "summary": "Selects implementations under target and trust constraints.",
-      "status": "research",
+      "status": "prototype",
       "tags": [],
       "attributes": {
         "responsibilities": [
@@ -205,7 +205,7 @@
       "kind": "component",
       "name": "Inventory tracer bullet",
       "summary": "First end-to-end domain machine.",
-      "status": "design",
+      "status": "implemented",
       "tags": [],
       "attributes": {
         "responsibilities": [
@@ -219,9 +219,13 @@
       "kind": "realization",
       "name": "Inventory pure realization",
       "summary": "Deterministic update and replay.",
-      "status": "planned",
+      "status": "current",
       "tags": [],
-      "attributes": {}
+      "attributes": {
+        "manifest": "examples/inventory/realizations/pure.json",
+        "identity": "sha256:8fbc8156ae30ecfa37c71e9c25ec3a86608bdb491c9427c190affd607e0dc5c4",
+        "execution_adapter": "python-builtins-v0"
+      }
     },
     {
       "id": "realization.inventory.actor",

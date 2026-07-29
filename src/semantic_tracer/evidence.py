@@ -13,14 +13,18 @@ from typing import Any
 
 from semantic_tracer.domain import ReplayFn, TransitionFn, parse_state, run_steps
 from semantic_tracer.jsonutil import (
+    DocumentError,
     require_key,
     require_object,
     require_object_list,
     require_str,
+    require_str_list,
 )
 from semantic_tracer.realization import Realization
 from semantic_tracer.theory import Theory
 from semantic_tracer.types import JsonObject, JsonValue
+
+EVIDENCE_CATEGORY = "example_test"
 
 
 @dataclass(frozen=True, slots=True)
@@ -140,23 +144,26 @@ def run_conformance(
     transition: TransitionFn,
     replay_fn: ReplayFn,
 ) -> EvidenceResult:
-    category = require_str(require_key(suite, "category", "conformance_suite"), "suite.category")
+    declared_category = require_str(
+        require_key(suite, "category", "conformance_suite"), "suite.category"
+    )
+    if declared_category != EVIDENCE_CATEGORY:
+        raise DocumentError(
+            "the conformance runner produces example_test evidence; "
+            f"the recipe cannot relabel it as {declared_category!r}"
+        )
     obligation = require_str(
         require_key(suite, "obligation", "conformance_suite"), "suite.obligation"
     )
     producer = require_object(require_key(suite, "producer", "conformance_suite"), "suite.producer")
     assumptions_raw = suite.get("assumptions", [])
-    assumptions = (
-        tuple(item for item in assumptions_raw if isinstance(item, str))
-        if isinstance(assumptions_raw, list)
-        else ()
-    )
+    assumptions = tuple(require_str_list(assumptions_raw, "suite.assumptions"))
     cases = require_object_list(require_key(suite, "cases", "conformance_suite"), "suite.cases")
 
     case_results = tuple(_run_case(case, transition, replay_fn) for case in cases)
 
     return EvidenceResult(
-        category=category,
+        category=EVIDENCE_CATEGORY,
         obligation=obligation,
         producer=producer,
         theory_identity=theory.identity,

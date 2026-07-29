@@ -1,0 +1,209 @@
+{
+  "entities": [
+    {
+      "id": "claim.inventory.resolution",
+      "kind": "claim",
+      "name": "Evidence-aware inventory resolution",
+      "summary": "Under fixed artifacts and policy, exactly one eligible realization is selected and only it executes the reference scenario.",
+      "status": "supported",
+      "tags": [
+        "inventory",
+        "tracer-bullet"
+      ],
+      "attributes": {
+        "registry": "claims/registry.md#clm-0001--evidence-aware-inventory-resolution",
+        "not_established": "Universal inventory correctness, proof evidence, external evidence import, or production runtime suitability."
+      }
+    },
+    {
+      "id": "artifact.inventory.conformance-recipe-v0",
+      "kind": "artifact",
+      "name": "Inventory conformance recipe v0",
+      "summary": "Authored nine-case recipe bound to one exact theory identity; executing it produces per-realization evidence.",
+      "status": "current",
+      "tags": [
+        "inventory",
+        "oracle"
+      ],
+      "attributes": {
+        "path": "examples/inventory/evidence/conformance-v0.json",
+        "theory_identity": "sha256:456b5f8d991ce08c400c6b1688216834ad0460ab57ad14ef99cb5b4866a158ba",
+        "not_evidence": true
+      }
+    },
+    {
+      "id": "evidence.inventory.pure-conformance-v0",
+      "kind": "evidence",
+      "name": "Pure inventory conformance result v0",
+      "summary": "Nine finite example cases pass for one exact pure realization identity.",
+      "status": "current",
+      "tags": [
+        "inventory",
+        "tracer-bullet"
+      ],
+      "attributes": {
+        "evidence_type": "example_test",
+        "command": "PYTHONPATH=src python -m semantic_tracer demo examples/inventory",
+        "theory_identity": "sha256:456b5f8d991ce08c400c6b1688216834ad0460ab57ad14ef99cb5b4866a158ba",
+        "realization_identity": "sha256:8fbc8156ae30ecfa37c71e9c25ec3a86608bdb491c9427c190affd607e0dc5c4",
+        "cases": "9/9",
+        "assumptions": [
+          "Python integer arithmetic is exact for fixture quantities.",
+          "The nine authored cases adequately sample the v0 contract for development selection."
+        ],
+        "invalidated_by": [
+          "A theory, realization, suite, adapter, or runner change."
+        ]
+      }
+    },
+    {
+      "id": "evidence.inventory.broken-conformance-v0",
+      "kind": "evidence",
+      "name": "Broken inventory conformance result v0",
+      "summary": "One insufficient-stock counterexample fails for one exact broken realization identity.",
+      "status": "failed",
+      "tags": [
+        "inventory",
+        "counterexample"
+      ],
+      "attributes": {
+        "evidence_type": "example_test",
+        "command": "PYTHONPATH=src python -m semantic_tracer demo examples/inventory",
+        "theory_identity": "sha256:456b5f8d991ce08c400c6b1688216834ad0460ab57ad14ef99cb5b4866a158ba",
+        "realization_identity": "sha256:e30c8e4be3a26655ed8b6019c6c4b557367bf64d53e1b248b95f801a08e3b06c",
+        "cases": "7/9",
+        "counterexamples": [
+          "insufficient-stock",
+          "missing-stock-is-zero"
+        ],
+        "assumptions": [
+          "Python integer arithmetic is exact for fixture quantities.",
+          "The nine authored cases adequately sample the v0 contract for development selection."
+        ],
+        "invalidated_by": [
+          "A theory, realization, suite, adapter, or runner change."
+        ]
+      }
+    },
+    {
+      "id": "assumption.inventory.python-adapter",
+      "kind": "assumption",
+      "name": "Python builtin execution adapter",
+      "summary": "Manifest operation keys are bound to the checked Python reference functions for this Stage A tracer.",
+      "status": "visible",
+      "tags": [
+        "inventory",
+        "bootstrap"
+      ],
+      "attributes": {
+        "statement": "Operation binding names are interpreted by the in-process Python builtin registry.",
+        "replacement_criterion": "Replace when an authored or normalized executable representation crosses the same contract."
+      }
+    },
+    {
+      "id": "assumption.inventory.integer-arithmetic",
+      "kind": "assumption",
+      "name": "Fixture integer arithmetic",
+      "summary": "Python integer arithmetic is exact for the quantities exercised by the finite fixture.",
+      "status": "visible",
+      "tags": [
+        "inventory",
+        "bootstrap"
+      ],
+      "attributes": {}
+    },
+    {
+      "id": "assumption.inventory.fixture-coverage",
+      "kind": "assumption",
+      "name": "Development fixture adequacy",
+      "summary": "The nine authored cases adequately sample the v0 contract for development selection.",
+      "status": "visible",
+      "tags": [
+        "inventory",
+        "evidence"
+      ],
+      "attributes": {
+        "not_established": "Universal law coverage."
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source": "evidence.inventory.pure-conformance-v0",
+      "target": "artifact.inventory.conformance-recipe-v0",
+      "kind": "derives",
+      "summary": "The result is produced by executing the recipe against the exact pure realization.",
+      "attributes": {}
+    },
+    {
+      "source": "evidence.inventory.broken-conformance-v0",
+      "target": "artifact.inventory.conformance-recipe-v0",
+      "kind": "derives",
+      "summary": "The result is produced by executing the recipe against the exact broken realization.",
+      "attributes": {}
+    },
+    {
+      "source": "evidence.inventory.pure-conformance-v0",
+      "target": "claim.inventory.resolution",
+      "kind": "supports",
+      "summary": "Supports only the finite tested scenario and resolver counter-cases.",
+      "attributes": {}
+    },
+    {
+      "source": "evidence.inventory.broken-conformance-v0",
+      "target": "claim.inventory.resolution",
+      "kind": "supports",
+      "summary": "The named counterexample supports rejection of the broken alternative.",
+      "attributes": {}
+    },
+    {
+      "source": "evidence.inventory.pure-conformance-v0",
+      "target": "claim.inventory.invariant",
+      "kind": "supports",
+      "summary": "Checks the invariant at each finite case's final state; it is not proof.",
+      "attributes": {}
+    },
+    {
+      "source": "evidence.inventory.pure-conformance-v0",
+      "target": "obligation.inventory.conformance",
+      "kind": "covers",
+      "summary": "Covers the development policy obligation with example-test evidence.",
+      "attributes": {}
+    },
+    {
+      "source": "evidence.inventory.pure-conformance-v0",
+      "target": "realization.inventory.pure",
+      "kind": "validates",
+      "summary": "All nine cases pass for this exact realization identity.",
+      "attributes": {}
+    },
+    {
+      "source": "evidence.inventory.broken-conformance-v0",
+      "target": "realization.inventory.broken",
+      "kind": "invalidates",
+      "summary": "The insufficient-stock counterexample fails for this exact realization identity.",
+      "attributes": {}
+    },
+    {
+      "source": "claim.inventory.resolution",
+      "target": "assumption.inventory.python-adapter",
+      "kind": "assumes",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "claim.inventory.resolution",
+      "target": "assumption.inventory.integer-arithmetic",
+      "kind": "assumes",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "claim.inventory.resolution",
+      "target": "assumption.inventory.fixture-coverage",
+      "kind": "assumes",
+      "summary": "",
+      "attributes": {}
+    }
+  ]
+}

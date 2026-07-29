@@ -12,6 +12,7 @@ flowchart LR
     component_formal_evidence["Formal evidence adapters"]
     component_relational_analysis["Relational analysis plane"]
     component_resolver["Realization resolver"]
+    obligation_inventory_conformance["Inventory conformance obligation"]
     package_semantic_attestation_profile["Semantic attestation profile"]
     runtime_actors["Actor runtime"]
     runtime_inventory_actor["Inventory actor instance"]
@@ -19,6 +20,7 @@ flowchart LR
     runtime_inventory_store["Inventory transactional store"]
     runtime_payment_actor["Payment actor"]
     runtime_stm["STM runtime"]
+    component_resolver -->|handles| obligation_inventory_conformance
     component_formal_evidence -->|reads| artifact_normalized_core
     component_relational_analysis -->|reads| artifact_normalized_core
     component_artifact_distribution -->|publishes| package_semantic_attestation_profile

@@ -44,3 +44,8 @@ def require_key(document: JsonObject, key: str, context: str) -> JsonValue:
 def require_object_list(value: JsonValue, context: str) -> list[JsonObject]:
     items = require_list(value, context)
     return [require_object(item, f"{context}[{index}]") for index, item in enumerate(items)]
+
+
+def require_str_list(value: JsonValue, context: str) -> list[str]:
+    items = require_list(value, context)
+    return [require_str(item, f"{context}[{index}]") for index, item in enumerate(items)]

@@ -33,6 +33,8 @@ DECLARATION_COLLECTIONS = (
     "obligations",
 )
 
+NON_SEMANTIC_FIELDS = frozenset({"documentation", "display_name", "name", "source_path"})
+
 
 @dataclass(frozen=True, slots=True)
 class Theory:
@@ -46,10 +48,20 @@ def _declaration_id(declaration: JsonObject, key: str) -> str:
 
 def _sorted_by_id(document: JsonObject, key: str) -> list[JsonValue]:
     declarations = require_object_list(require_key(document, key, "theory"), f"theory.{key}")
-    keyed = [(_declaration_id(declaration, key), declaration) for declaration in declarations]
+    keyed = [
+        (_declaration_id(declaration, key), _semantic_declaration(declaration))
+        for declaration in declarations
+    ]
     keyed.sort(key=lambda pair: pair[0])
+    ids = [declaration_id for declaration_id, _ in keyed]
+    if len(ids) != len(set(ids)):
+        raise DocumentError(f"theory.{key} contains duplicate declaration IDs")
     ordered: list[JsonValue] = [declaration for _, declaration in keyed]
     return ordered
+
+
+def _semantic_declaration(declaration: JsonObject) -> JsonObject:
+    return {key: value for key, value in declaration.items() if key not in NON_SEMANTIC_FIELDS}
 
 
 def normalize_theory(document: JsonObject) -> Theory:

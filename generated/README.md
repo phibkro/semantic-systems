@@ -5,25 +5,28 @@
 | Kind | Count |
 |---|---:|
 | agent | 2 |
-| artifact | 1 |
-| assumption | 1 |
-| claim | 4 |
+| artifact | 6 |
+| assumption | 4 |
+| claim | 5 |
 | component | 20 |
 | decision | 3 |
-| deployment | 2 |
+| deployment | 3 |
 | domain_machine | 1 |
 | effect | 1 |
-| evidence | 4 |
+| evidence | 6 |
 | handler | 1 |
 | human | 1 |
 | invariant | 1 |
-| obligation | 1 |
+| law | 2 |
+| obligation | 2 |
+| operation | 3 |
 | package | 1 |
-| realization | 3 |
+| question | 1 |
+| realization | 4 |
 | responsibility | 2 |
 | runtime | 8 |
-| theory | 11 |
-| work_item | 22 |
+| theory | 12 |
+| work_item | 23 |
 
 - [System map](01-system-map.md)
 - [Theory-realization map](02-theory-realization.md)

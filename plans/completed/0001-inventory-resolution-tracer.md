@@ -1,4 +1,4 @@
-# Active plan 0001: inventory realization resolution tracer
+# Completed plan 0001: inventory realization resolution tracer
 
 Canonical problem contract:
 [`design-specs/0001-inventory-resolution-tracer.md`](../../design-specs/0001-inventory-resolution-tracer.md).
@@ -55,8 +55,13 @@ policy, execute only the selected realization, and explain the result.
 
 - `semantic-fable` (A0, complete): tracer-cut advice and `lang-bang` pattern
   analysis. No repository writes were accepted.
-- Mechanical implementation worker: pending contract/oracle commit.
-- Independent adversarial reviewer: pending integration.
+- `semantic-sonnet` (A3, complete): bounded Python implementation in an
+  isolated worktree against the frozen oracle; main agent gated and
+  cherry-picked commit `2a607840`.
+- `inventory-adversarial-review` (A0, complete): independent read-only semantic
+  review. Its duplicate-ID, hidden-assumption, evidence-subject, explanation,
+  unbound-operation, undeclared-type, and graph-drift findings were reproduced
+  and addressed.
 
 ## Acceptance commands
 
@@ -105,6 +110,30 @@ machinery, reject the expansion and recut to the data-level seams.
 - 2026-07-29: Froze contract, authored role-separated fixtures, and created the
   executable oracle. Targeted pytest fails at collection with the expected
   `ModuleNotFoundError: semantic_tracer` before implementation.
+- 2026-07-29: Integrated the Sonnet implementation and tightened exact theory
+  targeting, selected-assumption aggregation, explanation data, and CLI exits.
+- 2026-07-29: Independent review found two high-severity counterexamples:
+  duplicate realization IDs could execute a rejected candidate, and malformed
+  assumptions could bypass a denying policy. Both now fail closed.
+- 2026-07-29: Prevented example recipes from self-labeling as proof; bound the
+  recipe to the exact theory identity; rejected mismatched obligations,
+  duplicate suites, unbound operations, and duplicate declaration IDs.
+- 2026-07-29: Split pure and broken evidence results by exact subject, made the
+  recipe explicitly non-evidence, and added an executable graph-identity drift
+  check.
+- 2026-07-29: Expanded the counterexample corpus to nine cases and exposed
+  explanation details and developer-change guidance in the one-command demo.
+- 2026-07-29: Final Nix-backed gate passed: flake evaluation, Ruff lint and
+  formatting, strict Pyright, 25 full tests, `scripts/check.sh`, model
+  validation (112 entities, 167 relations, zero errors), and all eight
+  generated-view checks. The intentionally unsupported
+  `claim.kernel.safety` warning remains visible.
+- 2026-07-29: Accepted identities are theory
+  `sha256:456b5f8d991ce08c400c6b1688216834ad0460ab57ad14ef99cb5b4866a158ba`,
+  pure realization
+  `sha256:8fbc8156ae30ecfa37c71e9c25ec3a86608bdb491c9427c190affd607e0dc5c4`,
+  and broken realization
+  `sha256:e30c8e4be3a26655ed8b6019c6c4b557367bf64d53e1b248b95f801a08e3b06c`.
 
 ## Decisions and deviations
 
@@ -114,8 +143,40 @@ machinery, reject the expansion and recut to the data-level seams.
   the same reference fixtures.
 - Scoped identity v0 to data-level declarations; alpha normalization is not
   falsely claimed.
+- Added explicit `Reservation` and `Reason` declarations after review exposed
+  unresolved references in the authored contract. This changed the exact
+  theory and realization identities; the bound recipe and graph were updated
+  together and are now guarded by a test.
+- Kept policy eligibility distinct from evidence validity: a policy change
+  does not invalidate a completed test result.
+
+## Semantic diff
+
+- Added `ReleaseRejected`, explicit `Reservation` and `Reason` types, and the
+  nine-case finite oracle.
+- Added deterministic `theory-norm-v0`; display metadata and declaration order
+  do not participate, laws do, and duplicate declaration IDs reject.
+- Added exact-theory realization identities, a replaceable Python operation
+  adapter, per-realization example-test evidence, assumption-aware policies,
+  ambiguity rejection, selected-only execution, and structured explanation.
+- Did not change the kernel, normalized core, proof semantics, actor/STM
+  runtimes, package transport, or registry trust model.
+
+## Evidence statement
+
+- Claim: under the committed artifacts and development policy, exactly one
+  realization is eligible and its execution matches the declared trace.
+- Artifact: nine-case per-realization conformance results plus 21 tracer tests.
+- Category: `example_test`; no proof or property-test claim.
+- Assumptions: Python builtin operation registry, exact fixture integer
+  arithmetic, and finite-suite adequacy for development selection.
+- Not established: universal inventory correctness, alpha-equivalent identity,
+  imported evidence, signatures, revocation, or production-runtime behavior.
+- Invalidated by: theory, realization, recipe, adapter, runner, or recorded
+  exact-binding changes. Policy changes alter eligibility only.
 
 ## Completion state
 
-Open. On acceptance, move this record to `plans/completed/`, mark corresponding
-work and evidence current in `model/`, and identify the next uncertainty.
+Complete. The next exposed uncertainty is alpha-equivalent binder identity in
+`theory-norm-v1`; it remains recorded in
+`uncertainties/0001-theory-normalization-binders.md`.

@@ -28,6 +28,7 @@ flowchart TD
     component_syntax["Lossless syntax system"]
     handler_inventory_events["Inventory event handler"]
     realization_inventory_actor["Inventory actor realization"]
+    realization_inventory_broken["Standing broken inventory realization"]
     realization_inventory_pure["Inventory pure realization"]
     realization_inventory_stm["Inventory STM realization"]
     runtime_actors["Actor runtime"]
@@ -52,6 +53,7 @@ flowchart TD
     component_inventory -->|contains| realization_inventory_actor
     component_inventory -->|contains| realization_inventory_stm
     component_inventory -->|contains| handler_inventory_events
+    component_inventory -->|contains| realization_inventory_broken
     component_language -->|contains| component_syntax
     component_compiler -->|contains| component_incremental_queries
     component_compiler -->|contains| component_optimization_bridge

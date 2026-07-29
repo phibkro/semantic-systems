@@ -18,5 +18,7 @@
   "platform_requirements": [
     "python>=3.12"
   ],
-  "assumptions": []
+  "assumptions": [
+    "Operation binding names are interpreted by the in-process Python builtin registry."
+  ]
 }

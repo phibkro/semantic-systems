@@ -26,6 +26,27 @@ REASON_OBLIGATION_NOT_GOVERNED = "obligation_not_governed"
 REASON_AMBIGUOUS = "ambiguous_candidates"
 REASON_NO_ELIGIBLE = "no_eligible_candidates"
 REASON_THEORY_MISMATCH = "theory_mismatch"
+REASON_EVIDENCE_AMBIGUOUS = "ambiguous_evidence"
+REASON_EVIDENCE_OBLIGATION_MISMATCH = "evidence_obligation_mismatch"
+REASON_OBLIGATION_SET_UNSUPPORTED = "required_obligation_set_unsupported"
+REASON_EVIDENCE_STALE = "stale_evidence_recipe"
+REASON_OPERATION_UNBOUND = "unbound_operation"
+
+CHANGE_OPTIONS = {
+    REASON_MISSING_EVIDENCE: "Add one matching conformance suite for the required obligation.",
+    REASON_CATEGORY_NOT_ACCEPTED: "Supply evidence in an accepted category or change the policy.",
+    REASON_ASSUMPTIONS_NOT_ALLOWED: "Remove the assumptions or use a policy that permits them.",
+    REASON_CONFORMANCE_FAILED: "Fix the realization or explicitly revise the frozen contract.",
+    REASON_OBLIGATION_NOT_GOVERNED: "Add an explicit policy rule for the theory obligation.",
+    REASON_THEORY_MISMATCH: "Target the exact authored theory identifier.",
+    REASON_EVIDENCE_AMBIGUOUS: "Retain exactly one suite for the theory and obligation.",
+    REASON_EVIDENCE_OBLIGATION_MISMATCH: "Bind the suite to the obligation declared by the theory.",
+    REASON_OBLIGATION_SET_UNSUPPORTED: (
+        "Use the single-obligation v0 contract or extend the resolver."
+    ),
+    REASON_EVIDENCE_STALE: "Re-author the suite against the exact normalized theory identity.",
+    REASON_OPERATION_UNBOUND: "Bind every required operation to an available execution adapter.",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -73,6 +94,11 @@ class Candidate:
                 "realization_identity": self.realization.identity,
                 "reason_codes": list(self.reason_codes),
                 "assumptions": list(self.realization.assumptions),
+                "change_options": [
+                    CHANGE_OPTIONS[reason]
+                    for reason in self.reason_codes
+                    if reason in CHANGE_OPTIONS
+                ],
             },
             children=children,
         )
@@ -94,14 +120,19 @@ class Resolution:
         }
 
 
-def _matching_suite(theory_id: str, suites: list[JsonObject]) -> JsonObject | None:
-    for suite in suites:
-        if suite.get("theory") == theory_id:
-            return suite
-    return None
+def _required_obligation(theory: Theory) -> str | None:
+    raw = theory.payload.get("obligations")
+    if not isinstance(raw, list) or len(raw) != 1 or not isinstance(raw[0], dict):
+        return None
+    value = raw[0].get("id")
+    return value if isinstance(value, str) else None
 
 
-def _evaluate_candidate(
+def _theory_suites(theory_id: str, suites: list[JsonObject]) -> list[JsonObject]:
+    return [suite for suite in suites if suite.get("theory") == theory_id]
+
+
+def _evaluate_candidate(  # noqa: PLR0911
     theory: Theory,
     theory_id: str,
     realization: Realization,
@@ -116,17 +147,57 @@ def _evaluate_candidate(
             evidence=None,
         )
 
-    suite = _matching_suite(theory_id, suites)
-    if suite is None:
+    required_obligation = _required_obligation(theory)
+    if required_obligation is None:
+        return Candidate(
+            realization=realization,
+            eligible=False,
+            reason_codes=(REASON_OBLIGATION_SET_UNSUPPORTED,),
+            evidence=None,
+        )
+
+    matching = _theory_suites(theory_id, suites)
+    if not matching:
         return Candidate(
             realization=realization,
             eligible=False,
             reason_codes=(REASON_MISSING_EVIDENCE,),
             evidence=None,
         )
+    if len(matching) > 1:
+        return Candidate(
+            realization=realization,
+            eligible=False,
+            reason_codes=(REASON_EVIDENCE_AMBIGUOUS,),
+            evidence=None,
+        )
 
-    transition = resolve_transition(operation_binding(realization.document, "transition"))
-    replay_fn = resolve_replay(operation_binding(realization.document, "replay"))
+    suite = matching[0]
+    if suite.get("theory_identity") != theory.identity:
+        return Candidate(
+            realization=realization,
+            eligible=False,
+            reason_codes=(REASON_EVIDENCE_STALE,),
+            evidence=None,
+        )
+    if suite.get("obligation") != required_obligation:
+        return Candidate(
+            realization=realization,
+            eligible=False,
+            reason_codes=(REASON_EVIDENCE_OBLIGATION_MISMATCH,),
+            evidence=None,
+        )
+
+    try:
+        transition = resolve_transition(operation_binding(realization.document, "transition"))
+        replay_fn = resolve_replay(operation_binding(realization.document, "replay"))
+    except DocumentError:
+        return Candidate(
+            realization=realization,
+            eligible=False,
+            reason_codes=(REASON_OPERATION_UNBOUND,),
+            evidence=None,
+        )
     evidence = run_conformance(theory, realization, suite, transition, replay_fn)
 
     reasons: list[str] = []

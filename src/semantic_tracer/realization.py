@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from semantic_tracer.canonical import content_identity
-from semantic_tracer.jsonutil import require_key, require_object, require_str
+from semantic_tracer.jsonutil import require_key, require_object, require_str, require_str_list
 from semantic_tracer.theory import Theory
 from semantic_tracer.types import JsonObject
 
@@ -31,9 +31,7 @@ class Realization:
     @property
     def assumptions(self) -> list[str]:
         raw = self.document.get("assumptions", [])
-        if not isinstance(raw, list):
-            return []
-        return [item for item in raw if isinstance(item, str)]
+        return require_str_list(raw, "realization.assumptions")
 
 
 def normalize_realization(document: JsonObject, theory: Theory, theory_id: str) -> Realization:

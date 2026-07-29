@@ -24,3 +24,13 @@ committed artifact in the pinned Nix environment.
 
 Consequence if falsified: do not accept or publish the tracer claim; revise the
 identity, oracle, or policy boundary named by the failing counterexample.
+
+Observed result (2026-07-29): the pure realization passed 9/9 finite cases and
+the standing broken realization passed 7/9. Development policy selected only
+the pure realization; proof-only policy rejected both. This is `example_test`
+evidence under visible Python-adapter, integer-arithmetic, and fixture-coverage
+assumptions. It does not establish universal correctness.
+
+Invalidation: any change to the theory, realization, recipe, adapter, or runner
+requires the command and exact-binding drift test to pass again. Policy changes
+change eligibility, not the historical test result.

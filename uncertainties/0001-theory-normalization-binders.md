@@ -1,7 +1,4 @@
 # Uncertainty 0001: binder equivalence in theory normalization
-Once normalized law terms exist, encode two alpha-equivalent contracts and one
-capture-changing contract. Require the former to share identity and the latter
-to differ under `theory-norm-v1`.
 ## Current hypothesis
 
 Binder spelling can remain identity-significant in `theory-norm-v0` if the

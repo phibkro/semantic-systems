@@ -48,9 +48,11 @@ not run or unavailable; never infer success.
 
 ## Current tracer bullet
 
-`design-specs/0001-inventory-resolution-tracer.md` is the active contract.
-`plans/active/0001-inventory-resolution-tracer.md` records execution state.
-Reload both after context compaction.
+`design-specs/0001-inventory-resolution-tracer.md` is the completed contract.
+`plans/completed/0001-inventory-resolution-tracer.md` records its execution and
+evidence. The next semantic uncertainty is binder equivalence in normalized
+theory identity; see `uncertainties/0001-theory-normalization-binders.md`.
+Do not silently expand `theory-norm-v0` while that question remains open.
 
 ## Delegation
 

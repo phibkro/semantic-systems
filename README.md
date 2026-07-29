@@ -12,8 +12,10 @@ Markdown and Mermaid diagrams are generated projections of that graph.
 
 - A stratified design from kernel to distributable theories, realizations,
   evidence, and deployments.
-- An inventory state-machine tracer bullet with pure, actor, and STM
-  realizations.
+- A completed inventory state-machine tracer bullet with a lawful pure
+  realization, a standing broken realization, typed example-test evidence,
+  policy resolution, execution, and structured explanations. Actor and STM
+  realizations remain planned.
 - A typed Python graph loader, validator, scheduler, and view generator.
 - Canonical generated views:
   1. recursive system map;
@@ -27,7 +29,19 @@ Markdown and Mermaid diagrams are generated projections of that graph.
 
 ## Commands
 
-Without installation:
+Enter the pinned development environment:
+
+```bash
+nix develop
+```
+
+Run the completed tracer:
+
+```bash
+PYTHONPATH=src python -m semantic_tracer demo examples/inventory
+```
+
+Run the project model without installation:
 
 ```bash
 PYTHONPATH=src python -m semantic_project_model validate
@@ -49,6 +63,9 @@ Run every available check:
 ```bash
 ./scripts/check.sh
 ```
+
+The model intentionally retains a warning for the unsupported future
+`claim.kernel.safety` claim.
 
 ## Read next
 

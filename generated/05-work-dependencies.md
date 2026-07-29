@@ -15,6 +15,7 @@ flowchart LR
     work_inventory_design["Complete inventory domain contract"]
     work_inventory_proof["Prove inventory invariant"]
     work_inventory_pure["Implement pure inventory realization"]
+    work_inventory_resolution_tracer["Complete inventory evidence-resolution tracer"]
     work_inventory_stm["Implement inventory STM realization"]
     work_kernel_spec["Specify minimal kernel calculus"]
     work_lean_evidence_adapter["Specify Lean evidence adapter"]
@@ -29,6 +30,7 @@ flowchart LR
     work_theory_identity["Define normalized theory identity"]
     work_translation_validation_spec["Specify translation-validation seams"]
     work_wasm_contract_mapping["Research semantic contracts to WIT mapping"]
+    work_inventory_resolution_tracer -->|requires| decision_theory_identity
     work_normalized_core_format -->|blocks| work_kernel_spec
     work_lossless_frontend_spec -->|blocks| work_normalized_core_format
     work_lean_evidence_adapter -->|blocks| work_normalized_core_format

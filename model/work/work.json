@@ -14,9 +14,12 @@
       "kind": "decision",
       "name": "Laws participate in semantic identity",
       "summary": "Normalized operations, laws, and observations are content-addressed.",
-      "status": "research",
+      "status": "accepted",
       "tags": [],
-      "attributes": {}
+      "attributes": {
+        "scope": "theory-norm-v0",
+        "record": "decisions/0003-theory-identity-v0.md"
+      }
     },
     {
       "id": "decision.stm-library",
@@ -88,7 +91,7 @@
       "kind": "work_item",
       "name": "Define normalized theory identity",
       "summary": "Specify content hashing and compatibility.",
-      "status": "planned",
+      "status": "in_progress",
       "tags": [
         "packages"
       ],
@@ -116,7 +119,7 @@
       "kind": "work_item",
       "name": "Implement package and evidence resolver",
       "summary": "Resolve realizations against target and trust policy.",
-      "status": "planned",
+      "status": "in_progress",
       "tags": [
         "packages"
       ],
@@ -144,7 +147,7 @@
       "kind": "work_item",
       "name": "Complete inventory domain contract",
       "summary": "Finalize messages, events, transitions, and invariant.",
-      "status": "ready",
+      "status": "complete",
       "tags": [
         "inventory"
       ],
@@ -172,7 +175,7 @@
       "kind": "work_item",
       "name": "Implement pure inventory realization",
       "summary": "Implement deterministic update and replay.",
-      "status": "planned",
+      "status": "complete",
       "tags": [
         "inventory"
       ],

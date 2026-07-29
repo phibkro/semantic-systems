@@ -1,0 +1,141 @@
+{
+  "entities": [
+    {
+      "id": "artifact.policy.inventory.development",
+      "kind": "artifact",
+      "name": "Inventory development evidence policy",
+      "summary": "Accepts example-test, property-test, or proof evidence and permits declared assumptions.",
+      "status": "current",
+      "tags": [
+        "inventory",
+        "policy"
+      ],
+      "attributes": {
+        "path": "examples/inventory/policies/development.json"
+      }
+    },
+    {
+      "id": "artifact.policy.inventory.high-assurance",
+      "kind": "artifact",
+      "name": "Inventory high-assurance counter-policy",
+      "summary": "Accepts proof evidence only and therefore rejects the current test-backed candidates.",
+      "status": "current",
+      "tags": [
+        "inventory",
+        "policy",
+        "counterexample"
+      ],
+      "attributes": {
+        "path": "examples/inventory/policies/high-assurance.json"
+      }
+    },
+    {
+      "id": "deployment.inventory.reference",
+      "kind": "deployment",
+      "name": "Inventory reference deployment",
+      "summary": "Development-policy selection of the lawful pure realization for the reference scenario.",
+      "status": "locked",
+      "tags": [
+        "inventory",
+        "tracer-bullet"
+      ],
+      "attributes": {
+        "scenario": "examples/inventory/scenarios/demo.json",
+        "oracle_matched": true
+      }
+    },
+    {
+      "id": "artifact.lock.inventory.reference",
+      "kind": "artifact",
+      "name": "Inventory reference selection lock",
+      "summary": "Records the exact theory, realization, policy, evidence category, and visible assumptions selected by the demo.",
+      "status": "current",
+      "tags": [
+        "inventory",
+        "lock"
+      ],
+      "attributes": {
+        "theory_identity": "sha256:456b5f8d991ce08c400c6b1688216834ad0460ab57ad14ef99cb5b4866a158ba",
+        "realization_identity": "sha256:8fbc8156ae30ecfa37c71e9c25ec3a86608bdb491c9427c190affd607e0dc5c4",
+        "evidence_type": "example_test",
+        "assumptions": [
+          "Operation binding names are interpreted by the in-process Python builtin registry.",
+          "Python integer arithmetic is exact for fixture quantities.",
+          "The nine authored cases adequately sample the v0 contract for development selection."
+        ]
+      }
+    },
+    {
+      "id": "artifact.explanation.inventory.reference",
+      "kind": "artifact",
+      "name": "Inventory resolution explanation",
+      "summary": "Structured rule tree for selection, rejection, evidence, assumptions, and developer-change guidance.",
+      "status": "generated_at_runtime",
+      "tags": [
+        "inventory",
+        "explanation"
+      ],
+      "attributes": {
+        "producer": "semantic_tracer.resolver"
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source": "deployment.inventory.reference",
+      "target": "realization.inventory.pure",
+      "kind": "selects",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "deployment.inventory.reference",
+      "target": "artifact.policy.inventory.development",
+      "kind": "requires",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "deployment.inventory.reference",
+      "target": "assumption.inventory.python-adapter",
+      "kind": "assumes",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "deployment.inventory.reference",
+      "target": "assumption.inventory.integer-arithmetic",
+      "kind": "assumes",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "deployment.inventory.reference",
+      "target": "assumption.inventory.fixture-coverage",
+      "kind": "assumes",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "artifact.lock.inventory.reference",
+      "target": "deployment.inventory.reference",
+      "kind": "derives",
+      "summary": "The lock is a projection of the accepted resolver result.",
+      "attributes": {}
+    },
+    {
+      "source": "artifact.explanation.inventory.reference",
+      "target": "deployment.inventory.reference",
+      "kind": "derives",
+      "summary": "The explanation is generated from the same resolution result that permits execution.",
+      "attributes": {}
+    },
+    {
+      "source": "artifact.policy.inventory.high-assurance",
+      "target": "evidence.inventory.pure-conformance-v0",
+      "kind": "conflicts_with",
+      "summary": "Proof-only acceptance intentionally rejects example-test evidence.",
+      "attributes": {}
+    }
+  ]
+}

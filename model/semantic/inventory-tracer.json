@@ -1,0 +1,164 @@
+{
+  "entities": [
+    {
+      "id": "theory.inventory",
+      "kind": "theory",
+      "name": "Inventory reservation theory",
+      "summary": "Representation-independent reserve, release, replay, law, effect, invariant, and observation contract.",
+      "status": "current",
+      "tags": [
+        "inventory",
+        "tracer-bullet"
+      ],
+      "attributes": {
+        "contract": "examples/inventory/contracts/inventory-v0.json",
+        "normalization": "theory-norm-v0",
+        "identity": "sha256:456b5f8d991ce08c400c6b1688216834ad0460ab57ad14ef99cb5b4866a158ba",
+        "known_limitation": "Binder spelling is identity-significant in v0."
+      }
+    },
+    {
+      "id": "operation.inventory.reserve",
+      "kind": "operation",
+      "name": "Reserve inventory",
+      "summary": "Attempts a positive reservation and requests a fresh identifier only after domain guards pass.",
+      "status": "current",
+      "tags": [
+        "inventory"
+      ],
+      "attributes": {}
+    },
+    {
+      "id": "operation.inventory.release",
+      "kind": "operation",
+      "name": "Release reservation",
+      "summary": "Releases an active reservation or emits a no-op rejection.",
+      "status": "current",
+      "tags": [
+        "inventory"
+      ],
+      "attributes": {}
+    },
+    {
+      "id": "operation.inventory.replay",
+      "kind": "operation",
+      "name": "Replay inventory events",
+      "summary": "Reconstructs state from an initial state and accepted event sequence.",
+      "status": "current",
+      "tags": [
+        "inventory"
+      ],
+      "attributes": {}
+    },
+    {
+      "id": "law.inventory.rejection-noop",
+      "kind": "law",
+      "name": "Inventory rejection is a no-op",
+      "summary": "Every rejected reserve or release leaves state unchanged.",
+      "status": "tested",
+      "tags": [
+        "inventory"
+      ],
+      "attributes": {}
+    },
+    {
+      "id": "law.inventory.replay",
+      "kind": "law",
+      "name": "Inventory replay agreement",
+      "summary": "Replaying accepted events reconstructs the transition result for the tested cases.",
+      "status": "tested",
+      "tags": [
+        "inventory"
+      ],
+      "attributes": {}
+    },
+    {
+      "id": "obligation.inventory.conformance",
+      "kind": "obligation",
+      "name": "Inventory conformance obligation",
+      "summary": "A realization must satisfy every reference case and preserve the checked invariant.",
+      "status": "covered_by_example_tests",
+      "tags": [
+        "inventory",
+        "evidence"
+      ],
+      "attributes": {
+        "scope": "six finite cases; not a proof"
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source": "theory.inventory",
+      "target": "theory.machine",
+      "kind": "refines",
+      "summary": "Specializes the general domain-machine vocabulary.",
+      "attributes": {}
+    },
+    {
+      "source": "theory.inventory",
+      "target": "operation.inventory.reserve",
+      "kind": "provides",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "theory.inventory",
+      "target": "operation.inventory.release",
+      "kind": "provides",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "theory.inventory",
+      "target": "operation.inventory.replay",
+      "kind": "provides",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "theory.inventory",
+      "target": "law.inventory.rejection-noop",
+      "kind": "provides",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "theory.inventory",
+      "target": "law.inventory.replay",
+      "kind": "provides",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "theory.inventory",
+      "target": "effect.fresh",
+      "kind": "requires",
+      "summary": "Reserve may request a fresh logical identifier after guards pass.",
+      "attributes": {}
+    },
+    {
+      "source": "theory.inventory",
+      "target": "invariant.inventory.nonnegative",
+      "kind": "preserves",
+      "summary": "The checked transition cases preserve non-negative inventory.",
+      "attributes": {
+        "evidence_scope": "example_test"
+      }
+    },
+    {
+      "source": "theory.inventory",
+      "target": "obligation.inventory.conformance",
+      "kind": "requires",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "domain.inventory.machine",
+      "target": "theory.inventory",
+      "kind": "realizes",
+      "summary": "The authored domain contract supplies the inventory specialization.",
+      "attributes": {}
+    }
+  ]
+}

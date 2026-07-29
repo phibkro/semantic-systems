@@ -10,7 +10,9 @@ flowchart LR
     effect_fresh["Fresh identifier effect"]
     handler_inventory_events["Inventory event handler"]
     invariant_inventory_nonnegative["Non-negative inventory"]
+    obligation_inventory_conformance["Inventory conformance obligation"]
     realization_inventory_actor["Inventory actor realization"]
+    realization_inventory_broken["Standing broken inventory realization"]
     realization_inventory_pure["Inventory pure realization"]
     realization_inventory_stm["Inventory STM realization"]
     runtime_actors["Actor runtime"]
@@ -21,6 +23,7 @@ flowchart LR
     theory_crdt["State-based CRDT"]
     theory_effects["Algebraic effects"]
     theory_event_log["Event log"]
+    theory_inventory["Inventory reservation theory"]
     theory_join["Join semilattice"]
     theory_machine["Domain state machine"]
     theory_map["Map"]
@@ -35,6 +38,8 @@ flowchart LR
     realization_inventory_stm -->|realizes| domain_inventory_machine
     realization_inventory_stm -->|requires| theory_stm
     handler_inventory_events -->|realizes| theory_event_log
+    realization_inventory_pure -->|realizes| theory_inventory
+    realization_inventory_broken -->|realizes| theory_inventory
     runtime_deterministic_simulator -->|realizes| theory_actor
     runtime_deterministic_simulator -->|realizes| theory_stm
     theory_effects -->|requires| theory_cbpv
@@ -48,4 +53,9 @@ flowchart LR
     domain_inventory_machine -->|requires| theory_map
     domain_inventory_machine -->|requires| effect_fresh
     domain_inventory_machine -->|preserves| invariant_inventory_nonnegative
+    theory_inventory -->|refines| theory_machine
+    theory_inventory -->|requires| effect_fresh
+    theory_inventory -->|preserves| invariant_inventory_nonnegative
+    theory_inventory -->|requires| obligation_inventory_conformance
+    domain_inventory_machine -->|realizes| theory_inventory
 ```

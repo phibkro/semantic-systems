@@ -4,6 +4,7 @@
   "id": "suite.inventory.v0",
   "name": "Inventory v0 example conformance suite",
   "theory": "theory.inventory",
+  "theory_identity": "sha256:456b5f8d991ce08c400c6b1688216834ad0460ab57ad14ef99cb5b4866a158ba",
   "obligation": "obligation.inventory.conformance",
   "category": "example_test",
   "producer": {
@@ -11,7 +12,8 @@
     "version": "0.1.0"
   },
   "assumptions": [
-    "Python integer arithmetic is exact for fixture quantities."
+    "Python integer arithmetic is exact for fixture quantities.",
+    "The nine authored cases adequately sample the v0 contract for development selection."
   ],
   "cases": [
     {
@@ -240,6 +242,121 @@
             "quantity": 1
           }
         }
+      }
+    },
+    {
+      "id": "missing-stock-is-zero",
+      "initial_state": {
+        "stock": {},
+        "reservations": {}
+      },
+      "steps": [
+        {
+          "message": {
+            "kind": "Reserve",
+            "item": "pear",
+            "quantity": 1
+          },
+          "fresh_id": "r-005"
+        }
+      ],
+      "expected_events": [
+        {
+          "kind": "ReservationRejected",
+          "item": "pear",
+          "quantity": 1,
+          "reason": "insufficient_stock"
+        }
+      ],
+      "expected_final_state": {
+        "stock": {},
+        "reservations": {}
+      }
+    },
+    {
+      "id": "invalid-negative-quantity",
+      "initial_state": {
+        "stock": {
+          "apple": 3
+        },
+        "reservations": {}
+      },
+      "steps": [
+        {
+          "message": {
+            "kind": "Reserve",
+            "item": "apple",
+            "quantity": -1
+          }
+        }
+      ],
+      "expected_events": [
+        {
+          "kind": "ReservationRejected",
+          "item": "apple",
+          "quantity": -1,
+          "reason": "invalid_quantity"
+        }
+      ],
+      "expected_final_state": {
+        "stock": {
+          "apple": 3
+        },
+        "reservations": {}
+      }
+    },
+    {
+      "id": "release-twice",
+      "initial_state": {
+        "stock": {
+          "apple": 2
+        },
+        "reservations": {}
+      },
+      "steps": [
+        {
+          "message": {
+            "kind": "Reserve",
+            "item": "apple",
+            "quantity": 1
+          },
+          "fresh_id": "r-006"
+        },
+        {
+          "message": {
+            "kind": "Release",
+            "reservation_id": "r-006"
+          }
+        },
+        {
+          "message": {
+            "kind": "Release",
+            "reservation_id": "r-006"
+          }
+        }
+      ],
+      "expected_events": [
+        {
+          "kind": "Reserved",
+          "reservation_id": "r-006",
+          "item": "apple",
+          "quantity": 1
+        },
+        {
+          "kind": "Released",
+          "reservation_id": "r-006"
+        },
+        {
+          "kind": "ReleaseRejected",
+          "reservation_id": "r-006",
+          "reason": "unknown_reservation"
+        }
+      ],
+      "expected_final_state": {
+        "stock": {
+          "apple": 2
+        },
+        "reservations": {}
       }
     }
   ]

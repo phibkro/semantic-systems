@@ -19,6 +19,24 @@
       "form": "opaque"
     },
     {
+      "id": "Reason",
+      "form": "enum",
+      "values": [
+        "invalid_quantity",
+        "insufficient_stock",
+        "duplicate_reservation_id",
+        "unknown_reservation"
+      ]
+    },
+    {
+      "id": "Reservation",
+      "form": "record",
+      "fields": [
+        "item: ItemId",
+        "quantity: Quantity"
+      ]
+    },
+    {
       "id": "State",
       "form": "record",
       "fields": [

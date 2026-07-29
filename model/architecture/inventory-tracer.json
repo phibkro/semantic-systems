@@ -1,0 +1,52 @@
+{
+  "entities": [
+    {
+      "id": "realization.inventory.broken",
+      "kind": "realization",
+      "name": "Standing broken inventory realization",
+      "summary": "Deliberately ignores the insufficient-stock guard so the conformance gate has a permanent negative subject.",
+      "status": "rejected_fixture",
+      "tags": [
+        "inventory",
+        "counterexample"
+      ],
+      "attributes": {
+        "manifest": "examples/inventory/realizations/broken.json",
+        "identity": "sha256:e30c8e4be3a26655ed8b6019c6c4b557367bf64d53e1b248b95f801a08e3b06c",
+        "expected_result": "five of six example cases pass"
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source": "component.inventory",
+      "target": "realization.inventory.broken",
+      "kind": "contains",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "realization.inventory.pure",
+      "target": "theory.inventory",
+      "kind": "realizes",
+      "summary": "Claims the exact normalized inventory theory and passes the current conformance suite.",
+      "attributes": {}
+    },
+    {
+      "source": "realization.inventory.broken",
+      "target": "theory.inventory",
+      "kind": "realizes",
+      "summary": "Claims the theory but is ineligible because its conformance evidence fails.",
+      "attributes": {
+        "claim_status": "rejected"
+      }
+    },
+    {
+      "source": "component.resolver",
+      "target": "obligation.inventory.conformance",
+      "kind": "handles",
+      "summary": "Applies the selected policy to typed evidence without changing its category.",
+      "attributes": {}
+    }
+  ]
+}

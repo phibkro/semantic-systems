@@ -14,7 +14,7 @@
       "kind": "claim",
       "name": "Inventory transitions preserve non-negative quantities",
       "summary": "Every accepted transition restores the invariant.",
-      "status": "open",
+      "status": "supported",
       "tags": [],
       "attributes": {}
     },

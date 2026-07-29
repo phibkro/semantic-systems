@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -13,6 +14,7 @@ from semantic_tracer.explanation import ExplanationNode
 def _print_explanation(node: ExplanationNode, indent: int = 0) -> None:
     prefix = "  " * indent
     print(f"{prefix}- {node.rule}: {node.outcome} ({node.subject})")
+    print(f"{prefix}  details: {json.dumps(node.details, sort_keys=True)}")
     for child in node.children:
         _print_explanation(child, indent + 1)
 
