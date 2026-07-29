@@ -68,3 +68,35 @@ Observed result: pending implementation.
 Invalidation: any change to the evidence-result schema, resolution-claim
 schema, policy rules, identity algorithm, checker algorithm, or canonical
 binding adapter requires the full mutation and independence gates to rerun.
+
+## CLM-0003 — reproducible reference-source custody
+
+Hypothesis: for a catalogued Git source with explicit custody fields, the
+reference tool can bind exact committed source and license bytes once, then
+materialize and verify those same bytes offline without permitting branch,
+catalog, checkout, or license drift.
+
+Expected observation: after `local.lang-bang` is locked at commit A and its
+branch advances, offline materialization and strict status still verify A and
+report exact origin, commit, tree, license digests, and acquisition strength.
+
+Counterexample: branch movement changes content without a lock update; catalog
+or license drift passes; a dirty or wrong checkout passes; offline mode opens
+the network; failed work damages valid custody; or normal validation requires a
+reference checkout.
+
+Evaluation method: deterministic temporary-Git fixtures, mutation and failure
+injection, byte-identical no-op lock tests, explicit offline checks, the visible
+local-source command, and independent adversarial review.
+
+Success threshold: every design-spec 0004 acceptance condition passes in the
+pinned environment and normal validation passes with `.references/` absent.
+
+Consequence if falsified: do not treat source cards as provenance-ready; keep
+the catalog queued and redesign custody rather than weakening exactness.
+
+Observed result: pending implementation.
+
+Invalidation: any change to the catalog custody fields, canonical record
+identity, lock schema, Git acquisition rules, license hashing, or custody-state
+derivation requires the full fixture and offline gates to rerun.

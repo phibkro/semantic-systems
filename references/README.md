@@ -32,9 +32,10 @@ references/sources.toml
   -> falsifiable local experiment
 ```
 
-The lock generator and materializer are deliberately deferred until the first
-external clone wave. The catalog may queue an unpinned candidate; an unpinned
-candidate cannot support an accepted claim.
+The custody contract is frozen in
+`design-specs/0004-reference-source-custody.md`; its generator and materializer
+are under implementation. The catalog may queue an unpinned candidate; an
+unpinned candidate cannot support an accepted claim.
 
 `refs.bib` will be populated from accepted primary papers after the current
 research comparison completes. Until then, papers named in source questions

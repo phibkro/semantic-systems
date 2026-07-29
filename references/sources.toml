@@ -8,6 +8,9 @@ id = "local.lang-bang"
 kind = "local-git"
 origin = "https://github.com/phibkro/bang.git"
 local_hint = "../lang-bang"
+origin_aliases = ["git@github.com:phibkro/bang.git"]
+track = "HEAD"
+license_paths = ["LICENSE"]
 classes = ["semantics", "effects", "proof", "compiler", "reference-management"]
 questions = [
   "How are reference semantics tied to executable realizations?",

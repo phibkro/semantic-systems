@@ -48,13 +48,13 @@ PYTHONPATH=src python -m semantic_project_model report
 Targeted commands are documented in `CONTRIBUTING.md`. Report checks that were
 not run or unavailable; never infer success.
 
-## Current tracer bullet
+## Current frontiers
 
-`design-specs/0001-inventory-resolution-tracer.md` is the completed contract.
-`plans/completed/0001-inventory-resolution-tracer.md` records its execution and
-evidence. The next semantic uncertainty is binder equivalence in normalized
-theory identity; see `uncertainties/0001-theory-normalization-binders.md`.
-Do not silently expand `theory-norm-v0` while that question remains open.
+Inventory resolution 0001 is complete. Active frozen contracts are reference
+research 0002, independent resolution checking 0003, and reference-source
+custody 0004. Their plans under `plans/active/` own mutable execution state.
+Binder equivalence remains uncertainty 0001; do not silently expand
+`theory-norm-v0`.
 
 ## Delegation
 
