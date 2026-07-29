@@ -34,3 +34,37 @@ assumptions. It does not establish universal correctness.
 Invalidation: any change to the theory, realization, recipe, adapter, or runner
 requires the command and exact-binding drift test to pass again. Policy changes
 change eligibility, not the historical test result.
+
+## CLM-0002 — independently checkable resolution
+
+Hypothesis: for frozen inventory inputs, a materially smaller checker that does
+not execute realizations or import the production resolver can independently
+re-derive exact evidence bindings, candidate eligibility, terminal selection,
+assumption projection, and canonical-model agreement before execution.
+
+Expected observation: the positive development claim reports `Checker: valid`
+and executes only afterward; every single-field mutation in design spec 0003
+reports a stable violation and prevents execution.
+
+Counterexample: a recipe is accepted as evidence; a result is rebound to
+another realization; stored aggregate, eligibility, or selection fields are
+trusted; a candidate or assumption is omitted; policy/model drift passes; or
+the checker imports the production resolver or execution machinery.
+
+Evaluation method: lossless serialization round trips, deterministic mutation
+fixtures, forbidden-import checks, an independence/size gate, visible CLI
+execution, canonical-model drift checks, and independent adversarial review.
+
+Success threshold: every design-spec 0003 acceptance condition passes in the
+pinned environment and the committed checker remains within its independence
+and size boundary.
+
+Consequence if falsified: execution and publication remain blocked; split the
+decision rules into a declarative generated table or recut the checker boundary
+rather than weakening independence.
+
+Observed result: pending implementation.
+
+Invalidation: any change to the evidence-result schema, resolution-claim
+schema, policy rules, identity algorithm, checker algorithm, or canonical
+binding adapter requires the full mutation and independence gates to rerun.
