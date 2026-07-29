@@ -2,7 +2,7 @@
 
 <!-- Generated. Edit model sources, not this file. -->
 
-Ready parallel work items: **7**.
+Ready parallel work items: **8**.
 
 | Work item | Phase | Status | Ready | Score | Recommendation | Blockers |
 |---|---|---|---:|---:|---|---|
@@ -23,6 +23,7 @@ Ready parallel work items: **7**.
 | Specify normalized core artifact | design | ready | no | 45 | bounded spike | Specify minimal kernel calculus |
 | Implement package and evidence resolver | implementation | in_progress | no | 72 | delegate with review | Define normalized theory identity |
 | Define relational fact export | design | ready | yes | 94 | delegate directly |  |
+| Recut the independent resolution checker | design | ready | yes | 83 | delegate with review |  |
 | Specify semantic attestation profile | design | ready | no | 87 | delegate with review | Define normalized theory identity |
 | Specify STM effect and handler laws | research | planned | no | 49 | bounded spike | STM is a library effect |
 | Model-check STM interleavings | validation | planned | no | 94 | delegate with review | Implement minimal STM runtime |

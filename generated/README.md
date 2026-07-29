@@ -21,12 +21,12 @@
 | obligation | 2 |
 | operation | 3 |
 | package | 1 |
-| question | 2 |
+| question | 3 |
 | realization | 4 |
 | responsibility | 2 |
 | runtime | 8 |
 | theory | 12 |
-| work_item | 24 |
+| work_item | 25 |
 
 - [System map](01-system-map.md)
 - [Theory-realization map](02-theory-realization.md)

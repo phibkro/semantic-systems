@@ -1,0 +1,68 @@
+{
+  "entities": [
+    {
+      "id": "question.resolution-checker-recut",
+      "kind": "question",
+      "name": "How can resolution be checked independently within the size bound?",
+      "summary": "Compare generated rule evaluators, certificate validation, and a narrower claim after the first implementation exceeded the frozen checker-size gate.",
+      "status": "open",
+      "tags": [
+        "resolution",
+        "evidence",
+        "independence"
+      ],
+      "attributes": {
+        "record": "uncertainties/0004-independent-checker-recut.md",
+        "failed_experiment": "b9cea28"
+      }
+    },
+    {
+      "id": "work.resolution-checker-recut",
+      "kind": "work_item",
+      "name": "Recut the independent resolution checker",
+      "summary": "Prototype and measure compact independently observable checker boundaries without weakening the frozen claim or size gate.",
+      "status": "ready",
+      "tags": [
+        "resolution",
+        "evidence",
+        "experiment"
+      ],
+      "attributes": {
+        "phase": "design",
+        "effort": 5,
+        "acceptance": [
+          "Behavior and mutation corpus remains unchanged",
+          "Checker imports no production adjudicator or execution machinery",
+          "Adjudication decision core is at most 70% of production",
+          "Shared inputs and correlated defects remain explicit",
+          "Failed experiment b9cea28 remains rejected"
+        ],
+        "delegation": {
+          "specification_completeness": 4,
+          "context_locality": 5,
+          "testability": 5,
+          "reversibility": 5,
+          "integration_independence": 4,
+          "blast_radius": 3,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source": "question.resolution-checker-recut",
+      "target": "work.resolution-checker-recut",
+      "kind": "informs",
+      "summary": "The uncertainty defines the competing experiments and rejection criteria.",
+      "attributes": {}
+    },
+    {
+      "source": "work.resolution-checker-recut",
+      "target": "component.resolver",
+      "kind": "changes",
+      "summary": "An accepted recut would change the resolution-verification boundary without changing policy meaning.",
+      "attributes": {}
+    }
+  ]
+}

@@ -21,6 +21,10 @@ and kill criteria are frozen in design spec 0003.
   hand-copied and guarded only by tests.
 - Independent adversarial review identified these seams before this contract
   was frozen.
+- The first committed implementation experiment is preserved at `b9cea28`.
+  Its behavioral, mutation, forbidden-import, Ruff, format, and Pyright gates
+  pass, but its checker decision surface remains larger than the permitted
+  70% bound. The experiment is rejected for integration.
 
 ## Contract-owned implementation slices
 
@@ -118,6 +122,13 @@ validity.
   `work/resolution-checker-0003`. The first visible command succeeds, but the
   uncommitted checker is not accepted and its initial decision surface exceeds
   the frozen size gate.
+- 2026-07-29: Stopped the implementation lane after commit `b9cea28` preserved
+  the failed experiment. Five gate classes passed, but the required size gate
+  did not; repeated recuts did not bring the checker decision core below 70%.
+  The commit is not integration-ready and grants no evidence to CLM-0002.
+- 2026-07-29: Opened uncertainty 0004 to compare a declarative generated rule
+  contract, certificate validation, and a narrower claim boundary without
+  weakening independent observation.
 
 ## Decisions and deviations
 
@@ -126,6 +137,9 @@ validity.
   research.
 - The production resolver may retain producer diagnostics in explanations, but
   absence of a valid result—not the diagnostic alone—causes ineligibility.
+- Do not reinterpret the size metric, expand the resolver denominator, or
+  merge a known-red acceptance gate. The next slice is a fresh design
+  experiment, not incremental patching of `b9cea28`.
 
 ## Completion state
 

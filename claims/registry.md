@@ -63,7 +63,10 @@ Consequence if falsified: execution and publication remain blocked; split the
 decision rules into a declarative generated table or recut the checker boundary
 rather than weakening independence.
 
-Observed result: pending implementation.
+Observed result (2026-07-29): experiment `b9cea28` passed the behavioral,
+mutation, forbidden-import, lint, format, and type gates but failed the frozen
+checker-size gate. It is rejected for integration and does not establish this
+claim. Uncertainty 0004 records the recut alternatives.
 
 Invalidation: any change to the evidence-result schema, resolution-claim
 schema, policy rules, identity algorithm, checker algorithm, or canonical
