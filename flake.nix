@@ -40,13 +40,11 @@
               pkgs.uv
             ];
 
-            env = {
-              PLAYWRIGHT_BROWSERS_PATH = pkgs.playwright-driver.browsers;
-              PYTHONPATH = "src";
-              TZ = "UTC";
-              LC_ALL = "C.UTF-8";
-              PYTHONHASHSEED = "0";
-            };
+            env.PLAYWRIGHT_BROWSERS_PATH = pkgs.playwright-driver.browsers;
+            env.PYTHONPATH = "src";
+            env.TZ = "UTC";
+            env.LC_ALL = "C.UTF-8";
+            env.PYTHONHASHSEED = "0";
           };
         }
       );
