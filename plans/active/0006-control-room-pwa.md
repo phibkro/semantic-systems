@@ -15,12 +15,15 @@ making stale, offline, unsupported, and unavailable state visible.
 - The project model validates the federated typed graph and generates eight
   exact Markdown/Mermaid projections; the explorer query contract is complete.
 - A versioned allowlist exporter derives a content-addressed public snapshot
-  from canonical model identities and exact commit metadata.
+  from canonical model identities, exact commit metadata, strict UTC
+  observation time, and explicit `local_preview` or `accepted_main` provenance.
 - The phone-first PWA implements Pulse, Systems, Semantics, Evidence, and Work
-  views with search, drilldown, provenance, typed relations, explicit
-  freshness/offline state, and no mutation authority.
-- Unit, integration, privacy, production-build, and mobile Chromium/PWA
-  acceptance pass locally on the integrated branch.
+  views with search and status/relation filters, recursive component drilldown,
+  provenance, typed relations, explicit freshness/offline state, and no
+  mutation authority.
+- Targeted exporter, UI, workflow, production-build, payload-scan, and four
+  mobile Chromium/PWA correction oracles pass in the dirty integration tree.
+  Exact clean-commit feature acceptance has not yet rerun.
 - `phibkro/semantic-systems` is public after a complete-history Gitleaks and
   manual publication audit; GitHub secret scanning and push protection are
   enabled.
@@ -31,6 +34,8 @@ making stale, offline, unsupported, and unavailable state visible.
 
 - The first public view is accepted-commit near-real-time, not local-agent live
   telemetry.
+- Local exports are visibly `local_preview`; only the protected Pages workflow
+  may label an observation `accepted_main`.
 - Public fields are allowlisted by a versioned schema.
 - The app is a read-only projection; semantic and evidence decisions remain in
   the project model.
@@ -64,8 +69,9 @@ serializes after the payload scan and independent review.
   reconciled the Bun workspace and Nix environment, regenerated canonical
   projections, and reproduced then corrected one deterministic-environment
   merge regression.
-- An independent GPT acceptance review is active and remains unable to grant
-  evidence or publication authority.
+- An independent GPT acceptance review rejected commit `50d00a6`. It remains
+  the adversarial oracle for the corrected successor and grants no publication
+  authority.
 
 ## Acceptance commands
 
@@ -160,6 +166,18 @@ recursive dump of model attributes or put a GitHub credential in the client.
   the explicit bindings produced a green exact-commit run with 149 repository
   tests, six Vitest behaviors, three mobile Playwright scenarios, a production
   Pages-base build, and final-payload scan.
+- 2026-07-29: Independent review rejected commit `50d00a6` with reproduced
+  publication blockers: Pages omitted Actionlint installation, mutable project
+  JSON was service-worker precached, readiness diverged from the canonical
+  scheduler, invalid or mismatched timestamps were accepted, required query and
+  accessibility behavior was absent, local observations could be mislabeled,
+  install icons were incomplete, and evidence was attached to the wrong claim.
+- 2026-07-29: Converted those findings into correction oracles. Targeted gates
+  now pass 15 exporter tests, nine UI behaviors, four mobile browser journeys,
+  TypeScript/Oxlint/Oxfmt/Ruff checks, Actionlint, a Pages-base production
+  build, and the final payload scanner. The browser oracle performs an actual
+  snapshot N-to-N+1 update and rejects rollback. Full exact-commit acceptance
+  and independent re-review remain pending.
 
 ## Decisions and deviations
 
@@ -167,12 +185,16 @@ recursive dump of model attributes or put a GitHub credential in the client.
   source-custody work after its public query contract is frozen.
 - Custom-domain setup is completion item 9 but cannot weaken or block the
   default Pages artifact if external DNS/account state is unavailable.
+- Recorded uncertainty 0005 rather than migrating the established Python model
+  mid-tracer: the next public-schema revision will compare one-schema
+  derivation against the current mirrored Python/TypeScript validators.
 
 ## Completion state
 
-Local implementation complete pending clean-tree full acceptance and
-independent review. Default Pages deployment, phone observation of the deployed
-URL, and `semantic.phibkro.org` DNS/HTTPS remain external work. Complete only
-when items 1–8 pass against accepted `main`, the independent review is resolved,
-the default site is usable from a phone, and custom-domain state is either
-verified or recorded as the remaining external blocker.
+The first candidate was rejected; its corrected successor has passed targeted
+local gates but is not yet accepted. Full clean-tree acceptance, independent
+re-review, default Pages deployment, and phone observation of the deployed URL
+remain required. Complete only when items 1–8 pass against accepted `main`, the
+independent review is resolved, the default site is usable from a phone, and
+custom-domain state is either verified or recorded as the remaining external
+blocker.

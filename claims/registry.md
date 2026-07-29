@@ -98,12 +98,13 @@ pinned environment and normal validation passes with `.references/` absent.
 Consequence if falsified: do not treat source cards as provenance-ready; keep
 the catalog queued and redesign custody rather than weakening exactness.
 
-Observed result: local implementation at commit
-`56ee810b8d0794a026f3e822623ca4d5f018bc34` passes deterministic export,
-allowlist and sentinel scans, 149 repository tests, six UI behavior tests, and
-three mobile Chromium/PWA scenarios. This is bounded test and runtime
-validation, not proof. Independent review and the default Pages deployment
-remain pending, so the claim is not accepted.
+Observed result: the accepted custody implementation at commit `e8d771c`
+passes 68 focused custody tests and the 93-test repository gate. The real
+offline `local.lang-bang` observation binds commit
+`5b8e032bcffefb23a3a153d3f5cea99050e589c1`, tree
+`2156309abd48d19e433af8b302238a8424c360ab`, and the recorded license digest.
+This is example-test and one local runtime-validation observation, not proof
+of origin, authorship, legal compatibility, crash atomicity, or portability.
 
 Invalidation: any change to the catalog custody fields, canonical record
 identity, lock schema, Git acquisition rules, license hashing, or custody-state
@@ -170,7 +171,14 @@ Consequence if falsified: do not publish or update the site; retain the last
 valid deployment, expose the failed gate, and recut the exporter or deployment
 boundary without weakening privacy or provenance.
 
-Observed result: pending implementation.
+Observed result: local implementation at commit `50d00a6` passed deterministic
+export, allowlist and sentinel scans, 150 repository tests, six UI behavior
+tests, and three mobile Chromium/PWA scenarios. Independent review nevertheless
+rejected publication because the service worker could hide newer version data,
+the required status filter was absent, and this observation was initially
+attached to CLM-0003 instead of this claim. Those counterexamples are now the
+correction oracle; the claim remains open pending a green corrected artifact,
+independent re-review, and default Pages deployment.
 
 Invalidation: any public schema, exporter, canonical model, freshness rule,
 service-worker update algorithm, workflow, or deployment-target change requires

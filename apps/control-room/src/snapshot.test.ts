@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import { VERSION_SCHEMA, type PublicVersion } from "./model";
-import { freshnessState, isRollback, verifyCandidate } from "./snapshot";
+import {
+  freshnessState,
+  isPublicSnapshot,
+  isPublicVersion,
+  isRollback,
+  verifyCandidate,
+} from "./snapshot";
 import { fixtureSnapshot } from "./test/fixture";
 
 function version(overrides: Partial<PublicVersion> = {}): PublicVersion {
@@ -68,5 +74,24 @@ describe("snapshot truth states", () => {
         forged,
       ),
     ).rejects.toThrow("snapshot content digest mismatch");
+  });
+
+  it("rejects invalid timestamps and disagreement between version and snapshot", async () => {
+    expect(isPublicVersion(version({ observed_at: "not-a-dateZ" }))).toBe(false);
+    const invalidSnapshot = structuredClone(fixtureSnapshot);
+    invalidSnapshot.metadata.observed_at = "2026-13-29T12:00:00Z";
+    expect(isPublicSnapshot(invalidSnapshot)).toBe(false);
+    expect(freshnessState(invalidSnapshot, Date.parse("2026-07-29T12:01:00Z"), true)).toBe(
+      "invalid",
+    );
+
+    await expect(
+      verifyCandidate(
+        version({
+          observed_at: "2026-07-30T12:00:00Z",
+        }),
+        fixtureSnapshot,
+      ),
+    ).rejects.toThrow("observation time mismatch");
   });
 });

@@ -9,9 +9,17 @@ export const fixtureSnapshot: PublicSnapshot = {
     observed_at: "2026-07-29T12:00:00Z",
     freshness_seconds: 86_400,
     deployed_check_status: "not_checked",
+    observation_source: "local_preview",
     repository_url: "https://github.com/phibkro/semantic-systems",
   },
-  counts_by_kind: { claim: 1, component: 1, evidence: 1, theory: 1, work_item: 1 },
+  counts_by_kind: {
+    artifact: 1,
+    claim: 1,
+    component: 2,
+    evidence: 1,
+    theory: 1,
+    work_item: 2,
+  },
   ready_work_ids: ["work.ready"],
   active_work_ids: [],
   blocked_work_ids: [],
@@ -25,6 +33,30 @@ export const fixtureSnapshot: PublicSnapshot = {
       summary: "Phone-first system",
       status: "active",
       tags: ["system"],
+      source_url:
+        "https://github.com/phibkro/semantic-systems/blob/0123456789abcdef0123456789abcdef01234567/model/fixture.json",
+      evidence_category: null,
+      assumptions: [],
+    },
+    {
+      id: "component.child",
+      kind: "component",
+      name: "Child system",
+      summary: "Nested component",
+      status: "active",
+      tags: ["system"],
+      source_url:
+        "https://github.com/phibkro/semantic-systems/blob/0123456789abcdef0123456789abcdef01234567/model/fixture.json",
+      evidence_category: null,
+      assumptions: [],
+    },
+    {
+      id: "artifact.packet",
+      kind: "artifact",
+      name: "Evidence packet",
+      summary: "A derived project artifact",
+      status: "active",
+      tags: ["artifact"],
       source_url:
         "https://github.com/phibkro/semantic-systems/blob/0123456789abcdef0123456789abcdef01234567/model/fixture.json",
       evidence_category: null,
@@ -78,8 +110,28 @@ export const fixtureSnapshot: PublicSnapshot = {
       evidence_category: null,
       assumptions: [],
     },
+    {
+      id: "work.done",
+      kind: "work_item",
+      name: "Completed work",
+      summary: "A finished fixture item",
+      status: "complete",
+      tags: ["work"],
+      source_url:
+        "https://github.com/phibkro/semantic-systems/blob/0123456789abcdef0123456789abcdef01234567/model/fixture.json",
+      evidence_category: null,
+      assumptions: [],
+    },
   ],
   relations: [
+    {
+      source_id: "component.alpha",
+      target_id: "component.child",
+      kind: "contains",
+      summary: "Alpha recursively contains the child",
+      source_url:
+        "https://github.com/phibkro/semantic-systems/blob/0123456789abcdef0123456789abcdef01234567/model/fixture.json",
+    },
     {
       source_id: "component.alpha",
       target_id: "theory.safe",

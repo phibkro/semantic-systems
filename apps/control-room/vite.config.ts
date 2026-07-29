@@ -15,8 +15,8 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: "prompt",
-      includeAssets: ["icon-source.svg"],
+      registerType: "autoUpdate",
+      includeAssets: ["icon-source.svg", "icon-192.png", "icon-512.png"],
       manifest: {
         name: "Semantic Systems Control Room",
         short_name: "Control Room",
@@ -28,6 +28,18 @@ export default defineConfig({
         scope: ".",
         icons: [
           {
+            src: "icon-192.png",
+            sizes: "192x192",
+            type: "image/png",
+            purpose: "any maskable",
+          },
+          {
+            src: "icon-512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "any maskable",
+          },
+          {
             src: "icon-source.svg",
             sizes: "any",
             type: "image/svg+xml",
@@ -36,7 +48,12 @@ export default defineConfig({
       },
       workbox: {
         cleanupOutdatedCaches: true,
-        globPatterns: ["**/*.{js,css,html,png,svg,json}"],
+        clientsClaim: true,
+        skipWaiting: true,
+        // The content-addressed snapshot is cached explicitly only after the
+        // client verifies its version and digest. Precache only the immutable
+        // shell so an old service worker cannot hide a newer version document.
+        globPatterns: ["**/*.{js,css,html,png,svg,woff2}"],
         navigateFallback: "index.html",
       },
     }),

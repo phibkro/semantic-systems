@@ -6,6 +6,7 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal, TypedDict, cast
 
@@ -16,12 +17,14 @@ from semantic_project_model.model import (
     JsonValue,
     ProjectGraph,
 )
+from semantic_project_model.schedule import assess_work
 
 SCHEMA_VERSION = "semantic-public-snapshot-v1"
 VERSION_SCHEMA = "semantic-public-version-v1"
 DEFAULT_REPOSITORY_URL = "https://github.com/phibkro/semantic-systems"
 COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 DIGEST_RE = re.compile(r"^[0-9a-f]{64}$")
+UTC_TIMESTAMP_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
 
 class ExportError(ValueError):
@@ -29,6 +32,7 @@ class ExportError(ValueError):
 
 
 DeployedCheckStatus = Literal["not_checked", "passed", "failed"]
+ObservationSource = Literal["local_preview", "accepted_main"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,6 +43,7 @@ class ExportObservation:
     observed_at: str
     freshness_seconds: int
     deployed_check_status: DeployedCheckStatus
+    observation_source: ObservationSource = "local_preview"
     repository_url: str = DEFAULT_REPOSITORY_URL
 
 
@@ -69,6 +74,7 @@ class SnapshotMetadata(TypedDict):
     observed_at: str
     freshness_seconds: int
     deployed_check_status: DeployedCheckStatus
+    observation_source: ObservationSource
     repository_url: str
 
 
@@ -149,13 +155,26 @@ def _evidence_category(entity: Entity) -> str | None:
     return value if isinstance(value, str) else None
 
 
+def _validate_utc_timestamp(value: object, field: str) -> str:
+    if not isinstance(value, str) or not UTC_TIMESTAMP_RE.fullmatch(value):
+        raise ExportError(f"{field} must be a valid whole-second UTC timestamp")
+    try:
+        parsed = datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
+    except ValueError as error:
+        raise ExportError(f"{field} must be a valid whole-second UTC timestamp") from error
+    if parsed.strftime("%Y-%m-%dT%H:%M:%SZ") != value:
+        raise ExportError(f"{field} must be a canonical whole-second UTC timestamp")
+    return value
+
+
 def _validate_input(project: ProjectGraph, observation: ExportObservation) -> None:
     if not COMMIT_RE.fullmatch(observation.commit):
         raise ExportError("commit must be an exact lowercase 40-character Git object ID")
     if observation.freshness_seconds <= 0:
         raise ExportError("freshness_seconds must be positive")
-    if not observation.observed_at.endswith("Z"):
-        raise ExportError("observed_at must be an explicit UTC timestamp")
+    if observation.observation_source not in {"local_preview", "accepted_main"}:
+        raise ExportError("observation_source is invalid")
+    _validate_utc_timestamp(observation.observed_at, "observed_at")
 
     for entity_id, entity in project.entities.items():
         if entity.id != entity_id:
@@ -213,6 +232,7 @@ def _snapshot_without_digest(
         )
     ]
     work = [entity for entity in entities if entity["kind"] == "work_item"]
+    work_assessments = assess_work(project)
     unsupported_claim_ids = sorted(
         entity["id"]
         for entity in entities
@@ -231,14 +251,21 @@ def _snapshot_without_digest(
             "observed_at": observation.observed_at,
             "freshness_seconds": observation.freshness_seconds,
             "deployed_check_status": observation.deployed_check_status,
+            "observation_source": observation.observation_source,
             "repository_url": observation.repository_url,
         },
         "counts_by_kind": dict(sorted(counts.items())),
-        "ready_work_ids": sorted(item["id"] for item in work if item["status"] == "ready"),
+        "ready_work_ids": sorted(
+            assessment.entity.id for assessment in work_assessments if assessment.ready
+        ),
         "active_work_ids": sorted(
             item["id"] for item in work if item["status"] in {"active", "in_progress"}
         ),
-        "blocked_work_ids": sorted(item["id"] for item in work if item["status"] == "blocked"),
+        "blocked_work_ids": sorted(
+            assessment.entity.id
+            for assessment in work_assessments
+            if assessment.blockers or assessment.entity.status == "blocked"
+        ),
         "completed_work_ids": sorted(
             item["id"] for item in work if item["status"] in {"complete", "completed"}
         ),
@@ -295,10 +322,16 @@ def _validate_public_shape(  # noqa: PLR0912
             "observed_at",
             "freshness_seconds",
             "deployed_check_status",
+            "observation_source",
             "repository_url",
         },
         "metadata",
     )
+    _validate_utc_timestamp(metadata_value.get("generated_at"), "metadata.generated_at")
+    _validate_utc_timestamp(metadata_value.get("observed_at"), "metadata.observed_at")
+    _validate_utc_timestamp(version.get("observed_at"), "version.observed_at")
+    if metadata_value.get("observation_source") not in {"local_preview", "accepted_main"}:
+        raise ExportError("metadata.observation_source is invalid")
     for key in (
         "ready_work_ids",
         "active_work_ids",
@@ -444,6 +477,8 @@ def verify_public_artifact(  # noqa: PLR0912
         raise ExportError("version digest mismatch")
     if version.get("commit") != metadata.get("commit"):
         raise ExportError("version commit mismatch")
+    if version.get("observed_at") != metadata.get("observed_at"):
+        raise ExportError("version observation time mismatch")
     if version.get("snapshot") != snapshot_path.name:
         raise ExportError("version snapshot filename mismatch")
     if snapshot_path.name != f"snapshot.{digest}.json":

@@ -34,6 +34,25 @@ def main() -> int:
             f"found {len(version_documents)} and {len(versions)}"
         )
     verify_public_artifact(versions[0], version_documents[0])
+    service_worker = payload / "sw.js"
+    if not service_worker.is_file():
+        raise ExportError("public artifact is missing sw.js")
+    service_worker_bytes = service_worker.read_bytes()
+    if (
+        b"data/version.json" in service_worker_bytes
+        or versions[0].name.encode() in service_worker_bytes
+    ):
+        raise ExportError(
+            "service worker must not precache mutable version or snapshot data; "
+            "the app must observe newer accepted snapshots from the network"
+        )
+    if (
+        b"skipWaiting()" not in service_worker_bytes
+        or b"clientsClaim()" not in service_worker_bytes
+    ):
+        raise ExportError(
+            "service worker must atomically activate a complete new application shell"
+        )
     for path in sorted(item for item in payload.rglob("*") if item.is_file()):
         data = path.read_bytes()
         for label, pattern in FORBIDDEN.items():

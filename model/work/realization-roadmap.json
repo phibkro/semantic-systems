@@ -226,6 +226,7 @@
       "attributes": {
         "phase": "design",
         "effort": 5,
+        "contract": "design-specs/0006-control-room-pwa.md#frozen-deep-module-contract",
         "acceptance": [
           "Recursive components can be expanded and collapsed",
           "Architecture, semantic, evidence, and work relations remain filterable",

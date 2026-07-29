@@ -11,6 +11,14 @@ the initial freeze. The privacy boundary is therefore the allowlisted product
 projection versus arbitrary repository, build, agent, and operator context;
 repository visibility itself is no longer frozen as private.
 
+Revision 2026-07-29 after independent rejection: observation provenance is now
+part of the public contract. A snapshot identifies itself as either a
+`local_preview` or an `accepted_main` observation; only the protected
+publication workflow may emit the latter. Mutable version and snapshot data
+must remain network-observable rather than service-worker precached. Pulse
+reports completed work identities without inventing chronology that the
+canonical model does not contain.
+
 ## User journey
 
 From a phone, the operator opens or installs the Semantic Systems Control Room
@@ -66,8 +74,10 @@ canonical graph + exact accepted observation
 
 Every exported node and relation includes its canonical identity. Source links
 bind to the exact Git commit. Volatile observations include observation time,
-subject commit, source, and freshness policy and remain distinguishable from
-durable model facts.
+subject commit, observation source, and freshness policy and remain
+distinguishable from durable model facts. The exporter derives work readiness
+and blockers through the canonical scheduler rather than recreating those
+rules.
 
 ### Public export boundary
 
@@ -118,7 +128,8 @@ library owns viewport interaction, not project semantics or application state.
 The PWA provides:
 
 1. **Pulse** — snapshot age, commit, gate state, unsupported claims, active and
-   blocked work, and the latest completed feature;
+   blocked work, and completed work identities without an implied temporal
+   order;
 2. **Systems** — recursive components and typed relations;
 3. **Semantics** — theories, refinements, effects, invariants, realizations,
    handlers, and deployments;
@@ -135,9 +146,12 @@ small screen and without relying on color alone.
 
 GitHub Pages represents accepted committed state, not local real-time state.
 Every successful `main` publication creates an immutable snapshot identified by
-commit and digest. The installed PWA polls a small version document while
-online, updates atomically when a newer complete snapshot exists, and retains
-the last valid snapshot for offline use.
+commit and digest and marked `accepted_main`. A clean exact-HEAD local export is
+marked `local_preview` even when its commit is already accepted. The installed
+PWA polls a small version document while online, updates atomically when a
+newer complete snapshot exists, and retains the last valid snapshot for offline
+use. The application shell may be precached; the mutable version document and
+content snapshot may not be service-worker precached.
 
 The interface always shows one of:
 
@@ -177,8 +191,10 @@ custom address is reported complete.
 - Each item drills down to typed incoming/outgoing relations and exact source
   provenance.
 - A model change produces a new digest and the expected visible update.
-- The PWA is installable, works at its Pages base path, and can load its last
-  valid snapshot offline.
+- A deployed snapshot N is visibly replaced by a valid newer snapshot N+1,
+  while an older or mismatched candidate cannot roll the client back.
+- The PWA is installable with concrete 192px and 512px icons, works at its Pages
+  base path, and can load its last valid snapshot offline.
 
 ### Minimal rejections
 
@@ -231,7 +247,8 @@ because the fixture crashes or the application is absent.
 4. The phone viewport exposes all five views with search, filters, drill-down,
    provenance, and accessible non-color status.
 5. The manifest, icons, service worker, base paths, update flow, and offline
-   last-known snapshot pass browser-level acceptance.
+   last-known snapshot pass browser-level acceptance, including a real
+   deployment N-to-N+1 update and rollback rejection.
 6. The visible UI reports exact commit, digest, observation time, freshness,
    evidence categories, assumptions, and unsupported claims without upgrading
    their meaning.

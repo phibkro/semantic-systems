@@ -7,6 +7,7 @@ import {
 } from "./model";
 
 const SNAPSHOT_NAME = /^snapshot\.([0-9a-f]{64})\.json$/;
+const UTC_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 const CACHE_KEY = "semantic-control-room.snapshot-v1";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -32,6 +33,12 @@ async function sha256(value: string): Promise<string> {
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
+function isUtcTimestamp(value: unknown): value is string {
+  if (typeof value !== "string" || !UTC_TIMESTAMP.test(value)) return false;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) && new Date(parsed).toISOString() === value.replace("Z", ".000Z");
+}
+
 export function isPublicVersion(value: unknown): value is PublicVersion {
   return (
     isRecord(value) &&
@@ -40,7 +47,7 @@ export function isPublicVersion(value: unknown): value is PublicVersion {
     /^[0-9a-f]{40}$/.test(value.commit) &&
     typeof value.digest === "string" &&
     /^[0-9a-f]{64}$/.test(value.digest) &&
-    typeof value.observed_at === "string" &&
+    isUtcTimestamp(value.observed_at) &&
     typeof value.snapshot === "string" &&
     SNAPSHOT_NAME.test(value.snapshot) &&
     value.snapshot === `snapshot.${value.digest}.json`
@@ -60,8 +67,11 @@ export function isPublicSnapshot(value: unknown): value is PublicSnapshot {
     /^[0-9a-f]{40}$/.test(value.metadata.commit) &&
     typeof value.metadata.digest === "string" &&
     /^[0-9a-f]{64}$/.test(value.metadata.digest) &&
-    typeof value.metadata.observed_at === "string" &&
-    typeof value.metadata.freshness_seconds === "number"
+    isUtcTimestamp(value.metadata.generated_at) &&
+    isUtcTimestamp(value.metadata.observed_at) &&
+    typeof value.metadata.freshness_seconds === "number" &&
+    (value.metadata.observation_source === "local_preview" ||
+      value.metadata.observation_source === "accepted_main")
   );
 }
 
@@ -72,6 +82,8 @@ export async function verifyCandidate(
   if (!isPublicSnapshot(value)) throw new Error("snapshot schema is invalid");
   if (value.metadata.commit !== version.commit) throw new Error("commit mismatch");
   if (value.metadata.digest !== version.digest) throw new Error("version digest mismatch");
+  if (value.metadata.observed_at !== version.observed_at)
+    throw new Error("observation time mismatch");
   const digestInput = structuredClone(value) as PublicSnapshot;
   digestInput.metadata.digest = "";
   const calculated = await sha256(`${stableStringify(digestInput)}\n`);
@@ -82,6 +94,7 @@ export async function verifyCandidate(
 export function freshnessState(snapshot: PublicSnapshot, now: number, online: boolean): DataState {
   if (!online) return "offline";
   const age = now - Date.parse(snapshot.metadata.observed_at);
+  if (!Number.isFinite(age)) return "invalid";
   return age > snapshot.metadata.freshness_seconds * 1000 ? "stale" : "current";
 }
 

@@ -18,9 +18,11 @@ bun run --cwd apps/control-room serve:preview
 ```
 
 Open <http://127.0.0.1:4173/semantic-systems/>. Chrome or Chromium can install
-the app from that secure local origin. The preview defaults to the real
-canonical export; `CONTROL_ROOM_COMMIT` and `CONTROL_ROOM_OBSERVED_AT` are
-available only for reproducible fixture or CI observations.
+the app from that secure local origin. The export command refuses a dirty tree
+or a commit other than exact `HEAD`, and the resulting UI is visibly marked
+`Local preview`. `CONTROL_ROOM_OBSERVED_AT` is available only for reproducible
+fixture observations. The protected Pages workflow is the only supported path
+that emits an `accepted_main` observation.
 
 ## Acceptance
 

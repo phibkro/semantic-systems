@@ -39,7 +39,7 @@ python -m semantic_project_model generate --check
 
 ruff check .
 ruff format --check .
-actionlint .github/workflows/check.yml
+actionlint .github/workflows/*.yml
 
 bun run format:check
 bun run lint

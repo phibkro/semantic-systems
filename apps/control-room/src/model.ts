@@ -30,6 +30,7 @@ export type PublicSnapshot = {
     observed_at: string;
     freshness_seconds: number;
     deployed_check_status: "not_checked" | "passed" | "failed";
+    observation_source: "local_preview" | "accepted_main";
     repository_url: string;
   };
   counts_by_kind: Record<string, number>;

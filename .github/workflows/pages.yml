@@ -16,58 +16,64 @@ concurrency:
 jobs:
   build:
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Check out exact accepted commit
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-
-      - name: Set up Python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          python-version: "3.12"
+          ref: ${{ github.sha }}
+          persist-credentials: false
 
-      - name: Set up Bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
-        with:
-          bun-version: "1.3.13"
-
-      - name: Install exact dependencies
+      - name: Report exact accepted commit
         run: |
-          python -m pip install -e ".[dev]"
-          bun install --frozen-lockfile
+          test "${GITHUB_SHA}" = "$(git rev-parse HEAD)"
+          test -z "$(git status --porcelain)"
+          printf 'exact-head: %s\n' "${GITHUB_SHA}" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Install pinned Nix
+        uses: DeterminateSystems/nix-installer-action@ef8a148080ab6020fd15196c2084a2eea5ff2d25 # v22
+        with:
+          determinate: false
+          source-tag: v3.21.8
+          nix-package-url: https://releases.nixos.org/nix/nix-2.34.8/nix-2.34.8-x86_64-linux.tar.xz
+          diagnostic-endpoint: ""
+
+      - name: Assert environment and install exact dependencies
+        run: |
+          test "$(nix --version)" = "nix (Nix) 2.34.8"
+          test "$(nix develop --command bun --version)" = "1.3.13"
+          nix develop --command bun install --frozen-lockfile --ignore-scripts
 
       - name: Validate canonical sources
-        run: ./scripts/check.sh
+        run: nix develop --command ./scripts/check.sh
 
       - name: Export exact public snapshot
         env:
           CONTROL_ROOM_COMMIT: ${{ github.sha }}
+          CONTROL_ROOM_OBSERVATION_SOURCE: accepted_main
         run: |
           echo "CONTROL_ROOM_OBSERVED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
           CONTROL_ROOM_OBSERVED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            sh scripts/export-public-model.sh
+            nix develop --command sh scripts/export-public-model.sh
 
       - name: Check frontend
         run: |
-          bun run --cwd apps/control-room format:check
-          bun run --cwd apps/control-room lint
-          bun run --cwd apps/control-room typecheck
-          bun run --cwd apps/control-room test
+          nix develop --command bun run --cwd apps/control-room format:check
+          nix develop --command bun run --cwd apps/control-room lint
+          nix develop --command bun run --cwd apps/control-room typecheck
+          nix develop --command bun run --cwd apps/control-room test
 
       - name: Build Pages payload
         env:
           CONTROL_ROOM_BASE: /semantic-systems/
-        run: bun run --cwd apps/control-room build
+        run: nix develop --command bun run --cwd apps/control-room build
 
       - name: Scan final public payload
-        run: PYTHONPATH=src python scripts/check-public-artifact.py apps/control-room/dist
-
-      - name: Install browser runtime
-        run: apps/control-room/node_modules/.bin/playwright install --with-deps chromium
+        run: nix develop --command python scripts/check-public-artifact.py apps/control-room/dist
 
       - name: Exercise mobile PWA
         run: >-
-          apps/control-room/node_modules/.bin/playwright test
+          nix develop --command apps/control-room/node_modules/.bin/playwright test
           --config apps/control-room/playwright.config.mjs
 
       - name: Configure Pages

@@ -22,12 +22,18 @@ def main() -> int:
         choices=("not_checked", "passed", "failed"),
         default="not_checked",
     )
+    parser.add_argument(
+        "--observation-source",
+        choices=("local_preview", "accepted_main"),
+        default="local_preview",
+    )
     args = parser.parse_args()
     observation = ExportObservation(
         commit=args.commit,
         observed_at=args.observed_at,
         freshness_seconds=args.freshness_seconds,
         deployed_check_status=args.deployed_check_status,
+        observation_source=args.observation_source,
     )
     artifact = export_public_snapshot(load_project(args.root), observation, args.output)
     print(f"{artifact.digest} {artifact.snapshot_path}")
