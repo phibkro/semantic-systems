@@ -43,6 +43,7 @@ iterating and the integration loop before opening or updating a pull request:
 
 ```bash
 bun install --frozen-lockfile --ignore-scripts
+bun run hooks:install
 ./scripts/check-fast.sh
 ./scripts/check.sh
 PYTHONPATH=src python -m semantic_project_model report

@@ -11,25 +11,24 @@ limits, semantic diff, and kill criteria are frozen in design spec 0005.
 
 ## Current state
 
-- The public repository has one GitHub Actions workflow running Ruff, format,
-  Pyright, pytest, model validation, and generated-view checks.
-- `scripts/check.sh` runs the integration suite, but silently warns when Ruff
-  or Pyright are missing.
-- Strict Ruff and Pyright configuration already exists.
-- Design specs and execution plans exist, but there is no PR template,
-  acceptance-script convention, exact-head contract check, or documented
-  autonomous merge boundary.
-- Completed Herdr tabs required manual cleanup; three harvested tabs were
-  closed on 2026-07-29.
-- GitHub reports that `main` currently has no branch protection. Required-check
-  enforcement must be configured only after the final workflow check names are
-  stable, then exercised by the pilot PR.
-- `nix flake check` currently passes only flake evaluation for the local
-  `x86_64-linux` dev shell and formatter; the flake exports no project test
-  derivation yet. It must not be reported as an integration-test gate until
-  `checks` actually run repository validation.
-- The active checker exposed a correlated-sensor failure mode when resolver and
-  checker briefly shared the same adjudication function.
+- The repository has required-tool fast and integration loops; required tools
+  fail closed in the pinned environment rather than degrading to warnings.
+- Pull requests have a machine-readable feature contract, completion template,
+  exact-head checkout, feature acceptance dispatch, and commit/title policy.
+- Merge-group and main-push ranges replay acceptance for changed feature plans,
+  while narrow zero-plan maintenance ranges are reported without representing
+  feature acceptance.
+- `nix flake check` exports real project checks for Python integration and
+  commit-policy conformance, with noncanonical cache inputs filtered from both
+  Git-flake and `path:.` evaluation.
+- Local commit, pre-commit, and pre-push hooks are checked in and explicitly
+  installed after the script-disabled frozen dependency install. They remain
+  advisory and bypassable.
+- Branch protection remains external and is not claimed active. Required-check
+  enforcement and merge mode must be configured and exercised by the pilot PR
+  only after the final workflow check names and correction head are stable.
+- Independent review resolution, operator completion feedback, Herdr cleanup,
+  and the real pilot merge remain open external gates.
 
 ## Implementation slices
 
@@ -198,6 +197,14 @@ completion feedback, and cleanup.
   deleted feature plan. The sensor now observes the complete committed change
   set and permits a zero-plan range only when every path belongs to the same
   narrow trivial allowlist.
+- 2026-07-29: Final independent review reproduced rename-source false
+  acceptance, ignored-cache influence on `path:.`, dormant fresh-clone hooks,
+  stale current-state prose, and implicit process environment values. The
+  correction added red oracles before production changes, inventories both
+  sides of detected renames/copies, filters every current noncanonical cache
+  directory, documents and exercises explicit hook installation, refreshes
+  this current-state section, and binds UTC, C.UTF-8, and Python hash seed zero
+  in authoritative CI and pinned Nix environments.
 
 ## Decisions and deviations
 

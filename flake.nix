@@ -40,6 +40,9 @@
             ];
 
             env.PYTHONPATH = "src";
+            env.TZ = "UTC";
+            env.LC_ALL = "C.UTF-8";
+            env.PYTHONHASHSEED = "0";
           };
         }
       );
@@ -79,9 +82,14 @@
                 name == "node_modules"
                 || name == ".git"
                 || name == ".references"
+                || name == ".research-cache"
+                || name == ".venv"
+                || name == ".pyright"
                 || name == ".pytest_cache"
                 || name == ".ruff_cache"
                 || name == "__pycache__"
+                || name == "build"
+                || name == "dist"
                 || pkgs.lib.hasPrefix "bun-debug-" name
               );
           };
@@ -109,6 +117,9 @@
             checkPhase = ''
               export PYTHONPATH=src
               export HOME="$TMPDIR"
+              export TZ="UTC"
+              export LC_ALL="C.UTF-8"
+              export PYTHONHASHSEED="0"
               ruff check .
               ruff format --check .
               actionlint .github/workflows/check.yml
@@ -129,6 +140,9 @@
             doCheck = true;
             checkPhase = ''
               export HOME="$TMPDIR"
+              export TZ="UTC"
+              export LC_ALL="C.UTF-8"
+              export PYTHONHASHSEED="0"
               bun run scripts/check-commit-policy.ts
             '';
             installPhase = "mkdir -p $out && echo ok > $out/result";

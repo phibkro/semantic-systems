@@ -88,11 +88,46 @@ export const changedPathsForRange = (
   requireSha(base, "base SHA");
   requireSha(head, "head SHA");
   const range = comparison === "pr" ? `${base}...${head}` : `${base}..${head}`;
-  // Observe the complete committed change set. In particular, deletions are
-  // authority-relevant changes: excluding them would let a `trivial` marker
-  // remove implementation or contract files without being seen.
-  const output = runGit(root, ["diff", "--name-only", "-z", range]);
-  return output.split("\0").filter((path) => path.length > 0);
+  // Observe both sides of detected renames and copies. `--name-only` reports
+  // only the destination, which would let a nontrivial source disappear into
+  // the `generated/` trivial allowlist. Explicit detection settings keep this
+  // authority inventory independent of each checkout's Git configuration.
+  const output = runGit(root, [
+    "-c",
+    "diff.renames=true",
+    "-c",
+    "diff.renameLimit=32767",
+    "-c",
+    "diff.algorithm=histogram",
+    "diff",
+    "--name-status",
+    "-z",
+    "--find-renames=50%",
+    "--find-copies=50%",
+    "--find-copies-harder",
+    range,
+    "--",
+  ]);
+  const fields = output.split("\0");
+  if (fields.at(-1) === "") {
+    fields.pop();
+  }
+  const paths = new Set<string>();
+  for (let index = 0; index < fields.length;) {
+    const status = fields[index++];
+    if (status === undefined || status.length === 0) {
+      throw new Error(`git diff returned an empty name-status record for ${range}`);
+    }
+    const pathCount = status.startsWith("R") || status.startsWith("C") ? 2 : 1;
+    for (let offset = 0; offset < pathCount; offset += 1) {
+      const path = fields[index++];
+      if (path === undefined || path.length === 0) {
+        throw new Error(`git diff returned a truncated ${status} record for ${range}`);
+      }
+      paths.add(path);
+    }
+  }
+  return [...paths];
 };
 
 const markerFromBody = (body: string): string | "trivial" => {

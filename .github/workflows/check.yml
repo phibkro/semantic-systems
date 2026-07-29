@@ -21,6 +21,11 @@ on:
 permissions:
   contents: read
 
+env:
+  TZ: UTC
+  LC_ALL: C.UTF-8
+  PYTHONHASHSEED: "0"
+
 concurrency:
   group: check-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true

@@ -36,6 +36,26 @@ requires_node_modules = pytest.mark.skipif(
 )
 
 
+def _nix_store_available() -> bool:
+    if shutil.which("nix") is None:
+        return False
+    return (
+        subprocess.run(
+            ["nix", "store", "info"],
+            capture_output=True,
+            text=True,
+            check=False,
+        ).returncode
+        == 0
+    )
+
+
+requires_nix_store = pytest.mark.skipif(
+    not _nix_store_available(),
+    reason="the Nix store is unavailable to this test process",
+)
+
+
 def _run(
     cmd: list[str],
     *,
@@ -321,6 +341,57 @@ def test_trivial_marker_rejects_deleted_implementation(tmp_path: Path) -> None:
 
 
 @requires_bun
+def test_trivial_marker_rejects_nontrivial_rename_into_generated(tmp_path: Path) -> None:
+    repo, event, _, feature_head = _feature_repo(tmp_path)
+    contributing = repo / "CONTRIBUTING.md"
+    contributing.write_text("nontrivial contributor policy\n" * 20)
+    assert _git(repo, "add", "CONTRIBUTING.md").returncode == 0
+    policy_head = _commit(repo, "docs: add contributor policy")
+
+    (repo / "generated").mkdir()
+    assert _git(repo, "mv", "CONTRIBUTING.md", "generated/CONTRIBUTING.md").returncode == 0
+    rename_head = _commit(repo, "chore: move contributor policy into generated")
+    payload = json.loads(event.read_text())
+    payload["pull_request"] = {
+        "base": {"sha": policy_head},
+        "head": {"sha": rename_head},
+        "body": _valid_pr_body("trivial"),
+    }
+    event.write_text(json.dumps(payload))
+
+    rejected = _run_feature_tool(FEATURE_POLICY, repo, "--event", str(event))
+    assert rejected.returncode != 0
+    assert "CONTRIBUTING.md" in (rejected.stdout + rejected.stderr)
+    assert feature_head != policy_head
+
+
+@requires_bun
+def test_trivial_marker_rejects_detected_copy_from_nontrivial_source(tmp_path: Path) -> None:
+    repo, event, _, _ = _feature_repo(tmp_path)
+    contributing = repo / "CONTRIBUTING.md"
+    contributing.write_text("nontrivial contributor policy\n" * 20)
+    assert _git(repo, "add", "CONTRIBUTING.md").returncode == 0
+    policy_head = _commit(repo, "docs: add contributor policy")
+
+    assert _git(repo, "config", "diff.renames", "copies").returncode == 0
+    (repo / "generated").mkdir()
+    shutil.copyfile(contributing, repo / "generated" / "CONTRIBUTING.md")
+    assert _git(repo, "add", "generated/CONTRIBUTING.md").returncode == 0
+    copy_head = _commit(repo, "chore: copy contributor policy into generated")
+    payload = json.loads(event.read_text())
+    payload["pull_request"] = {
+        "base": {"sha": policy_head},
+        "head": {"sha": copy_head},
+        "body": _valid_pr_body("trivial"),
+    }
+    event.write_text(json.dumps(payload))
+
+    rejected = _run_feature_tool(FEATURE_POLICY, repo, "--event", str(event))
+    assert rejected.returncode != 0
+    assert "CONTRIBUTING.md" in (rejected.stdout + rejected.stderr)
+
+
+@requires_bun
 def test_feature_runner_dispatches_pr_and_range_acceptance(tmp_path: Path) -> None:
     repo, event, base, head = _feature_repo(tmp_path)
     pr = _run_feature_tool(FEATURE_RUNNER, repo, "--mode", "pr", "--event", str(event))
@@ -400,6 +471,35 @@ def test_range_runner_rejects_deleted_feature_plan(tmp_path: Path) -> None:
         feature_head,
         "--head",
         deletion_head,
+    )
+    assert result.returncode != 0
+    assert "0005-fixture" in (result.stdout + result.stderr)
+
+
+@requires_bun
+def test_range_runner_rejects_feature_plan_rename_into_generated(tmp_path: Path) -> None:
+    repo, _, _, feature_head = _feature_repo(tmp_path)
+    (repo / "generated").mkdir()
+    assert (
+        _git(
+            repo,
+            "mv",
+            "plans/active/0005-fixture.md",
+            "generated/0005-fixture-plan.md",
+        ).returncode
+        == 0
+    )
+    rename_head = _commit(repo, "chore: move feature plan into generated")
+
+    result = _run_feature_tool(
+        FEATURE_RUNNER,
+        repo,
+        "--mode",
+        "range",
+        "--base",
+        feature_head,
+        "--head",
+        rename_head,
     )
     assert result.returncode != 0
     assert "0005-fixture" in (result.stdout + result.stderr)
@@ -624,6 +724,37 @@ def test_local_hooks_cover_fast_and_pinned_integration_loops() -> None:
     assert "nix develop --command ./scripts/check.sh" in pre_push.read_text()
 
 
+@requires_bun
+def test_documented_fresh_clone_setup_installs_advisory_hooks(tmp_path: Path) -> None:
+    contributing = (ROOT / "CONTRIBUTING.md").read_text()
+    install = "bun install --frozen-lockfile --ignore-scripts"
+    hook_install = "bun run hooks:install"
+    assert install in contributing
+    assert hook_install in contributing
+    assert contributing.index(install) < contributing.index(hook_install)
+
+    repo = tmp_path / "fresh-clone"
+    shutil.copytree(
+        ROOT,
+        repo,
+        ignore=shutil.ignore_patterns(
+            ".git",
+            "node_modules",
+            ".references",
+            ".research-cache",
+            ".pytest_cache",
+            ".ruff_cache",
+            "__pycache__",
+        ),
+    )
+    assert _git(repo, "init").returncode == 0
+    result = _run(["bun", "run", "hooks:install"], cwd=repo)
+    assert result.returncode == 0, result.stdout + result.stderr
+    configured = _git(repo, "config", "--get", "core.hooksPath")
+    assert configured.returncode == 0
+    assert configured.stdout.strip() == ".githooks"
+
+
 def test_fast_loop_uses_actionlint_without_writing_python_bytecode() -> None:
     text = CHECK_FAST.read_text()
     assert "actionlint" in text
@@ -718,5 +849,107 @@ def test_provenance_records_local_hardening_adaptations() -> None:
 
 def test_nix_source_filter_excludes_root_cache_directories() -> None:
     text = (ROOT / "flake.nix").read_text()
-    for directory in ("node_modules", ".git", ".references", ".pytest_cache", ".ruff_cache"):
+    for directory in (
+        "node_modules",
+        ".git",
+        ".references",
+        ".research-cache",
+        ".venv",
+        ".pyright",
+        ".pytest_cache",
+        ".ruff_cache",
+        "build",
+        "dist",
+    ):
         assert f'name == "{directory}"' in text
+
+
+@requires_nix_store
+def test_ignored_noncanonical_directories_do_not_change_flake_derivations(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    shutil.copytree(
+        ROOT,
+        repo,
+        ignore=shutil.ignore_patterns(
+            ".git",
+            "node_modules",
+            ".references",
+            ".research-cache",
+            ".venv",
+            ".pyright",
+            ".pytest_cache",
+            ".ruff_cache",
+            "__pycache__",
+            "build",
+            "dist",
+        ),
+    )
+    assert _git(repo, "init").returncode == 0
+    assert _git(repo, "add", ".").returncode == 0
+    _commit(repo, "test: establish clean source-filter fixture")
+
+    nix_env = {
+        **dict(os.environ),
+        "HOME": str(tmp_path / "home"),
+        "TMPDIR": str(tmp_path / "tmp"),
+        "XDG_CACHE_HOME": str(tmp_path / "xdg"),
+    }
+    for path in (nix_env["HOME"], nix_env["TMPDIR"], nix_env["XDG_CACHE_HOME"]):
+        Path(path).mkdir(parents=True, exist_ok=True)
+    system = _run(
+        ["nix", "eval", "--raw", "--impure", "--expr", "builtins.currentSystem"],
+        env=nix_env,
+    )
+    assert system.returncode == 0, system.stdout + system.stderr
+    attribute = f"checks.{system.stdout.strip()}.python-integration.drvPath"
+
+    def derivation(reference: str) -> str:
+        result = _run(["nix", "eval", "--raw", f"{reference}#{attribute}"], env=nix_env)
+        assert result.returncode == 0, result.stdout + result.stderr
+        return result.stdout.strip()
+
+    clean_git = derivation(str(repo))
+    clean_path = derivation(f"path:{repo}")
+
+    for directory in (".research-cache", ".venv", ".pyright", "build", "dist"):
+        injected = repo / directory / "review-injected.txt"
+        injected.parent.mkdir(parents=True, exist_ok=True)
+        injected.write_text(f"ignored cache content from {directory}\n")
+
+    assert derivation(str(repo)) == clean_git
+    assert derivation(f"path:{repo}") == clean_path
+
+
+def test_active_plan_current_state_matches_repository_implementation() -> None:
+    plan = (ROOT / "plans" / "active" / "0005-autonomous-development-control-loop.md").read_text()
+    current_state = " ".join(
+        plan.split("## Current state", 1)[1].split("## Implementation slices", 1)[0].split()
+    ).lower()
+    for stale_claim in (
+        "silently warns when Ruff or Pyright are missing",
+        "there is no PR template",
+        "the flake exports no project test derivation yet",
+    ):
+        assert stale_claim.lower() not in current_state
+    for current_claim in (
+        "required tools fail closed",
+        "feature contract",
+        "real project checks",
+        "branch protection remains external",
+    ):
+        assert current_claim in current_state
+
+
+def test_authoritative_environments_bind_deterministic_process_values() -> None:
+    workflow = WORKFLOW.read_text()
+    flake = (ROOT / "flake.nix").read_text()
+    for key, value in (
+        ("TZ", "UTC"),
+        ("LC_ALL", "C.UTF-8"),
+        ("PYTHONHASHSEED", "0"),
+    ):
+        assert re.search(rf"(?m)^  {key}: [\"']?{re.escape(value)}[\"']?$", workflow)
+        assert f'env.{key} = "{value}";' in flake
+        assert f'export {key}="{value}"' in flake

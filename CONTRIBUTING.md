@@ -21,7 +21,12 @@ Install the exact locked JavaScript tools once after entering the shell:
 
 ```bash
 bun install --frozen-lockfile --ignore-scripts
+bun run hooks:install
 ```
+
+The frozen install disables all package lifecycle scripts. The separate,
+checked hook installer then sets `core.hooksPath=.githooks` explicitly; these
+local hooks improve feedback latency but remain advisory and bypassable.
 
 | Loop | Command | Latency | Covers |
 |---|---|---|---|
