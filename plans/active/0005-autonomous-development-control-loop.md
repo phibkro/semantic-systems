@@ -11,7 +11,7 @@ limits, semantic diff, and kill criteria are frozen in design spec 0005.
 
 ## Current state
 
-- The private repository has one GitHub Actions workflow running Ruff, format,
+- The public repository has one GitHub Actions workflow running Ruff, format,
   Pyright, pytest, model validation, and generated-view checks.
 - `scripts/check.sh` runs the integration suite, but silently warns when Ruff
   or Pyright are missing.
@@ -113,6 +113,9 @@ completion feedback, and cleanup.
 - 2026-07-29: Clarified that red is executable behavior design: intended,
   forbidden, boundary, invariant, and adversarial observations are encoded
   before implementation and must fail for the intended semantic reason.
+- 2026-07-29: Audited all 30 commits with Gitleaks 8.30.1 and a manual
+  publication scan, then made `phibkro/semantic-systems` public at operator
+  request. Verified GitHub secret scanning and push protection are enabled.
 
 ## Decisions and deviations
 
