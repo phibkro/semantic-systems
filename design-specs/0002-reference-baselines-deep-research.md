@@ -7,6 +7,12 @@ Problem owner: main research and integration agent
 Semantic frontier: reference adoption, trust boundaries, compiler construction,
 and enforceable engineering discipline
 
+Revision note (2026-07-29): operator clarification replaced the conservative
+one-child admission rule with resource-bounded read-only fan-out. Concurrent
+writers still require explicit ownership and isolated worktrees. A native
+`/deep-research` run was added as an A/B baseline; the custom workflow remains
+the candidate outer orchestrator.
+
 ## User journey
 
 A maintainer launches one Claude Code dynamic workflow and receives a
@@ -91,8 +97,13 @@ unbounded concurrency.
 
 For this repository:
 
-- at most one workflow child may run beside the Fable lead;
-- delegated depth is lead to worker only;
+- read-only workers may fan out to the capacity of the machine and provider;
+- network, storage, file descriptors, memory, CPU, and service quotas bound
+  live concurrency;
+- independent retrieval and comparison work may run concurrently behind phase
+  barriers;
+- Fable synthesis and final integration remain serial;
+- concurrent writers require non-overlapping ownership and isolated worktrees;
 - the pilot uses a small representative slice before broad fan-out;
 - no worker writes project semantics or evidence status;
 - larger waves require the pilot's source quality, routing accuracy, and cost
@@ -111,6 +122,14 @@ For this repository:
 - Lean 4 kernel, elaborator, metaprogramming, and Mathlib boundaries;
 - Rocq/Coq proof objects and extraction;
 - Isabelle code generation and document model.
+
+### Type-system refinement ladder
+
+- GHC Core/System F and System FC as explicit polymorphic intermediate forms;
+- Liquid Haskell and Flux as decidable refinement-type references;
+- F* as a refinement, effect, SMT, and extraction boundary;
+- Agda and Idris 2 as full dependent and quantitative-type references;
+- explicit separation between System F polymorphism and dependent typing.
 
 ### Compiler data and incremental architecture
 

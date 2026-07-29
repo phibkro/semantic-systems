@@ -1,0 +1,59 @@
+# Reference repository corpus
+
+External repositories are research inputs, not build dependencies, vendored
+code, or semantic authorities.
+
+## Custody model
+
+- `sources.toml` is the checked-in catalog of research intent: stable source
+  ID, canonical origin, comparison class, and inspection questions.
+- `refs.bib` is the canonical bibliography for papers, books, reports,
+  authorship, venues, and persistent publication identifiers. Source entries
+  refer to citation keys instead of copying bibliographic fields.
+- A future generated lock records the exact commit, license artifact digest,
+  retrieval time, and resolved origin used by an accepted research card.
+- `.references/` is an ignored, disposable materialization cache. Never cite a
+  checkout merely by its branch name or current `HEAD`.
+- Local sibling projects may be inspected in place, but accepted observations
+  still record their remote and exact commit.
+- Reference code is never imported by copy-and-paste. Reuse requires a separate
+  provenance and license decision and should prefer adapting a method behind a
+  project-owned boundary.
+
+The intended dependency graph is:
+
+```text
+references/sources.toml
+  + references/refs.bib
+  -> generated reference lock
+  -> ignored checkout at the locked commit
+  -> source-backed project card
+  -> adoption decision
+  -> falsifiable local experiment
+```
+
+The lock generator and materializer are deliberately deferred until the first
+external clone wave. The catalog may queue an unpinned candidate; an unpinned
+candidate cannot support an accepted claim.
+
+`refs.bib` will be populated from accepted primary papers after the current
+research comparison completes. Until then, papers named in source questions
+are discovery hints, not accepted bibliography records.
+
+## Working-directory ownership
+
+Read-only inspection may fan out concurrently. A single reference curator owns
+mutation of `.references/` in a working directory. Concurrent curators use
+separate caches or worktrees. Network, storage, file descriptors, memory, and
+CPU—not a blanket agent count—bound read-only fan-out.
+
+## Initial local material
+
+- `lang-bang` is a method and counterexample source for verified compilation,
+  effect semantics, generated reference indexes, differential gates, and
+  explicit correctness descent. It does not define this project's kernel.
+- `semantic-packages` is design ancestry for exact typed references, evidence
+  results, semantic versus realization compatibility, and explanation
+  requirements. It is not current canonical truth.
+
+See `research/lang-bang-patterns.md` for the existing bounded analysis.

@@ -11,3 +11,7 @@ build/
 # Local stacklit renderings; stacklit.json is the canonical compact index.
 DEPENDENCIES.md
 stacklit.html
+
+# Disposable, locally materialized research repositories. The checked-in
+# source catalog under references/ is canonical; these checkouts are caches.
+.references/

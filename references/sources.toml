@@ -1,0 +1,175 @@
+schema = 1
+
+# This file records research intent, not accepted evidence. Exact commits,
+# license digests, and retrieval timestamps belong in the generated lock.
+
+[[source]]
+id = "local.lang-bang"
+kind = "local-git"
+origin = "https://github.com/phibkro/bang.git"
+local_hint = "../lang-bang"
+classes = ["semantics", "effects", "proof", "compiler", "reference-management"]
+questions = [
+  "How are reference semantics tied to executable realizations?",
+  "Which proof, differential-test, and generated-drift gates are reusable?",
+  "Which language-specific kernel decisions must be rejected?",
+]
+
+[[source]]
+id = "local.semantic-packages"
+kind = "local-git"
+origin = "https://github.com/phibkro/semantic-packages.git"
+local_hint = "../semantic-packages"
+classes = ["design-ancestry", "evidence", "resolution", "typed-references"]
+questions = [
+  "Which earlier distinctions survived into the current metamodel?",
+  "Which abandoned assumptions should become counterexamples?",
+  "Which schemas or explanations expose gaps in the current tracer?",
+]
+
+[[source]]
+id = "koka"
+kind = "git"
+origin = "https://github.com/koka-lang/koka.git"
+classes = ["effects", "semantics", "memory"]
+questions = ["Effect-row semantics", "handler lowering", "Perceus and reuse analysis"]
+
+[[source]]
+id = "lean4"
+kind = "git"
+origin = "https://github.com/leanprover/lean4.git"
+classes = ["proof", "dependent-types", "compiler"]
+questions = ["Small-kernel boundary", "elaboration versus checking", "diagnostics"]
+
+[[source]]
+id = "lean4lean"
+kind = "git"
+origin = "https://github.com/digama0/lean4lean.git"
+classes = ["proof", "trusted-checking"]
+questions = ["Independent checker shape", "kernel conformance", "trust reduction"]
+
+[[source]]
+id = "rocq"
+kind = "git"
+origin = "https://github.com/rocq-prover/rocq.git"
+classes = ["proof", "dependent-types", "extraction"]
+questions = ["Proof-object checking", "extraction boundary", "trusted base"]
+
+[[source]]
+id = "cakeml"
+kind = "git"
+origin = "https://github.com/CakeML/cakeml.git"
+classes = ["verified-compiler", "proof", "bootstrapping"]
+questions = ["End-to-end theorem shape", "trusted base", "semantics-to-machine seams"]
+
+[[source]]
+id = "compcert"
+kind = "git"
+origin = "https://github.com/AbsInt/CompCert.git"
+classes = ["verified-compiler", "translation-validation", "trust"]
+questions = ["Pass validation", "semantic preservation", "license constraints"]
+
+[[source]]
+id = "ghc"
+kind = "git"
+origin = "https://gitlab.haskell.org/ghc/ghc.git"
+classes = ["system-f", "system-fc", "compiler-ir", "diagnostics"]
+questions = ["Typed core", "coercion evidence", "elaboration and optimization boundaries"]
+
+[[source]]
+id = "liquid-haskell"
+kind = "git"
+origin = "https://github.com/ucsd-progsys/liquidhaskell.git"
+classes = ["refinement-types", "smt", "diagnostics"]
+questions = ["Decidable refinement fragment", "obligation generation", "counterexamples"]
+
+[[source]]
+id = "flux"
+kind = "git"
+origin = "https://github.com/flux-rs/flux.git"
+classes = ["refinement-types", "rust", "ownership"]
+questions = ["Refinements over ownership", "rustc integration seam", "diagnostics"]
+
+[[source]]
+id = "fstar"
+kind = "git"
+origin = "https://github.com/FStarLang/FStar.git"
+classes = ["dependent-types", "refinement-types", "effects", "verification"]
+questions = ["Effectful dependent verification", "SMT boundary", "extraction"]
+
+[[source]]
+id = "agda"
+kind = "git"
+origin = "https://github.com/agda/agda.git"
+classes = ["dependent-types", "proof", "diagnostics"]
+questions = ["Elaboration", "termination and positivity checking", "interactive errors"]
+
+[[source]]
+id = "idris2"
+kind = "git"
+origin = "https://github.com/idris-lang/Idris2.git"
+classes = ["dependent-types", "quantitative-types", "compiler"]
+questions = ["Quantitative type theory", "elaboration", "erasure and code generation"]
+
+[[source]]
+id = "rust"
+kind = "git"
+origin = "https://github.com/rust-lang/rust.git"
+classes = ["compiler", "arenas", "queries", "ir", "diagnostics"]
+questions = ["Arena and interning strategy", "query invalidation", "MIR", "structured diagnostics"]
+
+[[source]]
+id = "rust-analyzer"
+kind = "git"
+origin = "https://github.com/rust-lang/rust-analyzer.git"
+classes = ["incremental", "lossless-tree", "ide", "diagnostics"]
+questions = ["Rowan trees", "incremental architecture", "analysis/IDE separation"]
+
+[[source]]
+id = "salsa"
+kind = "git"
+origin = "https://github.com/salsa-rs/salsa.git"
+classes = ["incremental", "dependency-graph", "memoization"]
+questions = ["Tracked dependency semantics", "durability", "cancellation"]
+
+[[source]]
+id = "oxc"
+kind = "git"
+origin = "https://github.com/oxc-project/oxc.git"
+classes = ["compiler", "data-oriented-design", "arenas", "diagnostics"]
+questions = ["AST layout", "allocator lifetimes", "passes", "benchmark discipline"]
+
+[[source]]
+id = "llvm"
+kind = "git"
+origin = "https://github.com/llvm/llvm-project.git"
+classes = ["compiler", "arenas", "ir", "diagnostics"]
+questions = ["Bump allocation", "provenance through IR", "diagnostic infrastructure"]
+
+[[source]]
+id = "tigerbeetle"
+kind = "git"
+origin = "https://github.com/tigerbeetle/tigerbeetle.git"
+classes = ["engineering-discipline", "data-oriented-design", "testing", "distributed-systems"]
+questions = ["TigerStyle enforceability", "static versus convention rules", "simulation testing"]
+
+[[source]]
+id = "elm-compiler"
+kind = "git"
+origin = "https://github.com/elm/compiler.git"
+classes = ["diagnostics", "compiler"]
+questions = ["Error taxonomy", "contextual suggestions", "message testing"]
+
+[[source]]
+id = "gleam"
+kind = "git"
+origin = "https://github.com/gleam-lang/gleam.git"
+classes = ["diagnostics", "compiler", "incremental"]
+questions = ["Structured diagnostics", "friendly explanations", "compiler organization"]
+
+[[source]]
+id = "k-framework"
+kind = "git"
+origin = "https://github.com/runtimeverification/k.git"
+classes = ["executable-semantics", "model-checking"]
+questions = ["Executable definition workflow", "proof/search boundary", "tooling cost"]
