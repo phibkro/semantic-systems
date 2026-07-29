@@ -140,6 +140,12 @@ recursive dump of model attributes or put a GitHub credential in the client.
 - 2026-07-29: Added a least-privilege, immutable-action Pages workflow. No
   workflow was pushed or run, no Pages site was configured, and no DNS or HTTPS
   change was made.
+- 2026-07-29: Clean-tree feature acceptance reached the pre-existing generated
+  projection gate and reported only `generated/README.md` (`work_item` count 25
+  versus canonical 26). Integration owns the single post-rebase regeneration;
+  this worker left `generated/**` untouched as assigned. All independent
+  canonical validation, Python, exporter, frontend, payload-scan, production
+  build, and mobile Playwright gates passed.
 
 ## Decisions and deviations
 
