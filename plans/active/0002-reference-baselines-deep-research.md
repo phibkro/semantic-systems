@@ -87,6 +87,7 @@ experiment backlog.
 - `research/reference-baselines/enforcement-ladder.md`
 - `research/reference-baselines/adoption-experiments.md`
 - `research/reference-baselines/workflow-comparison-rubric.md`
+- `research/reference-baselines/workflow-comparison.md`
 - `research/reference-baselines/interim-insights.md`
 - `research/semantic-packages-patterns.md`
 - `references/sources.toml` plus a generated exact-commit lock
@@ -166,6 +167,17 @@ Research-specific acceptance is the checklist in design spec 0002.
   native mechanics and budgets unchanged. The research output classifies
   reuse as substantially as-is, adapted behind a project-owned boundary, or
   fresh implementation/semantic synthesis.
+- 2026-07-29: Routed treatment completed in 11m13s with 107 agents and zero
+  errors. Runtime models resolved to Fable ×2, Opus ×5, and Sonnet ×100. It was
+  28% faster than the all-Fable control but both failed full-class coverage
+  because the unchanged global top-25 verification cap starved later classes.
+- 2026-07-29: Recorded the operational comparison without upgrading its
+  provisional semantic findings. The next heterogeneous workflow must allocate
+  verification capacity per comparison class rather than by one global rank.
+- 2026-07-29: Re-ran the repository baseline in the pinned Nix environment:
+  Ruff, format, Pyright, 25 tests, model validation, and all eight generated
+  views passed. The existing unsupported `claim.kernel.safety` warning remains
+  visible. Host-only execution still lacks Ruff, Pyright, and pytest.
 - 2026-07-29: Replaced the blanket single-semantic-frontier constraint with
   decision 0004's dependency-aware parallel frontier. Independent contracts
   may progress concurrently; shared boundaries and final integration remain
@@ -186,8 +198,9 @@ Research-specific acceptance is the checklist in design spec 0002.
 - The native workflow ignores model/effort routing in its prompt because its
   agent calls inherit the lead session. This is a measured baseline limitation,
   not a configuration to adopt.
-- The workflow will be saved only after inspecting its generated script and
-  validating the pilot output.
+- Explicit stage routing is accepted for future heterogeneous research, while
+  the global top-25 verification mechanism is rejected for portfolios that
+  require coverage across distinct comparison classes.
 
 ## Completion state
 
