@@ -141,6 +141,28 @@ validity.
 - 2026-07-29: The same isolated lane was reopened under the frozen contract.
   Each reproduced counterexample must become a failing oracle before its
   correction. The prior green suite is insufficient evidence.
+- 2026-07-29: The correction reached commit
+  `0c687da3003a3d3163c56d2482e4a59aac86708f`. Main-agent gates passed with
+  52 focused tests, Ruff, Pyright, the full repository check, and the
+  reference check. Independent review nevertheless rejected the commit.
+- 2026-07-29: The second adversarial review confirmed that all seven prior
+  regression classes were closed, including publication rollback after a
+  second-cache install failure and an exception in the lock-write body. It
+  then reproduced nine remaining contract violations: curator-lock symlink
+  truncation; blobless caches unable to replay a non-license blob offline;
+  unresolved `resolved_ref` accepted by strict lock-only status; hidden
+  assume-unchanged/skip-worktree tampering outside declared licenses; a
+  symlinked checkout escaping `.references`; orphan lock entries ignored by
+  `status --all`; non-license submodules and LFS pointers reported as fully
+  verified; arbitrary custom Git remote helpers executed online; and remote
+  SHA-256 repositories represented by the schema but not supported by the
+  acquisition path.
+- 2026-07-29: The next correction is frozen to those reproduced failures.
+  It must add failing oracles first, confine custody paths with no-follow
+  operations, validate the catalog-lock relation globally, verify complete
+  checkout shape, make an origin-independent replay cache, default-deny
+  unapproved transport helpers, support both represented Git object formats,
+  and keep crash/syscall/cross-platform limits visible.
 
 ## Decisions and deviations
 
@@ -154,6 +176,15 @@ validity.
   evidence: passing author gates did not establish the frozen network,
   non-mutation, working-tree byte, transactional-cache, or catalog-binding
   guarantees.
+- Commit `0c687da3003a3d3163c56d2482e4a59aac86708f` is also explicitly not
+  accepted evidence. Its tests establish exception-path rollback and the
+  seven named regressions only; they do not establish path confinement,
+  complete checkout/replay, global catalog-lock correspondence, a
+  default-deny transport boundary, or SHA-256 operation.
+- Process-crash and power-loss atomicity, syscall-level network exclusion,
+  NFS behavior, and macOS/Windows portability remain outside the current
+  evidence. The tested platform is Linux x86-64 with Git 2.54.0 and Python
+  3.12.13 in the pinned Nix environment.
 
 ## Completion state
 
