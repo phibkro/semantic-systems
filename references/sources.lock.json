@@ -1,0 +1,25 @@
+{
+  "generator": "semantic_references/0.1.0",
+  "schema": "reference-lock-v1",
+  "sources": {
+    "local.lang-bang": {
+      "acquisition": "local-sibling",
+      "catalog_digest": "6005459a097d48bbff74d174c914267c9c71a282993c8de063c31b54b3161e59",
+      "commit": "5b8e032bcffefb23a3a153d3f5cea99050e589c1",
+      "licenses": {
+        "LICENSE": {
+          "mode": "100644",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "size": 11358
+        }
+      },
+      "object_format": "sha1",
+      "origin": "https://github.com/phibkro/bang.git",
+      "origin_verified": false,
+      "resolved_ref": "refs/heads/main",
+      "retrieved_at": "2026-07-29T18:50:00Z",
+      "track": "HEAD",
+      "tree": "2156309abd48d19e433af8b302238a8424c360ab"
+    }
+  }
+}

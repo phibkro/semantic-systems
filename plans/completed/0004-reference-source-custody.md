@@ -1,4 +1,4 @@
-# Active plan 0004: reference-source custody
+# Completed plan 0004: reference-source custody
 
 Canonical problem contract:
 [`design-specs/0004-reference-source-custody.md`](../../design-specs/0004-reference-source-custody.md).
@@ -12,14 +12,19 @@ semantic diff, and kill criteria are frozen in design spec 0004.
 ## Current state
 
 - `references/sources.toml` contains 23 research candidates and separates local
-  hints from canonical origins, but no entry is provenance-ready.
+  hints from canonical origins. `local.lang-bang` is locked to exact committed
+  Git and license bytes; the other candidates remain visibly queued.
 - `.references/` is ignored and no normal build reads it.
 - `references/refs.bib` is intentionally empty pending accepted primary
   sources.
-- Local `lang-bang` is available at observed commit
-  `5b8e032bcffefb23a3a153d3f5cea99050e589c1` with a committed `LICENSE`.
-- No lock generator, materializer, strict status command, or custody tests
-  exist.
+- `semantic_references` implements catalog validation, deterministic locking,
+  offline/online materialization, strict explanatory status, safe cache
+  publication, and explicit evidence limits.
+- The accepted local scenario materializes `lang-bang` commit
+  `5b8e032bcffefb23a3a153d3f5cea99050e589c1` and reports
+  `materialized_with_visible_assumption`: the committed bytes are bound, while
+  canonical-origin identity remains unverified because acquisition used a
+  local sibling.
 
 ## Contract-owned implementation slices
 
@@ -163,6 +168,17 @@ validity.
   checkout shape, make an origin-independent replay cache, default-deny
   unapproved transport helpers, support both represented Git object formats,
   and keep crash/syscall/cross-platform limits visible.
+- 2026-07-29: The bounded correction was accepted and rebased as
+  `e8d771c`. The focused custody corpus passed 68 tests and the complete
+  repository gate passed 93 tests with 119 entities, 171 relations, and all
+  eight generated views current. The existing unsupported
+  `claim.kernel.safety` warning remained visible.
+- 2026-07-29: The main curator generated
+  `references/sources.lock.json` through `semrefs lock`, then materialized and
+  inspected the real offline `local.lang-bang` scenario. Status bound commit
+  `5b8e032bcffefb23a3a153d3f5cea99050e589c1`, tree
+  `2156309abd48d19e433af8b302238a8424c360ab`, and LICENSE SHA-256
+  `cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30`.
 
 ## Decisions and deviations
 
@@ -188,6 +204,10 @@ validity.
 
 ## Completion state
 
-Open. Complete only after deterministic custody fixtures, the real offline
-`local.lang-bang` scenario, independent review, full repository validation,
-and exact evidence limits are recorded.
+Complete. Deterministic positive and adversarial fixtures, two independent
+counterexample rounds, the real offline `local.lang-bang` scenario, full
+repository validation, a generated exact lock, and explicit evidence limits
+are recorded. This establishes example-tested custody behavior plus one
+runtime-validated local observation; it does not establish origin truth,
+authorship, legal compatibility, semantic fitness, syscall-level isolation,
+crash atomicity, or cross-platform portability.
