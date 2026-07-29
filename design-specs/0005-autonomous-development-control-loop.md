@@ -141,6 +141,13 @@ checked-in commitlint configuration defines the grammar for the local
 The allowed types include the standard change types plus the project's
 meaningful `research`, `design`, `governance`, and `plans` categories.
 
+The hook/config/package scaffolding is materialized from Clamor's versioned
+`ConventionalCommits` block rather than independently designed here. A checked
+provenance record binds the upstream repository commit, block version and
+digest, and project input values. Conformance tests detect local or upstream
+drift. Until Clamor exposes a safe apply interface, this repository owns the
+materialized files and the main agent serially integrates the inspected plan.
+
 Commit syntax is a static metadata check, not evidence that a change is
 semantically compatible. CI is authoritative because local hooks are
 bypassable. A single invalid message reports the exact commit and violated

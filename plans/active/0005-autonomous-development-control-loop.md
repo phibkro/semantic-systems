@@ -121,6 +121,12 @@ completion feedback, and cleanup.
   local-`commit-msg` plus PR-range/title and merge-queue enforcement contract;
   CI remains authoritative and commit syntax remains metadata rather than
   semantic evidence.
+- 2026-07-29: Located Clamor's existing versioned `ConventionalCommits` block
+  at commit `a8f52a02de1fc1eb3ad408e94adabfb5a9b54621`, block v1.0.0, digest
+  `sha256:f75a4a63e677b8bc6c10f90858aa18d75d84bed0e424949642dc13424ec402f1`.
+  It is currently plan-only, so implementation will materialize its inspected
+  claims with a checked provenance edge rather than inventing another hook
+  stack or claiming Clamor applied it.
 
 ## Decisions and deviations
 
@@ -130,6 +136,8 @@ completion feedback, and cleanup.
   effects, not by blanket autonomy levels.
 - Live plans, visible Herdr tabs, pushed commits, and concise commentary provide
   progress transparency; the merged PR is the durable final report.
+- Conventional-commit mechanics come from the Clamor block; Semantic Systems
+  supplies project-specific allowed types and authoritative CI integration.
 
 ## Completion state
 
