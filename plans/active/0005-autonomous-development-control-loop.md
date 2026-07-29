@@ -127,6 +127,24 @@ completion feedback, and cleanup.
   It is currently plan-only, so implementation will materialize its inspected
   claims with a checked provenance edge rather than inventing another hook
   stack or claiming Clamor applied it.
+- 2026-07-29: Sonnet produced commit
+  `da10eb4e812652770abc95500687eb3a08651fb9`. Main-agent checks established
+  that its fast and integration loops pass, TypeScript is exactly 7.0.2,
+  Actionlint accepts the workflow, all three action SHAs match their official
+  tags, and forced Nix derivation rebuilds executed 38 Python tests plus the
+  commit-policy conformance check.
+- 2026-07-29: Independent adversarial review rejected `da10eb4` as
+  integration-ready. CI never invoked feature acceptance; its only acceptance
+  script was intentionally red; Commitlint default ignores admitted merge,
+  revert, and version messages; editing a PR title did not retrigger CI; Bun
+  and the installed Nix release were not pinned; `main` remained unprotected;
+  required lifecycle hooks were absent; executable-bit and configured-input
+  drift passed provenance checks; and a root `node_modules` directory changed
+  Nix-test behavior.
+- 2026-07-29: The correction recut keeps the useful check implementation but
+  treats every reproduced bypass as a required failing oracle. Branch
+  protection remains a serial external integration step after corrected check
+  names are exercised on a real PR.
 
 ## Decisions and deviations
 
@@ -138,6 +156,10 @@ completion feedback, and cleanup.
   progress transparency; the merged PR is the durable final report.
 - Conventional-commit mechanics come from the Clamor block; Semantic Systems
   supplies project-specific allowed types and authoritative CI integration.
+- Commit `da10eb4e812652770abc95500687eb3a08651fb9` is explicitly not accepted
+  evidence for design spec 0005. Its passing gates establish only the verified
+  positive subset above; they do not establish feature-gate authority or the
+  frozen lifecycle contract.
 
 ## Completion state
 
