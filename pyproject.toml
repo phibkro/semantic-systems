@@ -21,7 +21,7 @@ dev = [
 semproj = "semantic_project_model.cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/semantic_project_model"]
+packages = ["src/semantic_project_model", "src/semantic_tracer"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
