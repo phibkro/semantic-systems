@@ -1,11 +1,10 @@
-"""Oracle-first tests for design spec 0005 (autonomous development control loop).
+"""Executable behavior oracles for design spec 0005's repository sensors.
 
-Each test encodes one falsifier from the spec's "Oracle first" section: a
-concrete injected failure that must block or visibly invalidate completion.
-Every test first confirms the real repository state is green, then injects
-the failure and confirms the check goes red for the *stated* reason (not an
-unrelated crash), so the oracle actually distinguishes the intended defect
-from noise.
+These tests cover only observations the checked-in repository can make:
+feature-contract identity, acceptance dispatch, exact-head CI configuration,
+commit metadata, materialization provenance, and tracked-artifact preservation.
+Independent review resolution, branch protection, operator notification, and
+Herdr cleanup remain external gates and are not falsely represented here.
 """
 
 from __future__ import annotations
@@ -25,7 +24,16 @@ WORKFLOW = ROOT / ".github" / "workflows" / "check.yml"
 CHECK_FAST = ROOT / "scripts" / "check-fast.sh"
 CHECK_INTEGRATION = ROOT / "scripts" / "check.sh"
 COMMIT_POLICY = ROOT / "scripts" / "check-commit-policy.ts"
+FEATURE_POLICY = ROOT / "scripts" / "check-feature-contract.ts"
+FEATURE_RUNNER = ROOT / "scripts" / "run-feature-acceptance.ts"
 PROVENANCE = ROOT / "config" / "clamor-blocks" / "conventional-commits.provenance.json"
+RED_ACCEPTANCE_EXIT = 23
+
+requires_bun = pytest.mark.skipif(shutil.which("bun") is None, reason="bun not on PATH")
+requires_node_modules = pytest.mark.skipif(
+    not (ROOT / "node_modules" / ".bin" / "commitlint").is_file(),
+    reason="the exact local commitlint executable is not installed",
+)
 
 
 def _run(
@@ -58,40 +66,286 @@ def _strip_tool_from_path(tool: str) -> str:
     return ":".join(kept)
 
 
+def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return _run(["git", *args], cwd=repo)
+
+
+def _commit(repo: Path, message: str) -> str:
+    result = _run(
+        [
+            "git",
+            "-c",
+            "user.name=Feature Fixture",
+            "-c",
+            "user.email=fixture@example.invalid",
+            "commit",
+            "-am",
+            message,
+        ],
+        cwd=repo,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    return _git(repo, "rev-parse", "HEAD").stdout.strip()
+
+
+def _valid_pr_body(feature_id: str) -> str:
+    return f"""Feature-ID: {feature_id}
+
+## Design spec and semantic claim
+The feature claim is falsifiable.
+
+## User-visible preview
+`./scripts/accept/{feature_id}.sh` prints the observed acceptance result.
+
+## Semantic diff
+The fixture adds one bounded process feature.
+
+## Checks run on this exact PR head
+The exact acceptance script and integration checks passed.
+
+## Evidence categories and artifacts
+Runtime validation from the acceptance script.
+
+## Assumptions and unsupported claims
+The fixture does not claim proof.
+
+## Independent reviewer / counterexamples considered
+Missing and duplicated markers were considered.
+
+## Deviations and next uncertainty
+No deviations; branch protection remains external.
+
+## Cleanup
+Cleanup occurs after merge.
+"""
+
+
+def _feature_repo(tmp_path: Path, feature_id: str = "0005-fixture") -> tuple[Path, Path, str, str]:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    assert _git(repo, "init").returncode == 0
+    (repo / "README.md").write_text("baseline\n")
+    assert _git(repo, "add", "README.md").returncode == 0
+    base = _commit(repo, "docs: establish fixture")
+
+    for directory in ("design-specs", "plans/active", "scripts/accept"):
+        (repo / directory).mkdir(parents=True, exist_ok=True)
+    (repo / "design-specs" / f"{feature_id}.md").write_text("# frozen feature\n")
+    (repo / "plans" / "active" / f"{feature_id}.md").write_text("# active plan\n")
+    accept = repo / "scripts" / "accept" / f"{feature_id}.sh"
+    accept.write_text("#!/usr/bin/env sh\nset -eu\nprintf 'fixture accepted\\n'\n")
+    accept.chmod(0o755)
+    assert _git(repo, "add", ".").returncode == 0
+    head = _commit(repo, "test: add feature fixture")
+
+    event = tmp_path / "event.json"
+    event.write_text(
+        json.dumps(
+            {
+                "pull_request": {
+                    "base": {"sha": base},
+                    "head": {"sha": head},
+                    "body": _valid_pr_body(feature_id),
+                }
+            }
+        )
+    )
+    return repo, event, base, head
+
+
+def _run_feature_tool(
+    script: Path,
+    repo: Path,
+    *args: str,
+) -> subprocess.CompletedProcess[str]:
+    return _run(["bun", str(script), "--root", str(repo), *args], cwd=repo)
+
+
 # --- 1. Acceptance script missing or mismatched to the spec ID -------------
 
 
-def _acceptance_id_slug(path: Path) -> str:
-    return path.stem
+def test_control_loop_has_production_feature_validator_runner_and_acceptance() -> None:
+    assert FEATURE_POLICY.is_file()
+    assert FEATURE_RUNNER.is_file()
+    accept_script = ROOT / "scripts" / "accept" / "0005-autonomous-development-control-loop.sh"
+    assert accept_script.is_file()
+    assert os.access(accept_script, os.X_OK)
 
 
-def test_pilot_acceptance_script_id_matches_design_spec_and_plan() -> None:
-    accept_script = ROOT / "scripts" / "accept" / "0004-reference-source-custody.sh"
-    design_spec = ROOT / "design-specs" / "0004-reference-source-custody.md"
-    plan = ROOT / "plans" / "active" / "0004-reference-source-custody.md"
-
-    assert accept_script.is_file(), "the custody pilot's acceptance script must exist"
-    assert design_spec.is_file()
-    assert plan.is_file()
-
-    slug = _acceptance_id_slug(accept_script)
-    assert _acceptance_id_slug(design_spec) == slug
-    assert _acceptance_id_slug(plan) == slug
+def test_pull_request_template_has_one_machine_readable_feature_marker() -> None:
+    template = (ROOT / ".github" / "PULL_REQUEST_TEMPLATE.md").read_text()
+    markers = re.findall(r"^Feature-ID:\s*.+$", template, flags=re.MULTILINE)
+    assert markers == ["Feature-ID: <NNNN-slug>"]
 
 
-def test_acceptance_script_id_mismatch_is_detectable(tmp_path: Path) -> None:
-    """The naming convention itself must reject a mismatched ID, not just
-    happen to match by coincidence for the one pilot script that exists."""
-    accept_dir = tmp_path / "scripts" / "accept"
-    accept_dir.mkdir(parents=True)
-    (accept_dir / "0004-reference-source-custody.sh").write_text("#!/usr/bin/env sh\n")
-    (tmp_path / "design-specs").mkdir()
-    # Deliberately mismatched ID: 0005 spec, 0004 acceptance script.
-    (tmp_path / "design-specs" / "0005-something-else.md").write_text("# spec\n")
+@requires_bun
+def test_feature_contract_accepts_one_complete_feature(tmp_path: Path) -> None:
+    repo, event, _, _ = _feature_repo(tmp_path)
+    result = _run_feature_tool(FEATURE_POLICY, repo, "--event", str(event))
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "0005-fixture" in result.stdout
 
-    accept_ids = {_acceptance_id_slug(p) for p in accept_dir.glob("*.sh")}
-    spec_ids = {_acceptance_id_slug(p) for p in (tmp_path / "design-specs").glob("*.md")}
-    assert accept_ids.isdisjoint(spec_ids), "the injected mismatch must be observable"
+
+@requires_bun
+@pytest.mark.parametrize(
+    ("body", "reason"),
+    [
+        ("## Design spec and semantic claim\nmissing marker\n", "exactly one feature-id"),
+        (
+            _valid_pr_body("0005-fixture") + "\nFeature-ID: 0006-duplicate\n",
+            "exactly one feature-id",
+        ),
+        (_valid_pr_body("<NNNN-slug>"), "malformed"),
+    ],
+)
+def test_feature_contract_rejects_missing_duplicate_or_placeholder_marker(
+    tmp_path: Path, body: str, reason: str
+) -> None:
+    repo, event, _, _ = _feature_repo(tmp_path)
+    payload = json.loads(event.read_text())
+    payload["pull_request"]["body"] = body
+    event.write_text(json.dumps(payload))
+    result = _run_feature_tool(FEATURE_POLICY, repo, "--event", str(event))
+    assert result.returncode != 0
+    assert reason in (result.stdout + result.stderr).lower()
+
+
+@requires_bun
+def test_feature_contract_rejects_empty_report_section(tmp_path: Path) -> None:
+    repo, event, _, _ = _feature_repo(tmp_path)
+    payload = json.loads(event.read_text())
+    payload["pull_request"]["body"] = _valid_pr_body("0005-fixture").replace(
+        "## Semantic diff\nThe fixture adds one bounded process feature.",
+        "## Semantic diff\n<!-- placeholder -->",
+    )
+    event.write_text(json.dumps(payload))
+    result = _run_feature_tool(FEATURE_POLICY, repo, "--event", str(event))
+    assert result.returncode != 0
+    assert "semantic diff" in (result.stdout + result.stderr).lower()
+
+
+@requires_bun
+def test_feature_contract_rejects_missing_or_nonexecutable_acceptance(tmp_path: Path) -> None:
+    repo, event, _, _ = _feature_repo(tmp_path)
+    accept = repo / "scripts" / "accept" / "0005-fixture.sh"
+    accept.chmod(0o644)
+    result = _run_feature_tool(FEATURE_POLICY, repo, "--event", str(event))
+    assert result.returncode != 0
+    assert "executable" in (result.stdout + result.stderr).lower()
+
+
+@requires_bun
+def test_feature_contract_requires_plan_change_in_pr_range(tmp_path: Path) -> None:
+    repo, event, _, head = _feature_repo(tmp_path)
+    (repo / "README.md").write_text("maintenance after feature\n")
+    assert _git(repo, "add", "README.md").returncode == 0
+    maintenance_head = _commit(repo, "docs: change only readme")
+    payload = json.loads(event.read_text())
+    payload["pull_request"]["base"]["sha"] = head
+    payload["pull_request"]["head"]["sha"] = maintenance_head
+    event.write_text(json.dumps(payload))
+    result = _run_feature_tool(FEATURE_POLICY, repo, "--event", str(event))
+    assert result.returncode != 0
+    assert "plan" in (result.stdout + result.stderr).lower()
+    assert "range" in (result.stdout + result.stderr).lower()
+
+
+@requires_bun
+def test_feature_contract_rejects_multiple_feature_identities(tmp_path: Path) -> None:
+    repo, event, _, _ = _feature_repo(tmp_path)
+    (repo / "design-specs" / "0006-second.md").write_text("# second feature\n")
+    (repo / "plans" / "active" / "0006-second.md").write_text("# second plan\n")
+    second_accept = repo / "scripts" / "accept" / "0006-second.sh"
+    second_accept.write_text("#!/usr/bin/env sh\nexit 0\n")
+    second_accept.chmod(0o755)
+    assert _git(repo, "add", ".").returncode == 0
+    second_head = _commit(repo, "feat: add a second feature")
+    payload = json.loads(event.read_text())
+    payload["pull_request"]["head"]["sha"] = second_head
+    event.write_text(json.dumps(payload))
+    result = _run_feature_tool(FEATURE_POLICY, repo, "--event", str(event))
+    assert result.returncode != 0
+    assert "multiple feature identities" in (result.stdout + result.stderr).lower()
+
+
+@requires_bun
+def test_trivial_marker_allows_readme_but_rejects_implementation(tmp_path: Path) -> None:
+    repo, event, _, feature_head = _feature_repo(tmp_path)
+    (repo / "README.md").write_text("trivial documentation correction\n")
+    assert _git(repo, "add", "README.md").returncode == 0
+    trivial_head = _commit(repo, "docs: adjust readme")
+    payload = json.loads(event.read_text())
+    payload["pull_request"] = {
+        "base": {"sha": feature_head},
+        "head": {"sha": trivial_head},
+        "body": _valid_pr_body("trivial"),
+    }
+    event.write_text(json.dumps(payload))
+    allowed = _run_feature_tool(FEATURE_POLICY, repo, "--event", str(event))
+    assert allowed.returncode == 0, allowed.stdout + allowed.stderr
+
+    (repo / "src").mkdir()
+    (repo / "src" / "semantic.ts").write_text("export const meaning = 1;\n")
+    assert _git(repo, "add", "src/semantic.ts").returncode == 0
+    nontrivial_head = _commit(repo, "feat: add implementation")
+    payload["pull_request"]["head"]["sha"] = nontrivial_head
+    event.write_text(json.dumps(payload))
+    rejected = _run_feature_tool(FEATURE_POLICY, repo, "--event", str(event))
+    assert rejected.returncode != 0
+    assert "trivial" in (rejected.stdout + rejected.stderr).lower()
+
+
+@requires_bun
+def test_feature_runner_dispatches_pr_and_range_acceptance(tmp_path: Path) -> None:
+    repo, event, base, head = _feature_repo(tmp_path)
+    pr = _run_feature_tool(FEATURE_RUNNER, repo, "--mode", "pr", "--event", str(event))
+    assert pr.returncode == 0, pr.stdout + pr.stderr
+    assert "fixture accepted" in pr.stdout
+    assert head in pr.stdout
+
+    ranged = _run_feature_tool(
+        FEATURE_RUNNER,
+        repo,
+        "--mode",
+        "range",
+        "--base",
+        base,
+        "--head",
+        head,
+    )
+    assert ranged.returncode == 0, ranged.stdout + ranged.stderr
+    assert "0005-fixture" in ranged.stdout
+
+
+@requires_bun
+def test_range_runner_reports_zero_plan_maintenance(tmp_path: Path) -> None:
+    repo, _, _, feature_head = _feature_repo(tmp_path)
+    (repo / "README.md").write_text("maintenance range\n")
+    assert _git(repo, "add", "README.md").returncode == 0
+    maintenance_head = _commit(repo, "docs: maintenance range")
+    result = _run_feature_tool(
+        FEATURE_RUNNER,
+        repo,
+        "--mode",
+        "range",
+        "--base",
+        feature_head,
+        "--head",
+        maintenance_head,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "zero changed feature plans" in result.stdout
+
+
+@requires_bun
+def test_release_runner_does_not_skip_red_acceptance(tmp_path: Path) -> None:
+    repo, _, _, _ = _feature_repo(tmp_path)
+    red = repo / "scripts" / "accept" / "0006-red.sh"
+    red.write_text(f"#!/usr/bin/env sh\nexit {RED_ACCEPTANCE_EXIT}\n")
+    red.chmod(0o755)
+    result = _run_feature_tool(FEATURE_RUNNER, repo, "--mode", "release")
+    assert result.returncode == RED_ACCEPTANCE_EXIT
+    assert "0006-red" in (result.stdout + result.stderr)
 
 
 # --- 2. Stale generated view -------------------------------------------
@@ -127,25 +381,25 @@ def test_check_fast_rejects_stale_generated_view(tmp_path: Path) -> None:
 # --- 3. Invalid conventional commit / title -----------------------------
 
 
-requires_bun = pytest.mark.skipif(shutil.which("bun") is None, reason="bun not on PATH")
-requires_node_modules = pytest.mark.skipif(
-    not (ROOT / "node_modules").is_dir(), reason="node_modules not installed"
-)
-
-
 @requires_bun
 @requires_node_modules
 def test_commitlint_accepts_project_specific_types() -> None:
     for message in ("feat: add a thing", "research: adjust a hypothesis", "plans: reorder work"):
-        result = _run(["bun", "x", "commitlint"], stdin_text=message)
+        result = _run(["./node_modules/.bin/commitlint"], stdin_text=message)
         assert result.returncode == 0, f"{message!r} should be a valid commit message"
 
 
 @requires_bun
 @requires_node_modules
 def test_commitlint_rejects_invalid_message_and_type() -> None:
-    for message in ("this has no type at all", "unknowntype: not in the allow list"):
-        result = _run(["bun", "x", "commitlint"], stdin_text=message)
+    for message in (
+        "this has no type at all",
+        "unknowntype: not in the allow list",
+        "Merge branch main",
+        'Revert "not conventional"',
+        "v1.2.3",
+    ):
+        result = _run(["./node_modules/.bin/commitlint"], stdin_text=message)
         assert result.returncode != 0, f"{message!r} must be rejected"
 
 
@@ -188,6 +442,46 @@ def test_ci_checkout_binds_ref_to_the_exact_head_not_the_merge_commit() -> None:
             r"ref:\s*\$\{\{\s*github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha\s*\}\}",
             block,
         ), f"a checkout step is missing an explicit exact-head ref binding:\n{block}"
+
+
+def test_ci_revalidates_mutable_pr_metadata_and_runs_feature_authority() -> None:
+    text = WORKFLOW.read_text()
+    for activity in (
+        "opened",
+        "synchronize",
+        "reopened",
+        "edited",
+        "ready_for_review",
+        "labeled",
+        "unlabeled",
+    ):
+        assert activity in text
+    assert "run-feature-acceptance.ts" in text
+    assert "check-feature-contract.ts" in text
+    assert "pull_request_target" not in text
+
+
+def test_ci_uses_pinned_runtimes_local_tools_and_hardened_checkout() -> None:
+    text = WORKFLOW.read_text()
+    package = json.loads((ROOT / "package.json").read_text())
+    assert package["packageManager"] == "bun@1.3.13"
+    assert package["devDependencies"]["typescript"] == "7.0.2"
+    assert "runs-on: ubuntu-24.04" in text
+    assert "bun-version: 1.3.13" in text
+    assert "source-tag: v3.21.8" in text
+    assert "nix-2.34.8-x86_64-linux.tar.xz" in text
+    assert "persist-credentials: false" in text
+    assert "timeout-minutes:" in text
+    assert "bun x commitlint" not in text
+    assert "./node_modules/.bin/commitlint" in text
+
+
+def test_ci_covers_main_release_schedule_and_manual_transitions() -> None:
+    text = WORKFLOW.read_text()
+    for trigger in ("merge_group:", "release:", "schedule:", "workflow_dispatch:"):
+        assert trigger in text
+    assert "refs/tags/" in text or "startsWith(github.ref, 'refs/tags/')" in text
+    assert "tracked artifacts changed during verification" in text
 
 
 # --- 5. Missing required tool fails the gate, not a warning --------------
@@ -250,26 +544,30 @@ def test_check_integration_fails_hard_when_pyright_is_missing() -> None:
     assert "required tool" in combined and "pyright" in combined
 
 
-# --- 6. Server gate never mutates ---------------------------------------
+# --- 6. Lifecycle hooks and honest tracked-artifact preservation ----------
 
 
-MUTATING_PATTERNS = [
-    re.compile(r"ruff format(?!\s+--check)(?!\s*$)[^\n]*"),
-    re.compile(r"oxfmt(?!.*--check)"),
-    re.compile(r"\bsemproj generate\b(?!.*--check)"),
-    re.compile(r"\bgit\s+(commit|push)\b"),
-    re.compile(r"--fix\b"),
-]
+def test_local_hooks_cover_fast_and_pinned_integration_loops() -> None:
+    pre_commit = (ROOT / ".githooks" / "pre-commit").read_text()
+    pre_push = ROOT / ".githooks" / "pre-push"
+    assert "./scripts/check-fast.sh" in pre_commit
+    assert pre_push.is_file()
+    assert os.access(pre_push, os.X_OK)
+    assert "nix develop --command ./scripts/check.sh" in pre_push.read_text()
 
 
-def test_ci_workflow_never_mutates_the_checkout() -> None:
+def test_fast_loop_uses_actionlint_without_writing_python_bytecode() -> None:
+    text = CHECK_FAST.read_text()
+    assert "actionlint" in text
+    assert "compileall" not in text
+    assert "PYTHONPYCACHEPREFIX" in text
+
+
+def test_ci_claims_and_checks_tracked_artifacts_not_zero_filesystem_writes() -> None:
     text = WORKFLOW.read_text()
-    run_blocks = re.findall(r"run:\s*\|?\n?([^\n]*(?:\n(?:[ \t].*)?)*)", text)
-    haystack = "\n".join(run_blocks) if run_blocks else text
-    for pattern in MUTATING_PATTERNS:
-        assert not pattern.search(haystack), (
-            f"CI must verify without modifying; found a mutating pattern: {pattern.pattern}"
-        )
+    assert "tracked artifacts" in text
+    assert "git diff --exit-code" in text
+    assert "never mutates the checkout" not in (ROOT / "CONTRIBUTING.md").read_text()
 
 
 # --- Commit-policy conformance script exists and matches its provenance --
@@ -301,3 +599,56 @@ def test_commit_policy_conformance_detects_drift(tmp_path: Path) -> None:
     result = _run(["bun", "run", "scripts/check-commit-policy.ts"], cwd=workdir)
     assert result.returncode != 0
     assert "drifted" in (result.stdout + result.stderr).lower()
+
+
+@requires_bun
+def test_commit_policy_rejects_executable_mode_drift(tmp_path: Path) -> None:
+    workdir = tmp_path / "repo"
+    shutil.copytree(ROOT, workdir, ignore=shutil.ignore_patterns("node_modules", ".git"))
+    hook = workdir / ".githooks" / "commit-msg"
+    hook.chmod(0o644)
+    result = _run(["bun", "run", "scripts/check-commit-policy.ts"], cwd=workdir)
+    assert result.returncode != 0
+    assert "executable" in (result.stdout + result.stderr).lower()
+
+
+@requires_bun
+def test_commit_policy_rejects_declared_source_glob_drift(tmp_path: Path) -> None:
+    workdir = tmp_path / "repo"
+    shutil.copytree(ROOT, workdir, ignore=shutil.ignore_patterns("node_modules", ".git"))
+    provenance_path = workdir / PROVENANCE.relative_to(ROOT)
+    provenance = json.loads(provenance_path.read_text())
+    provenance["configuration"]["sourceGlobs"] = ["*.ts"]
+    provenance_path.write_text(json.dumps(provenance))
+    result = _run(["bun", "run", "scripts/check-commit-policy.ts"], cwd=workdir)
+    assert result.returncode != 0
+    assert "sourceglobs" in (result.stdout + result.stderr).lower()
+
+
+@requires_bun
+def test_commit_policy_rejects_malformed_upstream_provenance(tmp_path: Path) -> None:
+    workdir = tmp_path / "repo"
+    shutil.copytree(ROOT, workdir, ignore=shutil.ignore_patterns("node_modules", ".git"))
+    provenance_path = workdir / PROVENANCE.relative_to(ROOT)
+    provenance = json.loads(provenance_path.read_text())
+    provenance["upstream"]["commit"] = "not-a-commit"
+    provenance_path.write_text(json.dumps(provenance))
+    result = _run(["bun", "run", "scripts/check-commit-policy.ts"], cwd=workdir)
+    assert result.returncode != 0
+    assert "upstream" in (result.stdout + result.stderr).lower()
+
+
+def test_provenance_records_local_hardening_adaptations() -> None:
+    provenance = json.loads(PROVENANCE.read_text())
+    adaptation_ids = {item["id"] for item in provenance["adaptations"]}
+    assert {
+        "commitlint-default-ignores-disabled",
+        "pre-commit-fast-loop",
+        "pre-push-integration",
+    } <= adaptation_ids
+
+
+def test_nix_source_filter_excludes_root_cache_directories() -> None:
+    text = (ROOT / "flake.nix").read_text()
+    for directory in ("node_modules", ".git", ".references", ".pytest_cache", ".ruff_cache"):
+        assert f'name == "{directory}"' in text

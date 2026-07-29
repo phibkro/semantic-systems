@@ -26,6 +26,7 @@
             packages = [
               python
               pkgs.bun
+              pkgs.actionlint
               pkgs.git
               pkgs.jq
               # `node`, not just `bun`: the materialized .githooks/* scripts
@@ -71,7 +72,18 @@
             name = "semantic-systems-src";
             filter =
               path: _type:
-              !(pkgs.lib.hasInfix "/node_modules/" path || pkgs.lib.hasInfix "/.git/" path);
+              let
+                name = baseNameOf path;
+              in
+              !(
+                name == "node_modules"
+                || name == ".git"
+                || name == ".references"
+                || name == ".pytest_cache"
+                || name == ".ruff_cache"
+                || name == "__pycache__"
+                || pkgs.lib.hasPrefix "bun-debug-" name
+              );
           };
         in
         {
@@ -84,6 +96,8 @@
               python
               pkgs.ruff
               pkgs.pyright
+              pkgs.actionlint
+              pkgs.git
               # `bun` only, deliberately with no `bun install`: this keeps the
               # node_modules-absent oracle test
               # (test_check_fast_fails_clearly_when_node_modules_is_absent)
@@ -97,10 +111,11 @@
               export HOME="$TMPDIR"
               ruff check .
               ruff format --check .
+              actionlint .github/workflows/check.yml
               python -m semantic_project_model validate
               python -m semantic_project_model generate --check
               pyright
-              pytest
+              pytest -p no:cacheprovider
             '';
             installPhase = "mkdir -p $out && echo ok > $out/result";
           };

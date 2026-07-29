@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root="$(git rev-parse --show-toplevel)"
+cd "${root}"
+
+if ! command -v nix >/dev/null 2>&1; then
+  echo "pre-push: Nix is required for the pinned integration gate." >&2
+  exit 1
+fi
+
+nix develop --command ./scripts/check.sh

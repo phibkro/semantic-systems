@@ -9,10 +9,10 @@
     "repository": "clamor",
     "commit": "a8f52a02de1fc1eb3ad408e94adabfb5a9b54621",
     "sourcePath": "packages/blocks/conventional-commits/src/index.ts",
-    "note": "Clamor exposes this block as a read-only plan; it has no safe apply interface yet. This repository materializes the block's claims by hand from the inspected definition and its declared configuration, and treats Clamor as plan-only, never as an applied write."
+    "note": "Clamor exposes this block as a read-only plan and is private to public CI. This record pins the inspected definition; CI verifies the adapted local materialization against this record and does not claim to query Clamor."
   },
   "digestVerification": {
-    "method": "Loaded the upstream BlockDefinition and computed definitionRef() with Clamor's own kernel (packages/kernel/src/definition.ts, digest.ts) against the checked-out upstream commit.",
+    "method": "The upstream BlockDefinition was loaded at the pinned commit and definitionRef() was computed with Clamor's canonical kernel digest before materialization.",
     "computedDigest": "sha256:f75a4a63e677b8bc6c10f90858aa18d75d84bed0e424949642dc13424ec402f1",
     "matchesDeclared": true
   },
@@ -49,14 +49,14 @@
       "path": ".githooks/pre-commit",
       "kind": "exclusive_path",
       "executable": true,
-      "contentDigest": "sha256:78f8b519b943002a0315ec15112500d9894c5083d1db4991617511a3dbec558d"
+      "contentDigest": "sha256:07dee35752c192c53afbb08253eaca5cb8ab52ef5ae4e211643844c115ef6c58"
     },
     {
       "claimId": "commitlint-config",
       "path": "commitlint.config.ts",
       "kind": "exclusive_path",
       "executable": false,
-      "contentDigest": "sha256:9922f6c4f6ba868ccf1d9c6d38effe3dc4ea207841f1eec043ac747518ec17bc"
+      "contentDigest": "sha256:ebd783c4613bca5c54f7e1672abd22e04f0f9c9ac36cdb66f9f7079ab8d47a8c"
     },
     {
       "claimId": "install-git-hooks",
@@ -94,12 +94,41 @@
       "value": "commitlint"
     }
   ],
+  "projectOwnedClaims": [
+    {
+      "claimId": "project/githooks/pre-push",
+      "path": ".githooks/pre-push",
+      "kind": "exclusive_path",
+      "executable": true,
+      "contentDigest": "sha256:3185e8cbeb96d0bd6cbd57472bd2c9330ee8f324d6a595b1148b7358091cb666"
+    }
+  ],
+  "adaptations": [
+    {
+      "id": "commitlint-default-ignores-disabled",
+      "path": "commitlint.config.ts",
+      "upstreamClaimId": "commitlint-config",
+      "rationale": "Design spec 0005 requires every commit and PR title to conform; merge, nonconventional revert, and version messages cannot use Commitlint's default exemptions."
+    },
+    {
+      "id": "pre-commit-fast-loop",
+      "path": ".githooks/pre-commit",
+      "upstreamClaimId": "githooks/pre-commit",
+      "rationale": "After exact staged-file formatting and linting, the advisory pre-commit transition runs the repository fast loop required by design spec 0005."
+    },
+    {
+      "id": "pre-push-integration",
+      "path": ".githooks/pre-push",
+      "rationale": "The project adds an advisory pre-push hook that invokes the pinned Nix integration gate; this path is project-owned and absent from the upstream block."
+    }
+  ],
   "deviationsFromBlock": [
-    "This project's package.json also declares oxlint, oxfmt, and a pinned stable typescript version, which the ConventionalCommits block references only as tool binaries (node_modules/.bin/oxfmt, node_modules/.bin/oxlint) without pinning their versions itself. Those extra devDependencies are this project's own choice, not part of the block's claims.",
-    "allowedTypes extends the block's default eleven standard config-conventional types with this project's research, design, governance, and plans types, matching design spec 0005's required allowed-type list."
+    "commitlint.config.ts and .githooks/pre-commit begin from upstream renders but are intentionally hardened as recorded adaptations, so they are not claimed byte-identical to Clamor.",
+    ".githooks/pre-push is a project-owned lifecycle hook, not an upstream block claim.",
+    "The package also pins Bun, Oxfmt, Oxlint, and stable TypeScript 7 for this repository; those choices are outside the upstream block's claim set."
   ],
   "conformance": {
     "checkedBy": "scripts/check-commit-policy.ts",
-    "method": "Recomputes the sha256 digest of each exclusive_path claim's checked-in content and re-reads each semantic_key claim from package.json, then compares both against this file. A local edit to any materialized artifact, or an upstream re-render that would change the recorded digests, fails the check with the exact claim and digest that drifted."
+    "method": "Checks immutable upstream identity fields, exact configured inputs, required adaptation records, content digests, semantic package keys, and executable modes. It verifies local conformance to this checked record without claiming a live private-upstream query."
   }
 }

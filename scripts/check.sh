@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 # Integration loop (design spec 0005): the fast loop plus every static check,
-# the full test suite, and lockfile custody, all in the pinned Nix
+# the full test suite and frozen dependency resolution, all in the pinned Nix
 # environment. Missing required tools fail this gate; they are never
 # downgraded to a warning, because a warning here would let an unverified
 # commit reach a PR.
@@ -17,10 +17,11 @@ require_tool() {
 
 require_tool pyright
 require_tool bun
+require_tool pytest
 
 bun install --frozen-lockfile --ignore-scripts
 
 ./scripts/check-fast.sh
 
 pyright
-pytest
+pytest -p no:cacheprovider

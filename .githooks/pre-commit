@@ -37,3 +37,5 @@ fi
 if ((${#lint_files[@]} > 0)); then
   ./node_modules/.bin/oxlint --deny-warnings "${lint_files[@]}"
 fi
+
+./scripts/check-fast.sh

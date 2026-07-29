@@ -163,6 +163,34 @@ completion feedback, and cleanup.
   install, update current state without rewriting history, and bind CI locale,
   timezone, and Python hash seed where the frozen contract requires a
   deterministic verdict.
+- 2026-07-29: The correction suite first recorded 14 intended red observations:
+  absent feature authority, placeholder PR identity, default-ignored commit
+  messages, stale mutable PR metadata, dynamic runtime selection, missing
+  lifecycle hooks, zero-filesystem-write overclaiming, executable/configured
+  input/upstream provenance drift, and root-cache Nix filtering. Production
+  correction added a real PR feature validator, range/release acceptance
+  dispatcher, acceptance 0005, strict local Commitlint execution, pinned
+  environment assertions, pre-push and fast pre-commit hooks, expanded
+  transition CI, adapted provenance checks, and cache-isolated validation.
+- 2026-07-29: First cybernetic measurement on the correction worktree observed
+  approximately 5.5 seconds for 35 focused process oracles, 4.5 seconds for the
+  fast loop, 7.6 seconds for the 60-test integration loop, and 5.9 seconds for
+  acceptance 0005. These are single-machine runtime observations, not stable
+  performance claims.
+- 2026-07-29: Sensor audit: pytest exercises feature-policy and dispatcher
+  counterexamples; Actionlint checks workflow structure; Ruff, Oxfmt, Oxlint,
+  Pyright, TypeScript 7, model validation, generated equality, and provenance
+  observe different artifact classes. Correlation remains: tests and
+  implementation share repository assumptions, while provenance and its
+  checker are co-versioned. Independent review and the committed-artifact gate
+  remain necessary.
+- 2026-07-29: Control disturbances and gaming risks remain visible. The
+  `trivial` path allowlist is deliberately conservative and may false-reject
+  legitimate maintenance. A nonempty PR section can contain a false statement,
+  so metadata validation cannot replace review. Edited/labeled PR events
+  invalidate stale metadata checks, but branch protection, merge queue, review
+  resolution, operator feedback, and Herdr cleanup are external state that
+  repository code must not fabricate.
 
 ## Decisions and deviations
 

@@ -17,10 +17,16 @@ Design spec 0005 defines three nested gates. Each is executable in the pinned
 Nix environment (`nix develop`); a missing required tool fails the gate, it is
 never a warning.
 
+Install the exact locked JavaScript tools once after entering the shell:
+
+```bash
+bun install --frozen-lockfile --ignore-scripts
+```
+
 | Loop | Command | Latency | Covers |
 |---|---|---|---|
 | Fast | `./scripts/check-fast.sh` | seconds | format, lint, typecheck, model validate/generate, commit-policy conformance |
-| Integration | `./scripts/check.sh` | minutes | fast loop + `pyright` + `pytest` + lockfile custody |
+| Integration | `./scripts/check.sh` | minutes | frozen install + fast loop + `pyright` + full `pytest` |
 | Feature | `./scripts/accept/<id>-<slug>.sh` | tracer-sized | the exact acceptance script for one frozen design spec |
 
 `nix flake check` runs the parts of the fast/integration loop that are
@@ -39,9 +45,14 @@ records the upstream commit, block version and digest, and this project's
 configured inputs. `bun run check-commit-policy` (also run by both loops)
 detects drift between that provenance record and the checked-in artifacts.
 
-Local hooks are bypassable (`git commit --no-verify` still works); CI is the
-only authoritative gate, and it verifies without modifying — it never
-reformats, regenerates, or repairs a failing check on your behalf.
+Local hooks are bypassable (`git commit --no-verify` still works): pre-commit
+runs staged-file checks plus the fast loop, while pre-push runs the pinned Nix
+integration loop. CI checks tracked artifacts remain unchanged; dependency and
+test caches are noncanonical ignored state. CI becomes authoritative only when
+external branch protection requires the stable check names and merge queue
+requires the prospective-tree result. Repository settings must also permit only
+a Conventional-Commit-preserving merge strategy (normally squash); that
+external prerequisite is not claimed active by this checkout.
 
 A nontrivial feature owns one numeric ID shared by
 `design-specs/<id>-<slug>.md`, `plans/active/<id>-<slug>.md`,
@@ -52,7 +63,9 @@ integration loops.
 
 See `AGENTS.md` and `design-specs/0005-autonomous-development-control-loop.md`
 for the full contract, including autonomous merge authority and completion
-feedback.
+feedback. The checked-in sensors cannot determine that independent findings
+were resolved or a finished Herdr tab/worktree was safely harvested; the main
+integration agent verifies those external gates against the committed artifact.
 
 ## Quality gates
 

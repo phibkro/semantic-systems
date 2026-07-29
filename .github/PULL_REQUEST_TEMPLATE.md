@@ -6,6 +6,8 @@ omit sections that do not apply, but must say so explicitly rather than
 deleting them silently.
 -->
 
+Feature-ID: <NNNN-slug>
+
 ## Design spec and semantic claim
 
 <!-- design-specs/<id>-<slug>.md and its falsifiable claim -->
