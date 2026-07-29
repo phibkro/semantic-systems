@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "block": {
+    "name": "ConventionalCommits",
+    "version": "1.0.0",
+    "digest": "sha256:f75a4a63e677b8bc6c10f90858aa18d75d84bed0e424949642dc13424ec402f1"
+  },
+  "upstream": {
+    "repository": "clamor",
+    "commit": "a8f52a02de1fc1eb3ad408e94adabfb5a9b54621",
+    "sourcePath": "packages/blocks/conventional-commits/src/index.ts",
+    "note": "Clamor exposes this block as a read-only plan; it has no safe apply interface yet. This repository materializes the block's claims by hand from the inspected definition and its declared configuration, and treats Clamor as plan-only, never as an applied write."
+  },
+  "digestVerification": {
+    "method": "Loaded the upstream BlockDefinition and computed definitionRef() with Clamor's own kernel (packages/kernel/src/definition.ts, digest.ts) against the checked-out upstream commit.",
+    "computedDigest": "sha256:f75a4a63e677b8bc6c10f90858aa18d75d84bed0e424949642dc13424ec402f1",
+    "matchesDeclared": true
+  },
+  "configuration": {
+    "allowedTypes": [
+      "build",
+      "chore",
+      "ci",
+      "docs",
+      "feat",
+      "fix",
+      "perf",
+      "refactor",
+      "revert",
+      "style",
+      "test",
+      "research",
+      "design",
+      "governance",
+      "plans"
+    ],
+    "sourceGlobs": ["*.js", "*.jsx", "*.ts", "*.tsx", "*.mjs", "*.cjs", "*.mts", "*.cts"]
+  },
+  "renderedClaims": [
+    {
+      "claimId": "githooks/commit-msg",
+      "path": ".githooks/commit-msg",
+      "kind": "exclusive_path",
+      "executable": true,
+      "contentDigest": "sha256:2d014b0921cda151d3a6131c7a280b5637300643623ab380c0c500032b833fa2"
+    },
+    {
+      "claimId": "githooks/pre-commit",
+      "path": ".githooks/pre-commit",
+      "kind": "exclusive_path",
+      "executable": true,
+      "contentDigest": "sha256:78f8b519b943002a0315ec15112500d9894c5083d1db4991617511a3dbec558d"
+    },
+    {
+      "claimId": "commitlint-config",
+      "path": "commitlint.config.ts",
+      "kind": "exclusive_path",
+      "executable": false,
+      "contentDigest": "sha256:9922f6c4f6ba868ccf1d9c6d38effe3dc4ea207841f1eec043ac747518ec17bc"
+    },
+    {
+      "claimId": "install-git-hooks",
+      "path": "scripts/install-git-hooks.ts",
+      "kind": "exclusive_path",
+      "executable": false,
+      "contentDigest": "sha256:1584a918cc48a38e51e83b5567ed04709d32c6e64ac879eeac1a570e18bcf3e1"
+    },
+    {
+      "claimId": "package/devDependencies/@commitlint/cli",
+      "path": "package.json",
+      "kind": "semantic_key",
+      "key": ["devDependencies", "@commitlint/cli"],
+      "value": "21.2.1"
+    },
+    {
+      "claimId": "package/devDependencies/@commitlint/config-conventional",
+      "path": "package.json",
+      "kind": "semantic_key",
+      "key": ["devDependencies", "@commitlint/config-conventional"],
+      "value": "21.2.0"
+    },
+    {
+      "claimId": "package/scripts/prepare",
+      "path": "package.json",
+      "kind": "semantic_key",
+      "key": ["scripts", "prepare"],
+      "value": "bun scripts/install-git-hooks.ts"
+    },
+    {
+      "claimId": "package/scripts/commitlint",
+      "path": "package.json",
+      "kind": "semantic_key",
+      "key": ["scripts", "commitlint"],
+      "value": "commitlint"
+    }
+  ],
+  "deviationsFromBlock": [
+    "This project's package.json also declares oxlint, oxfmt, and a pinned stable typescript version, which the ConventionalCommits block references only as tool binaries (node_modules/.bin/oxfmt, node_modules/.bin/oxlint) without pinning their versions itself. Those extra devDependencies are this project's own choice, not part of the block's claims.",
+    "allowedTypes extends the block's default eleven standard config-conventional types with this project's research, design, governance, and plans types, matching design spec 0005's required allowed-type list."
+  ],
+  "conformance": {
+    "checkedBy": "scripts/check-commit-policy.ts",
+    "method": "Recomputes the sha256 digest of each exclusive_path claim's checked-in content and re-reads each semantic_key claim from package.json, then compares both against this file. A local edit to any materialized artifact, or an upstream re-render that would change the recorded digests, fails the check with the exact claim and digest that drifted."
+  }
+}

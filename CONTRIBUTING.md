@@ -11,6 +11,49 @@ semproj generate
 
 Commit model and generated-view changes together.
 
+## The development control loop
+
+Design spec 0005 defines three nested gates. Each is executable in the pinned
+Nix environment (`nix develop`); a missing required tool fails the gate, it is
+never a warning.
+
+| Loop | Command | Latency | Covers |
+|---|---|---|---|
+| Fast | `./scripts/check-fast.sh` | seconds | format, lint, typecheck, model validate/generate, commit-policy conformance |
+| Integration | `./scripts/check.sh` | minutes | fast loop + `pyright` + `pytest` + lockfile custody |
+| Feature | `./scripts/accept/<id>-<slug>.sh` | tracer-sized | the exact acceptance script for one frozen design spec |
+
+`nix flake check` runs the parts of the fast/integration loop that are
+hermetic (Python static checks, tests, and the network-free commit-policy
+conformance script) as real sandboxed derivations, not merely a devShell
+evaluation.
+
+Every commit message and pull-request title follows Conventional Commits,
+checked against `commitlint.config.ts`. Allowed types are the standard
+`config-conventional` set plus this project's `research`, `design`,
+`governance`, and `plans` types. The hook scaffolding
+(`.githooks/commit-msg`, `.githooks/pre-commit`, `commitlint.config.ts`,
+`scripts/install-git-hooks.ts`) is materialized from Clamor's versioned
+`ConventionalCommits` block; `config/clamor-blocks/conventional-commits.provenance.json`
+records the upstream commit, block version and digest, and this project's
+configured inputs. `bun run check-commit-policy` (also run by both loops)
+detects drift between that provenance record and the checked-in artifacts.
+
+Local hooks are bypassable (`git commit --no-verify` still works); CI is the
+only authoritative gate, and it verifies without modifying — it never
+reformats, regenerates, or repairs a failing check on your behalf.
+
+A nontrivial feature owns one numeric ID shared by
+`design-specs/<id>-<slug>.md`, `plans/active/<id>-<slug>.md`,
+`scripts/accept/<id>-<slug>.sh`, one feature branch, and one pull request.
+Trivial formatting, typo, generated-refresh, and mechanically equivalent
+maintenance may skip the feature loop but must still pass the fast and
+integration loops.
+
+See `AGENTS.md` and `design-specs/0005-autonomous-development-control-loop.md`
+for the full contract, including autonomous merge authority and completion
+feedback.
+
 ## Quality gates
 
 ```bash
@@ -20,6 +63,10 @@ pyright
 pytest
 semproj validate
 semproj generate --check
+bun run format:check
+bun run lint
+bun run typecheck
+bun run check-commit-policy
 ```
 
 ## New semantic features

@@ -38,15 +38,28 @@ platform, evidence, and trust policies.
 
 ## Validate
 
-Enter the pinned environment with `nix develop`, then run:
+Enter the pinned environment with `nix develop`, then run the fast loop while
+iterating and the integration loop before opening or updating a pull request:
 
 ```bash
+./scripts/check-fast.sh
 ./scripts/check.sh
 PYTHONPATH=src python -m semantic_project_model report
 ```
 
-Targeted commands are documented in `CONTRIBUTING.md`. Report checks that were
-not run or unavailable; never infer success.
+For one frozen feature, run its exact acceptance script:
+
+```bash
+./scripts/accept/<id>-<slug>.sh
+```
+
+A missing required tool fails these gates; it is never downgraded to a
+warning. `nix flake check` re-runs the hermetic subset (Python static checks,
+tests, and commit-policy conformance) as real sandboxed derivations. Commit
+messages and pull-request titles follow the Conventional Commits policy in
+`commitlint.config.ts`; see `CONTRIBUTING.md` for the full loop and commit
+provenance. Targeted commands are documented in `CONTRIBUTING.md`. Report
+checks that were not run or unavailable; never infer success.
 
 ## Current frontiers
 

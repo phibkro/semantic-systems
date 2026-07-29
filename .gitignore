@@ -19,3 +19,7 @@ stacklit.html
 # Unreviewed workflow payloads may contain long source excerpts, mixed-status
 # claims, or private execution metadata. Check in curated projections only.
 .research-cache/
+
+# Bun/JS tooling: installed from the checked-in lockfile, never committed.
+node_modules/
+bun-debug-*.log

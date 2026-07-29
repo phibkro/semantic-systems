@@ -1,23 +1,92 @@
 name: Check
 
+# Design spec 0005 (autonomous development control loop): this workflow is
+# the required, non-bypassable server gate. It reports the exact tested
+# commit, runs the fast and integration loops in the pinned Nix environment
+# used by contributors and agents, and lints the Conventional Commits policy
+# from the one checked-in commitlint configuration. Local .githooks/* hooks
+# improve latency but are bypassable, so nothing here trusts them.
+
 on:
-  push:
   pull_request:
+  push:
+    branches: [main]
+  merge_group:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  validate:
+  checks:
+    name: fast + integration (nix)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout exact head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          python-version: "3.12"
-          cache: pip
-      - run: python -m pip install --upgrade pip
-      - run: python -m pip install -e ".[dev]"
-      - run: ruff check .
-      - run: ruff format --check .
-      - run: pyright
-      - run: pytest
-      - run: semproj validate
-      - run: semproj generate --check
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Report exact tested commit
+        env:
+          EXACT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          echo "exact-head: ${EXACT_HEAD}" | tee -a "$GITHUB_STEP_SUMMARY"
+          test "${EXACT_HEAD}" = "$(git rev-parse HEAD)"
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@ef8a148080ab6020fd15196c2084a2eea5ff2d25 # v22
+
+      - name: Install JS dependencies (frozen lockfile, no hook mutation)
+        run: nix develop --command bun install --frozen-lockfile --ignore-scripts
+
+      - name: Fast loop
+        run: nix develop --command ./scripts/check-fast.sh
+
+      - name: Integration loop
+        run: nix develop --command ./scripts/check.sh
+
+      - name: Flake checks
+        run: nix flake check
+
+  commit-policy:
+    name: commit message + PR title policy
+    runs-on: ubuntu-latest
+    if: github.event_name != 'push'
+    steps:
+      - name: Checkout exact head with full history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      - run: bun install --frozen-lockfile --ignore-scripts
+
+      - name: Lint commit range (pull_request)
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: bun x commitlint --from "${BASE_SHA}" --to "${HEAD_SHA}"
+
+      - name: Lint commit range (merge_group)
+        if: github.event_name == 'merge_group'
+        env:
+          BASE_SHA: ${{ github.event.merge_group.base_sha }}
+          HEAD_SHA: ${{ github.sha }}
+        run: bun x commitlint --from "${BASE_SHA}" --to "${HEAD_SHA}"
+
+      - name: Lint pull request title
+        if: github.event_name == 'pull_request'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: echo "${PR_TITLE}" | bun x commitlint
+
+      - name: Commit-policy provenance conformance
+        run: bun run check-commit-policy

@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root="$(git rev-parse --show-toplevel)"
+cd "${root}"
+
+if [[ ! -x ./node_modules/.bin/oxfmt || ! -x ./node_modules/.bin/oxlint ]]; then
+  echo "pre-commit: dependencies are missing; run 'bun install --frozen-lockfile'." >&2
+  exit 1
+fi
+
+format_files=()
+lint_files=()
+
+while IFS= read -r -d '' file; do
+  if ! git diff --quiet -- "${file}"; then
+    echo "pre-commit: ${file} has both staged and unstaged changes." >&2
+    echo "Stage the exact artifact to validate, then commit again." >&2
+    exit 1
+  fi
+
+  case "${file}" in
+    *.js|*.jsx|*.ts|*.tsx|*.mjs|*.cjs|*.mts|*.cts)
+      format_files+=("${file}")
+      lint_files+=("${file}")
+      ;;
+    *.json|*.jsonc|*.css|*.scss)
+      format_files+=("${file}")
+      ;;
+  esac
+done < <(git diff --cached --name-only --diff-filter=ACMR -z)
+
+if ((${#format_files[@]} > 0)); then
+  ./node_modules/.bin/oxfmt --check "${format_files[@]}"
+fi
+
+if ((${#lint_files[@]} > 0)); then
+  ./node_modules/.bin/oxlint --deny-warnings "${lint_files[@]}"
+fi
