@@ -27,7 +27,7 @@ from semantic_references.catalog import Catalog, load_catalog
 from semantic_references.curator import curator_lock
 from semantic_references.errors import ReferenceCustodyError
 from semantic_references.lockfile import Lock, load_lock, write_lock
-from semantic_references.status import compute_status
+from semantic_references.status import compute_status, orphaned_lock_report
 
 _GENERATOR = f"semantic_references/{__version__}"
 EXIT_USAGE_ERROR = 2
@@ -194,6 +194,11 @@ def _cmd_status(
     reports = [
         compute_status(catalog.sources[i], lock, references_root, lock_only=lock_only) for i in ids
     ]
+    if all_sources:
+        orphaned_ids = sorted(set(lock.sources) - set(catalog.sources))
+        reports.extend(
+            orphaned_lock_report(i, lock.sources[i], lock_only=lock_only) for i in orphaned_ids
+        )
 
     if as_json:
         print(json.dumps([report.to_json() for report in reports], indent=2, sort_keys=True))

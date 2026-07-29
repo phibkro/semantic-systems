@@ -10,20 +10,40 @@ from __future__ import annotations
 import contextlib
 import fcntl
 import os
+import stat
 from collections.abc import Generator
 from pathlib import Path
 
-from semantic_references.errors import CuratorLockedError
+from semantic_references.errors import AcquisitionError, CuratorLockedError
+from semantic_references.paths import ensure_references_root
 
 _LOCK_NAME = ".curator.lock"
 
 
 @contextlib.contextmanager
 def curator_lock(references_root: Path) -> Generator[None]:
-    references_root.mkdir(parents=True, exist_ok=True)
-    lock_path = references_root / _LOCK_NAME
-    fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o644)
     try:
+        ensure_references_root(references_root, create=True)
+    except AcquisitionError as exc:
+        raise CuratorLockedError(f"unsafe curator lock root: {exc}") from exc
+    lock_path = references_root / _LOCK_NAME
+    root_flags = os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC | os.O_NOFOLLOW
+    lock_flags = os.O_CREAT | os.O_RDWR | os.O_CLOEXEC | os.O_NOFOLLOW
+    try:
+        root_fd = os.open(references_root, root_flags)
+        try:
+            fd = os.open(_LOCK_NAME, lock_flags, 0o600, dir_fd=root_fd)
+        except BaseException:
+            os.close(root_fd)
+            raise
+    except OSError as exc:
+        raise CuratorLockedError(f"unsafe curator lock at {lock_path}: {exc}") from exc
+    try:
+        metadata = os.fstat(fd)
+        if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
+            raise CuratorLockedError(
+                f"unsafe curator lock at {lock_path}: expected one regular filesystem link"
+            )
         try:
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except OSError as exc:
@@ -37,3 +57,4 @@ def curator_lock(references_root: Path) -> Generator[None]:
         with contextlib.suppress(OSError):
             fcntl.flock(fd, fcntl.LOCK_UN)
         os.close(fd)
+        os.close(root_fd)

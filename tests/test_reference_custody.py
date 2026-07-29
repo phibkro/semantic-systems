@@ -287,7 +287,7 @@ def test_malformed_abbreviated_commit_is_rejected() -> None:
                 "demo": {
                     "origin": "https://example.com/x.git",
                     "track": "HEAD",
-                    "resolved_ref": "HEAD",
+                    "resolved_ref": "refs/heads/main",
                     "object_format": "sha1",
                     "commit": "abc123",
                     "tree": "b853b2e5524bf5af54f474ad71fd9c188efed49d",
@@ -1114,7 +1114,7 @@ def test_remote_materialize_sequence_exact_then_ref_then_history_fallback(
     entry = LockEntry(
         origin=source.origin,
         track="main",
-        resolved_ref="main",
+        resolved_ref="refs/heads/main",
         object_format="sha1",
         commit=commit_a,
         tree=gitutil.tree_of_commit(origin_repo, commit_a),
@@ -1949,3 +1949,418 @@ def test_selector_movement_between_queries_fails_closed(
         "the concrete ref was never cross-checked with a second query"
     )
     assert not acquire.object_cache_dir(references_root, source.id).exists()
+
+
+# --------------------------------------------------------------------------
+# Round-two independent-review oracles
+# --------------------------------------------------------------------------
+
+
+def test_curator_lock_symlink_cannot_truncate_its_target(tmp_path: Path) -> None:
+    """The curator lock is opened no-follow before any write or truncation."""
+    references_root = tmp_path / ".references"
+    references_root.mkdir()
+    victim = tmp_path / "victim"
+    original = b"must remain byte-identical\n"
+    victim.write_bytes(original)
+    (references_root / ".curator.lock").symlink_to(victim)
+
+    with (
+        pytest.raises(CuratorLockedError, match=r"unsafe|symlink|lock"),
+        curator.curator_lock(references_root),
+    ):
+        pytest.fail("a symlinked curator lock was acquired")
+
+    assert victim.read_bytes() == original
+
+
+def test_online_lock_cache_materializes_complete_tree_offline(tmp_path: Path) -> None:
+    """A replay cache contains non-license blobs after the origin disappears."""
+    origin = _init_repo(tmp_path / "origin", branch="main")
+    (origin / "LICENSE").write_text("MIT\n")
+    (origin / "default-only.bin").write_bytes(b"default ref is deliberately not replayed\n")
+    _commit_all(origin, "default branch")
+
+    _git("checkout", "--orphan", "selected", cwd=origin)
+    _git("rm", "-q", "-r", "--cached", ".", cwd=origin)
+    for path in origin.iterdir():
+        if path.name != ".git" and path.is_file():
+            path.unlink()
+    payload = b"payload that is not a declared license\n"
+    (origin / "LICENSE").write_text("MIT\n")
+    (origin / "payload.bin").write_bytes(payload)
+    _commit_all(origin, "selected branch")
+    _git("checkout", "-q", "main", cwd=origin)
+    _git("config", "uploadpack.allowFilter", "true", cwd=origin)
+
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    references_root = project_root / ".references"
+    source = make_source(
+        source_id="remote.complete-replay",
+        origin=f"file://{origin}",
+        local_hint=None,
+        track="selected",
+    )
+    entry = acquire.lock_source(
+        source,
+        project_root=project_root,
+        references_root=references_root,
+        generator="t",
+        offline=False,
+        existing_entry=None,
+    )
+
+    origin.rename(tmp_path / "origin-unavailable")
+    checkout = materialize_mod.materialize_source(
+        source,
+        entry,
+        project_root=project_root,
+        references_root=references_root,
+        offline=True,
+        allow_history_fallback=False,
+    )
+    assert (checkout / "payload.bin").read_bytes() == payload
+
+
+def test_lock_only_rejects_unresolved_or_invalid_resolved_ref(
+    tmp_path: Path, sibling: Path
+) -> None:
+    """Persistence and direct-object boundaries both require a concrete ref."""
+    with pytest.raises(LockFileError, match="resolved_ref"):
+        parse_lock_text(_lock_json(resolved_ref="HEAD"))
+    with pytest.raises(LockFileError, match="resolved_ref"):
+        parse_lock_text(_lock_json(resolved_ref="refs/heads/../main"))
+
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    source = make_source()
+    entry = acquire.lock_source(
+        source,
+        project_root=project_root,
+        references_root=project_root / ".references",
+        generator="t",
+        offline=True,
+        existing_entry=None,
+    )
+    unresolved = dataclasses.replace(entry, resolved_ref="HEAD")
+    report = status.compute_status(
+        source,
+        Lock(generator="t", sources={source.id: unresolved}),
+        project_root / ".references",
+        lock_only=True,
+    )
+    assert not report.strict_ok
+    assert report.state == status.CustodyState.DRIFTED
+
+
+@pytest.mark.parametrize("hidden_state", ["assume-unchanged", "skip-worktree", "sparse"])
+def test_status_rejects_hidden_or_incomplete_tracked_paths(
+    tmp_path: Path, sibling: Path, hidden_state: str
+) -> None:
+    """Index suppression cannot make an incomplete locked tree report exact."""
+    (sibling / "tracked.txt").write_text("original\n")
+    _commit_all(sibling, "add tracked file")
+
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    references_root = project_root / ".references"
+    source = make_source()
+    entry = acquire.lock_source(
+        source,
+        project_root=project_root,
+        references_root=references_root,
+        generator="t",
+        offline=True,
+        existing_entry=None,
+    )
+    checkout = materialize_mod.materialize_source(
+        source,
+        entry,
+        project_root=project_root,
+        references_root=references_root,
+        offline=True,
+        allow_history_fallback=False,
+    )
+
+    if hidden_state == "assume-unchanged":
+        _git("update-index", "--assume-unchanged", "tracked.txt", cwd=checkout)
+        (checkout / "tracked.txt").write_text("tampered\n")
+    elif hidden_state == "skip-worktree":
+        _git("update-index", "--skip-worktree", "tracked.txt", cwd=checkout)
+        (checkout / "tracked.txt").unlink()
+    else:
+        _git("sparse-checkout", "init", "--no-cone", cwd=checkout)
+        _git("sparse-checkout", "set", "LICENSE", cwd=checkout)
+        assert not (checkout / "tracked.txt").exists()
+
+    assert _git("status", "--porcelain=v1", cwd=checkout).stdout.strip() == ""
+    report = status.compute_status(
+        source, Lock(generator="t", sources={source.id: entry}), references_root, lock_only=False
+    )
+    assert not report.strict_ok
+    assert report.state == status.CustodyState.UNVERIFIABLE
+    assert any(
+        marker in " ".join(report.reasons)
+        for marker in ("assume-unchanged", "skip-worktree", "sparse")
+    )
+
+
+@pytest.mark.parametrize(
+    "symlink_position", ["references-root", "source-root", "object-cache", "checkout"]
+)
+def test_custody_paths_reject_symlink_escape(
+    tmp_path: Path, sibling: Path, symlink_position: str
+) -> None:
+    """Every managed path component fails closed instead of following outward."""
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    safe_references = project_root / ".safe-references"
+    source = make_source()
+    entry = acquire.lock_source(
+        source,
+        project_root=project_root,
+        references_root=safe_references,
+        generator="t",
+        offline=True,
+        existing_entry=None,
+    )
+    external = tmp_path / f"external-{symlink_position}"
+    external.mkdir()
+    references_root = project_root / ".references"
+
+    if symlink_position == "references-root":
+        references_root.symlink_to(external, target_is_directory=True)
+    else:
+        references_root.mkdir()
+        source_root = references_root / source.id
+        if symlink_position == "source-root":
+            source_root.symlink_to(external, target_is_directory=True)
+        else:
+            source_root.mkdir()
+            if symlink_position == "object-cache":
+                (source_root / ".git-cache").symlink_to(sibling / ".git", target_is_directory=True)
+            else:
+                real_checkout = materialize_mod.materialize_source(
+                    source,
+                    entry,
+                    project_root=project_root,
+                    references_root=references_root,
+                    offline=True,
+                    allow_history_fallback=False,
+                )
+                real_checkout.rename(external / "checkout")
+                real_checkout.symlink_to(external / "checkout", target_is_directory=True)
+
+    if symlink_position == "checkout":
+        report = status.compute_status(
+            source,
+            Lock(generator="t", sources={source.id: entry}),
+            references_root,
+            lock_only=False,
+        )
+        assert not report.strict_ok
+        assert report.state == status.CustodyState.UNVERIFIABLE
+        assert any("symlink" in reason for reason in report.reasons)
+    else:
+        before = sorted(path.relative_to(external) for path in external.rglob("*"))
+        with pytest.raises(AcquisitionError, match=r"symlink|unsafe|outside"):
+            materialize_mod.materialize_source(
+                source,
+                entry,
+                project_root=project_root,
+                references_root=references_root,
+                offline=True,
+                allow_history_fallback=False,
+            )
+        assert sorted(path.relative_to(external) for path in external.rglob("*")) == before
+
+
+def test_status_all_lock_only_rejects_orphan_lock_entries(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Global lock-only validation covers both sides of catalog↔lock custody."""
+    origin = _init_repo(tmp_path / "origin", branch="main")
+    (origin / "LICENSE").write_text("MIT\n")
+    commit = _commit_all(origin, "init")
+
+    project_root = tmp_path / "project"
+    references_dir = project_root / "references"
+    references_dir.mkdir(parents=True)
+    catalog_text = """
+schema = 1
+
+[[source]]
+id = "active.demo"
+kind = "git"
+origin = "https://example.com/active.git"
+track = "main"
+license_paths = ["LICENSE"]
+"""
+    (references_dir / "sources.toml").write_text(catalog_text)
+    active = parse_catalog_text(catalog_text).sources["active.demo"]
+    orphan = make_source(
+        source_id="orphan.demo",
+        origin="https://example.com/orphan.git",
+        local_hint=None,
+        track="main",
+    )
+    write_lock(
+        references_dir / "sources.lock.json",
+        Lock(
+            generator="t",
+            sources={
+                active.id: _entry_for(active, origin, commit),
+                orphan.id: _entry_for(orphan, origin, commit),
+            },
+        ),
+    )
+
+    assert cli.main(["--root", str(project_root), "status", "--all", "--lock-only", "--json"]) != 0
+    assert "orphan.demo" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("incomplete_kind", ["gitlink", "lfs-pointer"])
+def test_nonlicense_indirections_are_not_fully_materialized(
+    tmp_path: Path, incomplete_kind: str
+) -> None:
+    """The broad frozen oracle covers the complete tree, not only licenses."""
+    origin = _init_repo(tmp_path / "origin", branch="main")
+    (origin / "LICENSE").write_text("MIT\n")
+    first_commit = _commit_all(origin, "init")
+    if incomplete_kind == "gitlink":
+        _git(
+            "update-index",
+            "--add",
+            "--cacheinfo",
+            "160000",
+            first_commit,
+            "nested",
+            cwd=origin,
+        )
+        _git(
+            "-c",
+            "user.email=custody@example.com",
+            "-c",
+            "user.name=Custody Test",
+            "commit",
+            "-q",
+            "-m",
+            "add gitlink",
+            cwd=origin,
+        )
+    else:
+        pointer = f"version https://git-lfs.github.com/spec/v1\noid sha256:{'0' * 64}\nsize 4096\n"
+        (origin / "payload.bin").write_text(pointer)
+        _commit_all(origin, "add lfs pointer")
+
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    references_root = project_root / ".references"
+    source = make_source(
+        source_id=f"remote.{incomplete_kind}",
+        origin=f"file://{origin}",
+        local_hint=None,
+        track="main",
+    )
+    entry = acquire.lock_source(
+        source,
+        project_root=project_root,
+        references_root=references_root,
+        generator="t",
+        offline=False,
+        existing_entry=None,
+    )
+    materialize_mod.materialize_source(
+        source,
+        entry,
+        project_root=project_root,
+        references_root=references_root,
+        offline=False,
+        allow_history_fallback=False,
+    )
+    report = status.compute_status(
+        source, Lock(generator="t", sources={source.id: entry}), references_root, lock_only=False
+    )
+    assert not report.strict_ok
+    assert report.state == status.CustodyState.UNVERIFIABLE
+    expected = "submodule gitlink" if incomplete_kind == "gitlink" else "Git LFS pointer"
+    assert any(expected in reason for reason in report.reasons)
+
+
+def test_online_acquisition_rejects_custom_remote_helpers_without_execution(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Unknown helper protocols fail before Git can resolve an executable."""
+    marker = tmp_path / "transport-invoked"
+    bin_dir = tmp_path / "bin"
+    _write_transport_probe(bin_dir, marker)
+    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
+
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    source = make_source(
+        source_id="remote.unapproved-helper",
+        origin="custodyprobe::anything",
+        local_hint=None,
+        track="main",
+    )
+    with pytest.raises(AcquisitionError, match=r"transport|protocol|scheme"):
+        acquire.lock_source(
+            source,
+            project_root=project_root,
+            references_root=project_root / ".references",
+            generator="t",
+            offline=False,
+            existing_entry=None,
+        )
+    assert not marker.exists()
+
+
+@pytest.mark.parametrize("object_format", ["sha1", "sha256"])
+def test_remote_object_formats_lock_and_materialize(tmp_path: Path, object_format: str) -> None:
+    """Both object formats represented by reference-lock-v1 execute end to end."""
+    origin = tmp_path / "origin"
+    origin.mkdir()
+    _git(
+        "init",
+        "-q",
+        "-b",
+        "main",
+        f"--object-format={object_format}",
+        ".",
+        cwd=origin,
+    )
+    (origin / "LICENSE").write_text("MIT\n")
+    (origin / "payload.txt").write_text(f"{object_format}\n")
+    _commit_all(origin, "init")
+    _git("config", "uploadpack.allowFilter", "true", cwd=origin)
+
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    source = make_source(
+        source_id=f"remote.{object_format}",
+        origin=f"file://{origin}",
+        local_hint=None,
+        track="main",
+    )
+    references_root = project_root / ".references"
+    entry = acquire.lock_source(
+        source,
+        project_root=project_root,
+        references_root=references_root,
+        generator="t",
+        offline=False,
+        existing_entry=None,
+    )
+    assert entry.object_format == object_format
+    checkout = materialize_mod.materialize_source(
+        source,
+        entry,
+        project_root=project_root,
+        references_root=references_root,
+        offline=False,
+        allow_history_fallback=False,
+    )
+    assert gitutil.object_format(checkout) == object_format
+    assert (checkout / "payload.txt").read_text() == f"{object_format}\n"

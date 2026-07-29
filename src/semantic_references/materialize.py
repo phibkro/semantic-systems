@@ -19,11 +19,19 @@ import tempfile
 from pathlib import Path
 
 from semantic_references import gitutil
-from semantic_references.acquire import object_cache_dir, resolve_local_sibling
+from semantic_references.acquire import resolve_local_sibling
 from semantic_references.catalog import CatalogSource
 from semantic_references.errors import AcquisitionError
 from semantic_references.lockfile import LockEntry
-from semantic_references.verify import catalog_binding_reasons, verify_checkout
+from semantic_references.paths import (
+    inspect_managed_directory,
+    require_child_absent_or_real,
+)
+from semantic_references.verify import (
+    catalog_binding_reasons,
+    publication_blocking_reasons,
+    verify_checkout,
+)
 
 
 def checkout_dir(references_root: Path, source_id: str) -> Path:
@@ -41,12 +49,17 @@ def _require_catalog_binding(source: CatalogSource, entry: LockEntry) -> None:
 
 def _require_verified_worktree(worktree: Path, source: CatalogSource, entry: LockEntry) -> None:
     verification = verify_checkout(worktree, entry)
-    if not verification.ok:
-        raise AcquisitionError(f"source {source.id!r}: {'; '.join(verification.reasons)}")
+    blocking = publication_blocking_reasons(verification)
+    if verification.head_mismatch is not None or blocking:
+        reasons = blocking or verification.reasons
+        raise AcquisitionError(f"source {source.id!r}: {'; '.join(reasons)}")
 
 
 def _already_materialized(worktree: Path, entry: LockEntry) -> bool:
-    return worktree.exists() and verify_checkout(worktree, entry).ok
+    if not worktree.exists():
+        return False
+    verification = verify_checkout(worktree, entry)
+    return verification.head_mismatch is None and not publication_blocking_reasons(verification)
 
 
 def materialize_source(
@@ -61,7 +74,9 @@ def materialize_source(
     # Fail closed before any mutation: catalog drift must not create state.
     _require_catalog_binding(source, entry)
 
-    target = checkout_dir(references_root, source.id)
+    target = require_child_absent_or_real(
+        references_root, source.id, "checkout", create_source=True
+    )
     if target.exists():
         if _already_materialized(target, entry):
             return target
@@ -71,8 +86,7 @@ def materialize_source(
             "if you want it rebuilt"
         )
 
-    tmp_parent = references_root / source.id
-    tmp_parent.mkdir(parents=True, exist_ok=True)
+    tmp_parent = target.parent
     tmp_worktree = Path(tempfile.mkdtemp(prefix=".materialize-", dir=tmp_parent))
     try:
         if offline:
@@ -97,8 +111,8 @@ def _materialize_offline(
     project_root: Path,
     references_root: Path,
 ) -> None:
-    cache_dir = object_cache_dir(references_root, source.id)
-    if cache_dir.exists() and gitutil.object_exists(cache_dir, entry.commit):
+    cache_dir = inspect_managed_directory(references_root, source.id, ".git-cache")
+    if cache_dir is not None and gitutil.object_exists(cache_dir, entry.commit):
         gitutil.clone_local(cache_dir, tmp_worktree)
         gitutil.checkout_detached(tmp_worktree, entry.commit)
         return
@@ -132,7 +146,7 @@ def _materialize_remote(
     entry: LockEntry,
     allow_history_fallback: bool,
 ) -> None:
-    gitutil.init_repo(tmp_worktree)
+    gitutil.init_repo(tmp_worktree, object_format=entry.object_format)
 
     # 1. Exact shallow fetch of the locked commit itself. 2. Failing that, a
     #    shallow fetch of the recorded ref, accepted only if it still

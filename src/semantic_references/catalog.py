@@ -37,6 +37,30 @@ def is_git_safe_value(value: str) -> bool:
     return not any(ord(ch) <= _CONTROL_CHAR_MAX or ord(ch) == _DEL_CHAR for ch in value)
 
 
+_REF_FORBIDDEN = frozenset(" ~^:?*[\\")
+
+
+def is_concrete_git_ref(value: str) -> bool:
+    """Whether ``value`` is a concrete, syntactically valid ``refs/...`` name.
+
+    This is the validation subset of ``git check-ref-format`` needed at the
+    pure catalog/lock boundary.  Selectors such as ``HEAD`` and short branch
+    names are intentionally excluded: a persisted resolution must name the
+    concrete advertised ref.
+    """
+    if not value.startswith("refs/") or not is_git_safe_value(value):
+        return False
+    if value.endswith(("/", ".")) or "//" in value or ".." in value or "@{" in value:
+        return False
+    if any(character in _REF_FORBIDDEN for character in value):
+        return False
+    components = value.split("/")
+    return all(
+        component and not component.startswith(".") and not component.endswith(".lock")
+        for component in components
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class CatalogSource:
     """One ``[[source]]`` record from ``references/sources.toml``."""

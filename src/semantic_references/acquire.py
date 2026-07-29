@@ -31,6 +31,7 @@ from semantic_references import gitutil
 from semantic_references.catalog import CatalogSource
 from semantic_references.errors import AcquisitionError, NotLockableError
 from semantic_references.lockfile import LicenseObservation, LockEntry
+from semantic_references.paths import ensure_source_root, inspect_managed_directory
 
 _OBJECT_CACHE_DIRNAME = ".git-cache"
 _BACKUP_SUFFIX = ".backup-swap"
@@ -93,13 +94,16 @@ def _hash_licenses(
 def _resolve_offline_repo(
     source: CatalogSource, project_root: Path, cache_dir: Path, track: str
 ) -> tuple[Path, str]:
-    if cache_dir.exists():
+    inspected_cache = inspect_managed_directory(
+        cache_dir.parent.parent, source.id, _OBJECT_CACHE_DIRNAME
+    )
+    if inspected_cache is not None:
         try:
-            gitutil.resolve_commit(cache_dir, track)
+            gitutil.resolve_commit(inspected_cache, track)
         except AcquisitionError:
             pass
         else:
-            return cache_dir, "local-object-cache"
+            return inspected_cache, "local-object-cache"
     return resolve_local_sibling(source, project_root), "local-sibling"
 
 
@@ -167,9 +171,13 @@ class CachePublication:
     @staticmethod
     def _displace(cache_dir: Path) -> Path | None:
         """Move a prior cache aside (same parent, so the rename is atomic)."""
+        if cache_dir.is_symlink():
+            raise AcquisitionError(f"refusing to replace symlinked object cache {cache_dir}")
         if not cache_dir.exists():
             return None
         backup_dir = cache_dir.with_name(cache_dir.name + _BACKUP_SUFFIX)
+        if backup_dir.is_symlink():
+            raise AcquisitionError(f"refusing symlinked cache backup path {backup_dir}")
         if backup_dir.exists():
             shutil.rmtree(backup_dir)
         cache_dir.replace(backup_dir)
@@ -185,10 +193,17 @@ def _lock_remote(
     observation) leaves ``cache_dir`` exactly as it was, because nothing is
     renamed until the whole ``lock`` transaction publishes.
     """
-    cache_dir.parent.mkdir(parents=True, exist_ok=True)
+    source_root = ensure_source_root(
+        references_root=cache_dir.parent.parent,
+        source_id=source.id,
+        create=True,
+    )
+    if source_root != cache_dir.parent:
+        raise AcquisitionError(f"object cache path for {source.id!r} escaped its source root")
+    inspect_managed_directory(cache_dir.parent.parent, source.id, _OBJECT_CACHE_DIRNAME)
     tmp_dir = Path(tempfile.mkdtemp(prefix=".lock-fetch-", dir=cache_dir.parent))
     try:
-        gitutil.init_repo(tmp_dir)
+        gitutil.clone_remote_blobless(tmp_dir, source.origin)
         gitutil.fetch_shallow_blobless(tmp_dir, source.origin, track)
         commit = gitutil.resolve_commit(tmp_dir, "FETCH_HEAD")
         tree = gitutil.tree_of_commit(tmp_dir, commit)
@@ -199,10 +214,10 @@ def _lock_remote(
         resolved_ref = gitutil.observe_concrete_ref(
             source.origin, track, commit, allow_transport=True
         )
-        # A fetch by ref leaves only FETCH_HEAD behind, which advertises
-        # nothing: without a real ref the cache cannot be cloned offline
-        # later. Name the fetched commit on the cache's own branch.
-        gitutil.set_branch(tmp_dir, gitutil.CACHE_BRANCH, commit)
+        gitutil.hydrate_replay_objects(tmp_dir, commit)
+        # Advertise only refs backed by the complete selected object closure,
+        # so an offline clone never traverses a partially cached default ref.
+        gitutil.prepare_replay_refs(tmp_dir, resolved_ref, commit)
     except BaseException:
         shutil.rmtree(tmp_dir, ignore_errors=True)
         raise

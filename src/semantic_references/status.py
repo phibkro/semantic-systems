@@ -16,8 +16,9 @@ from enum import StrEnum
 from pathlib import Path
 
 from semantic_references.catalog import CatalogSource
+from semantic_references.errors import AcquisitionError
 from semantic_references.lockfile import Lock, LockEntry
-from semantic_references.materialize import checkout_dir
+from semantic_references.paths import inspect_managed_directory
 from semantic_references.verify import catalog_binding_reasons, verify_checkout
 
 
@@ -140,9 +141,23 @@ def compute_status(
     return _checkout_report(source.id, entry, references_root)
 
 
+def orphaned_lock_report(source_id: str, entry: LockEntry, *, lock_only: bool) -> StatusReport:
+    """Report a lock observation whose canonical catalog source was removed."""
+    return _report_from_entry(
+        source_id,
+        entry,
+        CustodyState.DRIFTED,
+        ("lock entry has no current catalog source",),
+        lock_only=lock_only,
+    )
+
+
 def _checkout_report(source_id: str, entry: LockEntry, references_root: Path) -> StatusReport:
-    target = checkout_dir(references_root, source_id)
-    if not target.exists():
+    try:
+        target = inspect_managed_directory(references_root, source_id, "checkout")
+    except AcquisitionError as exc:
+        return _report_from_entry(source_id, entry, CustodyState.UNVERIFIABLE, (str(exc),))
+    if target is None:
         return _report_from_entry(source_id, entry, CustodyState.LOCKED_UNMATERIALIZED, ())
 
     verification = verify_checkout(target, entry)

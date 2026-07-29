@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from semantic_references.catalog import (
+    is_concrete_git_ref,
     is_git_safe_value,
     validate_license_path,
     validate_source_id,
@@ -92,6 +93,10 @@ def _check_entry_strings(source_id: str, data: dict[str, object]) -> tuple[str, 
                 "(option-like or has control characters)"
             )
         values[name] = value
+    if not is_concrete_git_ref(values["resolved_ref"]):
+        raise LockFileError(
+            f"lock entry {source_id!r}: 'resolved_ref' must be a concrete valid refs/... name"
+        )
     return values["origin"], values["track"], values["resolved_ref"]
 
 
