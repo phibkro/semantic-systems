@@ -61,10 +61,12 @@ Binder equivalence remains uncertainty 0001; do not silently expand
 Delegate only after the relevant contract is frozen. Every assignment must name
 exact read/write paths, forbidden paths, assumptions, executable acceptance
 commands, expected deliverables, and autonomy level. Use separate Git worktrees
-for concurrent writers. Treat the frozen contract as a deep-module boundary: a
-small, stable semantic interface hiding substantial implementation freedom and
-surfacing composable abstractions. The integrating agent owns semantic decisions,
-reviews committed artifacts on a clean tree, and commissions independent review.
+for concurrent writers. At most three delegated writers may be active
+concurrently; each must own an isolated worktree and a frozen, non-overlapping
+contract. Treat the frozen contract as a deep-module boundary: a small, stable
+semantic interface hiding substantial implementation freedom and surfacing
+composable abstractions. The integrating agent owns semantic decisions, reviews
+committed artifacts on a clean tree, and commissions independent review.
 
 ## Completion and merge
 
