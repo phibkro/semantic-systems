@@ -24,9 +24,10 @@ limits, semantic diff, and kill criteria are frozen in design spec 0005.
 - Local commit, pre-commit, and pre-push hooks are checked in and explicitly
   installed after the script-disabled frozen dependency install. They remain
   advisory and bypassable.
-- Branch protection remains external and is not claimed active. Required-check
-  enforcement and merge mode must be configured and exercised by the pilot PR
-  only after the final workflow check names and correction head are stable.
+- GitHub branch protection now requires the three exact workflow contexts on
+  an up-to-date branch, applies them to administrators, requires linear
+  history and resolved conversations, and forbids force pushes and deletion.
+  The pilot PR must still exercise the protected merge transition.
 - Independent review resolution, operator completion feedback, Herdr cleanup,
   and the real pilot merge remain open external gates.
 
@@ -205,6 +206,24 @@ completion feedback, and cleanup.
   directory, documents and exercises explicit hook installation, refreshes
   this current-state section, and binds UTC, C.UTF-8, and Python hash seed zero
   in authoritative CI and pinned Nix environments.
+- 2026-07-29: The real pre-push journey exposed Git hook-local environment
+  variables leaking into temporary fixture repositories and mutating the
+  shared local Git metadata. No remote update occurred. Main and feature refs,
+  worktree content, and repository configuration were restored to independently
+  verified commits; the hook now clears every `git rev-parse --local-env-vars`
+  variable before the pinned integration gate, with a hermetic regression
+  oracle that passes in both checkout and Nix source contexts.
+- 2026-07-29: Opened pilot PR #1. Its first server run correctly rejected a
+  completed custody feature's stale `0004` acceptance wrapper as a second
+  feature identity. Removed that out-of-scope file; the corrected head passed
+  all three GitHub jobs plus local 141-test integration, acceptance 0005, the
+  actual pre-push path, and both Nix source forms.
+- 2026-07-29: Configured `main` protection with strict required contexts
+  `fast + integration (nix)`, `feature contract + acceptance`, and
+  `commit message + PR title policy`; enforcement includes administrators,
+  linear history, resolved conversations, and disabled force pushes/deletion.
+  The protected squash merge, main-push replay, completion notice, and cleanup
+  remain the final pilot observations.
 
 ## Decisions and deviations
 

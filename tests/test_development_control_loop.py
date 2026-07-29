@@ -972,7 +972,7 @@ def test_active_plan_current_state_matches_repository_implementation() -> None:
         "required tools fail closed",
         "feature contract",
         "real project checks",
-        "branch protection remains external",
+        "github branch protection now requires",
     ):
         assert current_claim in current_state
 
