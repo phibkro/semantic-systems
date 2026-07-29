@@ -98,7 +98,12 @@ pinned environment and normal validation passes with `.references/` absent.
 Consequence if falsified: do not treat source cards as provenance-ready; keep
 the catalog queued and redesign custody rather than weakening exactness.
 
-Observed result: pending implementation.
+Observed result: local implementation at commit
+`56ee810b8d0794a026f3e822623ca4d5f018bc34` passes deterministic export,
+allowlist and sentinel scans, 149 repository tests, six UI behavior tests, and
+three mobile Chromium/PWA scenarios. This is bounded test and runtime
+validation, not proof. Independent review and the default Pages deployment
+remain pending, so the claim is not accepted.
 
 Invalidation: any change to the catalog custody fields, canonical record
 identity, lock schema, Git acquisition rules, license hashing, or custody-state

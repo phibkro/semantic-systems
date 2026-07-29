@@ -12,19 +12,20 @@ making stale, offline, unsupported, and unavailable state visible.
 
 ## Current repository state
 
-- The project model already loads and validates a federated typed graph and
-  generates eight Markdown/Mermaid projections.
-- `component.explorer` is planned and `work.explorer-query-contract` is ready in
-  the canonical model.
-- The tooling specification already requires orthogonal system, theory,
-  evidence, source-to-artifact, work, and deployment views.
-- No public JSON export contract, web application, PWA, browser test, or Pages
-  workflow exists.
+- The project model validates the federated typed graph and generates eight
+  exact Markdown/Mermaid projections; the explorer query contract is complete.
+- A versioned allowlist exporter derives a content-addressed public snapshot
+  from canonical model identities and exact commit metadata.
+- The phone-first PWA implements Pulse, Systems, Semantics, Evidence, and Work
+  views with search, drilldown, provenance, typed relations, explicit
+  freshness/offline state, and no mutation authority.
+- Unit, integration, privacy, production-build, and mobile Chromium/PWA
+  acceptance pass locally on the integrated branch.
 - `phibkro/semantic-systems` is public after a complete-history Gitleaks and
   manual publication audit; GitHub secret scanning and push protection are
   enabled.
-- GitHub Actions is enabled; GitHub Pages currently returns 404 because no site
-  is configured.
+- The least-privilege Pages workflow exists but has not run from accepted
+  `main`; GitHub Pages and the custom domain remain undeployed.
 
 ## Frozen boundary decisions
 
@@ -57,9 +58,14 @@ serializes after the payload scan and independent review.
 
 ## Delegated work
 
-No implementation worker has been assigned. Existing checker, reference
-custody, and reference-research lanes retain their current ownership. A PWA
-worker starts only when a lane is harvested or capacity is explicitly expanded.
+- The bounded PWA implementation worker completed its isolated branch and
+  released ownership after its local gates passed.
+- Main-agent integration rebased the implementation onto protected `main`,
+  reconciled the Bun workspace and Nix environment, regenerated canonical
+  projections, and reproduced then corrected one deterministic-environment
+  merge regression.
+- An independent GPT acceptance review is active and remains unable to grant
+  evidence or publication authority.
 
 ## Acceptance commands
 
@@ -87,14 +93,15 @@ GitHub Pages deployment and HTTPS probe
 ## Known assumptions
 
 - The operator intends the sanitized dashboard to be public.
-- A GitHub plan supporting private-repository Pages is available; this remains
-  unverified until site creation succeeds.
+- GitHub Pages is available for the public repository; successful site creation
+  remains unverified until the accepted workflow deploys.
 - Cloudflare remains the canonical DNS provider for `phibkro.org`.
 - Accepted-commit freshness is initially sufficient for phone monitoring.
 
 ## Risks
 
-- Public export leaks private attributes from a private repository.
+- Public export admits arbitrary repository, build, or operator context merely
+  because the source repository is public.
 - “Real-time” overstates accepted-commit snapshot freshness.
 - Service-worker caching presents stale state as current.
 - A visually impressive graph obscures actionable lists and explanations.
@@ -146,6 +153,13 @@ recursive dump of model attributes or put a GitHub credential in the client.
   this worker left `generated/**` untouched as assigned. All independent
   canonical validation, Python, exporter, frontend, payload-scan, production
   build, and mobile Playwright gates passed.
+- 2026-07-29: Main-agent integration rebased the branch onto protected `main`,
+  reconciled the root Bun workspace and Nix shell, regenerated the work count,
+  and ran the complete clean-tree acceptance. The first run exposed a Nix
+  binding-shape regression in the deterministic-environment oracle; restoring
+  the explicit bindings produced a green exact-commit run with 149 repository
+  tests, six Vitest behaviors, three mobile Playwright scenarios, a production
+  Pages-base build, and final-payload scan.
 
 ## Decisions and deviations
 

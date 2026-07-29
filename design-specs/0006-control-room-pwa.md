@@ -6,6 +6,11 @@ Problem owner: operator and main research/integration agent
 
 Frontier: read-only project observability and public-safe deployment
 
+Revision 2026-07-29: the operator explicitly made the repository public after
+the initial freeze. The privacy boundary is therefore the allowlisted product
+projection versus arbitrary repository, build, agent, and operator context;
+repository visibility itself is no longer frozen as private.
+
 ## User journey
 
 From a phone, the operator opens or installs the Semantic Systems Control Room
@@ -23,7 +28,8 @@ custom address is `semantic.phibkro.org`.
 
 A public-safe, installable PWA can project the canonical project graph and
 accepted control state without becoming a second source of truth, leaking
-private repository data, or representing a stale snapshot as live.
+non-product build or operator context, or representing a stale snapshot as
+live.
 
 The claim is falsified if:
 
@@ -73,7 +79,7 @@ arbitrary entity attributes. The initial schema may expose:
 - derived counts, ready/blocking relations, unsupported-claim identities, and
   typed evidence categories;
 - exact commit, snapshot digest, generation time, and deployed-check status;
-- repository source URLs that already require GitHub authorization.
+- exact-commit source URLs in the public GitHub repository.
 
 It must not expose:
 
@@ -209,7 +215,8 @@ because the fixture crashes or the application is absent.
 
 - canonical entity/relation and evidence meanings;
 - compiler, runtime, resolver, and theory semantics;
-- private repository visibility;
+- public repository visibility does not make arbitrary fields part of the
+  product projection;
 - public deployment remains read-only;
 - no local-agent telemetry in the first public slice;
 - no arbitrary graph database or second mutable status store.

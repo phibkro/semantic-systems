@@ -6,11 +6,7 @@
       "name": "Public control room remains a truthful projection",
       "summary": "An installable public PWA can expose allowlisted accepted project state with exact provenance and visible freshness without owning semantic truth.",
       "status": "proposed",
-      "tags": [
-        "tooling",
-        "visualization",
-        "security"
-      ],
+      "tags": ["tooling", "visualization", "security"],
       "attributes": {
         "registry": "claims/registry.md#clm-0005--public-safe-project-control-room",
         "contract": "design-specs/0006-control-room-pwa.md"
@@ -21,12 +17,8 @@
       "kind": "gate",
       "name": "Public projection safety gate",
       "summary": "Rejects invalid, non-allowlisted, unbound, stale-as-live, or partially generated public artifacts.",
-      "status": "planned",
-      "tags": [
-        "tooling",
-        "security",
-        "validation"
-      ],
+      "status": "active",
+      "tags": ["tooling", "security", "validation"],
       "attributes": {
         "evidence_categories": [
           "example_test",
@@ -42,15 +34,11 @@
       "name": "Control Room GitHub Pages deployment",
       "summary": "Publishes the accepted, content-addressed public projection as a read-only installable PWA.",
       "status": "planned",
-      "tags": [
-        "tooling",
-        "visualization",
-        "public"
-      ],
+      "tags": ["tooling", "visualization", "public"],
       "attributes": {
         "preferred_domain": "semantic.phibkro.org",
         "visibility": "public",
-        "source_visibility": "private",
+        "source_visibility": "public",
         "freshness": "accepted_commit"
       }
     },
@@ -60,13 +48,9 @@
       "name": "Deliver the Semantic Systems Control Room PWA",
       "summary": "Build, review, and publish the public-safe phone-first project projection under design spec 0006.",
       "status": "in_progress",
-      "tags": [
-        "tooling",
-        "visualization",
-        "pwa"
-      ],
+      "tags": ["tooling", "visualization", "pwa"],
       "attributes": {
-        "phase": "design",
+        "phase": "validation",
         "effort": 8,
         "acceptance": [
           "Public snapshot is deterministic, allowlisted, and bound to an exact commit",
