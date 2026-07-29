@@ -68,6 +68,17 @@ semantic interface hiding substantial implementation freedom and surfacing
 composable abstractions. The integrating agent owns semantic decisions, reviews
 committed artifacts on a clean tree, and commissions independent review.
 
+## Model routing
+
+- Prefer GPT-5.6 Sol for audits, adversarial review, semantic analysis, and
+  other complex reasoning.
+- Prefer Sonnet 5 for bounded mechanical implementation after the contract,
+  owned paths, and executable acceptance commands are frozen.
+- Let already-running delegated work finish unless it is blocked or has drifted
+  outside its contract; apply this routing to new assignments.
+- Model output is advisory or contributory evidence, never semantic authority.
+  The integrating agent still gates committed artifacts and accepts decisions.
+
 ## Completion and merge
 
 For nontrivial features, follow design spec 0005: one frozen spec, one active
