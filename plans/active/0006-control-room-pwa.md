@@ -190,6 +190,16 @@ recursive dump of model attributes or put a GitHub credential in the client.
   after browser mutation immediately before upload, and exposes the canonical
   work identities with scheduler-derived wording. A new exact-commit
   acceptance and re-review are still required.
+- 2026-07-29: Independent review accepted exact local-publication commit
+  `8e855cc`. Clean CI then exposed an undeclared `shadcn` build dependency;
+  exact repair `ff35eb2` passed acceptance 0006 and all protected PR checks.
+  PR #4 squash-merged as `381b708`.
+- 2026-07-29: The first real main Pages run `30490196585` correctly exported
+  `main_ci_assertion` and then stopped before upload because two stateful
+  Playwright journeys still demanded the local-only label. Repair `56e548a`
+  derives the expected label from the exact built snapshot, rejects unknown
+  observation sources, and passes 4/4 journeys in both local-preview and
+  simulated main-CI contexts. Independent review accepted the exact repair.
 
 ## Decisions and deviations
 
@@ -203,10 +213,10 @@ recursive dump of model attributes or put a GitHub credential in the client.
 
 ## Completion state
 
-The first candidate was rejected; its corrected successor has passed targeted
-local gates but is not yet accepted. Full clean-tree acceptance, independent
-re-review, default Pages deployment, and phone observation of the deployed URL
-remain required. Complete only when items 1–8 pass against accepted `main`, the
-independent review is resolved, the default site is usable from a phone, and
-custom-domain state is either verified or recorded as the remaining external
-blocker.
+The local implementation and main-observation test repair are independently
+accepted. PR #4 is merged, but the first Pages deployment was blocked before
+artifact upload by the preserved `main_ci_assertion` counterexample. Repair PR
+#5, successful default Pages deployment, served-origin validation, and phone
+observation remain required. Complete only when items 1–8 pass against
+accepted `main`, the default site is usable from a phone, and custom-domain
+state is either verified or recorded as the remaining external blocker.
