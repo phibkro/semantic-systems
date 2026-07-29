@@ -80,3 +80,17 @@ def normalize_theory(document: JsonObject) -> Theory:
         payload[collection] = _sorted_by_id(document, collection)
 
     return Theory(identity=content_identity(payload), payload=payload)
+
+
+def required_obligation_id(theory: Theory) -> str | None:
+    """The single obligation this v0 contract governs, or ``None`` if unsupported.
+
+    Shared by evidence production, the production resolver, and the
+    independent checker so the three never disagree about which obligation a
+    realization must satisfy (design spec 0003).
+    """
+    raw = theory.payload.get("obligations")
+    if not isinstance(raw, list) or len(raw) != 1 or not isinstance(raw[0], dict):
+        return None
+    value = raw[0].get("id")
+    return value if isinstance(value, str) else None

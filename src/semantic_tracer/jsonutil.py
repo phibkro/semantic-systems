@@ -35,6 +35,12 @@ def require_int(value: JsonValue, context: str) -> int:
     return value
 
 
+def require_bool(value: JsonValue, context: str) -> bool:
+    if not isinstance(value, bool):
+        raise DocumentError(f"{context} must be a boolean")
+    return value
+
+
 def require_key(document: JsonObject, key: str, context: str) -> JsonValue:
     if key not in document:
         raise DocumentError(f"{context} is missing required key {key!r}")
