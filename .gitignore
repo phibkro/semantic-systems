@@ -15,3 +15,7 @@ stacklit.html
 # Disposable, locally materialized research repositories. The checked-in
 # source catalog under references/ is canonical; these checkouts are caches.
 .references/
+
+# Unreviewed workflow payloads may contain long source excerpts, mixed-status
+# claims, or private execution metadata. Check in curated projections only.
+.research-cache/

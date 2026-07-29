@@ -207,3 +207,13 @@ Research-specific acceptance is the checklist in design spec 0002.
 Open. Complete only after source-backed artifacts, independent verification,
 canonical graph integration, generated views, and the next adoption experiment
 are accepted.
+- 2026-07-29: The structured Fable-led control workflow completed 14/14 child
+  tasks with zero child errors, 17 cited project cards, 119 typed claims, 12
+  accepted method candidates, and 12 ranked experiments. The workflow took
+  2h07m at live concurrency 1 and 1.61M subagent tokens.
+- 2026-07-29: The run surfaced its own input defect: args arrived as a JSON
+  string, project context was empty, and target-boundary mapping was forced to
+  a default. Preserved the complete payload and resumable script in ignored
+  `.research-cache/` with checksums, and checked in the partial synthesis at
+  `research/reference-baselines/pilot-control-synthesis.md`. The portfolio
+  remains incomplete until the cached repair re-runs boundary-aware synthesis.
