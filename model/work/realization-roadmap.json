@@ -221,11 +221,12 @@
       "kind": "work_item",
       "name": "Specify explorer query contract",
       "summary": "Define recursive navigation, view projections, provenance, filtering, and introspection without coupling the UI to storage internals.",
-      "status": "ready",
+      "status": "complete",
       "tags": ["tooling", "visualization"],
       "attributes": {
         "phase": "design",
         "effort": 5,
+        "contract": "design-specs/0006-control-room-pwa.md#frozen-deep-module-contract",
         "acceptance": [
           "Recursive components can be expanded and collapsed",
           "Architecture, semantic, evidence, and work relations remain filterable",

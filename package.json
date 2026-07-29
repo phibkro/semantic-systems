@@ -3,6 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "description": "Development-control-loop tooling for the Semantic Systems monorepo.",
+  "workspaces": [
+    "apps/*"
+  ],
   "type": "module",
   "scripts": {
     "prepare": "bun scripts/install-git-hooks.ts",
@@ -11,7 +14,9 @@
     "format:check": "oxfmt --check scripts commitlint.config.ts package.json tsconfig.json",
     "lint": "oxlint --deny-warnings scripts commitlint.config.ts package.json tsconfig.json",
     "typecheck": "tsc --noEmit",
-    "check-commit-policy": "bun scripts/check-commit-policy.ts"
+    "check-commit-policy": "bun scripts/check-commit-policy.ts",
+    "control-room:check": "bun run --cwd apps/control-room check",
+    "control-room:preview": "bun run --cwd apps/control-room serve:preview"
   },
   "devDependencies": {
     "@commitlint/cli": "21.2.1",

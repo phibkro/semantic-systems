@@ -8,9 +8,10 @@ Ready parallel work items: **8**.
 |---|---|---|---:|---:|---|---|
 | Implement minimal actor runtime | implementation | planned | yes | 75 | delegate with review |  |
 | Establish the autonomous development control loop | implementation | in_progress | yes | 83 | delegate with review |  |
+| Deliver the Semantic Systems Control Room PWA | validation | in_progress | yes | 94 | delegate with review |  |
 | Implement core checker | implementation | planned | no | 65 | delegate with review | Specify minimal kernel calculus |
 | Design deterministic concurrency simulator | design | planned | no | 68 | delegate with review | Specify STM effect and handler laws |
-| Specify explorer query contract | design | ready | yes | 94 | delegate directly |  |
+| Specify explorer query contract | design | complete | no | 94 | delegate directly |  |
 | Implement inventory actor realization | implementation | planned | no | 94 | delegate directly | Implement minimal actor runtime |
 | Complete inventory domain contract | design | complete | no | 82 | delegate with review |  |
 | Prove inventory invariant | validation | planned | yes | 94 | delegate with review |  |

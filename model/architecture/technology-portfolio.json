@@ -169,7 +169,7 @@
       "kind": "component",
       "name": "Semantic project explorer",
       "summary": "Interactive projection of recursive components, contracts, evidence, source explanations, and work dependencies.",
-      "status": "planned",
+      "status": "in_progress",
       "tags": ["tooling", "visualization"],
       "attributes": {
         "responsibilities": [
