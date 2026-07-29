@@ -164,6 +164,16 @@ def test_digest_or_version_mismatch_is_rejected(tmp_path: Path) -> None:
         verify_public_artifact(exported.snapshot_path, exported.version_path)
 
 
+def test_artifact_verifier_rejects_fields_outside_the_public_schema(tmp_path: Path) -> None:
+    exported = export_public_snapshot(fixture_graph(), observation(), tmp_path)
+    snapshot = json.loads(exported.snapshot_path.read_text())
+    snapshot["entities"][0]["private_note"] = "must never be admitted"
+    exported.snapshot_path.write_text(json.dumps(snapshot))
+
+    with pytest.raises(ExportError, match="entity fields"):
+        verify_public_artifact(exported.snapshot_path, exported.version_path)
+
+
 def test_real_canonical_model_exports_with_exact_provenance() -> None:
     snapshot = build_public_snapshot(load_project(ROOT), observation())
 

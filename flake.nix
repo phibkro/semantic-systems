@@ -24,8 +24,8 @@
         {
           default = pkgs.mkShell {
             packages = [
-              python
               pkgs.bun
+              python
               pkgs.actionlint
               pkgs.git
               pkgs.jq
@@ -34,15 +34,19 @@
               # which hardcodes `#!/usr/bin/env node` shebangs for
               # ./node_modules/.bin/{commitlint,oxfmt,oxlint}.
               pkgs.nodejs
+              pkgs.playwright-test
               pkgs.pyright
               pkgs.ruff
               pkgs.uv
             ];
 
-            env.PYTHONPATH = "src";
-            env.TZ = "UTC";
-            env.LC_ALL = "C.UTF-8";
-            env.PYTHONHASHSEED = "0";
+            env = {
+              PLAYWRIGHT_BROWSERS_PATH = pkgs.playwright-driver.browsers;
+              PYTHONPATH = "src";
+              TZ = "UTC";
+              LC_ALL = "C.UTF-8";
+              PYTHONHASHSEED = "0";
+            };
           };
         }
       );

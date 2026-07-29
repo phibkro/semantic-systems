@@ -126,6 +126,20 @@ recursive dump of model attributes or put a GitHub credential in the client.
 - 2026-07-29: Corrected stale web-search information against the npm registry:
   `typescript@7.0.2` is stable and owns `tsc`; the separate native-preview
   package remains a development build. The app uses TypeScript 7 only.
+- 2026-07-29: Added red-first exporter oracles for determinism, invalid kinds,
+  missing identities, allowlist sentinels, digest mismatch, and exact canonical
+  provenance; implemented the versioned content-addressed public snapshot.
+- 2026-07-29: Implemented the phone-first React PWA with Pulse, Systems,
+  Semantics, Evidence, and Work views; search, drilldown, typed relations,
+  assumptions, evidence categories, source links, and explicit freshness
+  states remain projections of the exported schema.
+- 2026-07-29: Passed local Vitest behavior tests and mobile Chromium acceptance
+  for the Pages base path, manifest/service worker, and offline last-known
+  snapshot. Added final-payload scanning and an executable local acceptance
+  script.
+- 2026-07-29: Added a least-privilege, immutable-action Pages workflow. No
+  workflow was pushed or run, no Pages site was configured, and no DNS or HTTPS
+  change was made.
 
 ## Decisions and deviations
 
@@ -136,6 +150,9 @@ recursive dump of model attributes or put a GitHub credential in the client.
 
 ## Completion state
 
-Open. Complete only when items 1–8 pass, the independent review is resolved,
+Local implementation complete pending clean-tree full acceptance and
+independent review. Default Pages deployment, phone observation of the deployed
+URL, and `semantic.phibkro.org` DNS/HTTPS remain external work. Complete only
+when items 1–8 pass against accepted `main`, the independent review is resolved,
 the default site is usable from a phone, and custom-domain state is either
 verified or recorded as the remaining external blocker.

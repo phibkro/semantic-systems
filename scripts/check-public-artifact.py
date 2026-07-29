@@ -26,11 +26,14 @@ def main() -> int:
     parser.add_argument("payload", type=Path)
     args = parser.parse_args()
     payload = args.payload.resolve()
-    version = payload / "version.json"
-    versions = list(payload.glob("snapshot.*.json"))
-    if len(versions) != 1:
-        raise ExportError(f"expected exactly one content-addressed snapshot, found {len(versions)}")
-    verify_public_artifact(versions[0], version)
+    version_documents = list(payload.rglob("version.json"))
+    versions = list(payload.rglob("snapshot.*.json"))
+    if len(version_documents) != 1 or len(versions) != 1:
+        raise ExportError(
+            "expected exactly one version document and one content-addressed snapshot, "
+            f"found {len(version_documents)} and {len(versions)}"
+        )
+    verify_public_artifact(versions[0], version_documents[0])
     for path in sorted(item for item in payload.rglob("*") if item.is_file()):
         data = path.read_bytes()
         for label, pattern in FORBIDDEN.items():

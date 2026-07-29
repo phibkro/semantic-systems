@@ -254,6 +254,117 @@ def _digest_snapshot(snapshot: PublicSnapshot) -> str:
     return hashlib.sha256(_canonical_bytes(digest_input)).hexdigest()
 
 
+def _exact_keys(value: dict[str, object], expected: set[str], context: str) -> None:
+    if set(value) != expected:
+        raise ExportError(f"{context} fields do not match the public schema")
+
+
+def _validate_public_shape(  # noqa: PLR0912
+    snapshot: dict[str, JsonValue], version: dict[str, JsonValue]
+) -> None:
+    _exact_keys(
+        cast(dict[str, object], snapshot),
+        {
+            "schema_version",
+            "metadata",
+            "counts_by_kind",
+            "ready_work_ids",
+            "active_work_ids",
+            "blocked_work_ids",
+            "completed_work_ids",
+            "unsupported_claim_ids",
+            "entities",
+            "relations",
+        },
+        "snapshot",
+    )
+    _exact_keys(
+        cast(dict[str, object], version),
+        {"schema_version", "commit", "digest", "observed_at", "snapshot"},
+        "version",
+    )
+    metadata_value = snapshot.get("metadata")
+    if not isinstance(metadata_value, dict):
+        raise ExportError("snapshot metadata is missing")
+    _exact_keys(
+        cast(dict[str, object], metadata_value),
+        {
+            "commit",
+            "digest",
+            "generated_at",
+            "observed_at",
+            "freshness_seconds",
+            "deployed_check_status",
+            "repository_url",
+        },
+        "metadata",
+    )
+    for key in (
+        "ready_work_ids",
+        "active_work_ids",
+        "blocked_work_ids",
+        "completed_work_ids",
+        "unsupported_claim_ids",
+    ):
+        value = snapshot.get(key)
+        if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+            raise ExportError(f"{key} must contain only canonical identities")
+    counts = snapshot.get("counts_by_kind")
+    if not isinstance(counts, dict) or not all(
+        isinstance(value, int) and not isinstance(value, bool) and value >= 0
+        for value in counts.values()
+    ):
+        raise ExportError("counts_by_kind is invalid")
+    entities = snapshot.get("entities")
+    if not isinstance(entities, list):
+        raise ExportError("entities must be a list")
+    for entity_value in entities:
+        if not isinstance(entity_value, dict):
+            raise ExportError("public entity must be an object")
+        _exact_keys(
+            cast(dict[str, object], entity_value),
+            {
+                "id",
+                "kind",
+                "name",
+                "summary",
+                "status",
+                "tags",
+                "source_url",
+                "evidence_category",
+                "assumptions",
+            },
+            "entity",
+        )
+        if entity_value.get("kind") not in ENTITY_KINDS:
+            raise ExportError("public entity kind is invalid")
+        for key in ("id", "kind", "name", "summary", "source_url"):
+            if not isinstance(entity_value.get(key), str):
+                raise ExportError(f"public entity {key} must be a string")
+        for key in ("tags", "assumptions"):
+            value = entity_value.get(key)
+            if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+                raise ExportError(f"public entity {key} must contain strings")
+        for key in ("status", "evidence_category"):
+            if not isinstance(entity_value.get(key), str) and entity_value.get(key) is not None:
+                raise ExportError(f"public entity {key} must be a string or null")
+    relations = snapshot.get("relations")
+    if not isinstance(relations, list):
+        raise ExportError("relations must be a list")
+    for relation_value in relations:
+        if not isinstance(relation_value, dict):
+            raise ExportError("public relation must be an object")
+        _exact_keys(
+            cast(dict[str, object], relation_value),
+            {"source_id", "target_id", "kind", "summary", "source_url"},
+            "relation",
+        )
+        if relation_value.get("kind") not in RELATION_KINDS:
+            raise ExportError("public relation kind is invalid")
+        if not all(isinstance(value, str) for value in relation_value.values()):
+            raise ExportError("public relation fields must be strings")
+
+
 def build_public_snapshot(project: ProjectGraph, observation: ExportObservation) -> PublicSnapshot:
     """Build the allowlisted read model without writing any artifact."""
 
@@ -289,6 +400,9 @@ def export_public_snapshot(
     snapshot_tmp.replace(snapshot_path)
     version_tmp.write_bytes(version_bytes)
     version_tmp.replace(version_path)
+    for stale in output.glob("snapshot.*.json"):
+        if stale != snapshot_path:
+            stale.unlink()
     return ExportedArtifact(
         digest=digest,
         snapshot_path=snapshot_path,
@@ -310,6 +424,7 @@ def verify_public_artifact(  # noqa: PLR0912
         raise ExportError(f"unreadable public artifact: {error}") from error
     if not isinstance(snapshot_value, dict) or not isinstance(version_value, dict):
         raise ExportError("public snapshot and version must be JSON objects")
+    _validate_public_shape(snapshot_value, version_value)
     if snapshot_value.get("schema_version") != SCHEMA_VERSION:
         raise ExportError("snapshot schema version mismatch")
     if version_value.get("schema_version") != VERSION_SCHEMA:
