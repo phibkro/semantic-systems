@@ -1,0 +1,96 @@
+{
+  "$schema": "https://stacklit.dev/schema/v1.json",
+  "version": "1",
+  "generated_at": "2026-07-29T04:15:48Z",
+  "stacklit_version": "dev",
+  "merkle_hash": "76e185a712d56a8ebb2ce7c319946d75b3a1691aeb60662146507c4fc96c86bf",
+  "project": {
+    "name": "semantic",
+    "root": ".",
+    "type": "single"
+  },
+  "tech": {
+    "primary_language": "python",
+    "languages": {
+      "python": {
+        "files": 10,
+        "lines": 856
+      },
+      "shell": {
+        "files": 1,
+        "lines": 22
+      }
+    },
+    "frameworks": [
+      "GitHub Actions"
+    ]
+  },
+  "structure": {
+    "entrypoints": null,
+    "total_files": 11,
+    "total_lines": 878
+  },
+  "modules": {
+    "scripts": {
+      "purpose": "Scripts",
+      "language": "shell",
+      "files": 1,
+      "lines": 22,
+      "file_list": [
+        "check.sh"
+      ],
+      "activity": "low"
+    },
+    "src/semantic_project_model": {
+      "purpose": "Semantic Project Model",
+      "language": "python",
+      "files": 9,
+      "lines": 816,
+      "file_list": [
+        "__init__.py",
+        "__main__.py",
+        "cli.py",
+        "graph.py",
+        "loader.py",
+        "model.py",
+        "schedule.py",
+        "validate.py",
+        "views.py"
+      ],
+      "exports": [
+        "adjacency(nodes: Iterable[str], edges: Iterable[tuple[str, str]]) -\u003e dict[str, set[str]]",
+        "assess_work(project: ProjectGraph) -\u003e tuple[WorkAssessment, ...]",
+        "class ProjectLoadError",
+        "concern_matrix(project: ProjectGraph) -\u003e str",
+        "critical_path(project: ProjectGraph) -\u003e tuple[str, ...]",
+        "delegation_frontier(project: ProjectGraph) -\u003e str",
+        "find_cycle(graph: dict[str, set[str]]) -\u003e tuple[str, ...] | None",
+        "generate_views(project: ProjectGraph) -\u003e dict[str, str]",
+        "index(project: ProjectGraph) -\u003e str",
+        "longest_path(graph: dict[str, set[str]], weights: dict[str, int]) -\u003e tuple[str, ...]"
+      ],
+      "activity": "low"
+    }
+  },
+  "dependencies": {
+    "edges": null,
+    "entrypoints": null,
+    "most_depended": [
+      "scripts",
+      "src/semantic_project_model"
+    ],
+    "isolated": [
+      "scripts",
+      "src/semantic_project_model"
+    ]
+  },
+  "git": {},
+  "hints": {
+    "test_command": "pytest",
+    "do_not_touch": [
+      "generated/",
+      ".github/"
+    ]
+  },
+  "architecture": {}
+}

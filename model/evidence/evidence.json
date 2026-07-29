@@ -1,0 +1,161 @@
+{
+  "entities": [
+    {
+      "id": "claim.kernel.safety",
+      "kind": "claim",
+      "name": "Kernel preserves typing",
+      "summary": "Well-typed core programs avoid type errors.",
+      "status": "open",
+      "tags": [],
+      "attributes": {}
+    },
+    {
+      "id": "claim.inventory.invariant",
+      "kind": "claim",
+      "name": "Inventory transitions preserve non-negative quantities",
+      "summary": "Every accepted transition restores the invariant.",
+      "status": "open",
+      "tags": [],
+      "attributes": {}
+    },
+    {
+      "id": "claim.stm.serializable",
+      "kind": "claim",
+      "name": "STM commits are serializable",
+      "summary": "Committed histories correspond to a serial order.",
+      "status": "asserted",
+      "tags": [],
+      "attributes": {}
+    },
+    {
+      "id": "claim.model.valid",
+      "kind": "claim",
+      "name": "Bootstrap model is structurally valid",
+      "summary": "IDs, relations, containment, and work dependencies validate.",
+      "status": "supported",
+      "tags": [],
+      "attributes": {}
+    },
+    {
+      "id": "obligation.inventory.proof",
+      "kind": "obligation",
+      "name": "Inventory preservation obligation",
+      "summary": "Cover every message constructor.",
+      "status": "open",
+      "tags": [],
+      "attributes": {}
+    },
+    {
+      "id": "evidence.model.tests",
+      "kind": "evidence",
+      "name": "Project model tests",
+      "summary": "Loader, validation, scheduling, and generation tests.",
+      "status": "current",
+      "tags": [],
+      "attributes": {
+        "evidence_type": "test",
+        "command": "pytest"
+      }
+    },
+    {
+      "id": "evidence.inventory.tests",
+      "kind": "evidence",
+      "name": "Inventory property tests",
+      "summary": "Generated transition sequences search for violations.",
+      "status": "planned",
+      "tags": [],
+      "attributes": {
+        "evidence_type": "test"
+      }
+    },
+    {
+      "id": "evidence.inventory.proof",
+      "kind": "evidence",
+      "name": "Inventory preservation proof",
+      "summary": "Proof against the exact normalized contract.",
+      "status": "planned",
+      "tags": [],
+      "attributes": {
+        "evidence_type": "proof"
+      }
+    },
+    {
+      "id": "evidence.stm.model",
+      "kind": "evidence",
+      "name": "Bounded STM model check",
+      "summary": "Explores commit, abort, retry, and wake-up interleavings.",
+      "status": "planned",
+      "tags": [],
+      "attributes": {
+        "evidence_type": "model_check"
+      }
+    },
+    {
+      "id": "assumption.memory-model",
+      "kind": "assumption",
+      "name": "Target atomic memory model",
+      "summary": "Runtime atomics satisfy declared ordering requirements.",
+      "status": "open",
+      "tags": [],
+      "attributes": {}
+    }
+  ],
+  "relations": [
+    {
+      "source": "evidence.model.tests",
+      "target": "claim.model.valid",
+      "kind": "supports",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "obligation.inventory.proof",
+      "target": "claim.inventory.invariant",
+      "kind": "discharges",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "evidence.inventory.tests",
+      "target": "claim.inventory.invariant",
+      "kind": "supports",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "evidence.inventory.proof",
+      "target": "obligation.inventory.proof",
+      "kind": "discharges",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "evidence.stm.model",
+      "target": "claim.stm.serializable",
+      "kind": "supports",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "claim.stm.serializable",
+      "target": "assumption.memory-model",
+      "kind": "assumes",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "claim.inventory.invariant",
+      "target": "invariant.inventory.nonnegative",
+      "kind": "validates",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "claim.stm.serializable",
+      "target": "realization.inventory.stm",
+      "kind": "validates",
+      "summary": "",
+      "attributes": {}
+    }
+  ]
+}

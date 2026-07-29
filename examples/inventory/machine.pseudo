@@ -1,0 +1,23 @@
+machine Inventory {
+    state {
+        stock: Map<ItemId, Quantity>
+        reservations: Map<ReservationId, Reservation>
+    }
+
+    message {
+        Reserve(ItemId, Quantity)
+        Release(ReservationId)
+    }
+
+    event {
+        Reserved(Reservation)
+        Released(ReservationId)
+        ReservationRejected(ItemId, Quantity)
+    }
+
+    invariant nonNegative:
+        forall item. stock[item] >= 0
+
+    update:
+        Message -> State -> <fresh<ReservationId>> Step<State, Event>
+}

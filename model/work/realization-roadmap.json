@@ -1,0 +1,375 @@
+{
+  "entities": [
+    {
+      "id": "work.normalized-core-format",
+      "kind": "work_item",
+      "name": "Specify normalized core artifact",
+      "summary": "Define the canonical checked representation, identity rules, source correspondence, and assumption encoding.",
+      "status": "ready",
+      "tags": ["semantics", "compiler"],
+      "attributes": {
+        "phase": "design",
+        "effort": 8,
+        "acceptance": [
+          "Normalization is deterministic and documented",
+          "Every entity and obligation has stable identity",
+          "Source correspondence and assumptions are explicit",
+          "The format is independent of Rust, Lean, MLIR, and Wasm"
+        ],
+        "delegation": {
+          "specification_completeness": 3,
+          "context_locality": 4,
+          "testability": 4,
+          "reversibility": 2,
+          "integration_independence": 2,
+          "blast_radius": 5,
+          "human_review": true
+        }
+      }
+    },
+    {
+      "id": "work.lossless-frontend-spec",
+      "kind": "work_item",
+      "name": "Design lossless incremental frontend",
+      "summary": "Specify immutable source trees, stable identities, recovery, query invalidation, and source-to-core provenance.",
+      "status": "planned",
+      "tags": ["compiler", "tooling"],
+      "attributes": {
+        "phase": "design",
+        "effort": 8,
+        "acceptance": [
+          "Formatting and malformed source remain representable",
+          "Typed views do not become the canonical source tree",
+          "Incremental query inputs and invalidation rules are explicit",
+          "Diagnostics trace through elaboration to source ranges"
+        ],
+        "delegation": {
+          "specification_completeness": 4,
+          "context_locality": 5,
+          "testability": 4,
+          "reversibility": 4,
+          "integration_independence": 4,
+          "blast_radius": 3,
+          "human_review": true
+        }
+      }
+    },
+    {
+      "id": "work.lean-evidence-adapter",
+      "kind": "work_item",
+      "name": "Specify Lean evidence adapter",
+      "summary": "Define obligation translation, imported assumptions, proof identity, and independently checked result envelopes.",
+      "status": "planned",
+      "tags": ["proof", "evidence"],
+      "attributes": {
+        "phase": "research",
+        "effort": 8,
+        "acceptance": [
+          "Each translated obligation references an exact semantic identity",
+          "Trusted translation steps and imported axioms are visible",
+          "Proof artifacts can be cached independently of source layout",
+          "Failure cannot silently degrade into an assertion"
+        ],
+        "delegation": {
+          "specification_completeness": 3,
+          "context_locality": 4,
+          "testability": 4,
+          "reversibility": 4,
+          "integration_independence": 3,
+          "blast_radius": 4,
+          "human_review": true
+        }
+      }
+    },
+    {
+      "id": "work.relational-fact-schema",
+      "kind": "work_item",
+      "name": "Define relational fact export",
+      "summary": "Specify stable facts for dependencies, effects, ownership, obligations, evidence, and source correspondence.",
+      "status": "ready",
+      "tags": ["analysis", "tooling"],
+      "attributes": {
+        "phase": "design",
+        "effort": 5,
+        "acceptance": [
+          "Facts are derived from canonical artifacts",
+          "Recursive queries cannot mutate canonical state",
+          "Schema evolution and provenance are explicit",
+          "At least one impact and one evidence query are demonstrated"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 5,
+          "testability": 5,
+          "reversibility": 5,
+          "integration_independence": 5,
+          "blast_radius": 2,
+          "human_review": false
+        }
+      }
+    },
+    {
+      "id": "work.translation-validation-spec",
+      "kind": "work_item",
+      "name": "Specify translation-validation seams",
+      "summary": "Identify transformations that must emit certificates, equivalence checks, or auditable correspondence data.",
+      "status": "planned",
+      "tags": ["compiler", "evidence", "optimization"],
+      "attributes": {
+        "phase": "research",
+        "effort": 8,
+        "acceptance": [
+          "Trusted and untrusted transformation boundaries are enumerated",
+          "Each boundary states its validation relation",
+          "Validation failures are reproducible and source-linked",
+          "Optimization infrastructure remains replaceable"
+        ],
+        "delegation": {
+          "specification_completeness": 3,
+          "context_locality": 3,
+          "testability": 4,
+          "reversibility": 3,
+          "integration_independence": 2,
+          "blast_radius": 5,
+          "human_review": true
+        }
+      }
+    },
+    {
+      "id": "work.semantic-attestation-profile",
+      "kind": "work_item",
+      "name": "Specify semantic attestation profile",
+      "summary": "Map project evidence records to transport-neutral statements, signatures, provenance, and verification results.",
+      "status": "ready",
+      "tags": ["packages", "evidence"],
+      "attributes": {
+        "phase": "design",
+        "effort": 5,
+        "acceptance": [
+          "Evidence category is distinct from verification policy",
+          "Subjects and predicates are content-addressed",
+          "Assumptions and producer environment are explicit",
+          "The payload can be transported without making OCI or Sigstore semantic authorities"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 5,
+          "testability": 5,
+          "reversibility": 5,
+          "integration_independence": 4,
+          "blast_radius": 3,
+          "human_review": true
+        }
+      }
+    },
+    {
+      "id": "work.wasm-contract-mapping",
+      "kind": "work_item",
+      "name": "Research semantic contracts to WIT mapping",
+      "summary": "Determine which interface, resource, ownership, and capability information can cross a Wasm component boundary without losing project semantics.",
+      "status": "planned",
+      "tags": ["wasm", "interop"],
+      "attributes": {
+        "phase": "research",
+        "effort": 5,
+        "acceptance": [
+          "Representable and non-representable contract dimensions are listed",
+          "Generated interfaces retain a link to the full semantic contract",
+          "Resource and capability boundaries are explicit",
+          "No claim is made that WIT carries laws or proof evidence"
+        ],
+        "delegation": {
+          "specification_completeness": 4,
+          "context_locality": 5,
+          "testability": 4,
+          "reversibility": 5,
+          "integration_independence": 5,
+          "blast_radius": 2,
+          "human_review": false
+        }
+      }
+    },
+    {
+      "id": "work.deterministic-simulator-spec",
+      "kind": "work_item",
+      "name": "Design deterministic concurrency simulator",
+      "summary": "Specify schedules, traces, actor mailboxes, transaction attempts, retry wakeups, and counterexample replay.",
+      "status": "planned",
+      "tags": ["runtime", "actors", "stm", "validation"],
+      "attributes": {
+        "phase": "design",
+        "effort": 8,
+        "acceptance": [
+          "Actor and STM semantics share a reproducible trace vocabulary",
+          "Schedule choices are explicit inputs",
+          "Counterexamples can be replayed exactly",
+          "Production runtime guarantees are not inferred from simulation alone"
+        ],
+        "delegation": {
+          "specification_completeness": 4,
+          "context_locality": 4,
+          "testability": 5,
+          "reversibility": 4,
+          "integration_independence": 3,
+          "blast_radius": 4,
+          "human_review": true
+        }
+      }
+    },
+    {
+      "id": "work.explorer-query-contract",
+      "kind": "work_item",
+      "name": "Specify explorer query contract",
+      "summary": "Define recursive navigation, view projections, provenance, filtering, and introspection without coupling the UI to storage internals.",
+      "status": "ready",
+      "tags": ["tooling", "visualization"],
+      "attributes": {
+        "phase": "design",
+        "effort": 5,
+        "acceptance": [
+          "Recursive components can be expanded and collapsed",
+          "Architecture, semantic, evidence, and work relations remain filterable",
+          "Every result links to canonical source identities",
+          "The API is read-only and storage-independent"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 5,
+          "testability": 5,
+          "reversibility": 5,
+          "integration_independence": 5,
+          "blast_radius": 2,
+          "human_review": false
+        }
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source": "work.normalized-core-format",
+      "target": "work.kernel-spec",
+      "kind": "blocks",
+      "summary": "The artifact format depends on a sufficiently stable kernel vocabulary.",
+      "attributes": {}
+    },
+    {
+      "source": "work.normalized-core-format",
+      "target": "artifact.normalized-core",
+      "kind": "changes",
+      "summary": "Defines the canonical semantic artifact.",
+      "attributes": {}
+    },
+    {
+      "source": "work.lossless-frontend-spec",
+      "target": "work.normalized-core-format",
+      "kind": "blocks",
+      "summary": "Source-to-core correspondence depends on the normalized target shape.",
+      "attributes": {}
+    },
+    {
+      "source": "work.lossless-frontend-spec",
+      "target": "component.syntax",
+      "kind": "changes",
+      "summary": "Defines the lossless syntax boundary.",
+      "attributes": {}
+    },
+    {
+      "source": "work.lossless-frontend-spec",
+      "target": "component.incremental-queries",
+      "kind": "changes",
+      "summary": "Defines the initial query graph and invalidation contract.",
+      "attributes": {}
+    },
+    {
+      "source": "work.lean-evidence-adapter",
+      "target": "work.normalized-core-format",
+      "kind": "blocks",
+      "summary": "Proof translation requires exact normalized obligations.",
+      "attributes": {}
+    },
+    {
+      "source": "work.lean-evidence-adapter",
+      "target": "component.formal-evidence",
+      "kind": "changes",
+      "summary": "Defines the first high-assurance evidence adapter.",
+      "attributes": {}
+    },
+    {
+      "source": "work.relational-fact-schema",
+      "target": "component.relational-analysis",
+      "kind": "changes",
+      "summary": "Defines facts and recursive derived relations.",
+      "attributes": {}
+    },
+    {
+      "source": "work.translation-validation-spec",
+      "target": "work.normalized-core-format",
+      "kind": "blocks",
+      "summary": "Validation relations depend on stable source and target semantics.",
+      "attributes": {}
+    },
+    {
+      "source": "work.translation-validation-spec",
+      "target": "component.optimization-bridge",
+      "kind": "changes",
+      "summary": "Defines validation obligations at lowering boundaries.",
+      "attributes": {}
+    },
+    {
+      "source": "work.semantic-attestation-profile",
+      "target": "work.theory-identity",
+      "kind": "blocks",
+      "summary": "Attestations require stable semantic subject identity.",
+      "attributes": {}
+    },
+    {
+      "source": "work.semantic-attestation-profile",
+      "target": "package.semantic-attestation-profile",
+      "kind": "changes",
+      "summary": "Defines the distributable evidence profile.",
+      "attributes": {}
+    },
+    {
+      "source": "work.wasm-contract-mapping",
+      "target": "work.normalized-core-format",
+      "kind": "blocks",
+      "summary": "Interface projection requires a stable full contract representation.",
+      "attributes": {}
+    },
+    {
+      "source": "work.wasm-contract-mapping",
+      "target": "component.component-backend",
+      "kind": "changes",
+      "summary": "Defines the semantic subset projected to portable components.",
+      "attributes": {}
+    },
+    {
+      "source": "work.deterministic-simulator-spec",
+      "target": "work.stm-laws",
+      "kind": "blocks",
+      "summary": "Transaction traces depend on explicit retry and commit semantics.",
+      "attributes": {}
+    },
+    {
+      "source": "work.deterministic-simulator-spec",
+      "target": "runtime.deterministic-simulator",
+      "kind": "changes",
+      "summary": "Defines the reproducible simulation realization.",
+      "attributes": {}
+    },
+    {
+      "source": "work.explorer-query-contract",
+      "target": "component.explorer",
+      "kind": "changes",
+      "summary": "Defines the interactive read model and provenance contract.",
+      "attributes": {}
+    },
+    {
+      "source": "work.explorer-query-contract",
+      "target": "work.relational-fact-schema",
+      "kind": "informs",
+      "summary": "Explorer needs should shape, but not own, the derived fact schema.",
+      "attributes": {}
+    }
+  ]
+}

@@ -1,0 +1,327 @@
+{
+  "entities": [
+    {
+      "id": "component.syntax",
+      "kind": "component",
+      "name": "Lossless syntax system",
+      "summary": "Preserves source structure, trivia, identities, and recoverable errors for tools and elaboration.",
+      "status": "design",
+      "tags": ["compiler", "source"],
+      "attributes": {
+        "responsibilities": [
+          "source preservation",
+          "incremental parsing",
+          "stable source identity"
+        ],
+        "preferred_pattern": "immutable lossless green tree with typed red views"
+      }
+    },
+    {
+      "id": "component.incremental-queries",
+      "kind": "component",
+      "name": "Incremental semantic query engine",
+      "summary": "Computes parsing, elaboration, obligations, and diagnostics as memoized dependency-tracked queries.",
+      "status": "design",
+      "tags": ["compiler", "incremental"],
+      "attributes": {
+        "responsibilities": [
+          "dependency tracking",
+          "incremental recomputation",
+          "diagnostic provenance"
+        ],
+        "preferred_pattern": "demand-driven memoized query graph"
+      }
+    },
+    {
+      "id": "artifact.normalized-core",
+      "kind": "artifact",
+      "name": "Normalized semantic core artifact",
+      "summary": "Canonical project-owned representation consumed by checkers, evidence producers, analyzers, and backends.",
+      "status": "research",
+      "tags": ["semantics", "contract"],
+      "attributes": {
+        "canonical": true,
+        "requirements": [
+          "deterministic normalization",
+          "stable entity identities",
+          "explicit assumptions",
+          "source correspondence"
+        ]
+      }
+    },
+    {
+      "id": "component.formal-evidence",
+      "kind": "component",
+      "name": "Formal evidence adapters",
+      "summary": "Translate exact semantic obligations to external proof systems and import independently checkable evidence.",
+      "status": "research",
+      "tags": ["proof", "evidence"],
+      "attributes": {
+        "responsibilities": [
+          "obligation translation",
+          "assumption recording",
+          "certificate import",
+          "translation validation"
+        ],
+        "preferred_portfolio": ["Lean", "SMT certificates", "model checkers"]
+      }
+    },
+    {
+      "id": "component.relational-analysis",
+      "kind": "component",
+      "name": "Relational analysis plane",
+      "summary": "Derives recursive whole-project and whole-program relations from normalized facts.",
+      "status": "planned",
+      "tags": ["analysis", "datalog"],
+      "attributes": {
+        "responsibilities": [
+          "recursive dependency analysis",
+          "impact analysis",
+          "cross-cutting semantic queries"
+        ],
+        "preferred_pattern": "typed fact export with declarative fixed-point queries"
+      }
+    },
+    {
+      "id": "component.optimization-bridge",
+      "kind": "component",
+      "name": "Optimization bridge",
+      "summary": "Lowers project-owned IR through optional optimizer ecosystems while preserving semantic correspondence.",
+      "status": "planned",
+      "tags": ["compiler", "optimization"],
+      "attributes": {
+        "responsibilities": [
+          "multi-level lowering",
+          "translation validation",
+          "backend isolation"
+        ],
+        "preferred_pattern": "project IR with optional MLIR and LLVM adapters"
+      }
+    },
+    {
+      "id": "component.component-backend",
+      "kind": "component",
+      "name": "Portable component backend",
+      "summary": "Maps selected external contracts to portable component interfaces and execution artifacts.",
+      "status": "planned",
+      "tags": ["wasm", "components"],
+      "attributes": {
+        "responsibilities": [
+          "external interface lowering",
+          "component composition",
+          "capability boundary generation"
+        ],
+        "preferred_pattern": "Wasm Component Model boundary generated from a semantic contract subset"
+      }
+    },
+    {
+      "id": "component.artifact-distribution",
+      "kind": "component",
+      "name": "Artifact and evidence distribution",
+      "summary": "Publishes content-addressed contracts, realizations, evidence, and provenance through replaceable transports.",
+      "status": "design",
+      "tags": ["registry", "supply-chain"],
+      "attributes": {
+        "responsibilities": [
+          "artifact transport",
+          "attestation attachment",
+          "signature verification",
+          "provenance discovery"
+        ],
+        "preferred_pattern": "OCI transport with project media types and signed attestations"
+      }
+    },
+    {
+      "id": "package.semantic-attestation-profile",
+      "kind": "package",
+      "name": "Semantic attestation profile",
+      "summary": "Project vocabulary and schemas for claims, evidence predicates, assumptions, subjects, and verification results.",
+      "status": "research",
+      "tags": ["evidence", "package"],
+      "attributes": {
+        "requirements": [
+          "content-addressed subjects",
+          "typed evidence category",
+          "producer and environment identity",
+          "explicit assumptions",
+          "policy-independent payload"
+        ]
+      }
+    },
+    {
+      "id": "runtime.deterministic-simulator",
+      "kind": "runtime",
+      "name": "Deterministic concurrency simulator",
+      "summary": "Interprets actor and transaction programs under reproducible schedules for tests, traces, and bounded exploration.",
+      "status": "planned",
+      "tags": ["runtime", "validation"],
+      "attributes": {
+        "responsibilities": [
+          "deterministic scheduling",
+          "trace production",
+          "schedule exploration",
+          "counterexample replay"
+        ]
+      }
+    },
+    {
+      "id": "component.explorer",
+      "kind": "component",
+      "name": "Semantic project explorer",
+      "summary": "Interactive projection of recursive components, contracts, evidence, source explanations, and work dependencies.",
+      "status": "planned",
+      "tags": ["tooling", "visualization"],
+      "attributes": {
+        "responsibilities": [
+          "recursive navigation",
+          "orthogonal view composition",
+          "evidence explanation",
+          "work frontier exploration"
+        ],
+        "preferred_pattern": "thin web client over an introspectable read-only query API"
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source": "component.language",
+      "target": "component.syntax",
+      "kind": "contains",
+      "summary": "The language system owns source-preserving syntax infrastructure.",
+      "attributes": {}
+    },
+    {
+      "source": "component.compiler",
+      "target": "component.incremental-queries",
+      "kind": "contains",
+      "summary": "Compiler services are organized as incremental semantic queries.",
+      "attributes": {}
+    },
+    {
+      "source": "component.compiler",
+      "target": "component.optimization-bridge",
+      "kind": "contains",
+      "summary": "Optimization backends remain behind an explicit lowering boundary.",
+      "attributes": {}
+    },
+    {
+      "source": "component.compiler",
+      "target": "component.component-backend",
+      "kind": "contains",
+      "summary": "Portable component generation is a backend rather than the semantic core.",
+      "attributes": {}
+    },
+    {
+      "source": "component.compiler",
+      "target": "artifact.normalized-core",
+      "kind": "provides",
+      "summary": "Elaboration emits a deterministic normalized core artifact.",
+      "attributes": {}
+    },
+    {
+      "source": "component.kernel",
+      "target": "artifact.normalized-core",
+      "kind": "validates",
+      "summary": "The independent kernel validates normalized core artifacts.",
+      "attributes": {}
+    },
+    {
+      "source": "component.project",
+      "target": "component.formal-evidence",
+      "kind": "contains",
+      "summary": "Formal evidence production is a distinct project plane.",
+      "attributes": {}
+    },
+    {
+      "source": "component.formal-evidence",
+      "target": "artifact.normalized-core",
+      "kind": "reads",
+      "summary": "Proof adapters consume exact normalized obligations.",
+      "attributes": {}
+    },
+    {
+      "source": "component.project-model",
+      "target": "component.relational-analysis",
+      "kind": "contains",
+      "summary": "Recursive analysis is a derived projection of canonical facts.",
+      "attributes": {}
+    },
+    {
+      "source": "component.relational-analysis",
+      "target": "artifact.normalized-core",
+      "kind": "reads",
+      "summary": "Program analysis may import normalized semantic facts.",
+      "attributes": {}
+    },
+    {
+      "source": "component.optimization-bridge",
+      "target": "artifact.normalized-core",
+      "kind": "requires",
+      "summary": "Lowering begins from a checked project-owned representation.",
+      "attributes": {}
+    },
+    {
+      "source": "component.component-backend",
+      "target": "artifact.normalized-core",
+      "kind": "requires",
+      "summary": "External interfaces are generated from checked semantic contracts.",
+      "attributes": {}
+    },
+    {
+      "source": "component.ecosystem",
+      "target": "component.artifact-distribution",
+      "kind": "contains",
+      "summary": "Distribution is distinct from semantic package identity.",
+      "attributes": {}
+    },
+    {
+      "source": "component.artifact-distribution",
+      "target": "package.semantic-attestation-profile",
+      "kind": "publishes",
+      "summary": "Distribution attaches project-defined semantic attestations.",
+      "attributes": {}
+    },
+    {
+      "source": "component.resolver",
+      "target": "package.semantic-attestation-profile",
+      "kind": "reads",
+      "summary": "Resolution evaluates evidence through explicit project predicates and policy.",
+      "attributes": {}
+    },
+    {
+      "source": "component.runtime",
+      "target": "runtime.deterministic-simulator",
+      "kind": "contains",
+      "summary": "The runtime portfolio includes a deterministic testing realization.",
+      "attributes": {}
+    },
+    {
+      "source": "runtime.deterministic-simulator",
+      "target": "theory.actor",
+      "kind": "realizes",
+      "summary": "The simulator interprets actor semantics under controlled schedules.",
+      "attributes": {}
+    },
+    {
+      "source": "runtime.deterministic-simulator",
+      "target": "theory.stm",
+      "kind": "realizes",
+      "summary": "The simulator interprets transactional semantics for reproducible exploration.",
+      "attributes": {}
+    },
+    {
+      "source": "component.project-model",
+      "target": "component.explorer",
+      "kind": "contains",
+      "summary": "The explorer renders read-only projections from the project graph and semantic artifacts.",
+      "attributes": {}
+    },
+    {
+      "source": "component.explorer",
+      "target": "component.relational-analysis",
+      "kind": "reads",
+      "summary": "Interactive views consume derived relations rather than owning canonical truth.",
+      "attributes": {}
+    }
+  ]
+}

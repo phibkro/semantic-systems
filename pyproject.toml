@@ -1,0 +1,52 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "semantic-project-model"
+version = "0.1.0"
+description = "Typed project graph for semantic language research"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "pyright>=1.1.403",
+  "pytest>=8.3",
+  "ruff>=0.12",
+]
+
+[project.scripts]
+semproj = "semantic_project_model.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/semantic_project_model"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-q"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["ANN", "B", "C4", "E", "F", "I", "N", "PERF", "PIE", "PL", "RUF", "SIM", "UP"]
+ignore = ["ANN401", "PLR0913"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["ANN201"]
+
+[tool.pyright]
+include = ["src", "tests"]
+exclude = ["generated"]
+pythonVersion = "3.12"
+typeCheckingMode = "strict"
+reportMissingTypeStubs = "error"
+reportUnknownArgumentType = "error"
+reportUnknownMemberType = "error"
+reportUnknownParameterType = "error"
+reportUnknownVariableType = "error"

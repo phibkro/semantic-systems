@@ -1,0 +1,157 @@
+{
+  "entities": [
+    {
+      "id": "human.architect",
+      "kind": "human",
+      "name": "Architecture owner",
+      "summary": "Owns high-blast-radius semantic and trust decisions.",
+      "status": "active",
+      "tags": [],
+      "attributes": {}
+    },
+    {
+      "id": "agent.implementation",
+      "kind": "agent",
+      "name": "Implementation agent",
+      "summary": "Executes bounded work against stable contracts.",
+      "status": "available",
+      "tags": [],
+      "attributes": {}
+    },
+    {
+      "id": "agent.research",
+      "kind": "agent",
+      "name": "Research agent",
+      "summary": "Produces bounded comparisons and evidence.",
+      "status": "available",
+      "tags": [],
+      "attributes": {}
+    },
+    {
+      "id": "responsibility.kernel",
+      "kind": "responsibility",
+      "name": "Kernel semantics approval",
+      "summary": "Approves trusted-core changes.",
+      "status": "active",
+      "tags": [],
+      "attributes": {}
+    },
+    {
+      "id": "responsibility.inventory",
+      "kind": "responsibility",
+      "name": "Inventory contract review",
+      "summary": "Reviews domain meaning independently of realization.",
+      "status": "active",
+      "tags": [],
+      "attributes": {}
+    },
+    {
+      "id": "deployment.inventory.actor",
+      "kind": "deployment",
+      "name": "Inventory actor deployment",
+      "summary": "Domain machine under actor runtime.",
+      "status": "planned",
+      "tags": [],
+      "attributes": {
+        "trust_profile": "development"
+      }
+    },
+    {
+      "id": "deployment.inventory.stm",
+      "kind": "deployment",
+      "name": "Inventory STM deployment",
+      "summary": "Domain machine under STM and event outbox.",
+      "status": "planned",
+      "tags": [],
+      "attributes": {
+        "trust_profile": "research"
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source": "human.architect",
+      "target": "responsibility.kernel",
+      "kind": "accountable_for",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "human.architect",
+      "target": "responsibility.inventory",
+      "kind": "accountable_for",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "work.inventory-pure",
+      "target": "agent.implementation",
+      "kind": "assigned_to",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "work.inventory-actor",
+      "target": "agent.implementation",
+      "kind": "assigned_to",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "work.inventory-stm",
+      "target": "agent.implementation",
+      "kind": "assigned_to",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "work.kernel-spec",
+      "target": "human.architect",
+      "kind": "reviewed_by",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "work.inventory-design",
+      "target": "human.architect",
+      "kind": "reviewed_by",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "deployment.inventory.actor",
+      "target": "realization.inventory.actor",
+      "kind": "selects",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "deployment.inventory.actor",
+      "target": "runtime.actors",
+      "kind": "selects",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "deployment.inventory.stm",
+      "target": "realization.inventory.stm",
+      "kind": "selects",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "deployment.inventory.stm",
+      "target": "runtime.stm",
+      "kind": "selects",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "deployment.inventory.stm",
+      "target": "handler.inventory.events",
+      "kind": "selects",
+      "summary": "",
+      "attributes": {}
+    }
+  ]
+}

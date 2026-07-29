@@ -1,0 +1,254 @@
+{
+  "entities": [
+    {
+      "id": "theory.cbpv",
+      "kind": "theory",
+      "name": "Value/computation separation",
+      "summary": "Values are distinct from effectful computations.",
+      "status": "research",
+      "tags": [
+        "kernel",
+        "cbpv"
+      ],
+      "attributes": {}
+    },
+    {
+      "id": "theory.usage",
+      "kind": "theory",
+      "name": "Quantitative usage",
+      "summary": "Erased, affine, linear, and unrestricted use.",
+      "status": "research",
+      "tags": [
+        "kernel",
+        "ownership"
+      ],
+      "attributes": {}
+    },
+    {
+      "id": "theory.effects",
+      "kind": "theory",
+      "name": "Algebraic effects",
+      "summary": "Effect rows, operations, laws, and handlers.",
+      "status": "research",
+      "tags": [
+        "kernel",
+        "effects"
+      ],
+      "attributes": {}
+    },
+    {
+      "id": "theory.prop",
+      "kind": "theory",
+      "name": "Erased propositions",
+      "summary": "Total proof terms separated from effectful computation.",
+      "status": "research",
+      "tags": [
+        "kernel",
+        "proof"
+      ],
+      "attributes": {}
+    },
+    {
+      "id": "theory.machine",
+      "kind": "theory",
+      "name": "Domain state machine",
+      "summary": "State, messages, events, transitions, effects, and invariants.",
+      "status": "design",
+      "tags": [
+        "domain",
+        "coalgebra"
+      ],
+      "attributes": {}
+    },
+    {
+      "id": "theory.actor",
+      "kind": "theory",
+      "name": "Actor semantics",
+      "summary": "Serialized authority over private state.",
+      "status": "design",
+      "tags": [
+        "concurrency"
+      ],
+      "attributes": {}
+    },
+    {
+      "id": "theory.stm",
+      "kind": "theory",
+      "name": "Transactional store",
+      "summary": "Read, write, retry, rollback, and serializable commit.",
+      "status": "research",
+      "tags": [
+        "concurrency",
+        "stm"
+      ],
+      "attributes": {}
+    },
+    {
+      "id": "theory.event-log",
+      "kind": "theory",
+      "name": "Event log",
+      "summary": "Append, replay, causality, and commit-only actions.",
+      "status": "design",
+      "tags": [
+        "events"
+      ],
+      "attributes": {}
+    },
+    {
+      "id": "theory.map",
+      "kind": "theory",
+      "name": "Map",
+      "summary": "Keyed lookup, insertion, and update laws.",
+      "status": "design",
+      "tags": [
+        "collections"
+      ],
+      "attributes": {}
+    },
+    {
+      "id": "theory.join",
+      "kind": "theory",
+      "name": "Join semilattice",
+      "summary": "Associative, commutative, idempotent merge.",
+      "status": "research",
+      "tags": [
+        "algebra",
+        "crdt"
+      ],
+      "attributes": {}
+    },
+    {
+      "id": "theory.crdt",
+      "kind": "theory",
+      "name": "State-based CRDT",
+      "summary": "Monotone replica evolution and convergence.",
+      "status": "research",
+      "tags": [
+        "distributed",
+        "calm"
+      ],
+      "attributes": {}
+    },
+    {
+      "id": "effect.fresh",
+      "kind": "effect",
+      "name": "Fresh identifier effect",
+      "summary": "Produces unique logical IDs under a chosen handler.",
+      "status": "design",
+      "tags": [],
+      "attributes": {}
+    },
+    {
+      "id": "invariant.inventory.nonnegative",
+      "kind": "invariant",
+      "name": "Non-negative inventory",
+      "summary": "Available and reserved quantities never become negative.",
+      "status": "design",
+      "tags": [
+        "inventory"
+      ],
+      "attributes": {}
+    },
+    {
+      "id": "domain.inventory.machine",
+      "kind": "domain_machine",
+      "name": "Inventory domain machine",
+      "summary": "Reserve and release transitions with domain events.",
+      "status": "design",
+      "tags": [
+        "inventory",
+        "tracer-bullet"
+      ],
+      "attributes": {
+        "messages": [
+          "Reserve",
+          "Release"
+        ],
+        "events": [
+          "Reserved",
+          "Released",
+          "ReservationRejected"
+        ]
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source": "theory.effects",
+      "target": "theory.cbpv",
+      "kind": "requires",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "theory.usage",
+      "target": "theory.cbpv",
+      "kind": "requires",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "theory.prop",
+      "target": "theory.usage",
+      "kind": "requires",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "theory.actor",
+      "target": "theory.machine",
+      "kind": "refines",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "theory.stm",
+      "target": "theory.effects",
+      "kind": "requires",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "theory.event-log",
+      "target": "theory.effects",
+      "kind": "requires",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "theory.crdt",
+      "target": "theory.join",
+      "kind": "extends",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "domain.inventory.machine",
+      "target": "theory.machine",
+      "kind": "realizes",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "domain.inventory.machine",
+      "target": "theory.map",
+      "kind": "requires",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "domain.inventory.machine",
+      "target": "effect.fresh",
+      "kind": "requires",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "domain.inventory.machine",
+      "target": "invariant.inventory.nonnegative",
+      "kind": "preserves",
+      "summary": "",
+      "attributes": {}
+    }
+  ]
+}

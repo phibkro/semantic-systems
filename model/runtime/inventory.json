@@ -1,0 +1,108 @@
+{
+  "entities": [
+    {
+      "id": "runtime.inventory.actor",
+      "kind": "runtime",
+      "name": "Inventory actor instance",
+      "summary": "Owns inventory state and handles messages.",
+      "status": "concept",
+      "tags": [],
+      "attributes": {
+        "responsibilities": [
+          "state ownership",
+          "message dispatch"
+        ]
+      }
+    },
+    {
+      "id": "runtime.inventory.store",
+      "kind": "runtime",
+      "name": "Inventory transactional store",
+      "summary": "Owns TVars and transaction metadata.",
+      "status": "concept",
+      "tags": [],
+      "attributes": {
+        "responsibilities": [
+          "transaction isolation"
+        ]
+      }
+    },
+    {
+      "id": "runtime.inventory.outbox",
+      "kind": "runtime",
+      "name": "Commit outbox",
+      "summary": "Persists definitive actions after commit.",
+      "status": "concept",
+      "tags": [],
+      "attributes": {
+        "responsibilities": [
+          "event publication"
+        ]
+      }
+    },
+    {
+      "id": "runtime.payment.actor",
+      "kind": "runtime",
+      "name": "Payment actor",
+      "summary": "Receives committed payment commands.",
+      "status": "concept",
+      "tags": [],
+      "attributes": {
+        "responsibilities": [
+          "external effect ownership"
+        ]
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source": "runtime.inventory.actor",
+      "target": "runtime.inventory.store",
+      "kind": "reads",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "runtime.inventory.actor",
+      "target": "runtime.inventory.store",
+      "kind": "writes",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "runtime.stm",
+      "target": "runtime.inventory.store",
+      "kind": "handles",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "runtime.inventory.store",
+      "target": "runtime.inventory.outbox",
+      "kind": "publishes",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "runtime.inventory.outbox",
+      "target": "runtime.payment.actor",
+      "kind": "sends",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "runtime.actors",
+      "target": "runtime.inventory.actor",
+      "kind": "hosts",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "runtime.actors",
+      "target": "runtime.payment.actor",
+      "kind": "hosts",
+      "summary": "",
+      "attributes": {}
+    }
+  ]
+}

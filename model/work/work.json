@@ -1,0 +1,548 @@
+{
+  "entities": [
+    {
+      "id": "decision.one-shot",
+      "kind": "decision",
+      "name": "One-shot handlers by default",
+      "summary": "The initial core limits resumptions to one use.",
+      "status": "accepted",
+      "tags": [],
+      "attributes": {}
+    },
+    {
+      "id": "decision.theory-identity",
+      "kind": "decision",
+      "name": "Laws participate in semantic identity",
+      "summary": "Normalized operations, laws, and observations are content-addressed.",
+      "status": "research",
+      "tags": [],
+      "attributes": {}
+    },
+    {
+      "id": "decision.stm-library",
+      "kind": "decision",
+      "name": "STM is a library effect",
+      "summary": "Transactions elaborate to effects interpreted over runtime atomics.",
+      "status": "design",
+      "tags": [],
+      "attributes": {}
+    },
+    {
+      "id": "work.kernel-spec",
+      "kind": "work_item",
+      "name": "Specify minimal kernel calculus",
+      "summary": "Write syntax, typing, usage, effects, and operational rules.",
+      "status": "ready",
+      "tags": [
+        "kernel"
+      ],
+      "attributes": {
+        "phase": "research",
+        "effort": 8,
+        "acceptance": [
+          "Judgments and syntax are explicit",
+          "Affine values and one-shot handlers interact soundly",
+          "Reference interpreter agrees with examples"
+        ],
+        "delegation": {
+          "specification_completeness": 4,
+          "context_locality": 4,
+          "testability": 4,
+          "reversibility": 3,
+          "integration_independence": 2,
+          "blast_radius": 5,
+          "human_review": true
+        }
+      }
+    },
+    {
+      "id": "work.core-checker",
+      "kind": "work_item",
+      "name": "Implement core checker",
+      "summary": "Build typed AST, usage checking, and erasure validation.",
+      "status": "planned",
+      "tags": [
+        "kernel"
+      ],
+      "attributes": {
+        "phase": "implementation",
+        "effort": 13,
+        "acceptance": [
+          "Positive and negative fixtures pass",
+          "Usage violations have stable diagnostics",
+          "Erased terms do not appear in runtime output"
+        ],
+        "delegation": {
+          "specification_completeness": 4,
+          "context_locality": 4,
+          "testability": 5,
+          "reversibility": 4,
+          "integration_independence": 3,
+          "blast_radius": 5,
+          "human_review": true
+        }
+      }
+    },
+    {
+      "id": "work.theory-identity",
+      "kind": "work_item",
+      "name": "Define normalized theory identity",
+      "summary": "Specify content hashing and compatibility.",
+      "status": "planned",
+      "tags": [
+        "packages"
+      ],
+      "attributes": {
+        "phase": "design",
+        "effort": 8,
+        "acceptance": [
+          "Normalization is documented",
+          "Equivalent declarations hash equally",
+          "Law changes produce distinct identities"
+        ],
+        "delegation": {
+          "specification_completeness": 3,
+          "context_locality": 3,
+          "testability": 4,
+          "reversibility": 2,
+          "integration_independence": 2,
+          "blast_radius": 5,
+          "human_review": true
+        }
+      }
+    },
+    {
+      "id": "work.package-resolver",
+      "kind": "work_item",
+      "name": "Implement package and evidence resolver",
+      "summary": "Resolve realizations against target and trust policy.",
+      "status": "planned",
+      "tags": [
+        "packages"
+      ],
+      "attributes": {
+        "phase": "implementation",
+        "effort": 13,
+        "acceptance": [
+          "Missing evidence rejects a deployment",
+          "Resolution explanations identify selected realizations",
+          "Assumptions are included transitively"
+        ],
+        "delegation": {
+          "specification_completeness": 4,
+          "context_locality": 4,
+          "testability": 5,
+          "reversibility": 4,
+          "integration_independence": 4,
+          "blast_radius": 4,
+          "human_review": true
+        }
+      }
+    },
+    {
+      "id": "work.inventory-design",
+      "kind": "work_item",
+      "name": "Complete inventory domain contract",
+      "summary": "Finalize messages, events, transitions, and invariant.",
+      "status": "ready",
+      "tags": [
+        "inventory"
+      ],
+      "attributes": {
+        "phase": "design",
+        "effort": 5,
+        "acceptance": [
+          "Every message has success and rejection behavior",
+          "Invariant is representation-independent",
+          "Pure transition examples execute"
+        ],
+        "delegation": {
+          "specification_completeness": 4,
+          "context_locality": 5,
+          "testability": 5,
+          "reversibility": 4,
+          "integration_independence": 4,
+          "blast_radius": 2,
+          "human_review": true
+        }
+      }
+    },
+    {
+      "id": "work.inventory-pure",
+      "kind": "work_item",
+      "name": "Implement pure inventory realization",
+      "summary": "Implement deterministic update and replay.",
+      "status": "planned",
+      "tags": [
+        "inventory"
+      ],
+      "attributes": {
+        "phase": "implementation",
+        "effort": 5,
+        "acceptance": [
+          "Fixtures produce expected events",
+          "Replay reconstructs identical state",
+          "Only fresh-ID effect remains abstract"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 5,
+          "testability": 5,
+          "reversibility": 5,
+          "integration_independence": 5,
+          "blast_radius": 1,
+          "human_review": false
+        }
+      }
+    },
+    {
+      "id": "work.actor-runtime",
+      "kind": "work_item",
+      "name": "Implement minimal actor runtime",
+      "summary": "Typed mailbox loop with unique actor-owned state.",
+      "status": "planned",
+      "tags": [
+        "actors"
+      ],
+      "attributes": {
+        "phase": "implementation",
+        "effort": 8,
+        "acceptance": [
+          "Simulation has deterministic mailbox ordering",
+          "Actor state cannot be directly shared",
+          "Inventory actor executes"
+        ],
+        "delegation": {
+          "specification_completeness": 4,
+          "context_locality": 4,
+          "testability": 5,
+          "reversibility": 4,
+          "integration_independence": 4,
+          "blast_radius": 3,
+          "human_review": true
+        }
+      }
+    },
+    {
+      "id": "work.inventory-actor",
+      "kind": "work_item",
+      "name": "Implement inventory actor realization",
+      "summary": "Wrap the domain machine in a typed actor protocol.",
+      "status": "planned",
+      "tags": [
+        "inventory",
+        "actors"
+      ],
+      "attributes": {
+        "phase": "implementation",
+        "effort": 5,
+        "acceptance": [
+          "Actor and pure versions emit equivalent events",
+          "Only the actor mutates private state",
+          "Protocol is exhaustively typed"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 5,
+          "testability": 5,
+          "reversibility": 5,
+          "integration_independence": 5,
+          "blast_radius": 2,
+          "human_review": false
+        }
+      }
+    },
+    {
+      "id": "work.stm-laws",
+      "kind": "work_item",
+      "name": "Specify STM effect and handler laws",
+      "summary": "Define retry, rollback, commit actions, and serializability.",
+      "status": "planned",
+      "tags": [
+        "stm"
+      ],
+      "attributes": {
+        "phase": "research",
+        "effort": 8,
+        "acceptance": [
+          "Speculative and commit-only effects are separate",
+          "Affine capture restrictions are explicit",
+          "Executable model covers conflict and retry"
+        ],
+        "delegation": {
+          "specification_completeness": 3,
+          "context_locality": 4,
+          "testability": 4,
+          "reversibility": 3,
+          "integration_independence": 2,
+          "blast_radius": 5,
+          "human_review": true
+        }
+      }
+    },
+    {
+      "id": "work.stm-runtime",
+      "kind": "work_item",
+      "name": "Implement minimal STM runtime",
+      "summary": "Versioned TVars, logs, validation, retry, and commit.",
+      "status": "planned",
+      "tags": [
+        "stm"
+      ],
+      "attributes": {
+        "phase": "implementation",
+        "effort": 13,
+        "acceptance": [
+          "Conflicts do not duplicate commit actions",
+          "Retry waits on observed dependencies",
+          "Tests find no partial commit"
+        ],
+        "delegation": {
+          "specification_completeness": 4,
+          "context_locality": 4,
+          "testability": 5,
+          "reversibility": 4,
+          "integration_independence": 3,
+          "blast_radius": 4,
+          "human_review": true
+        }
+      }
+    },
+    {
+      "id": "work.inventory-stm",
+      "kind": "work_item",
+      "name": "Implement inventory STM realization",
+      "summary": "Compose domain transitions over a transactional store.",
+      "status": "planned",
+      "tags": [
+        "inventory",
+        "stm"
+      ],
+      "attributes": {
+        "phase": "implementation",
+        "effort": 5,
+        "acceptance": [
+          "Pure and STM versions preserve the same invariant",
+          "Events emit only after commit",
+          "Concurrent reservations avoid partial updates"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 5,
+          "testability": 5,
+          "reversibility": 5,
+          "integration_independence": 5,
+          "blast_radius": 2,
+          "human_review": false
+        }
+      }
+    },
+    {
+      "id": "work.inventory-proof",
+      "kind": "work_item",
+      "name": "Prove inventory invariant",
+      "summary": "Produce proof evidence for every transition.",
+      "status": "planned",
+      "tags": [
+        "inventory",
+        "proof"
+      ],
+      "attributes": {
+        "phase": "validation",
+        "effort": 8,
+        "acceptance": [
+          "Every message constructor is covered",
+          "Evidence references exact contract identity",
+          "Imports and assumptions are recorded"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 5,
+          "testability": 5,
+          "reversibility": 5,
+          "integration_independence": 5,
+          "blast_radius": 2,
+          "human_review": true
+        }
+      }
+    },
+    {
+      "id": "work.stm-model-check",
+      "kind": "work_item",
+      "name": "Model-check STM interleavings",
+      "summary": "Explore bounded commit, abort, retry, and wake-up schedules.",
+      "status": "planned",
+      "tags": [
+        "stm",
+        "validation"
+      ],
+      "attributes": {
+        "phase": "validation",
+        "effort": 8,
+        "acceptance": [
+          "At least two transactions and TVars are modeled",
+          "Counterexamples are reproducible",
+          "Bounds and fairness assumptions are explicit"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 5,
+          "testability": 5,
+          "reversibility": 5,
+          "integration_independence": 5,
+          "blast_radius": 2,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source": "work.core-checker",
+      "target": "work.kernel-spec",
+      "kind": "blocks",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "work.kernel-spec",
+      "target": "decision.one-shot",
+      "kind": "requires",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "work.theory-identity",
+      "target": "decision.theory-identity",
+      "kind": "requires",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "work.package-resolver",
+      "target": "work.theory-identity",
+      "kind": "blocks",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "work.inventory-pure",
+      "target": "work.inventory-design",
+      "kind": "blocks",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "work.inventory-actor",
+      "target": "work.inventory-design",
+      "kind": "blocks",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "work.inventory-actor",
+      "target": "work.actor-runtime",
+      "kind": "blocks",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "work.stm-laws",
+      "target": "decision.stm-library",
+      "kind": "requires",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "work.stm-runtime",
+      "target": "work.stm-laws",
+      "kind": "blocks",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "work.inventory-stm",
+      "target": "work.inventory-design",
+      "kind": "blocks",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "work.inventory-stm",
+      "target": "work.stm-runtime",
+      "kind": "blocks",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "work.inventory-proof",
+      "target": "work.inventory-design",
+      "kind": "blocks",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "work.stm-model-check",
+      "target": "work.stm-runtime",
+      "kind": "blocks",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "work.kernel-spec",
+      "target": "component.kernel",
+      "kind": "changes",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "work.core-checker",
+      "target": "component.kernel",
+      "kind": "changes",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "work.inventory-design",
+      "target": "domain.inventory.machine",
+      "kind": "changes",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "work.inventory-pure",
+      "target": "realization.inventory.pure",
+      "kind": "implements",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "work.inventory-actor",
+      "target": "realization.inventory.actor",
+      "kind": "implements",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "work.inventory-stm",
+      "target": "realization.inventory.stm",
+      "kind": "implements",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "work.inventory-proof",
+      "target": "obligation.inventory.proof",
+      "kind": "discharges",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "work.stm-model-check",
+      "target": "evidence.stm.model",
+      "kind": "implements",
+      "summary": "",
+      "attributes": {}
+    }
+  ]
+}

@@ -1,0 +1,470 @@
+{
+  "entities": [
+    {
+      "id": "component.project",
+      "kind": "component",
+      "name": "Semantic systems project",
+      "summary": "Language, ecosystem, runtime, tooling, and examples.",
+      "status": "active",
+      "tags": [],
+      "attributes": {
+        "responsibilities": [
+          "project architecture"
+        ]
+      }
+    },
+    {
+      "id": "component.language",
+      "kind": "component",
+      "name": "Language system",
+      "summary": "Kernel, elaboration, checking, and lowering.",
+      "status": "research",
+      "tags": [],
+      "attributes": {
+        "responsibilities": [
+          "language semantics"
+        ]
+      }
+    },
+    {
+      "id": "component.kernel",
+      "kind": "component",
+      "name": "Trusted kernel",
+      "summary": "Checks normalized programs and proof evidence.",
+      "status": "research",
+      "tags": [],
+      "attributes": {
+        "responsibilities": [
+          "evaluation semantics",
+          "effect typing",
+          "usage checking",
+          "proof checking"
+        ]
+      }
+    },
+    {
+      "id": "component.elaborator",
+      "kind": "component",
+      "name": "Surface elaborator",
+      "summary": "Infers and elaborates source into core.",
+      "status": "design",
+      "tags": [],
+      "attributes": {
+        "responsibilities": [
+          "type inference",
+          "effect typing",
+          "usage checking",
+          "obligation generation"
+        ]
+      }
+    },
+    {
+      "id": "component.compiler",
+      "kind": "component",
+      "name": "Compiler",
+      "summary": "Coordinates elaboration, resolution, lowering, and artifacts.",
+      "status": "design",
+      "tags": [],
+      "attributes": {
+        "responsibilities": [
+          "artifact generation",
+          "realization selection",
+          "assumption recording"
+        ]
+      }
+    },
+    {
+      "id": "component.resolver",
+      "kind": "component",
+      "name": "Realization resolver",
+      "summary": "Selects implementations under target and trust constraints.",
+      "status": "research",
+      "tags": [],
+      "attributes": {
+        "responsibilities": [
+          "realization selection",
+          "evidence policy",
+          "assumption recording"
+        ]
+      }
+    },
+    {
+      "id": "component.ecosystem",
+      "kind": "component",
+      "name": "Package ecosystem",
+      "summary": "Theory, realization, handler, evidence, and deployment packages.",
+      "status": "design",
+      "tags": [],
+      "attributes": {
+        "responsibilities": [
+          "package identity",
+          "compatibility"
+        ]
+      }
+    },
+    {
+      "id": "component.registry",
+      "kind": "component",
+      "name": "Registry",
+      "summary": "Publishes contracts, realizations, and evidence.",
+      "status": "planned",
+      "tags": [],
+      "attributes": {
+        "responsibilities": [
+          "distribution",
+          "discovery"
+        ]
+      }
+    },
+    {
+      "id": "component.runtime",
+      "kind": "component",
+      "name": "Runtime system",
+      "summary": "Effects, actors, STM, memory, and targets.",
+      "status": "design",
+      "tags": [],
+      "attributes": {
+        "responsibilities": [
+          "runtime execution"
+        ]
+      }
+    },
+    {
+      "id": "runtime.effects",
+      "kind": "runtime",
+      "name": "Effect runtime",
+      "summary": "Handlers and one-shot resumptions.",
+      "status": "planned",
+      "tags": [],
+      "attributes": {
+        "responsibilities": [
+          "effect handling",
+          "continuations"
+        ]
+      }
+    },
+    {
+      "id": "runtime.actors",
+      "kind": "runtime",
+      "name": "Actor runtime",
+      "summary": "Typed mailboxes and actor-owned state.",
+      "status": "planned",
+      "tags": [],
+      "attributes": {
+        "responsibilities": [
+          "mailbox scheduling",
+          "state ownership"
+        ]
+      }
+    },
+    {
+      "id": "runtime.stm",
+      "kind": "runtime",
+      "name": "STM runtime",
+      "summary": "TVars, logs, validation, retry, and commit.",
+      "status": "research",
+      "tags": [],
+      "attributes": {
+        "responsibilities": [
+          "transaction isolation",
+          "retry scheduling",
+          "commit publication"
+        ]
+      }
+    },
+    {
+      "id": "component.project-model",
+      "kind": "component",
+      "name": "Project graph tooling",
+      "summary": "Validates sources and generates views.",
+      "status": "implemented",
+      "tags": [],
+      "attributes": {
+        "responsibilities": [
+          "model validation",
+          "view generation",
+          "work scheduling"
+        ]
+      }
+    },
+    {
+      "id": "component.examples",
+      "kind": "component",
+      "name": "Executable examples",
+      "summary": "Tracer bullets and realization comparisons.",
+      "status": "active",
+      "tags": [],
+      "attributes": {
+        "responsibilities": [
+          "evaluation"
+        ]
+      }
+    },
+    {
+      "id": "component.inventory",
+      "kind": "component",
+      "name": "Inventory tracer bullet",
+      "summary": "First end-to-end domain machine.",
+      "status": "design",
+      "tags": [],
+      "attributes": {
+        "responsibilities": [
+          "evaluation",
+          "integration"
+        ]
+      }
+    },
+    {
+      "id": "realization.inventory.pure",
+      "kind": "realization",
+      "name": "Inventory pure realization",
+      "summary": "Deterministic update and replay.",
+      "status": "planned",
+      "tags": [],
+      "attributes": {}
+    },
+    {
+      "id": "realization.inventory.actor",
+      "kind": "realization",
+      "name": "Inventory actor realization",
+      "summary": "Single actor owns inventory state.",
+      "status": "planned",
+      "tags": [],
+      "attributes": {}
+    },
+    {
+      "id": "realization.inventory.stm",
+      "kind": "realization",
+      "name": "Inventory STM realization",
+      "summary": "Transactions compose over inventory TVars.",
+      "status": "planned",
+      "tags": [],
+      "attributes": {}
+    },
+    {
+      "id": "handler.inventory.events",
+      "kind": "handler",
+      "name": "Inventory event handler",
+      "summary": "Collects, persists, or publishes events.",
+      "status": "planned",
+      "tags": [],
+      "attributes": {
+        "responsibilities": [
+          "event publication"
+        ]
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source": "component.project",
+      "target": "component.language",
+      "kind": "contains",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "component.project",
+      "target": "component.ecosystem",
+      "kind": "contains",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "component.project",
+      "target": "component.runtime",
+      "kind": "contains",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "component.project",
+      "target": "component.project-model",
+      "kind": "contains",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "component.project",
+      "target": "component.examples",
+      "kind": "contains",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "component.language",
+      "target": "component.kernel",
+      "kind": "contains",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "component.language",
+      "target": "component.elaborator",
+      "kind": "contains",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "component.language",
+      "target": "component.compiler",
+      "kind": "contains",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "component.compiler",
+      "target": "component.resolver",
+      "kind": "contains",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "component.ecosystem",
+      "target": "component.registry",
+      "kind": "contains",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "component.runtime",
+      "target": "runtime.effects",
+      "kind": "contains",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "component.runtime",
+      "target": "runtime.actors",
+      "kind": "contains",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "component.runtime",
+      "target": "runtime.stm",
+      "kind": "contains",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "component.examples",
+      "target": "component.inventory",
+      "kind": "contains",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "component.inventory",
+      "target": "realization.inventory.pure",
+      "kind": "contains",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "component.inventory",
+      "target": "realization.inventory.actor",
+      "kind": "contains",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "component.inventory",
+      "target": "realization.inventory.stm",
+      "kind": "contains",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "component.inventory",
+      "target": "handler.inventory.events",
+      "kind": "contains",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "component.kernel",
+      "target": "theory.cbpv",
+      "kind": "implements",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "component.kernel",
+      "target": "theory.usage",
+      "kind": "implements",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "component.kernel",
+      "target": "theory.effects",
+      "kind": "implements",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "component.kernel",
+      "target": "theory.prop",
+      "kind": "implements",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "runtime.actors",
+      "target": "theory.actor",
+      "kind": "realizes",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "runtime.stm",
+      "target": "theory.stm",
+      "kind": "realizes",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "realization.inventory.pure",
+      "target": "domain.inventory.machine",
+      "kind": "realizes",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "realization.inventory.actor",
+      "target": "domain.inventory.machine",
+      "kind": "realizes",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "realization.inventory.actor",
+      "target": "theory.actor",
+      "kind": "requires",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "realization.inventory.stm",
+      "target": "domain.inventory.machine",
+      "kind": "realizes",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "realization.inventory.stm",
+      "target": "theory.stm",
+      "kind": "requires",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "handler.inventory.events",
+      "target": "theory.event-log",
+      "kind": "realizes",
+      "summary": "",
+      "attributes": {}
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.pyright/
+.ruff_cache/
+.venv/
+dist/
+build/
+*.egg-info/
+
+# Local stacklit renderings; stacklit.json is the canonical compact index.
+DEPENDENCIES.md
+stacklit.html
