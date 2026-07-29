@@ -10,7 +10,7 @@ ACCEPTANCE = ROOT / "scripts" / "accept" / "0007-reuse-first-engineering.sh"
 
 def run_acceptance(agent_map: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [str(ACCEPTANCE)],
+        ["sh", str(ACCEPTANCE)],
         cwd=ROOT,
         env={**os.environ, "REUSE_FIRST_AGENT_MAP": str(agent_map)},
         text=True,
