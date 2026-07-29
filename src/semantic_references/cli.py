@@ -106,30 +106,42 @@ def _cmd_lock(root: Path, source_id: str | None, all_sources: bool, offline: boo
     with curator_lock(references_root):
         lock = load_lock(lock_path)
         entries = dict(lock.sources)
-        for i in lockable_ids:
-            source = catalog.sources[i]
-            try:
-                entry = acquire.lock_source(
-                    source,
-                    project_root=root,
-                    references_root=references_root,
-                    generator=_GENERATOR,
-                    offline=offline,
-                    existing_entry=lock.sources.get(i),
+        # One transaction for the whole command: caches are staged while the
+        # sources are observed and published only together with the lock, so
+        # a later failure cannot leave an earlier source's cache advanced
+        # past the commit its lock entry still names.
+        publication = acquire.CachePublication()
+        try:
+            for i in lockable_ids:
+                source = catalog.sources[i]
+                try:
+                    entry = acquire.lock_source(
+                        source,
+                        project_root=root,
+                        references_root=references_root,
+                        generator=_GENERATOR,
+                        offline=offline,
+                        existing_entry=lock.sources.get(i),
+                        publication=publication,
+                    )
+                except ReferenceCustodyError as exc:
+                    print(f"{i}: lock failed: {exc}", file=sys.stderr)
+                    failures += 1
+                    continue
+                entries[i] = entry
+                print(f"{i}: locked at {entry.commit}")
+            if failures:
+                publication.abort()
+                print(
+                    "lock: one or more requested sources failed; writing no lock or cache changes",
+                    file=sys.stderr,
                 )
-            except ReferenceCustodyError as exc:
-                print(f"{i}: lock failed: {exc}", file=sys.stderr)
-                failures += 1
-                continue
-            entries[i] = entry
-            print(f"{i}: locked at {entry.commit}")
-        if failures:
-            print(
-                "lock: one or more requested sources failed; writing no lock changes",
-                file=sys.stderr,
-            )
-        else:
-            write_lock(lock_path, Lock(generator=_GENERATOR, sources=entries))
+            else:
+                with publication.publish():
+                    write_lock(lock_path, Lock(generator=_GENERATOR, sources=entries))
+        except BaseException:
+            publication.abort()
+            raise
     return 1 if failures else 0
 
 

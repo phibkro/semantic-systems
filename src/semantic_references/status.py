@@ -1,9 +1,12 @@
-"""Network-free strict status.
+"""Network-free, mutation-free strict status.
 
-Computes one of the six human-readable custody states from design spec 0004
-without ever mutating anything or touching the network. ``--lock-only``
-verifies lock structure, catalog derivation, and exact pins without opening
-a checkout; the full mode additionally inspects ``.references/<id>/checkout``.
+Computes one of the six human-readable custody states from design spec 0004.
+Every Git invocation runs through :mod:`semantic_references.gitutil`, whose
+default-deny transport policy and allowlisted environment keep this command
+away from transports, repository-configured programs, and the index.
+``--lock-only`` verifies lock structure and the full catalog binding without
+opening a checkout; the full mode additionally inspects
+``.references/<id>/checkout`` through :mod:`semantic_references.verify`.
 """
 
 from __future__ import annotations
@@ -12,11 +15,10 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from semantic_references import gitutil
 from semantic_references.catalog import CatalogSource
-from semantic_references.errors import AcquisitionError
-from semantic_references.lockfile import LicenseObservation, Lock, LockEntry
+from semantic_references.lockfile import Lock, LockEntry
 from semantic_references.materialize import checkout_dir
+from semantic_references.verify import catalog_binding_reasons, verify_checkout
 
 
 class CustodyState(StrEnum):
@@ -77,51 +79,6 @@ class StatusReport:
         }
 
 
-def _inspect_checkout(
-    target: Path, entry_commit: str, entry_tree: str, licenses: dict[str, LicenseObservation]
-) -> tuple[CustodyState | None, list[str]]:
-    """Return ``(None, [])`` when the checkout fully verifies, else a state override."""
-    if not gitutil.is_detached_head(target):
-        return CustodyState.UNVERIFIABLE, ["checkout HEAD is not detached"]
-    head = gitutil.head_commit(target)
-    if head != entry_commit:
-        return CustodyState.DRIFTED, [f"checkout is at {head}, locked commit is {entry_commit}"]
-    if not gitutil.is_clean_worktree(target):
-        return CustodyState.UNVERIFIABLE, ["checkout has uncommitted changes"]
-
-    reasons: list[str] = []
-    tree = gitutil.tree_of_commit(target, head)
-    if tree != entry_tree:
-        reasons.append(f"checkout tree {tree} does not match locked tree {entry_tree}")
-
-    suspicious = gitutil.has_submodules_or_lfs_pointers(target, list(licenses))
-    if suspicious:
-        reasons.append(f"license path(s) look like a submodule or LFS pointer: {suspicious}")
-
-    reasons.extend(_check_licenses(target, head, licenses))
-
-    return (CustodyState.UNVERIFIABLE, reasons) if reasons else (None, [])
-
-
-def _check_licenses(target: Path, head: str, licenses: dict[str, LicenseObservation]) -> list[str]:
-    reasons: list[str] = []
-    for path, expected in licenses.items():
-        tree_entry = gitutil.ls_tree_entry(target, head, path)
-        if tree_entry is None:
-            reasons.append(f"license path {path!r} is missing from the checkout")
-            continue
-        if tree_entry.object_type != "blob" or tree_entry.mode == "120000":
-            reasons.append(f"license path {path!r} is not a regular blob")
-            continue
-        if tree_entry.mode != expected.mode or tree_entry.size != expected.size:
-            reasons.append(f"license path {path!r} metadata changed")
-            continue
-        digest = gitutil.blob_sha256(target, tree_entry.oid)
-        if digest != expected.sha256:
-            reasons.append(f"license path {path!r} bytes changed")
-    return reasons
-
-
 def _report_from_entry(
     source_id: str,
     entry: LockEntry,
@@ -165,13 +122,10 @@ def compute_status(
             track=source.track,
         )
 
-    if entry.catalog_digest != source.canonical_digest():
+    drift = catalog_binding_reasons(source, entry)
+    if drift:
         return _report_from_entry(
-            source.id,
-            entry,
-            CustodyState.DRIFTED,
-            ("catalog record no longer matches the digest recorded at lock time",),
-            lock_only=lock_only,
+            source.id, entry, CustodyState.DRIFTED, drift, lock_only=lock_only
         )
 
     if lock_only:
@@ -183,23 +137,23 @@ def compute_status(
             lock_only=True,
         )
 
-    target = checkout_dir(references_root, source.id)
+    return _checkout_report(source.id, entry, references_root)
+
+
+def _checkout_report(source_id: str, entry: LockEntry, references_root: Path) -> StatusReport:
+    target = checkout_dir(references_root, source_id)
     if not target.exists():
-        return _report_from_entry(source.id, entry, CustodyState.LOCKED_UNMATERIALIZED, ())
+        return _report_from_entry(source_id, entry, CustodyState.LOCKED_UNMATERIALIZED, ())
 
-    try:
-        override_state, reasons = _inspect_checkout(
-            target, entry.commit, entry.tree, entry.licenses
-        )
-    except AcquisitionError as exc:
-        override_state, reasons = CustodyState.UNVERIFIABLE, [str(exc)]
-
-    if override_state is not None:
-        return _report_from_entry(source.id, entry, override_state, tuple(reasons))
+    verification = verify_checkout(target, entry)
+    if verification.head_mismatch is not None:
+        return _report_from_entry(source_id, entry, CustodyState.DRIFTED, verification.reasons)
+    if verification.reasons:
+        return _report_from_entry(source_id, entry, CustodyState.UNVERIFIABLE, verification.reasons)
 
     state = (
         CustodyState.MATERIALIZED_VERIFIED
         if entry.origin_verified
         else CustodyState.MATERIALIZED_WITH_VISIBLE_ASSUMPTION
     )
-    return _report_from_entry(source.id, entry, state, ())
+    return _report_from_entry(source_id, entry, state, ())

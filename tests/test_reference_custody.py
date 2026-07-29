@@ -7,8 +7,10 @@ not a claim of remote-transport behavior.
 
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -1154,12 +1156,15 @@ def test_remote_materialize_sequence_exact_then_ref_then_history_fallback(
     assert attempted_refs == [entry.commit, entry.resolved_ref]
 
     # A distinct source id: the checkout dir must not already exist for it.
+    # Its lock entry must carry that source's own catalog digest, because
+    # materialize now refuses an entry bound to a different catalog record.
     source2 = make_source(
         source_id="remote.sequence-demo-2", origin=source.origin, local_hint=None, track="main"
     )
+    entry2 = dataclasses.replace(entry, catalog_digest=source2.canonical_digest())
     target = materialize_mod.materialize_source(
         source2,
-        entry,
+        entry2,
         project_root=project_root,
         references_root=references_root,
         offline=False,
@@ -1402,3 +1407,545 @@ license_paths = ["LICENSE"]
     exit_code = cli.main(["--root", str(project_root), "lock", "--all", "--offline"])
     assert exit_code == 1
     assert lock_path.read_bytes() == baseline_bytes
+
+
+# --------------------------------------------------------------------------
+# Adversarial oracles for the independently reproduced counterexamples
+# against commit 94583c4 (design spec 0004 conformance).
+#
+# Each of the seven blocks below was written and observed FAILING against the
+# uncorrected implementation before the corresponding production change.
+# --------------------------------------------------------------------------
+
+
+def _write_transport_probe(bin_dir: Path, marker: Path) -> None:
+    """Install a Git remote helper for the ``custodyprobe::`` transport.
+
+    Git execs ``git-remote-custodyprobe`` from ``PATH`` whenever it actually
+    opens that transport, so the marker file is a direct observation that a
+    real transport was invoked — not a proxy for a command-line flag.
+    """
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    helper = bin_dir / "git-remote-custodyprobe"
+    helper.write_text(f'#!/bin/sh\ntouch "{marker}"\necho "custodyprobe invoked" >&2\nexit 1\n')
+    helper.chmod(0o755)
+
+
+def _entry_for(
+    source: CatalogSource, repo: Path, commit: str, license_bytes: bytes = b"MIT\n"
+) -> LockEntry:
+    return LockEntry(
+        origin=source.origin,
+        track=source.track or "main",
+        resolved_ref="refs/heads/main",
+        object_format="sha1",
+        commit=commit,
+        tree=_git("rev-parse", "--verify", f"{commit}^{{tree}}", cwd=repo).stdout.strip(),
+        catalog_digest=source.canonical_digest(),
+        retrieved_at="2026-01-01T00:00:00Z",
+        acquisition="remote",
+        origin_verified=True,
+        licenses={
+            "LICENSE": LicenseObservation(
+                mode="100644",
+                size=len(license_bytes),
+                sha256=hashlib.sha256(license_bytes).hexdigest(),
+            )
+        },
+    )
+
+
+# 1. Offline lazy-fetch exclusion ------------------------------------------
+
+
+def test_offline_object_reads_never_invoke_the_transport(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A promisor cache missing the declared license blob must fail closed.
+
+    Boundary: a real partial (promisor) clone plus a real Git remote helper
+    binary. Reading a missing blob is what makes Git open the promisor
+    transport, so the marker proves invocation rather than inferring it.
+    """
+    origin = _init_repo(tmp_path / "origin", branch="main")
+    (origin / "LICENSE").write_text("MIT\n")
+    commit = _commit_all(origin, "init")
+    _git("config", "uploadpack.allowFilter", "true", cwd=origin)
+
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    references_root = project_root / ".references"
+    source = make_source(
+        source_id="promisor.demo",
+        origin=f"file://{origin}",
+        local_hint=None,
+        track="main",
+    )
+
+    cache_dir = acquire.object_cache_dir(references_root, source.id)
+    cache_dir.parent.mkdir(parents=True, exist_ok=True)
+    _git(
+        "clone",
+        "-q",
+        "--filter=blob:none",
+        "--no-checkout",
+        f"file://{origin}",
+        str(cache_dir),
+        cwd=tmp_path,
+    )
+    assert (
+        _git("config", "--get", "remote.origin.partialclonefilter", cwd=cache_dir).stdout.strip()
+        == "blob:none"
+    )
+
+    marker = tmp_path / "transport-invoked"
+    bin_dir = tmp_path / "bin"
+    _write_transport_probe(bin_dir, marker)
+    _git("remote", "set-url", "origin", f"custodyprobe::file://{origin}", cwd=cache_dir)
+    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
+
+    with pytest.raises(AcquisitionError):
+        acquire.lock_source(
+            source,
+            project_root=project_root,
+            references_root=references_root,
+            generator="t",
+            offline=True,
+            existing_entry=None,
+        )
+    assert not marker.exists(), "offline lock opened the Git transport (promisor lazy fetch)"
+
+    entry = _entry_for(source, origin, commit)
+    with pytest.raises(AcquisitionError):
+        materialize_mod.materialize_source(
+            source,
+            entry,
+            project_root=project_root,
+            references_root=references_root,
+            offline=True,
+            allow_history_fallback=False,
+        )
+    assert not marker.exists(), "offline materialize opened the Git transport (promisor lazy fetch)"
+
+
+# 2. Status network and mutation exclusion ---------------------------------
+
+
+def test_status_ignores_git_configuration_and_never_mutates_the_index(
+    tmp_path: Path, sibling: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Repository and inherited Git configuration must not steer status.
+
+    Boundary: real ``.git/config`` keys, real inherited ``GIT_CONFIG_*``
+    environment injection, a real ``core.fsmonitor`` program, and the real
+    ``.git/index`` bytes on disk.
+    """
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    references_root = project_root / ".references"
+    source = make_source()
+
+    entry = acquire.lock_source(
+        source,
+        project_root=project_root,
+        references_root=references_root,
+        generator="t",
+        offline=True,
+        existing_entry=None,
+    )
+    materialize_mod.materialize_source(
+        source,
+        entry,
+        project_root=project_root,
+        references_root=references_root,
+        offline=True,
+        allow_history_fallback=False,
+    )
+    checkout = materialize_mod.checkout_dir(references_root, source.id)
+
+    # (a) repository-local configuration that hides working-tree dirt
+    _git("config", "status.showUntrackedFiles", "no", cwd=checkout)
+    # (b) a repository-configured program status must never execute
+    fsmonitor_marker = tmp_path / "fsmonitor-ran"
+    hook = tmp_path / "fsmonitor-hook"
+    hook.write_text(f'#!/bin/sh\ntouch "{fsmonitor_marker}"\nexit 1\n')
+    hook.chmod(0o755)
+    _git("config", "core.fsmonitor", str(hook), cwd=checkout)
+    # (c) inherited configuration injected through the environment
+    monkeypatch.setenv("GIT_CONFIG_COUNT", "1")
+    monkeypatch.setenv("GIT_CONFIG_KEY_0", "status.showUntrackedFiles")
+    monkeypatch.setenv("GIT_CONFIG_VALUE_0", "no")
+
+    (checkout / "untracked.txt").write_text("dirt\n")
+    index = checkout / ".git" / "index"
+    index_bytes_before = index.read_bytes()
+    index_mtime_before = index.stat().st_mtime_ns
+
+    report = status.compute_status(
+        source, Lock(generator="t", sources={source.id: entry}), references_root, lock_only=False
+    )
+
+    assert not report.strict_ok, "configured status suppression hid working-tree dirt"
+    assert report.state == status.CustodyState.UNVERIFIABLE
+    assert not fsmonitor_marker.exists(), "status executed a repository-configured program"
+    assert index.read_bytes() == index_bytes_before, "status mutated .git/index bytes"
+    assert index.stat().st_mtime_ns == index_mtime_before, "status mutated .git/index metadata"
+
+
+# 3. Working-tree license-byte binding -------------------------------------
+
+
+def test_assume_unchanged_license_tampering_is_rejected(tmp_path: Path, sibling: Path) -> None:
+    """``assume-unchanged`` must not let changed license bytes pass.
+
+    Boundary: the real Git index bit that suppresses change detection, and
+    the real on-disk bytes a researcher would read.
+    """
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    references_root = project_root / ".references"
+    source = make_source()
+
+    entry = acquire.lock_source(
+        source,
+        project_root=project_root,
+        references_root=references_root,
+        generator="t",
+        offline=True,
+        existing_entry=None,
+    )
+    materialize_mod.materialize_source(
+        source,
+        entry,
+        project_root=project_root,
+        references_root=references_root,
+        offline=True,
+        allow_history_fallback=False,
+    )
+    checkout = materialize_mod.checkout_dir(references_root, source.id)
+
+    _git("update-index", "--assume-unchanged", "LICENSE", cwd=checkout)
+    (checkout / "LICENSE").write_text("TAMPERED\n")
+    assert (checkout / "LICENSE").read_bytes() == b"TAMPERED\n"
+    assert (
+        _git("status", "--porcelain=v1", cwd=checkout).stdout.strip() == ""
+    )  # Git itself reports the tampered tree as clean
+
+    report = status.compute_status(
+        source, Lock(generator="t", sources={source.id: entry}), references_root, lock_only=False
+    )
+    assert not report.strict_ok, "assume-unchanged license tampering passed strict status"
+    assert report.state == status.CustodyState.UNVERIFIABLE
+
+
+# 4. Transactional ``lock --all`` ------------------------------------------
+
+
+def _write_two_source_catalog(project_root: Path, origin_a: Path) -> Path:
+    (project_root / "references").mkdir(parents=True, exist_ok=True)
+    catalog_path = project_root / "references" / "sources.toml"
+    catalog_path.write_text(
+        f"""
+schema = 1
+
+[[source]]
+id = "remote.a"
+kind = "git"
+origin = "file://{origin_a}"
+track = "main"
+license_paths = ["LICENSE"]
+
+[[source]]
+id = "remote.z"
+kind = "git"
+origin = "file:///nonexistent/definitely/missing.git"
+track = "main"
+license_paths = ["LICENSE"]
+"""
+    )
+    return catalog_path
+
+
+def test_lock_all_failure_preserves_prior_caches_and_offline_materialization(
+    tmp_path: Path,
+) -> None:
+    """A later source failing must not publish an earlier source's new cache.
+
+    Boundary: the real ``.references`` cache directory contents and a real
+    offline materialization of the still-locked commit afterwards.
+    """
+    origin_a = _init_repo(tmp_path / "origin-a", branch="main")
+    (origin_a / "LICENSE").write_text("MIT\n")
+    commit_a = _commit_all(origin_a, "init")
+    _git("config", "uploadpack.allowFilter", "true", cwd=origin_a)
+
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    _write_two_source_catalog(project_root, origin_a)
+    lock_path = project_root / "references" / "sources.lock.json"
+    references_root = project_root / ".references"
+
+    assert cli.main(["--root", str(project_root), "lock", "remote.a"]) == 0
+    lock_bytes_before = lock_path.read_bytes()
+    cache_dir = acquire.object_cache_dir(references_root, "remote.a")
+    assert gitutil.object_exists(cache_dir, commit_a)
+
+    (origin_a / "LICENSE").write_text("MIT (revised)\n")
+    commit_b = _commit_all(origin_a, "advance")
+    assert commit_b != commit_a
+
+    assert cli.main(["--root", str(project_root), "lock", "--all"]) == 1
+
+    assert lock_path.read_bytes() == lock_bytes_before, "failed lock --all rewrote the lock"
+    assert gitutil.object_exists(cache_dir, commit_a), "failed lock --all destroyed a prior cache"
+    assert not gitutil.object_exists(cache_dir, commit_b), (
+        "failed lock --all published a cache for an unlocked commit"
+    )
+
+    assert cli.main(["--root", str(project_root), "materialize", "remote.a", "--offline"]) == 0
+    checkout = materialize_mod.checkout_dir(references_root, "remote.a")
+    assert gitutil.head_commit(checkout) == commit_a
+
+
+# 5. Semantic lock-only validation -----------------------------------------
+
+
+def _lock_json(**entry_overrides: object) -> str:
+    entry: dict[str, object] = {
+        "origin": "https://example.com/demo.git",
+        "track": "HEAD",
+        "resolved_ref": "refs/heads/main",
+        "object_format": "sha1",
+        "commit": "a" * 40,
+        "tree": "b" * 40,
+        "catalog_digest": "c" * 64,
+        "retrieved_at": "2026-01-01T00:00:00Z",
+        "acquisition": "remote",
+        "origin_verified": True,
+        "licenses": {"LICENSE": {"mode": "100644", "size": 4, "sha256": "d" * 64}},
+    }
+    entry.update(entry_overrides)
+    return json.dumps(
+        {"schema": "reference-lock-v1", "generator": "g", "sources": {"local.demo": entry}}
+    )
+
+
+def _licenses_json(path: str, mode: str) -> dict[str, object]:
+    return {path: {"mode": mode, "size": 4, "sha256": "d" * 64}}
+
+
+def test_lock_only_rejects_structurally_impossible_entries() -> None:
+    """Unsafe license keys, impossible modes, and impossible custody pairs."""
+    with pytest.raises(LockFileError, match="license"):
+        parse_lock_text(_lock_json(licenses=_licenses_json("../outside", "100644")))
+    with pytest.raises(LockFileError, match="mode"):
+        parse_lock_text(_lock_json(licenses=_licenses_json("LICENSE", "120000")))
+    with pytest.raises(LockFileError, match="mode"):
+        parse_lock_text(_lock_json(licenses=_licenses_json("LICENSE", "160000")))
+    with pytest.raises(LockFileError, match="origin_verified"):
+        parse_lock_text(_lock_json(acquisition="local-sibling", origin_verified=True))
+    with pytest.raises(LockFileError, match="origin_verified"):
+        parse_lock_text(_lock_json(acquisition="remote", origin_verified=False))
+
+
+def test_lock_only_cross_binds_every_semantic_field_to_the_catalog(
+    tmp_path: Path, sibling: Path
+) -> None:
+    """A hand-edited lock entry that still carries the right catalog digest.
+
+    Boundary: the canonical catalog record actually parsed from disk versus
+    the lock entry's own declared origin, track, and license set.
+    """
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    references_root = project_root / ".references"
+    source = make_source()
+
+    entry = acquire.lock_source(
+        source,
+        project_root=project_root,
+        references_root=references_root,
+        generator="t",
+        offline=True,
+        existing_entry=None,
+    )
+
+    tampered_origin = dataclasses.replace(entry, origin="https://example.com/other.git")
+    report = status.compute_status(
+        source,
+        Lock(generator="t", sources={source.id: tampered_origin}),
+        references_root,
+        lock_only=True,
+    )
+    assert not report.strict_ok, "lock-only accepted an origin the catalog does not declare"
+    assert report.state == status.CustodyState.DRIFTED
+
+    tampered_track = dataclasses.replace(entry, track="refs/heads/somewhere-else")
+    report = status.compute_status(
+        source,
+        Lock(generator="t", sources={source.id: tampered_track}),
+        references_root,
+        lock_only=True,
+    )
+    assert not report.strict_ok, "lock-only accepted a track the catalog does not declare"
+
+    tampered_licenses = dataclasses.replace(
+        entry, licenses={"NOTICE": next(iter(entry.licenses.values()))}
+    )
+    report = status.compute_status(
+        source,
+        Lock(generator="t", sources={source.id: tampered_licenses}),
+        references_root,
+        lock_only=True,
+    )
+    assert not report.strict_ok, "lock-only accepted a license set the catalog does not declare"
+
+
+# 6. Fail-closed materialization on catalog drift --------------------------
+
+
+def test_materialize_rejects_catalog_drift_before_creating_anything(
+    tmp_path: Path, sibling: Path
+) -> None:
+    """Catalog drift must be refused before any ``.references`` mutation.
+
+    Boundary: the real filesystem under ``.references/<id>``, which must not
+    exist at all after the refusal.
+    """
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    references_root = project_root / ".references"
+    source = make_source()
+
+    entry = acquire.lock_source(
+        source,
+        project_root=project_root,
+        references_root=references_root,
+        generator="t",
+        offline=True,
+        existing_entry=None,
+    )
+    assert not (references_root / source.id).exists()
+
+    drifted_source = make_source(origin_aliases=("https://example.com/demo-mirror.git",))
+    assert drifted_source.canonical_digest() != entry.catalog_digest
+
+    with pytest.raises(AcquisitionError, match="catalog"):
+        materialize_mod.materialize_source(
+            drifted_source,
+            entry,
+            project_root=project_root,
+            references_root=references_root,
+            offline=True,
+            allow_history_fallback=False,
+        )
+    assert not (references_root / source.id).exists(), (
+        "materialize created state under .references before rejecting catalog drift"
+    )
+
+
+# 7. Coherent symbolic-ref observation -------------------------------------
+
+
+def test_ambiguous_selector_fails_closed_and_concrete_ref_is_recorded(tmp_path: Path) -> None:
+    """A selector naming both a branch and a tag cannot be recorded coherently.
+
+    Boundary: a real repository where ``refs/heads/x`` and ``refs/tags/x``
+    name different commits, and Git's own selector resolution picks the tag.
+    """
+    origin = _init_repo(tmp_path / "origin", branch="main")
+    (origin / "LICENSE").write_text("MIT\n")
+    commit_a = _commit_all(origin, "one")
+    (origin / "extra.txt").write_text("more\n")
+    commit_b = _commit_all(origin, "two")
+    _git("branch", "x", commit_b, cwd=origin)
+    _git("tag", "x", commit_a, cwd=origin)
+
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    references_root = project_root / ".references"
+    ambiguous = make_source(
+        source_id="remote.ambiguous", origin=f"file://{origin}", local_hint=None, track="x"
+    )
+
+    with pytest.raises(AcquisitionError, match="ambiguous"):
+        acquire.lock_source(
+            ambiguous,
+            project_root=project_root,
+            references_root=references_root,
+            generator="t",
+            offline=False,
+            existing_entry=None,
+        )
+    assert not acquire.object_cache_dir(references_root, ambiguous.id).exists(), (
+        "an ambiguous selector published a cache"
+    )
+
+    tag_only = make_source(
+        source_id="remote.tag-only", origin=f"file://{origin}", local_hint=None, track="v1"
+    )
+    _git("tag", "v1", commit_a, cwd=origin)
+    entry = acquire.lock_source(
+        tag_only,
+        project_root=project_root,
+        references_root=references_root,
+        generator="t",
+        offline=False,
+        existing_entry=None,
+    )
+    assert entry.commit == commit_a
+    assert entry.resolved_ref == "refs/tags/v1", (
+        "an unresolved selector was recorded as resolved_ref"
+    )
+
+
+# One observation query plus one independent confirmation query.
+_CROSS_CHECK_QUERIES = 2
+
+
+def test_selector_movement_between_queries_fails_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A selector that moves between observation queries must fail closed.
+
+    The movement is injected at the ``ls-remote`` seam; every other step is
+    the real Git path, and the assertion is that nothing is published.
+    """
+    origin = _init_repo(tmp_path / "origin", branch="main")
+    (origin / "LICENSE").write_text("MIT\n")
+    _commit_all(origin, "one")
+
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    references_root = project_root / ".references"
+    source = make_source(
+        source_id="remote.moving", origin=f"file://{origin}", local_hint=None, track="main"
+    )
+
+    real_ls_remote = gitutil.ls_remote_refs
+    calls: list[str] = []
+
+    def moving_ls_remote(
+        location: str, pattern: str, *, allow_transport: bool = False
+    ) -> gitutil.RemoteRefs:
+        calls.append(pattern)
+        observed = real_ls_remote(location, pattern, allow_transport=allow_transport)
+        if len(calls) == 1:
+            return observed
+        return gitutil.RemoteRefs(symrefs=observed.symrefs, refs=(("f" * 40, pattern),))
+
+    monkeypatch.setattr(gitutil, "ls_remote_refs", moving_ls_remote)
+
+    with pytest.raises(AcquisitionError):
+        acquire.lock_source(
+            source,
+            project_root=project_root,
+            references_root=references_root,
+            generator="t",
+            offline=False,
+            existing_entry=None,
+        )
+    assert len(calls) >= _CROSS_CHECK_QUERIES, (
+        "the concrete ref was never cross-checked with a second query"
+    )
+    assert not acquire.object_cache_dir(references_root, source.id).exists()

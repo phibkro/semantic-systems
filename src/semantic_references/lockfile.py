@@ -25,8 +25,13 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, cast
 
-from semantic_references.catalog import is_git_safe_value, validate_source_id
+from semantic_references.catalog import (
+    is_git_safe_value,
+    validate_license_path,
+    validate_source_id,
+)
 from semantic_references.errors import CatalogError, LockFileError
+from semantic_references.gitutil import REGULAR_BLOB_MODES
 
 SCHEMA_NAME = "reference-lock-v1"
 _OBJECT_FORMAT_HEX_LENGTH = {"sha1": 40, "sha256": 64}
@@ -36,8 +41,8 @@ _HEX_RE = {
 }
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _TIMESTAMP_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
-_MODE_RE = re.compile(r"^[0-7]{6}$")
-_ACQUISITION_KINDS = frozenset({"remote", "local-sibling", "local-object-cache"})
+_REMOTE_ACQUISITION = "remote"
+_ACQUISITION_KINDS = frozenset({_REMOTE_ACQUISITION, "local-sibling", "local-object-cache"})
 
 
 def _no_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -126,18 +131,36 @@ def _check_retrieved_at(source_id: str, retrieved_at: object) -> str:
     return retrieved_at
 
 
-def _check_acquisition(source_id: str, acquisition: object) -> str:
+def _check_acquisition(
+    source_id: str, acquisition: object, origin_verified: object
+) -> tuple[str, bool]:
     if not isinstance(acquisition, str) or acquisition not in _ACQUISITION_KINDS:
         raise LockFileError(
             f"lock entry {source_id!r}: unsupported acquisition kind {acquisition!r}"
         )
-    return acquisition
+    if not isinstance(origin_verified, bool):
+        raise LockFileError(f"lock entry {source_id!r}: 'origin_verified' must be a boolean")
+    # Only a remote acquisition can have observed the declared origin; a local
+    # sibling or object cache is an assumption about identity, never a
+    # verification of it. The other pairing is equally impossible: a remote
+    # acquisition resolved the declared origin by definition.
+    if origin_verified != (acquisition == _REMOTE_ACQUISITION):
+        raise LockFileError(
+            f"lock entry {source_id!r}: acquisition {acquisition!r} cannot report "
+            f"'origin_verified' {origin_verified!r}"
+        )
+    return acquisition, origin_verified
 
 
 def _check_licenses_field(source_id: str, licenses_raw: object) -> dict[str, LicenseObservation]:
     if not isinstance(licenses_raw, dict) or not licenses_raw:
         raise LockFileError(f"lock entry {source_id!r}: 'licenses' must be a non-empty table")
     typed_raw = cast(dict[str, object], licenses_raw)
+    for path in typed_raw:
+        try:
+            validate_license_path(source_id, path)
+        except CatalogError as exc:
+            raise LockFileError(f"lock entry {source_id!r}: unsafe license path: {exc}") from exc
     return {path: LicenseObservation.from_json(path, value) for path, value in typed_raw.items()}
 
 
@@ -160,8 +183,12 @@ class LicenseObservation:
         mode = typed_data.get("mode")
         size = typed_data.get("size")
         sha256 = typed_data.get("sha256")
-        if not isinstance(mode, str) or not _MODE_RE.match(mode):
-            raise LockFileError(f"license entry {path!r}: 'mode' must be a 6-digit octal string")
+        if not isinstance(mode, str) or mode not in REGULAR_BLOB_MODES:
+            raise LockFileError(
+                f"license entry {path!r}: 'mode' must be a regular blob mode "
+                f"{sorted(REGULAR_BLOB_MODES)} — a symlink, gitlink, or tree cannot be a "
+                "license artifact"
+            )
         if not isinstance(size, int) or isinstance(size, bool) or size < 0:
             raise LockFileError(f"license entry {path!r}: 'size' must be a non-negative integer")
         if not isinstance(sha256, str) or not _SHA256_RE.match(sha256):
@@ -220,10 +247,9 @@ class LockEntry:
         object_format, commit, tree = _check_entry_object_ids(source_id, typed_data)
         catalog_digest = _check_catalog_digest(source_id, typed_data["catalog_digest"])
         retrieved_at = _check_retrieved_at(source_id, typed_data["retrieved_at"])
-        acquisition = _check_acquisition(source_id, typed_data["acquisition"])
-        origin_verified = typed_data["origin_verified"]
-        if not isinstance(origin_verified, bool):
-            raise LockFileError(f"lock entry {source_id!r}: 'origin_verified' must be a boolean")
+        acquisition, origin_verified = _check_acquisition(
+            source_id, typed_data["acquisition"], typed_data["origin_verified"]
+        )
         licenses = _check_licenses_field(source_id, typed_data["licenses"])
 
         return LockEntry(
