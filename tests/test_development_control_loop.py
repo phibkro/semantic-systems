@@ -560,6 +560,21 @@ def test_commitlint_accepts_project_specific_types() -> None:
 
 @requires_bun
 @requires_node_modules
+def test_commitlint_accepts_squash_body_lines_from_feature_report() -> None:
+    message = (
+        "feat: deliver a complete user journey\n\n"
+        + "A pull-request report may contain an explanatory paragraph longer than "
+        + "one hundred characters without changing the Conventional Commit identity."
+    )
+    result = _run(["./node_modules/.bin/commitlint"], stdin_text=message)
+    assert result.returncode == 0, (
+        "the squash title carries the Conventional Commit identity; prose wrapping "
+        f"must not create a post-merge-only rejection:\n{result.stdout}{result.stderr}"
+    )
+
+
+@requires_bun
+@requires_node_modules
 def test_commitlint_rejects_invalid_message_and_type() -> None:
     for message in (
         "this has no type at all",

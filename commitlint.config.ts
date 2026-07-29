@@ -5,6 +5,11 @@ export default {
   // so the adapted materialization intentionally disables those exemptions.
   defaultIgnores: false,
   rules: {
+    // GitHub's squash commit copies the feature report into the commit body.
+    // The title carries Conventional Commit identity; prose wrapping is not a
+    // semantic property and cannot be checked on the eventual squash body
+    // before merge.
+    "body-max-line-length": [0],
     "type-enum": [
       2,
       "always",
