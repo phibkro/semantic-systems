@@ -56,7 +56,7 @@
       "path": "commitlint.config.ts",
       "kind": "exclusive_path",
       "executable": false,
-      "contentDigest": "sha256:ebd783c4613bca5c54f7e1672abd22e04f0f9c9ac36cdb66f9f7079ab8d47a8c"
+      "contentDigest": "sha256:319841d1099f113064933a9723a03eff5bb10a7d02d4a5cd7d6b1f4abfdacd28"
     },
     {
       "claimId": "install-git-hooks",
@@ -109,6 +109,12 @@
       "path": "commitlint.config.ts",
       "upstreamClaimId": "commitlint-config",
       "rationale": "Design spec 0005 requires every commit and PR title to conform; merge, nonconventional revert, and version messages cannot use Commitlint's default exemptions."
+    },
+    {
+      "id": "commitlint-squash-body-prose",
+      "path": "commitlint.config.ts",
+      "upstreamClaimId": "commitlint-config",
+      "rationale": "GitHub forms a squash body from the feature report after the protected PR gates run. Conventional Commit identity is carried by the validated squash title, so prose line wrapping must not create a post-merge-only rejection."
     },
     {
       "id": "pre-commit-fast-loop",

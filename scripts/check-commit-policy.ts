@@ -120,6 +120,7 @@ const EXPECTED_SEMANTIC_KEYS = new Map([
 ]);
 const EXPECTED_ADAPTATIONS = new Map([
   ["commitlint-default-ignores-disabled", ["commitlint.config.ts", "commitlint-config"] as const],
+  ["commitlint-squash-body-prose", ["commitlint.config.ts", "commitlint-config"] as const],
   ["pre-commit-fast-loop", [".githooks/pre-commit", "githooks/pre-commit"] as const],
   ["pre-push-integration", [".githooks/pre-push", undefined] as const],
 ]);

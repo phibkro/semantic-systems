@@ -27,9 +27,14 @@ limits, semantic diff, and kill criteria are frozen in design spec 0005.
 - GitHub branch protection now requires the three exact workflow contexts on
   an up-to-date branch, applies them to administrators, requires linear
   history and resolved conversations, and forbids force pushes and deletion.
-  The pilot PR must still exercise the protected merge transition.
-- Independent review resolution, operator completion feedback, Herdr cleanup,
-  and the real pilot merge remain open external gates.
+- Pilot PR #1 passed all protected head checks and squash-merged as `9ff36d6`.
+  Its main-push integration and feature-acceptance replay passed. Commit policy
+  alone false-rejected the GitHub-generated squash body because a feature
+  report paragraph exceeded an inherited 100-character prose limit.
+- The correction retains Conventional Commit identity in the validated title
+  while disabling the nonsemantic body-wrapping rule. Its protected repair PR,
+  successful main-push replay, plan closure, and Herdr/worktree cleanup remain
+  open.
 
 ## Implementation slices
 
@@ -222,8 +227,14 @@ completion feedback, and cleanup.
   `fast + integration (nix)`, `feature contract + acceptance`, and
   `commit message + PR title policy`; enforcement includes administrators,
   linear history, resolved conversations, and disabled force pushes/deletion.
-  The protected squash merge, main-push replay, completion notice, and cleanup
-  remain the final pilot observations.
+  Pilot PR #1 then passed the protected checks and squash-merged as `9ff36d6`.
+- 2026-07-29: Main-push run `30484693324` passed the pinned Nix integration
+  loop and replayed acceptance 0005, but its commit-policy job false-rejected
+  the GitHub-generated squash body for one feature-report line over 100
+  characters. A red regression reproduced the post-merge-only failure.
+  The correction disables body line length as a semantic gate, retains title,
+  type, subject, and authored-message policy, and records the adaptation in
+  the checked Clamor provenance graph.
 
 ## Decisions and deviations
 
