@@ -105,6 +105,11 @@ completion feedback, and cleanup.
 - 2026-07-29: Operator proposed cybernetic systems as a model for loops,
   feedback, and evaluation; recorded as uncertainty 0003 and incorporated into
   the frozen control-loop contract.
+- 2026-07-29: Explicitly revised design spec 0005 at operator request with the
+  deterministic hook matrix: save/watch, pre-commit, pre-push, PR head, review,
+  merge result, main push, release, schedule, and agent completion. Client
+  hooks remain advisory; exact-head and merge-result server gates authorize
+  publication.
 
 ## Decisions and deviations
 

@@ -75,6 +75,44 @@ Missing required tools fail a gate. They are not warnings. Host convenience
 checks may report unavailable tools, but only the pinned gate can authorize
 merge.
 
+### Deterministic event hooks
+
+Checks attach to the transition they can observe:
+
+| Event | Required observation | Authority |
+|---|---|---|
+| Spec frozen | unique ID, falsifiers, ownership, dependencies, acceptance | implementation may start |
+| File save/watch | focused parse, type, format, and red/green oracle | advisory |
+| Pre-commit | fast read-only checks and targeted tests | bypassable local guard |
+| Pre-push | pinned integration suite and architecture boundaries | bypassable local guard |
+| PR open/synchronize/reopen | exact-head integration and feature acceptance | required server gate |
+| Review/finding resolution | independent counterexample and assumption audit | required semantic gate |
+| Merge queue `merge_group` | prospective merged-tree acceptance | publication gate |
+| Push to `main` | accepted scenario replay and projection consistency | post-merge drift signal |
+| Release tag | reproducibility and claim-specific deep assurance | release authority |
+| Schedule/dependency update | drift, fuzzing, model checking, benchmark trend | opens work only |
+| Agent done | committed-artifact gate, harvest, and safe cleanup | cleanup authority only |
+
+Client hooks improve latency but never authorize merge because they are
+bypassable. Server gates verify without modifying: they do not format, repair,
+or regenerate away drift.
+
+Every authoritative verdict binds the exact commit, pinned environment, fixed
+seed or recorded schedule, virtualized time where relevant, explicit locale
+and timezone, and hermetic inputs. Network observations become separately
+locked artifacts. Cache keys may alter latency but not the verdict. Path
+filters may skip provably unaffected work; uncertainty falls back to the larger
+gate.
+
+Specialized triggers include:
+
+- contract changes invalidate bound implementations and evidence;
+- canonical model changes require generated-view equality;
+- generated changes without their canonical source edge are rejected;
+- evidence metadata changes re-run category, subject, and assumption checks;
+- dependency/lock changes re-run custody and reproducibility checks;
+- architecture-boundary changes re-run forbidden-import and capability tests.
+
 ### Cybernetic evaluation model
 
 The loop is evaluated as a control system:
@@ -214,3 +252,7 @@ of correlated defects.
 This contract grants bounded merge authority after exact, inspectable gates and
 adds explicit completion feedback and execution cleanup. It changes no language
 semantics, evidence category meaning, or trust claim.
+
+Revision 1, 2026-07-29: the operator added deterministic lifecycle hooks. This
+strengthens where existing gates run and clarifies their authority; it does not
+change the merge-authority boundary or evidence meanings.
