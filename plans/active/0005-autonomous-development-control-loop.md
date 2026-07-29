@@ -99,6 +99,9 @@ completion feedback, and cleanup.
   functionality is verified and required feedback when features finish.
 - 2026-07-29: Closed completed semantic advisory, inventory worker, and routed
   deep-research Herdr tabs after their outputs were harvested.
+- 2026-07-29: Verified the retired inventory worktree was clean and its commit
+  patch-equivalent to integrated main, then removed the worktree. Retained its
+  local branch pending deliberate branch-history cleanup.
 - 2026-07-29: Operator proposed cybernetic systems as a model for loops,
   feedback, and evaluation; recorded as uncertainty 0003 and incorporated into
   the frozen control-loop contract.
