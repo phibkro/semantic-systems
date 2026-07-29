@@ -113,6 +113,11 @@ validity.
   implementation, tests, and adversarial review.
 - 2026-07-29: Main agent froze design spec 0003 before implementation
   delegation.
+- 2026-07-29: Dispatched an A3 Sonnet implementation to isolated worktree
+  `/tmp/semantic-resolution-checker-0003` on branch
+  `work/resolution-checker-0003`. The first visible command succeeds, but the
+  uncommitted checker is not accepted and its initial decision surface exceeds
+  the frozen size gate.
 
 ## Decisions and deviations
 

@@ -123,6 +123,9 @@ validity.
   contract, negative corpus, and isolated implementation scope.
 - 2026-07-29: Main agent recorded design spec 0004 before implementation
   delegation.
+- 2026-07-29: Dispatched an A3 Sonnet implementation to isolated worktree
+  `/tmp/semantic-reference-custody-0004` on branch
+  `work/reference-custody-0004`, with `/goal` bound to the checked-in contract.
 
 ## Decisions and deviations
 
