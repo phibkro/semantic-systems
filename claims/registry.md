@@ -135,3 +135,38 @@ Observed result: pending implementation and pilot.
 
 Invalidation: changes to required gates, merge authority, completion notice,
 cleanup rules, or PR-to-spec identity require the pilot checks to rerun.
+
+## CLM-0005 — public-safe project control room
+
+Hypothesis: an installable phone-first PWA can project the canonical project
+graph and accepted control state from an exact commit without becoming a
+second source of truth, leaking private inputs, or displaying stale/offline
+state as current.
+
+Expected observation: the deployed Control Room exposes system, semantic,
+evidence, work, and pulse views; every item links to canonical identity and
+exact commit; the public payload contains only allowlisted fields; and update,
+stale, offline, and invalid states are visibly distinct.
+
+Counterexample: arbitrary model attributes or local paths reach the public
+artifact; the browser derives evidence meaning; a bad refresh replaces the last
+valid snapshot; displayed facts lack provenance; or a Pages snapshot is called
+live local state.
+
+Evaluation method: deterministic export fixtures, schema validation,
+secret/path/script sentinels, digest and rollback mutations, phone-sized
+browser/PWA tests, deployed probes, and independent semantic/security review.
+
+Success threshold: every design-spec 0006 acceptance condition through the
+default Pages deployment passes on the exact committed artifact; custom-domain
+health is either verified or remains an explicit external blocker.
+
+Consequence if falsified: do not publish or update the site; retain the last
+valid deployment, expose the failed gate, and recut the exporter or deployment
+boundary without weakening privacy or provenance.
+
+Observed result: pending implementation.
+
+Invalidation: any public schema, exporter, canonical model, freshness rule,
+service-worker update algorithm, workflow, or deployment-target change requires
+the relevant export, privacy, browser, and deployment gates to rerun.

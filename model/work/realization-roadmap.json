@@ -221,7 +221,7 @@
       "kind": "work_item",
       "name": "Specify explorer query contract",
       "summary": "Define recursive navigation, view projections, provenance, filtering, and introspection without coupling the UI to storage internals.",
-      "status": "ready",
+      "status": "complete",
       "tags": ["tooling", "visualization"],
       "attributes": {
         "phase": "design",

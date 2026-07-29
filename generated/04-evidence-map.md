@@ -9,11 +9,13 @@ flowchart TD
     assumption_inventory_integer_arithmetic["Fixture integer arithmetic"]
     assumption_inventory_python_adapter["Python builtin execution adapter"]
     assumption_memory_model["Target atomic memory model"]
+    claim_control_room_public_projection["Public control room remains a truthful projection"]
     claim_inventory_invariant["Inventory transitions preserve non-negative quantities"]
     claim_inventory_resolution["Evidence-aware inventory resolution"]
     claim_model_valid["Bootstrap model is structurally valid"]
     claim_stm_serializable["STM commits are serializable"]
     component_kernel["Trusted kernel"]
+    deployment_control_room_pages["Control Room GitHub Pages deployment"]
     deployment_inventory_reference["Inventory reference deployment"]
     evidence_inventory_broken_conformance_v0["Broken inventory conformance result v0"]
     evidence_inventory_proof["Inventory preservation proof"]
@@ -21,6 +23,7 @@ flowchart TD
     evidence_inventory_tests["Inventory property tests"]
     evidence_model_tests["Project model tests"]
     evidence_stm_model["Bounded STM model check"]
+    gate_control_room_public_export["Public projection safety gate"]
     invariant_inventory_nonnegative["Non-negative inventory"]
     obligation_inventory_conformance["Inventory conformance obligation"]
     obligation_inventory_proof["Inventory preservation obligation"]
@@ -47,9 +50,12 @@ flowchart TD
     deployment_inventory_reference -->|assumes| assumption_inventory_python_adapter
     deployment_inventory_reference -->|assumes| assumption_inventory_integer_arithmetic
     deployment_inventory_reference -->|assumes| assumption_inventory_fixture_coverage
+    gate_control_room_public_export -->|validates| deployment_control_room_pages
+    gate_control_room_public_export -->|validates| claim_control_room_public_projection
     work_inventory_proof -->|discharges| obligation_inventory_proof
 ```
 
 ## Unsupported claims
 
+- `claim.control-room.public-projection` — Public control room remains a truthful projection
 - `claim.kernel.safety` — Kernel preserves typing
