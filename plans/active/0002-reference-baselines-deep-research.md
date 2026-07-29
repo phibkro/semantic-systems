@@ -82,6 +82,7 @@ experiment backlog.
 - `research/reference-baselines/enforcement-ladder.md`
 - `research/reference-baselines/adoption-experiments.md`
 - `research/reference-baselines/workflow-comparison-rubric.md`
+- `research/semantic-packages-patterns.md`
 - `references/sources.toml` plus a generated exact-commit lock
 - source/provenance records or cards chosen by the accepted workflow
 - a reusable `.claude/workflows/` command only after the pilot script is
@@ -150,6 +151,8 @@ Research-specific acceptance is the checklist in design spec 0002.
 - 2026-07-29: Added the checked-in reference source catalog and ignored
   materialization-cache rule; external clone traffic remains deferred until
   the running workflow releases resources.
+- 2026-07-29: Harvested `semantic-packages` as design ancestry and explicit
+  counterexample material at its observed commit.
 - 2026-07-29: Recorded the type-system refinement ladder as uncertainty 0002,
   without expanding the active semantic frontier.
 
