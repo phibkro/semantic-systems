@@ -21,6 +21,9 @@ limits, semantic diff, and kill criteria are frozen in design spec 0005.
   autonomous merge boundary.
 - Completed Herdr tabs required manual cleanup; three harvested tabs were
   closed on 2026-07-29.
+- GitHub reports that `main` currently has no branch protection. Required-check
+  enforcement must be configured only after the final workflow check names are
+  stable, then exercised by the pilot PR.
 - The active checker exposed a correlated-sensor failure mode when resolver and
   checker briefly shared the same adjudication function.
 
