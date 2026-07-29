@@ -83,12 +83,33 @@ semantic interface hiding substantial implementation freedom and surfacing
 composable abstractions. The integrating agent owns semantic decisions, reviews
 committed artifacts on a clean tree, and commissions independent review.
 
+Every developer or engineer assignment must also contain this implementation
+posture:
+
+- Work like a lazy senior engineer: search the repository and installed tooling
+  for an existing command, scaffold, generator, library, or established pattern
+  before hand-writing infrastructure.
+- Reuse or adapt license-compatible upstream code and techniques with source and
+  license provenance. Never copy an unattributed snippet or let copied code
+  silently define project semantics.
+- Automate deterministic, bounded, repeatable work when the automation is
+  cheaper to own than repeated manual execution.
+- Stop automating when it becomes an unbounded side quest; implement the
+  smallest direct solution that satisfies the frozen contract and record the
+  deferred automation opportunity.
+- Report which scaffold, command, dependency, or prior art was evaluated, what
+  was reused, and why any relevant established option was rejected.
+
 ## Model routing
 
 - Prefer GPT-5.6 Sol for audits, adversarial review, semantic analysis, and
   other complex reasoning.
 - Prefer Sonnet 5 for bounded mechanical implementation after the contract,
   owned paths, and executable acceptance commands are frozen.
+- Launch delegated Claude Code sessions with `--permission-mode auto`. Do not
+  use `dontAsk`: it converts routine read-only shell and network operations
+  into silent evidence gaps instead of routing them through the permission
+  classifier.
 - Let already-running delegated work finish unless it is blocked or has drifted
   outside its contract; apply this routing to new assignments.
 - Model output is advisory or contributory evidence, never semantic authority.
