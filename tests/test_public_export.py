@@ -24,6 +24,7 @@ ROOT = Path(__file__).resolve().parents[1]
 COMMIT = "0123456789abcdef0123456789abcdef01234567"
 OBSERVED_AT = "2026-07-29T12:00:00Z"
 PAGES_WORKFLOW = ROOT / ".github" / "workflows" / "pages.yml"
+ACCEPTANCE_SCRIPT = ROOT / "scripts" / "accept" / "0006-control-room-pwa.sh"
 
 
 def observation() -> ExportObservation:
@@ -305,6 +306,7 @@ def test_public_export_wrapper_marks_main_as_asserted_and_rejects_dirty_input(
 
 def test_pages_uses_the_pinned_nix_gate_and_checks_every_workflow() -> None:
     workflow = PAGES_WORKFLOW.read_text()
+    acceptance = ACCEPTANCE_SCRIPT.read_text()
     fast_loop = (ROOT / "scripts" / "check-fast.sh").read_text()
 
     assert "runs-on: ubuntu-24.04" in workflow
@@ -314,3 +316,4 @@ def test_pages_uses_the_pinned_nix_gate_and_checks_every_workflow() -> None:
     assert "playwright install" not in workflow
     assert "actionlint .github/workflows/*.yml" in fast_loop
     assert workflow.rindex("Scan final public payload") > workflow.index("Exercise mobile PWA")
+    assert acceptance.rindex("check-public-artifact.py") > acceptance.index("playwright test")

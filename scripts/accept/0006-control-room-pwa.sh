@@ -30,6 +30,8 @@ PYTHONPATH=src python scripts/check-public-artifact.py apps/control-room/dist
 apps/control-room/node_modules/.bin/playwright test \
   --config apps/control-room/playwright.config.mjs
 
+PYTHONPATH=src python scripts/check-public-artifact.py apps/control-room/dist
+
 if [ -n "${CONTROL_ROOM_DEPLOYED_URL:-}" ]; then
   curl --fail --silent --show-error --location "$CONTROL_ROOM_DEPLOYED_URL" >/dev/null
   echo "deployed URL responded: $CONTROL_ROOM_DEPLOYED_URL"
