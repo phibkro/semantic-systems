@@ -36,14 +36,20 @@ class DemoResult:
 
 
 def _aggregate_assumptions(resolution: Resolution) -> tuple[str, ...]:
+    if resolution.status != "selected":
+        return ()
+
     seen: dict[str, None] = {}
-    candidates = sorted(resolution.candidates, key=lambda item: item.realization.realization_id)
-    for candidate in candidates:
-        for item in candidate.realization.assumptions:
+    selected = next(
+        candidate
+        for candidate in resolution.candidates
+        if candidate.realization.realization_id == resolution.selected_realization
+    )
+    for item in selected.realization.assumptions:
+        seen.setdefault(item, None)
+    if selected.evidence is not None:
+        for item in selected.evidence.assumptions:
             seen.setdefault(item, None)
-        if candidate.evidence is not None:
-            for item in candidate.evidence.assumptions:
-                seen.setdefault(item, None)
     return tuple(seen)
 
 
@@ -52,7 +58,9 @@ def run_demo(root: Path, policy: str = "development") -> DemoResult:
     theory_id = require_str(require_key(fixture.theory, "id", "theory"), "theory.id")
     theory = normalize_theory(fixture.theory)
 
-    realizations = [normalize_realization(document, theory) for document in fixture.realizations]
+    realizations = [
+        normalize_realization(document, theory, theory_id) for document in fixture.realizations
+    ]
     resolution = resolve(theory, theory_id, realizations, fixture.evidence_suites, fixture.policy)
 
     execution: ExecutionResult | None = None

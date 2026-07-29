@@ -22,6 +22,7 @@ IDENTITY_FIELDS = (
 class Realization:
     document: JsonObject
     identity: str
+    targets_theory: bool
 
     @property
     def realization_id(self) -> str:
@@ -35,11 +36,19 @@ class Realization:
         return [item for item in raw if isinstance(item, str)]
 
 
-def normalize_realization(document: JsonObject, theory: Theory) -> Realization:
+def normalize_realization(document: JsonObject, theory: Theory, theory_id: str) -> Realization:
+    declared_theory = require_str(
+        require_key(document, "theory", "realization"),
+        "realization.theory",
+    )
     payload: JsonObject = {"theory_identity": theory.identity}
     for field in IDENTITY_FIELDS:
         payload[field] = require_key(document, field, "realization")
-    return Realization(document=document, identity=content_identity(payload))
+    return Realization(
+        document=document,
+        identity=content_identity(payload),
+        targets_theory=declared_theory == theory_id,
+    )
 
 
 def operation_binding(document: JsonObject, name: str) -> str:

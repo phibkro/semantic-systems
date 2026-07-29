@@ -25,6 +25,7 @@ REASON_CONFORMANCE_FAILED = "conformance_failed"
 REASON_OBLIGATION_NOT_GOVERNED = "obligation_not_governed"
 REASON_AMBIGUOUS = "ambiguous_candidates"
 REASON_NO_ELIGIBLE = "no_eligible_candidates"
+REASON_THEORY_MISMATCH = "theory_mismatch"
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,6 +39,7 @@ class Candidate:
         return {
             "realization_id": self.realization.realization_id,
             "realization_identity": self.realization.identity,
+            "targets_theory": self.realization.targets_theory,
             "eligible": self.eligible,
             "reason_codes": list(self.reason_codes),
             "evidence": self.evidence.to_dict() if self.evidence is not None else None,
@@ -59,6 +61,7 @@ class Candidate:
                     "passed_cases": evidence.passed_cases,
                     "total_cases": evidence.total_cases,
                     "assumptions": list(evidence.assumptions),
+                    "counterexamples": list(evidence.counterexamples),
                 },
             )
             children = (evidence_node,)
@@ -69,6 +72,7 @@ class Candidate:
             details={
                 "realization_identity": self.realization.identity,
                 "reason_codes": list(self.reason_codes),
+                "assumptions": list(self.realization.assumptions),
             },
             children=children,
         )
@@ -104,6 +108,14 @@ def _evaluate_candidate(
     suites: list[JsonObject],
     policy: JsonObject,
 ) -> Candidate:
+    if not realization.targets_theory:
+        return Candidate(
+            realization=realization,
+            eligible=False,
+            reason_codes=(REASON_THEORY_MISMATCH,),
+            evidence=None,
+        )
+
     suite = _matching_suite(theory_id, suites)
     if suite is None:
         return Candidate(

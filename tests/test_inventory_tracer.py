@@ -7,7 +7,7 @@ import subprocess
 import sys
 from copy import deepcopy
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from semantic_tracer import normalize_theory, run_demo
 
@@ -17,9 +17,9 @@ CONFORMANCE_CASE_COUNT = 6
 
 
 def _json(path: Path) -> dict[str, Any]:
-    value = json.loads(path.read_text(encoding="utf-8"))
+    value: object = json.loads(path.read_text(encoding="utf-8"))
     assert isinstance(value, dict)
-    return value
+    return cast(dict[str, Any], value)
 
 
 def _copy_inventory(tmp_path: Path) -> Path:
@@ -29,8 +29,8 @@ def _copy_inventory(tmp_path: Path) -> Path:
 
 
 def _candidate(document: dict[str, Any], realization_id: str) -> dict[str, Any]:
-    candidates = document["resolution"]["candidates"]
-    assert isinstance(candidates, list)
+    resolution = cast(dict[str, Any], document["resolution"])
+    candidates = cast(list[dict[str, Any]], resolution["candidates"])
     return next(item for item in candidates if item["realization_id"] == realization_id)
 
 
@@ -139,6 +139,35 @@ def test_multiple_eligible_realizations_are_ambiguous(tmp_path: Path) -> None:
     assert document["resolution"]["selected_realization"] is None
     assert document["resolution"]["reason_codes"] == ["ambiguous_candidates"]
     assert document["execution"] is None
+
+
+def test_realization_for_another_theory_is_rejected(tmp_path: Path) -> None:
+    inventory = _copy_inventory(tmp_path)
+    pure_path = inventory / "realizations" / "pure.json"
+    pure = _json(pure_path)
+    pure["theory"] = "theory.some-other-contract"
+    pure_path.write_text(json.dumps(pure, indent=2) + "\n", encoding="utf-8")
+
+    document = run_demo(inventory, policy="development").to_dict()
+
+    assert document["resolution"]["status"] == "rejected"
+    candidate = _candidate(document, "realization.inventory.pure")
+    assert candidate["targets_theory"] is False
+    assert candidate["evidence"] is None
+    assert candidate["reason_codes"] == ["theory_mismatch"]
+
+
+def test_rejected_candidate_assumptions_do_not_enter_deployment(tmp_path: Path) -> None:
+    inventory = _copy_inventory(tmp_path)
+    broken_path = inventory / "realizations" / "broken.json"
+    broken = _json(broken_path)
+    broken["assumptions"] = ["Rejected candidate only"]
+    broken_path.write_text(json.dumps(broken, indent=2) + "\n", encoding="utf-8")
+
+    document = run_demo(inventory, policy="development").to_dict()
+
+    assert document["resolution"]["status"] == "selected"
+    assert "Rejected candidate only" not in document["assumptions"]
 
 
 def test_demo_command_reports_selection_evidence_assumptions_and_trace() -> None:

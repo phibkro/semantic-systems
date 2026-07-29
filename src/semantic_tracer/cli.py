@@ -73,6 +73,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         root = Path(args.root).resolve()
         result = run_demo(root, policy=args.policy)
         _print_report(result)
+        if (
+            result.resolution.status != "selected"
+            or result.execution is None
+            or not result.execution.matches_oracle
+        ):
+            return 1
         return 0
 
     return 2
