@@ -19,7 +19,9 @@ platform, evidence, and trust policies.
 - Treat generated views as projections of canonical sources.
 - Require an executable tracer bullet for every important abstraction.
 - Expose unsupported claims and explain automated decisions.
-- Change only one foundational semantic frontier at a time.
+- Advance independent semantic frontiers concurrently when their contracts,
+  files, and acceptance gates do not overlap. Serialize only true dependency
+  edges, shared semantic-boundary decisions, and final integration.
 
 ## Navigate
 

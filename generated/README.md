@@ -9,7 +9,7 @@
 | assumption | 4 |
 | claim | 5 |
 | component | 20 |
-| decision | 3 |
+| decision | 4 |
 | deployment | 3 |
 | domain_machine | 1 |
 | effect | 1 |

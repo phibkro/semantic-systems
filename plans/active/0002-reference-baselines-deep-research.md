@@ -166,6 +166,10 @@ Research-specific acceptance is the checklist in design spec 0002.
   native mechanics and budgets unchanged. The research output classifies
   reuse as substantially as-is, adapted behind a project-owned boundary, or
   fresh implementation/semantic synthesis.
+- 2026-07-29: Replaced the blanket single-semantic-frontier constraint with
+  decision 0004's dependency-aware parallel frontier. Independent contracts
+  may progress concurrently; shared boundaries and final integration remain
+  serialized.
 - 2026-07-29: Recorded the type-system refinement ladder as uncertainty 0002,
   without expanding the active semantic frontier.
 

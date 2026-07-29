@@ -31,6 +31,20 @@
       "attributes": {}
     },
     {
+      "id": "decision.parallel-frontiers",
+      "kind": "decision",
+      "name": "Derive parallel semantic frontiers from dependencies",
+      "summary": "Independent semantic hypotheses run concurrently; true dependencies and shared boundaries serialize.",
+      "status": "accepted",
+      "tags": [
+        "work",
+        "delegation"
+      ],
+      "attributes": {
+        "record": "decisions/0004-dependency-aware-parallel-frontiers.md"
+      }
+    },
+    {
       "id": "work.kernel-spec",
       "kind": "work_item",
       "name": "Specify minimal kernel calculus",
