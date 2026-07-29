@@ -731,28 +731,27 @@ def test_pre_push_does_not_leak_outer_repository_state_into_test_repositories(
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir()
     fake_nix = fake_bin / "nix"
+    bash = shutil.which("bash")
+    assert bash is not None
     fake_nix.write_text(
-        '#!/usr/bin/env bash\nprintf "%s\\n" "$@" > "${CAPTURE_ARGS}"\nenv > "${CAPTURE_ENV}"\n'
+        f'#!{bash}\nprintf "%s\\n" "$@" > "${{CAPTURE_ARGS}}"\nenv > "${{CAPTURE_ENV}}"\n'
     )
     fake_nix.chmod(0o755)
-    git_dir = subprocess.run(
-        ["git", "rev-parse", "--absolute-git-dir"],
-        cwd=ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
+    outer_repo = tmp_path / "outer-repository"
+    outer_repo.mkdir()
+    assert _git(outer_repo, "init", "-q").returncode == 0
+    git_dir = outer_repo / ".git"
     hook_env = {
         **dict(os.environ),
         "PATH": f"{fake_bin}:{os.environ['PATH']}",
         "CAPTURE_ARGS": str(tmp_path / "nix-arguments.txt"),
         "CAPTURE_ENV": str(capture),
-        "GIT_DIR": git_dir,
-        "GIT_WORK_TREE": str(ROOT),
-        "GIT_INDEX_FILE": str(Path(git_dir) / "index"),
+        "GIT_DIR": str(git_dir),
+        "GIT_WORK_TREE": str(outer_repo),
+        "GIT_INDEX_FILE": str(git_dir / "index"),
     }
 
-    result = _run([str(PRE_PUSH)], cwd=ROOT, env=hook_env)
+    result = _run(["bash", str(PRE_PUSH)], cwd=outer_repo, env=hook_env)
 
     assert result.returncode == 0, result.stdout + result.stderr
     captured = capture.read_text().splitlines()
