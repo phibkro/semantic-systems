@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "kind": "execution_scenario",
+  "id": "scenario.inventory.reserve-release",
+  "name": "Reserve and release inventory",
+  "initial_state": {
+    "stock": {
+      "apple": 5
+    },
+    "reservations": {}
+  },
+  "steps": [
+    {
+      "message": {
+        "kind": "Reserve",
+        "item": "apple",
+        "quantity": 2
+      },
+      "fresh_id": "r-demo"
+    },
+    {
+      "message": {
+        "kind": "Release",
+        "reservation_id": "r-demo"
+      }
+    }
+  ],
+  "expected_events": [
+    {
+      "kind": "Reserved",
+      "reservation_id": "r-demo",
+      "item": "apple",
+      "quantity": 2
+    },
+    {
+      "kind": "Released",
+      "reservation_id": "r-demo"
+    }
+  ],
+  "expected_final_state": {
+    "stock": {
+      "apple": 5
+    },
+    "reservations": {}
+  }
+}

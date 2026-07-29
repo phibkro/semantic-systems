@@ -1,0 +1,246 @@
+{
+  "schema_version": 1,
+  "kind": "conformance_suite",
+  "id": "suite.inventory.v0",
+  "name": "Inventory v0 example conformance suite",
+  "theory": "theory.inventory",
+  "obligation": "obligation.inventory.conformance",
+  "category": "example_test",
+  "producer": {
+    "id": "semantic-tracer",
+    "version": "0.1.0"
+  },
+  "assumptions": [
+    "Python integer arithmetic is exact for fixture quantities."
+  ],
+  "cases": [
+    {
+      "id": "reserve-and-release",
+      "initial_state": {
+        "stock": {
+          "apple": 5
+        },
+        "reservations": {}
+      },
+      "steps": [
+        {
+          "message": {
+            "kind": "Reserve",
+            "item": "apple",
+            "quantity": 2
+          },
+          "fresh_id": "r-001"
+        },
+        {
+          "message": {
+            "kind": "Release",
+            "reservation_id": "r-001"
+          }
+        }
+      ],
+      "expected_events": [
+        {
+          "kind": "Reserved",
+          "reservation_id": "r-001",
+          "item": "apple",
+          "quantity": 2
+        },
+        {
+          "kind": "Released",
+          "reservation_id": "r-001"
+        }
+      ],
+      "expected_final_state": {
+        "stock": {
+          "apple": 5
+        },
+        "reservations": {}
+      }
+    },
+    {
+      "id": "insufficient-stock",
+      "initial_state": {
+        "stock": {
+          "apple": 1
+        },
+        "reservations": {}
+      },
+      "steps": [
+        {
+          "message": {
+            "kind": "Reserve",
+            "item": "apple",
+            "quantity": 2
+          },
+          "fresh_id": "r-002"
+        }
+      ],
+      "expected_events": [
+        {
+          "kind": "ReservationRejected",
+          "item": "apple",
+          "quantity": 2,
+          "reason": "insufficient_stock"
+        }
+      ],
+      "expected_final_state": {
+        "stock": {
+          "apple": 1
+        },
+        "reservations": {}
+      }
+    },
+    {
+      "id": "invalid-zero-quantity",
+      "initial_state": {
+        "stock": {
+          "apple": 3
+        },
+        "reservations": {}
+      },
+      "steps": [
+        {
+          "message": {
+            "kind": "Reserve",
+            "item": "apple",
+            "quantity": 0
+          }
+        }
+      ],
+      "expected_events": [
+        {
+          "kind": "ReservationRejected",
+          "item": "apple",
+          "quantity": 0,
+          "reason": "invalid_quantity"
+        }
+      ],
+      "expected_final_state": {
+        "stock": {
+          "apple": 3
+        },
+        "reservations": {}
+      }
+    },
+    {
+      "id": "unknown-release",
+      "initial_state": {
+        "stock": {
+          "apple": 3
+        },
+        "reservations": {}
+      },
+      "steps": [
+        {
+          "message": {
+            "kind": "Release",
+            "reservation_id": "missing"
+          }
+        }
+      ],
+      "expected_events": [
+        {
+          "kind": "ReleaseRejected",
+          "reservation_id": "missing",
+          "reason": "unknown_reservation"
+        }
+      ],
+      "expected_final_state": {
+        "stock": {
+          "apple": 3
+        },
+        "reservations": {}
+      }
+    },
+    {
+      "id": "reserve-exact-boundary",
+      "initial_state": {
+        "stock": {
+          "apple": 2
+        },
+        "reservations": {}
+      },
+      "steps": [
+        {
+          "message": {
+            "kind": "Reserve",
+            "item": "apple",
+            "quantity": 2
+          },
+          "fresh_id": "r-003"
+        }
+      ],
+      "expected_events": [
+        {
+          "kind": "Reserved",
+          "reservation_id": "r-003",
+          "item": "apple",
+          "quantity": 2
+        }
+      ],
+      "expected_final_state": {
+        "stock": {
+          "apple": 0
+        },
+        "reservations": {
+          "r-003": {
+            "item": "apple",
+            "quantity": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "duplicate-fresh-identifier",
+      "initial_state": {
+        "stock": {
+          "apple": 5
+        },
+        "reservations": {}
+      },
+      "steps": [
+        {
+          "message": {
+            "kind": "Reserve",
+            "item": "apple",
+            "quantity": 1
+          },
+          "fresh_id": "r-004"
+        },
+        {
+          "message": {
+            "kind": "Reserve",
+            "item": "apple",
+            "quantity": 1
+          },
+          "fresh_id": "r-004"
+        }
+      ],
+      "expected_events": [
+        {
+          "kind": "Reserved",
+          "reservation_id": "r-004",
+          "item": "apple",
+          "quantity": 1
+        },
+        {
+          "kind": "ReservationRejected",
+          "item": "apple",
+          "quantity": 1,
+          "reason": "duplicate_reservation_id"
+        }
+      ],
+      "expected_final_state": {
+        "stock": {
+          "apple": 4
+        },
+        "reservations": {
+          "r-004": {
+            "item": "apple",
+            "quantity": 1
+          }
+        }
+      }
+    }
+  ]
+}

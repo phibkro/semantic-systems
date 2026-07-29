@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "kind": "theory",
+  "id": "theory.inventory",
+  "name": "Inventory reservation theory",
+  "documentation": "Representation-independent reserve and release semantics.",
+  "normalization": "theory-norm-v0",
+  "types": [
+    {
+      "id": "ItemId",
+      "form": "opaque"
+    },
+    {
+      "id": "Quantity",
+      "form": "integer"
+    },
+    {
+      "id": "ReservationId",
+      "form": "opaque"
+    },
+    {
+      "id": "State",
+      "form": "record",
+      "fields": [
+        "stock: Map<ItemId, Quantity>",
+        "reservations: Map<ReservationId, Reservation>"
+      ]
+    },
+    {
+      "id": "Message",
+      "form": "sum",
+      "constructors": [
+        "Reserve(ItemId, Quantity)",
+        "Release(ReservationId)"
+      ]
+    },
+    {
+      "id": "Event",
+      "form": "sum",
+      "constructors": [
+        "Reserved(ReservationId, ItemId, Quantity)",
+        "Released(ReservationId)",
+        "ReservationRejected(ItemId, Quantity, Reason)",
+        "ReleaseRejected(ReservationId, Reason)"
+      ]
+    }
+  ],
+  "operations": [
+    {
+      "id": "transition",
+      "inputs": [
+        "Message",
+        "State"
+      ],
+      "effects": [
+        "effect.fresh"
+      ],
+      "output": "Step<State, Event>"
+    },
+    {
+      "id": "replay",
+      "inputs": [
+        "State",
+        "List<Event>"
+      ],
+      "effects": [],
+      "output": "State"
+    }
+  ],
+  "effects": [
+    {
+      "id": "effect.fresh",
+      "operation": "fresh ReservationId",
+      "guarantee": "Identifiers are unique within one execution."
+    }
+  ],
+  "laws": [
+    {
+      "id": "rejection-is-noop",
+      "statement": "Every rejected message emits one rejection event and leaves state unchanged."
+    },
+    {
+      "id": "replay-agrees-with-transition",
+      "statement": "Replaying emitted events from the initial state reconstructs the transition final state."
+    }
+  ],
+  "invariants": [
+    {
+      "id": "invariant.inventory.nonnegative",
+      "statement": "Available stock is non-negative and active reservation quantities are positive."
+    }
+  ],
+  "observations": [
+    {
+      "id": "observation.inventory.trace",
+      "statement": "Exact event sequence and final state for declared initial state, messages, and fresh identifiers."
+    }
+  ],
+  "obligations": [
+    {
+      "id": "obligation.inventory.conformance",
+      "claim": "The realization follows every transition rule, preserves the invariant, and replays its event trace."
+    }
+  ]
+}

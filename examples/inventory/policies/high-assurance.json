@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "kind": "evidence_policy",
+  "id": "policy.inventory.high-assurance",
+  "name": "Inventory proof-only policy",
+  "requirements": {
+    "obligation.inventory.conformance": {
+      "accepted_categories": [
+        "proof"
+      ],
+      "allow_assumptions": false
+    }
+  },
+  "ambiguity": "reject"
+}

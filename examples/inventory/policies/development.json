@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "kind": "evidence_policy",
+  "id": "policy.inventory.development",
+  "name": "Inventory development policy",
+  "requirements": {
+    "obligation.inventory.conformance": {
+      "accepted_categories": [
+        "example_test",
+        "property_test",
+        "proof"
+      ],
+      "allow_assumptions": true
+    }
+  },
+  "ambiguity": "reject"
+}

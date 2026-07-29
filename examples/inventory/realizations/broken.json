@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "kind": "realization",
+  "id": "realization.inventory.broken",
+  "name": "Inventory deliberately broken realization",
+  "theory": "theory.inventory",
+  "representation": {
+    "Quantity": "integer",
+    "State": "immutable JSON-compatible maps"
+  },
+  "operations": {
+    "replay": "inventory.replay.v0",
+    "transition": "inventory.broken-ignore-stock.v0"
+  },
+  "handled_effects": {
+    "effect.fresh": "scenario.fresh-identifiers"
+  },
+  "platform_requirements": [
+    "python>=3.12"
+  ],
+  "assumptions": []
+}
