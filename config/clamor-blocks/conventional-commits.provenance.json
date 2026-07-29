@@ -100,7 +100,7 @@
       "path": ".githooks/pre-push",
       "kind": "exclusive_path",
       "executable": true,
-      "contentDigest": "sha256:3185e8cbeb96d0bd6cbd57472bd2c9330ee8f324d6a595b1148b7358091cb666"
+      "contentDigest": "sha256:eb9e699f7331da5bf648adae500131d179250ed49719ca3a4b2933efc94c660d"
     }
   ],
   "adaptations": [
@@ -119,7 +119,7 @@
     {
       "id": "pre-push-integration",
       "path": ".githooks/pre-push",
-      "rationale": "The project adds an advisory pre-push hook that invokes the pinned Nix integration gate; this path is project-owned and absent from the upstream block."
+      "rationale": "The project adds an advisory pre-push hook that clears Git hook-local repository variables before invoking the pinned Nix integration gate; this path is project-owned and absent from the upstream block."
     }
   ],
   "deviationsFromBlock": [

@@ -23,6 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "check.yml"
 CHECK_FAST = ROOT / "scripts" / "check-fast.sh"
 CHECK_INTEGRATION = ROOT / "scripts" / "check.sh"
+PRE_PUSH = ROOT / ".githooks" / "pre-push"
 COMMIT_POLICY = ROOT / "scripts" / "check-commit-policy.ts"
 FEATURE_POLICY = ROOT / "scripts" / "check-feature-contract.ts"
 FEATURE_RUNNER = ROOT / "scripts" / "run-feature-acceptance.ts"
@@ -717,11 +718,46 @@ def test_check_integration_fails_hard_when_pyright_is_missing() -> None:
 
 def test_local_hooks_cover_fast_and_pinned_integration_loops() -> None:
     pre_commit = (ROOT / ".githooks" / "pre-commit").read_text()
-    pre_push = ROOT / ".githooks" / "pre-push"
     assert "./scripts/check-fast.sh" in pre_commit
-    assert pre_push.is_file()
-    assert os.access(pre_push, os.X_OK)
-    assert "nix develop --command ./scripts/check.sh" in pre_push.read_text()
+    assert PRE_PUSH.is_file()
+    assert os.access(PRE_PUSH, os.X_OK)
+    assert "nix develop --command ./scripts/check.sh" in PRE_PUSH.read_text()
+
+
+def test_pre_push_does_not_leak_outer_repository_state_into_test_repositories(
+    tmp_path: Path,
+) -> None:
+    capture = tmp_path / "nix-environment.txt"
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_nix = fake_bin / "nix"
+    fake_nix.write_text(
+        '#!/usr/bin/env bash\nprintf "%s\\n" "$@" > "${CAPTURE_ARGS}"\nenv > "${CAPTURE_ENV}"\n'
+    )
+    fake_nix.chmod(0o755)
+    git_dir = subprocess.run(
+        ["git", "rev-parse", "--absolute-git-dir"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    hook_env = {
+        **dict(os.environ),
+        "PATH": f"{fake_bin}:{os.environ['PATH']}",
+        "CAPTURE_ARGS": str(tmp_path / "nix-arguments.txt"),
+        "CAPTURE_ENV": str(capture),
+        "GIT_DIR": git_dir,
+        "GIT_WORK_TREE": str(ROOT),
+        "GIT_INDEX_FILE": str(Path(git_dir) / "index"),
+    }
+
+    result = _run([str(PRE_PUSH)], cwd=ROOT, env=hook_env)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    captured = capture.read_text().splitlines()
+    for variable in ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"):
+        assert not any(line.startswith(f"{variable}=") for line in captured)
 
 
 @requires_bun
