@@ -1027,6 +1027,69 @@ def test_cache_replacement_preserves_prior_valid_cache_on_failed_relock(tmp_path
     assert gitutil.object_exists(cache_dir, entry_a.commit)
 
 
+def test_cache_install_restores_backup_on_final_rename_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    origin_repo = _init_repo(tmp_path / "origin", branch="main")
+    (origin_repo / "LICENSE").write_text("MIT\n")
+    _commit_all(origin_repo, "init")
+
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    references_root = project_root / ".references"
+    source = make_source(
+        source_id="remote.install-demo",
+        origin=f"file://{origin_repo}",
+        local_hint=None,
+        track="main",
+    )
+
+    entry_a = acquire.lock_source(
+        source,
+        project_root=project_root,
+        references_root=references_root,
+        generator="t",
+        offline=False,
+        existing_entry=None,
+    )
+    cache_dir = acquire.object_cache_dir(references_root, source.id)
+    marker = cache_dir / "MARKER-KEEP"
+    marker.write_text("prior valid cache")
+
+    # Advance origin so the next lock has genuinely new content to fetch and
+    # install — the fetch and validation must succeed this time; only the
+    # final rename-into-place is made to fail.
+    (origin_repo / "extra.txt").write_text("more\n")
+    _commit_all(origin_repo, "advance")
+
+    def boom(_tmp_dir: Path, _cache_dir: Path) -> None:
+        raise OSError("simulated: final rename-into-place failed")
+
+    monkeypatch.setattr(acquire, "_rename_into_place", boom)
+
+    with pytest.raises(OSError, match="simulated"):
+        acquire.lock_source(
+            source,
+            project_root=project_root,
+            references_root=references_root,
+            generator="t",
+            offline=False,
+            existing_entry=entry_a,
+        )
+
+    # The prior valid cache must be restored exactly — marker byte-for-byte,
+    # and the original locked commit still reachable as a Git object.
+    assert marker.exists()
+    assert marker.read_text() == "prior valid cache"
+    assert gitutil.object_exists(cache_dir, entry_a.commit)
+
+    # No backup or temp litter left behind.
+    backup_dir = cache_dir.with_name(cache_dir.name + ".backup-swap")
+    assert not backup_dir.exists()
+    leftover_tmp = [p for p in cache_dir.parent.iterdir() if p.name.startswith(".lock-fetch-")]
+    assert leftover_tmp == []
+
+
 def test_remote_materialize_sequence_exact_then_ref_then_history_fallback(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

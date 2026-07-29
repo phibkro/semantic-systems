@@ -98,14 +98,53 @@ def _resolve_ref_offline(
     return track
 
 
+def _rename_into_place(tmp_dir: Path, cache_dir: Path) -> None:
+    """The single atomic rename that installs a validated fetch as the cache.
+
+    Broken out so tests can inject a failure at exactly this point — after a
+    prior cache has been staged aside, before the new one has taken its place.
+    """
+    tmp_dir.replace(cache_dir)
+
+
+def _install_cache(tmp_dir: Path, cache_dir: Path) -> None:
+    """Install ``tmp_dir`` as ``cache_dir``, preserving a prior cache on failure.
+
+    A pre-existing ``cache_dir`` is moved aside to a backup location first
+    (an atomic rename within the same parent) and removed only once the new
+    install has actually succeeded. If the install itself raises, the backup
+    is moved back into place before the failure is re-raised, so a prior
+    valid cache is never left destroyed by a failed replace. This is
+    transactional with respect to the rename step injected in tests; it does
+    not additionally claim safety across an uninjected process crash.
+    """
+    if not cache_dir.exists():
+        _rename_into_place(tmp_dir, cache_dir)
+        return
+
+    backup_dir = cache_dir.with_name(cache_dir.name + ".backup-swap")
+    if backup_dir.exists():
+        shutil.rmtree(backup_dir)
+    cache_dir.replace(backup_dir)
+    try:
+        _rename_into_place(tmp_dir, cache_dir)
+    except BaseException:
+        if cache_dir.exists():
+            shutil.rmtree(cache_dir)
+        backup_dir.replace(cache_dir)
+        raise
+    shutil.rmtree(backup_dir, ignore_errors=True)
+
+
 def _lock_remote(
     source: CatalogSource, track: str, cache_dir: Path
 ) -> tuple[str, str, dict[str, LicenseObservation], str, str]:
     """Fetch, fully validate in an isolated temp dir, and only then install the cache.
 
-    A failure at any point (fetch, hashing, license validation) leaves
-    ``cache_dir`` exactly as it was — a prior valid cache is never replaced
-    with a fetch that hasn't yet proven itself correct.
+    A failure at any point (fetch, hashing, license validation, or the final
+    install) leaves ``cache_dir`` exactly as it was — a prior valid cache is
+    never replaced with a fetch that hasn't yet proven itself correct, and a
+    failed install cannot destroy it either.
     """
     cache_dir.parent.mkdir(parents=True, exist_ok=True)
     tmp_dir = Path(tempfile.mkdtemp(prefix=".lock-fetch-", dir=cache_dir.parent))
@@ -119,9 +158,7 @@ def _lock_remote(
         resolved_ref = gitutil.resolve_track_ref(source.origin, track)
 
         # Only now, with everything validated, install the new cache.
-        if cache_dir.exists():
-            shutil.rmtree(cache_dir)
-        tmp_dir.replace(cache_dir)
+        _install_cache(tmp_dir, cache_dir)
     except BaseException:
         shutil.rmtree(tmp_dir, ignore_errors=True)
         raise
