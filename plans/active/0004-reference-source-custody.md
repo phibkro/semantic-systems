@@ -126,6 +126,21 @@ validity.
 - 2026-07-29: Dispatched an A3 Sonnet implementation to isolated worktree
   `/tmp/semantic-reference-custody-0004` on branch
   `work/reference-custody-0004`, with `/goal` bound to the checked-in contract.
+- 2026-07-29: The implementation reached commit
+  `94583c4da41ca8eb18c32aaab197bce5a6c1a3fb`; all author-declared tests,
+  formatting, type checks, and repository checks passed.
+- 2026-07-29: Independent adversarial review rejected that commit for
+  integration. Reproduced counterexamples showed that offline Git object reads
+  could trigger lazy network fetches; status could execute repository or
+  inherited Git configuration and mutate the index; assume-unchanged license
+  tampering could pass; a failed multi-source lock could replace a cache while
+  preserving its old lock; lock-only validation accepted unsafe and
+  catalog-inconsistent entries; materialization mutated before rejecting
+  catalog drift; and symbolic-ref resolution was not cross-checked against the
+  fetched commit.
+- 2026-07-29: The same isolated lane was reopened under the frozen contract.
+  Each reproduced counterexample must become a failing oracle before its
+  correction. The prior green suite is insufficient evidence.
 
 ## Decisions and deviations
 
@@ -135,6 +150,10 @@ validity.
   provider-specific normalizer.
 - The first accepted lock is integrated serially by the main curator after the
   implementation and its tests pass.
+- Commit `94583c4da41ca8eb18c32aaab197bce5a6c1a3fb` is explicitly not accepted
+  evidence: passing author gates did not establish the frozen network,
+  non-mutation, working-tree byte, transactional-cache, or catalog-binding
+  guarantees.
 
 ## Completion state
 
