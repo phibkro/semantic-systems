@@ -3,11 +3,10 @@
   "version": "0.0.0",
   "private": true,
   "description": "Development-control-loop tooling for the Semantic Systems monorepo.",
-  "type": "module",
-  "packageManager": "bun@1.3.13",
   "workspaces": [
     "apps/*"
   ],
+  "type": "module",
   "scripts": {
     "prepare": "bun scripts/install-git-hooks.ts",
     "commitlint": "commitlint",
@@ -26,5 +25,6 @@
     "oxfmt": "0.61.0",
     "oxlint": "1.76.0",
     "typescript": "7.0.2"
-  }
+  },
+  "packageManager": "bun@1.3.13"
 }
