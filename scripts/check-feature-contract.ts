@@ -282,6 +282,12 @@ const directStyleExcludesContent = (style: string): boolean => {
 const staticallyHidden = (node: DefaultTreeAdapterTypes.Element): boolean => {
   if (NONVISIBLE_HTML_ELEMENTS.has(node.tagName)) return true;
   if (node.attrs.some((attribute) => attribute.name === "hidden")) return true;
+  if (
+    node.attrs.some((attribute) => attribute.name === "popover") &&
+    !(node.tagName === "dialog" && node.attrs.some((attribute) => attribute.name === "open"))
+  ) {
+    return true;
+  }
   if (node.tagName === "dialog" && !node.attrs.some((attribute) => attribute.name === "open")) {
     return true;
   }

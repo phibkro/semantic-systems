@@ -4,8 +4,8 @@ Canonical frozen contract:
 [`design-specs/0015-open-semantic-system-design-lens.md`](../../design-specs/0015-open-semantic-system-design-lens.md).
 This mutable execution record cannot redefine that contract.
 
-Status: ninth independent-review counterexamples corrected; exact-head re-review
-pending
+Status: tenth independent-review counterexamples corrected; exact-head
+acceptance and full integration pass; clean-head custody and re-review pending
 
 Owner: primary Semantic Systems lead
 
@@ -308,6 +308,19 @@ state, and unrelated project-model changes.
   with 338 Bun tests/1,757 expectations, zero Effect diagnostics, and 68
   transitional Python custody checks. Clean-head custody and re-review remain
   pending.
+- 2026-07-31: tenth independent review rejected exact clean head `188f13f`.
+  The conservative CSS matrices produced zero unsafe accepts, but four closed
+  popover variants contributed prose despite Chromium reporting them hidden.
+  The WHATWG user-agent rule hides every `[popover]` outside the
+  `:popover-open` state except `dialog[open]`; an invalid popover value defaults
+  to manual and a plain `open` attribute does not show a non-dialog popover.
+- 2026-07-31: static HTML exclusion now implements that popover rule and its
+  open-dialog exception. Focused evidence passes with 15 tests/112
+  expectations, including bare, manual, invalid-value, irrelevant-open, and
+  open-dialog cases, plus typecheck and formatting. Exact acceptance passes
+  with 15 tests/112 expectations and the full integration gate passes with 338
+  Bun tests/1,762 expectations, zero Effect diagnostics, and 68 transitional
+  Python custody checks. Clean-head custody and re-review remain pending.
 
 ## Acceptance command
 

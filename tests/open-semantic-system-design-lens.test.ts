@@ -309,6 +309,7 @@ ${DESIGN_LENS_HEADINGS.map((heading) => `  ### ${heading}\n\n  Hidden account.`)
       '<div style="display:none; display:block">Concrete account.</div>',
       '<div style="visibility:hidden; visibility:visible">Concrete account.</div>',
       '<div style="display:none; display:block !important">Concrete account.</div>',
+      "<dialog popover open>Concrete account.</dialog>",
       "<details><summary>Concrete account.</summary>Hidden detail.</details>",
       "<details open><p>Concrete account.</p></details>",
     ]) {
@@ -353,6 +354,10 @@ ${DESIGN_LENS_HEADINGS.map((heading) => `  ### ${heading}\n\n  Hidden account.`)
       '<div style="display:none; display:attr(data-x type())">Concrete account.</div>',
       '<div style="visibility:hidden; visibility:bogus">Concrete account.</div>',
       "<dialog>Concrete account.</dialog>",
+      "<div popover>Concrete account.</div>",
+      '<div popover="manual">Concrete account.</div>',
+      '<div popover="invalid-value">Concrete account.</div>',
+      "<div popover open>Concrete account.</div>",
       "<details><p>Concrete account.</p></details>",
       "<audio>Concrete account.</audio>",
       "<video>Concrete account.</video>",
