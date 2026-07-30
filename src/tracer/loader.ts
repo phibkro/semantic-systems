@@ -39,6 +39,8 @@ const ConformanceCaseSchema = Schema.Struct({
   expected_final_state: JsonObjectSchema,
 });
 const EvidenceSuiteSchema = Schema.Struct({
+  kind: Schema.Literal("conformance_suite"),
+  schema_version: Schema.Literal(1),
   id: Schema.String,
   theory: Schema.String,
   theory_identity: Schema.String,

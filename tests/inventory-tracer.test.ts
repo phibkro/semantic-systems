@@ -9,13 +9,18 @@ import * as tsAst from "typescript/unstable/ast";
 import { demoToJson, runDemo } from "../src/tracer/demo.ts";
 import { produceEvidence, type EvidenceAdapters } from "../src/tracer/evidence.ts";
 import {
+  ARTIFACT_KIND_EVIDENCE_RESULT,
+  EVIDENCE_RESULT_SCHEMA_VERSION,
   caseResultToJson,
+  evidenceResultIdentityPayload,
   evidenceToJson,
+  parseEvidenceResult,
   producerDiagnosticToJson,
   type EvidenceResult,
   type ProducerDiagnostic,
   type ProducerOutcome,
 } from "../src/tracer/evidence-result.ts";
+import { contentIdentity } from "../src/tracer/canonical.ts";
 import type { JsonObject } from "../src/tracer/json.ts";
 import { loadInventory } from "../src/tracer/loader.ts";
 import { resolveReplay, resolveTransition } from "../src/tracer/operations.ts";
@@ -559,13 +564,16 @@ describe("evidence-production boundary and resolver packet consumption", () => {
     return { files, bareImports, sources };
   };
 
-  test("lossless case details survive evidenceToJson", () => {
-    const evidence: EvidenceResult = {
+  test("lossless case details survive evidenceToJson", async () => {
+    const withoutIdentity: Omit<EvidenceResult, "identity"> = {
+      artifactKind: ARTIFACT_KIND_EVIDENCE_RESULT,
+      schemaVersion: EVIDENCE_RESULT_SCHEMA_VERSION,
       category: "example_test",
-      obligation: "obligation.inventory.conformance",
       producer: { id: "producer.test", version: "0" },
+      recipeIdentity: "sha256:fixture-recipe",
       theoryIdentity: "sha256:fixture-theory",
       realizationIdentity: "sha256:fixture-realization",
+      obligation: "obligation.inventory.conformance",
       assumptions: [],
       caseResults: [
         { caseId: "case-pass", passed: true, detail: null },
@@ -579,7 +587,13 @@ describe("evidence-production boundary and resolver packet consumption", () => {
         },
       ],
     };
+    const identity = await runBun(contentIdentity(evidenceResultIdentityPayload(withoutIdentity)));
+    const evidence: EvidenceResult = { identity, ...withoutIdentity };
     const json = evidenceToJson(evidence);
+    expect(json.artifact_kind).toBe("evidence_result");
+    expect(json.schema_version).toBe(1);
+    expect(json.identity).toBe(identity);
+    expect(json.recipe_identity).toBe("sha256:fixture-recipe");
     expect(json.case_results).toEqual(evidence.caseResults.map(caseResultToJson));
     expect(json.case_results).toEqual([
       { case_id: "case-pass", passed: true, detail: null },
@@ -595,19 +609,41 @@ describe("evidence-production boundary and resolver packet consumption", () => {
     expect(json.total_cases).toBe(2);
     expect(json.passed_cases).toBe(1);
     expect(json.passed).toBeFalse();
+    expect(json.counterexamples).toEqual([
+      {
+        case_id: "case-fail",
+        passed: false,
+        detail: {
+          expected_events: [{ kind: "Reserved" }],
+          actual_events: [{ kind: "ReservationRejected", reason: "insufficient_stock" }],
+        },
+      },
+    ]);
+
+    // Round-trips losslessly through parseEvidenceResult: the recomputed
+    // identity and every derived aggregate agree with what was serialized.
+    const parsed = await runBun(parseEvidenceResult(json));
+    expect(parsed).toEqual(evidence);
   });
 
   test("resolver eligibility works from an injected precomputed result without executing a realization", async () => {
     const { fixture, theory, realization } = await loadPureRealization();
-    const injected: EvidenceResult = {
+    const injectedFields: Omit<EvidenceResult, "identity"> = {
+      artifactKind: ARTIFACT_KIND_EVIDENCE_RESULT,
+      schemaVersion: EVIDENCE_RESULT_SCHEMA_VERSION,
       category: "example_test",
-      obligation: "obligation.inventory.conformance",
       producer: { id: "producer.injected", version: "0" },
+      recipeIdentity: "sha256:fixture-injected-recipe",
       theoryIdentity: theory.identity,
       realizationIdentity: realization.identity,
+      obligation: "obligation.inventory.conformance",
       assumptions: [],
       caseResults: [{ caseId: "injected-case", passed: true, detail: null }],
     };
+    const injectedIdentity = await runBun(
+      contentIdentity(evidenceResultIdentityPayload(injectedFields)),
+    );
+    const injected: EvidenceResult = { identity: injectedIdentity, ...injectedFields };
     const outcome: ProducerOutcome = {
       ok: true,
       realizationId: realizationId(realization),
@@ -666,14 +702,14 @@ describe("evidence-production boundary and resolver packet consumption", () => {
     // produceEvidence independently computes its own not_targeted
     // diagnostic for this exact realization; the resolver still derives
     // theory_mismatch itself, but must not drop that diagnostic.
-    const outcome = produceEvidence(
+    const outcome = await runBun(produceEvidence(
       theory,
       THEORY_ID,
       obligation,
       wrongTheoryRealization,
       fixture.evidenceSuites,
       adapters,
-    );
+    ));
     if (outcome.ok) throw new Error("expected a not_targeted diagnostic");
     expect(outcome.diagnostic.kind).toBe("not_targeted");
 
@@ -700,7 +736,7 @@ describe("evidence-production boundary and resolver packet consumption", () => {
     )!;
     const pure = await runBun(normalizeRealization(pureDocument, theory, THEORY_ID));
     const adapters: EvidenceAdapters = { resolveTransition, resolveReplay };
-    const outcome = produceEvidence(theory, THEORY_ID, null, pure, fixture.evidenceSuites, adapters);
+    const outcome = await runBun(produceEvidence(theory, THEORY_ID, null, pure, fixture.evidenceSuites, adapters));
     if (outcome.ok) throw new Error("expected an obligation_unsupported diagnostic");
     expect(outcome.diagnostic.kind).toBe("obligation_unsupported");
 
@@ -714,14 +750,14 @@ describe("evidence-production boundary and resolver packet consumption", () => {
     const { fixture, theory, pure } = await loadPureAndBroken();
     const obligation = requiredObligation(theory);
     const adapters: EvidenceAdapters = { resolveTransition, resolveReplay };
-    const pureOutcome = produceEvidence(
+    const pureOutcome = await runBun(produceEvidence(
       theory,
       THEORY_ID,
       obligation,
       pure,
       fixture.evidenceSuites,
       adapters,
-    );
+    ));
     expect(() =>
       resolveDeployment(theory, [pure, pure], [pureOutcome], fixture.policy),
     ).toThrow("duplicate authored realization ID");
@@ -741,14 +777,14 @@ describe("evidence-production boundary and resolver packet consumption", () => {
     expect(realizationId(variant)).toBe(realizationId(pure));
     const obligation = requiredObligation(theory);
     const adapters: EvidenceAdapters = { resolveTransition, resolveReplay };
-    const pureOutcome = produceEvidence(
+    const pureOutcome = await runBun(produceEvidence(
       theory,
       THEORY_ID,
       obligation,
       pure,
       fixture.evidenceSuites,
       adapters,
-    );
+    ));
     // A naive Set/Map binding by ID alone would collapse `pure` and
     // `variant` into one entry and could still resolve to a selection
     // without ever surfacing that two distinct, differently-identitied
@@ -762,22 +798,22 @@ describe("evidence-production boundary and resolver packet consumption", () => {
     const { fixture, theory, pure, broken } = await loadPureAndBroken();
     const obligation = requiredObligation(theory);
     const adapters: EvidenceAdapters = { resolveTransition, resolveReplay };
-    const pureOutcome = produceEvidence(
+    const pureOutcome = await runBun(produceEvidence(
       theory,
       THEORY_ID,
       obligation,
       pure,
       fixture.evidenceSuites,
       adapters,
-    );
-    const brokenOutcome = produceEvidence(
+    ));
+    const brokenOutcome = await runBun(produceEvidence(
       theory,
       THEORY_ID,
       obligation,
       broken,
       fixture.evidenceSuites,
       adapters,
-    );
+    ));
     // Realizations and outcomes are each passed in reversed, mismatched
     // order; correct binding must come from identity, not position.
     const resolution = resolveDeployment(
@@ -799,14 +835,14 @@ describe("evidence-production boundary and resolver packet consumption", () => {
     const { fixture, theory, pure, broken } = await loadPureAndBroken();
     const obligation = requiredObligation(theory);
     const adapters: EvidenceAdapters = { resolveTransition, resolveReplay };
-    const pureOutcome = produceEvidence(
+    const pureOutcome = await runBun(produceEvidence(
       theory,
       THEORY_ID,
       obligation,
       pure,
       fixture.evidenceSuites,
       adapters,
-    );
+    ));
     if (!pureOutcome.ok) throw new Error("expected the pure realization to produce evidence");
     // The pure realization's passing evidence is copied and rebound to the
     // broken realization's declared ID and wrapper identity, retaining its
@@ -831,14 +867,14 @@ describe("evidence-production boundary and resolver packet consumption", () => {
     const { fixture, theory, pure, broken } = await loadPureAndBroken();
     const obligation = requiredObligation(theory);
     const adapters: EvidenceAdapters = { resolveTransition, resolveReplay };
-    const pureOutcome = produceEvidence(
+    const pureOutcome = await runBun(produceEvidence(
       theory,
       THEORY_ID,
       obligation,
       pure,
       fixture.evidenceSuites,
       adapters,
-    );
+    ));
     if (!pureOutcome.ok) throw new Error("expected the pure realization to produce evidence");
     // Unlike the stale-inner-subject case above, every identity field here
     // is correctly refreshed to declare `broken` as the subject — only the
@@ -849,12 +885,21 @@ describe("evidence-production boundary and resolver packet consumption", () => {
     // gap is explicitly deferred to the independent checker and canonical
     // project-model binding adapter (design spec 0003 slices 5-7). This
     // test documents the known boundary — it is NOT a contract acceptance,
-    // and this outcome must not be read as "the rebind defense works."
-    const forgedResult: EvidenceResult = {
+    // and this outcome must not be read as "the rebind defense works." The
+    // overall `identity` is itself recomputed from the rebound fields (not
+    // copied stale from `pureOutcome.result`), so this is a genuinely
+    // fully-refreshed forgery — the hash is internally self-consistent with
+    // the rebound subject, and only the underlying case-result content is
+    // still the wrong (pure) execution.
+    const forgedFields = {
       ...pureOutcome.result,
       realizationIdentity: broken.identity,
       theoryIdentity: theory.identity,
     };
+    const forgedIdentity = await runBun(
+      contentIdentity(evidenceResultIdentityPayload(forgedFields)),
+    );
+    const forgedResult: EvidenceResult = { ...forgedFields, identity: forgedIdentity };
     const forgedOutcome: ProducerOutcome = {
       ok: true,
       realizationId: realizationId(broken),
@@ -870,14 +915,14 @@ describe("evidence-production boundary and resolver packet consumption", () => {
     const { fixture, theory, pure, broken } = await loadPureAndBroken();
     const obligation = requiredObligation(theory);
     const adapters: EvidenceAdapters = { resolveTransition, resolveReplay };
-    const pureOutcome = produceEvidence(
+    const pureOutcome = await runBun(produceEvidence(
       theory,
       THEORY_ID,
       obligation,
       pure,
       fixture.evidenceSuites,
       adapters,
-    );
+    ));
     const diagnostic: ProducerDiagnostic = {
       kind: "unbound_operation",
       message: "unbound transition operation 'inventory.unavailable.v0'",
@@ -905,18 +950,26 @@ describe("evidence-production boundary and resolver packet consumption", () => {
     const { fixture, theory, pure } = await loadPureAndBroken();
     const obligation = requiredObligation(theory);
     const adapters: EvidenceAdapters = { resolveTransition, resolveReplay };
-    const pureOutcome = produceEvidence(
+    const pureOutcome = await runBun(produceEvidence(
       theory,
       THEORY_ID,
       obligation,
       pure,
       fixture.evidenceSuites,
       adapters,
-    );
+    ));
     if (!pureOutcome.ok) throw new Error("expected the pure realization to produce evidence");
+    // Recompute the overall identity from the rebound `theoryIdentity` so
+    // this isolates the resolver's theory-binding check specifically: the
+    // failure below must come from `bindOutcomes`'s explicit theory-identity
+    // comparison, not from an incidentally stale `identity` hash.
+    const wrongTheoryFields = { ...pureOutcome.result, theoryIdentity: "sha256:some-other-theory" };
+    const wrongTheoryIdentity = await runBun(
+      contentIdentity(evidenceResultIdentityPayload(wrongTheoryFields)),
+    );
     const wrongTheoryOutcome: ProducerOutcome = {
       ...pureOutcome,
-      result: { ...pureOutcome.result, theoryIdentity: "sha256:some-other-theory" },
+      result: { ...wrongTheoryFields, identity: wrongTheoryIdentity },
     };
     expect(() =>
       resolveDeployment(theory, [pure], [wrongTheoryOutcome], fixture.policy),
@@ -927,14 +980,14 @@ describe("evidence-production boundary and resolver packet consumption", () => {
     const { fixture, theory, pure, broken } = await loadPureAndBroken();
     const obligation = requiredObligation(theory);
     const adapters: EvidenceAdapters = { resolveTransition, resolveReplay };
-    const pureOutcome = produceEvidence(
+    const pureOutcome = await runBun(produceEvidence(
       theory,
       THEORY_ID,
       obligation,
       pure,
       fixture.evidenceSuites,
       adapters,
-    );
+    ));
     expect(() =>
       resolveDeployment(theory, [pure, broken], [pureOutcome], fixture.policy),
     ).toThrow("missing evidence-production outcome");
@@ -944,14 +997,14 @@ describe("evidence-production boundary and resolver packet consumption", () => {
     const { fixture, theory, pure } = await loadPureAndBroken();
     const obligation = requiredObligation(theory);
     const adapters: EvidenceAdapters = { resolveTransition, resolveReplay };
-    const pureOutcome = produceEvidence(
+    const pureOutcome = await runBun(produceEvidence(
       theory,
       THEORY_ID,
       obligation,
       pure,
       fixture.evidenceSuites,
       adapters,
-    );
+    ));
     expect(() =>
       resolveDeployment(theory, [pure], [pureOutcome, pureOutcome], fixture.policy),
     ).toThrow("duplicate evidence-production outcome");
@@ -961,22 +1014,22 @@ describe("evidence-production boundary and resolver packet consumption", () => {
     const { fixture, theory, pure, broken } = await loadPureAndBroken();
     const obligation = requiredObligation(theory);
     const adapters: EvidenceAdapters = { resolveTransition, resolveReplay };
-    const pureOutcome = produceEvidence(
+    const pureOutcome = await runBun(produceEvidence(
       theory,
       THEORY_ID,
       obligation,
       pure,
       fixture.evidenceSuites,
       adapters,
-    );
-    const brokenOutcome = produceEvidence(
+    ));
+    const brokenOutcome = await runBun(produceEvidence(
       theory,
       THEORY_ID,
       obligation,
       broken,
       fixture.evidenceSuites,
       adapters,
-    );
+    ));
     expect(() =>
       resolveDeployment(theory, [pure], [pureOutcome, brokenOutcome], fixture.policy),
     ).toThrow("unknown realization");
@@ -1013,17 +1066,152 @@ describe("evidence-production boundary and resolver packet consumption", () => {
 
     for (const scenario of scenarios) {
       const spy = spyEvidenceAdapters();
-      const outcome = produceEvidence(
+      const outcome = await runBun(produceEvidence(
         theory,
         THEORY_ID,
         scenario.obligation,
         scenario.realization,
         scenario.suites,
         spy.adapters,
-      );
+      ));
       expect(outcome.ok).toBeFalse();
       expect(spy.calls).toEqual([]);
     }
+  });
+
+  test("the real pure and broken evidence artifacts round-trip losslessly through evidenceToJson/parseEvidenceResult", async () => {
+    const { fixture, theory, pure, broken } = await loadPureAndBroken();
+    const obligation = requiredObligation(theory);
+    const adapters: EvidenceAdapters = { resolveTransition, resolveReplay };
+    for (const realization of [pure, broken]) {
+      const outcome = await runBun(
+        produceEvidence(theory, THEORY_ID, obligation, realization, fixture.evidenceSuites, adapters),
+      );
+      if (!outcome.ok) throw new Error("expected evidence production to succeed");
+      const json = evidenceToJson(outcome.result);
+      const parsed = await runBun(parseEvidenceResult(json));
+      expect(parsed).toEqual(outcome.result);
+    }
+  });
+
+  test("produceEvidence yields deterministic recipe and result identities for the same inputs", async () => {
+    const { fixture, theory, pure } = await loadPureAndBroken();
+    const obligation = requiredObligation(theory);
+    const adapters: EvidenceAdapters = { resolveTransition, resolveReplay };
+    const first = await runBun(
+      produceEvidence(theory, THEORY_ID, obligation, pure, fixture.evidenceSuites, adapters),
+    );
+    const second = await runBun(
+      produceEvidence(theory, THEORY_ID, obligation, pure, fixture.evidenceSuites, adapters),
+    );
+    if (!first.ok || !second.ok) throw new Error("expected the pure realization to produce evidence");
+    expect(first.result.recipeIdentity).toStartWith("sha256:");
+    expect(first.result.identity).toStartWith("sha256:");
+    expect(second.result.recipeIdentity).toBe(first.result.recipeIdentity);
+    expect(second.result.identity).toBe(first.result.identity);
+  });
+
+  test("a meaning-bearing case mutation changes recipe and result identity", async () => {
+    const { fixture, theory, pure } = await loadPureAndBroken();
+    const obligation = requiredObligation(theory);
+    const adapters: EvidenceAdapters = { resolveTransition, resolveReplay };
+    const baseline = await runBun(
+      produceEvidence(theory, THEORY_ID, obligation, pure, fixture.evidenceSuites, adapters),
+    );
+    if (!baseline.ok) throw new Error("expected the pure realization to produce evidence");
+
+    const baseSuite = fixture.evidenceSuites[0]!;
+    const mutatedSuite = structuredClone(baseSuite) as Record<string, unknown>;
+    const cases = mutatedSuite.cases as Array<Record<string, unknown>>;
+    // Renaming the first case's declared ID is a meaning-bearing recipe
+    // mutation: `id` is a semantic field of the hashed `cases` array, unlike
+    // the recipe's own top-level `name` (see the sibling test below).
+    cases[0]!.id = "reserve-and-release-mutated-for-identity-oracle";
+
+    const mutated = await runBun(
+      produceEvidence(theory, THEORY_ID, obligation, pure, [mutatedSuite as JsonObject], adapters),
+    );
+    if (!mutated.ok) throw new Error("expected the pure realization to produce evidence");
+    expect(mutated.result.recipeIdentity).not.toBe(baseline.result.recipeIdentity);
+    expect(mutated.result.identity).not.toBe(baseline.result.identity);
+  });
+
+  test("changing only the recipe's name does not change recipe identity", async () => {
+    const { fixture, theory, pure } = await loadPureAndBroken();
+    const obligation = requiredObligation(theory);
+    const adapters: EvidenceAdapters = { resolveTransition, resolveReplay };
+    const baseline = await runBun(
+      produceEvidence(theory, THEORY_ID, obligation, pure, fixture.evidenceSuites, adapters),
+    );
+    if (!baseline.ok) throw new Error("expected the pure realization to produce evidence");
+
+    const baseSuite = fixture.evidenceSuites[0]!;
+    const renamedSuite: JsonObject = {
+      ...baseSuite,
+      name: "A completely different presentation-only recipe name",
+    };
+    const renamed = await runBun(
+      produceEvidence(theory, THEORY_ID, obligation, pure, [renamedSuite], adapters),
+    );
+    if (!renamed.ok) throw new Error("expected the pure realization to produce evidence");
+    expect(renamed.result.recipeIdentity).toBe(baseline.result.recipeIdentity);
+    expect(renamed.result.identity).toBe(baseline.result.identity);
+  });
+
+  test("the evidence-result parser rejects the authored conformance recipe as evidence", async () => {
+    const recipe = await readJson(join(INVENTORY, "evidence", "conformance-v0.json"));
+    await expectFailure(parseEvidenceResult(recipe), "artifact_kind");
+  });
+
+  test("the evidence-result parser accepts a valid artifact and rejects every required mutation with a stable message", async () => {
+    const { fixture, theory, pure } = await loadPureAndBroken();
+    const obligation = requiredObligation(theory);
+    const adapters: EvidenceAdapters = { resolveTransition, resolveReplay };
+    const outcome = await runBun(
+      produceEvidence(theory, THEORY_ID, obligation, pure, fixture.evidenceSuites, adapters),
+    );
+    if (!outcome.ok) throw new Error("expected the pure realization to produce evidence");
+    const valid = evidenceToJson(outcome.result);
+
+    const accepted = await runBun(parseEvidenceResult(valid));
+    expect(accepted).toEqual(outcome.result);
+
+    const mutate = (overrides: JsonObject): JsonObject => ({ ...valid, ...overrides });
+
+    await expectFailure(
+      parseEvidenceResult(mutate({ artifact_kind: "conformance_suite" })),
+      "artifact_kind",
+    );
+    await expectFailure(parseEvidenceResult(mutate({ schema_version: 2 })), "schema_version");
+    await expectFailure(parseEvidenceResult(mutate({ category: "proof" })), "category");
+    await expectFailure(
+      parseEvidenceResult(mutate({ identity: "sha256:tampered-stored-identity" })),
+      "identity mismatch",
+    );
+    await expectFailure(parseEvidenceResult(mutate({ passed: !valid.passed })), "passed mismatch");
+    await expectFailure(
+      parseEvidenceResult(mutate({ total_cases: (valid.total_cases as number) + 1 })),
+      "total_cases mismatch",
+    );
+    await expectFailure(
+      parseEvidenceResult(mutate({ passed_cases: (valid.passed_cases as number) + 1 })),
+      "passed_cases mismatch",
+    );
+    await expectFailure(
+      parseEvidenceResult(
+        mutate({ counterexamples: [{ case_id: "forged", passed: false, detail: null }] }),
+      ),
+      "counterexamples mismatch",
+    );
+    await expectFailure(
+      parseEvidenceResult(mutate({ case_results: [] })),
+      "case_results must not be empty",
+    );
+    const rawCases = valid.case_results as ReadonlyArray<JsonObject>;
+    await expectFailure(
+      parseEvidenceResult(mutate({ case_results: [...rawCases, rawCases[0]!] })),
+      "duplicate case ID",
+    );
   });
 
   test("scanImportSpecifiers recognizes every import form and discovers nested bare fs dependencies", async () => {

@@ -1,5 +1,5 @@
 import { Effect, type Crypto, type FileSystem, type Path } from "effect";
-import { produceEvidence, type EvidenceAdapters, type ProducerOutcome } from "./evidence.ts";
+import { produceEvidence, type EvidenceAdapters } from "./evidence.ts";
 import { executeScenario, executionToJson, type ExecutionResult } from "./execution.ts";
 import { explanationToJson, type ExplanationNode } from "./explanation.ts";
 import { DocumentError, requireKey, requireString, type JsonObject } from "./json.ts";
@@ -69,19 +69,19 @@ export const runDemo = (
     const realizations = yield* Effect.forEach(fixture.realizations, (document) =>
       normalizeRealization(document, theory, theoryId),
     );
+    const obligation = requiredObligation(theory);
+    const evidenceOutcomes = yield* Effect.forEach(realizations, (realization) =>
+      produceEvidence(
+        theory,
+        theoryId,
+        obligation,
+        realization,
+        fixture.evidenceSuites,
+        EVIDENCE_ADAPTERS,
+      ),
+    );
     return yield* Effect.try({
       try: () => {
-        const obligation = requiredObligation(theory);
-        const evidenceOutcomes: ReadonlyArray<ProducerOutcome> = realizations.map((realization) =>
-          produceEvidence(
-            theory,
-            theoryId,
-            obligation,
-            realization,
-            fixture.evidenceSuites,
-            EVIDENCE_ADAPTERS,
-          ),
-        );
         const resolution = resolve(theory, realizations, evidenceOutcomes, fixture.policy);
         let execution: ExecutionResult | null = null;
         if (resolution.status === "selected") {

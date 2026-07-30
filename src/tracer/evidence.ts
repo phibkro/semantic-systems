@@ -1,7 +1,11 @@
-import { jsonEqual } from "./canonical.ts";
+import { Crypto, Effect, Result } from "effect";
+import { contentIdentity, jsonEqual } from "./canonical.ts";
 import { parseState, runSteps, stateToJson, type Replay, type Transition } from "./domain.ts";
 import {
+  ARTIFACT_KIND_EVIDENCE_RESULT,
   EVIDENCE_CATEGORY,
+  EVIDENCE_RESULT_SCHEMA_VERSION,
+  evidenceResultIdentityPayload,
   type CaseResult,
   type EvidenceResult,
   type ProducerDiagnosticKind,
@@ -9,6 +13,7 @@ import {
 } from "./evidence-result.ts";
 import {
   DocumentError,
+  requireInteger,
   requireKey,
   requireObject,
   requireObjectList,
@@ -83,42 +88,96 @@ const runCase = (testCase: JsonObject, transition: Transition, replay: Replay): 
   return { caseId, passed: false, detail };
 };
 
+/**
+ * The exact recipe identity (design spec 0003 slice 2/frozen requirement 3):
+ * a SHA-256 content identity over the source recipe's semantic payload —
+ * `kind`, `schema_version`, `id`, `theory`, `theory_identity`, `obligation`,
+ * `category`, `producer`, `assumptions`, and complete `cases`. Only the
+ * recipe's own `name` is excluded, as presentation metadata, consistent
+ * with the theory/realization normalization posture in `theory.ts` and
+ * `realization.ts`. This deliberately hashes the complete authored `cases`
+ * array, never an ad hoc reduced list of case IDs.
+ */
+const recipeIdentityPayload = (suite: JsonObject): JsonObject => ({
+  kind: requireString(requireKey(suite, "kind", "conformance_suite"), "suite.kind"),
+  schema_version: requireInteger(
+    requireKey(suite, "schema_version", "conformance_suite"),
+    "suite.schema_version",
+  ),
+  id: requireString(requireKey(suite, "id", "conformance_suite"), "suite.id"),
+  theory: requireString(requireKey(suite, "theory", "conformance_suite"), "suite.theory"),
+  theory_identity: requireString(
+    requireKey(suite, "theory_identity", "conformance_suite"),
+    "suite.theory_identity",
+  ),
+  obligation: requireString(requireKey(suite, "obligation", "conformance_suite"), "suite.obligation"),
+  category: requireString(requireKey(suite, "category", "conformance_suite"), "suite.category"),
+  producer: requireObject(requireKey(suite, "producer", "conformance_suite"), "suite.producer"),
+  assumptions: requireStringList(suite.assumptions ?? [], "suite.assumptions"),
+  cases: requireObjectList(requireKey(suite, "cases", "conformance_suite"), "suite.cases"),
+});
+
 export const runConformance = (
   theory: Theory,
   realization: Realization,
   suite: JsonObject,
   transition: Transition,
   replay: Replay,
-): EvidenceResult => {
-  const category = requireString(
-    requireKey(suite, "category", "conformance_suite"),
-    "suite.category",
-  );
-  if (category !== EVIDENCE_CATEGORY) {
-    throw new DocumentError({
-      message: `the conformance runner produces example_test evidence; the recipe cannot relabel it as '${category}'`,
+): Effect.Effect<EvidenceResult, DocumentError, Crypto.Crypto> =>
+  Effect.gen(function* () {
+    const parsed = yield* Effect.try({
+      try: () => {
+        const category = requireString(
+          requireKey(suite, "category", "conformance_suite"),
+          "suite.category",
+        );
+        if (category !== EVIDENCE_CATEGORY) {
+          throw new DocumentError({
+            message: `the conformance runner produces example_test evidence; the recipe cannot relabel it as '${category}'`,
+          });
+        }
+        const obligation = requireString(
+          requireKey(suite, "obligation", "conformance_suite"),
+          "suite.obligation",
+        );
+        const producer = requireObject(
+          requireKey(suite, "producer", "conformance_suite"),
+          "suite.producer",
+        );
+        const assumptions = requireStringList(suite.assumptions ?? [], "suite.assumptions");
+        const cases = requireObjectList(
+          requireKey(suite, "cases", "conformance_suite"),
+          "suite.cases",
+        );
+        return {
+          obligation,
+          producer,
+          assumptions,
+          caseResults: cases.map((testCase) => runCase(testCase, transition, replay)),
+          recipePayload: recipeIdentityPayload(suite),
+        };
+      },
+      catch: (cause) =>
+        cause instanceof DocumentError
+          ? cause
+          : new DocumentError({ message: "cannot run conformance evidence", cause }),
     });
-  }
-  const obligation = requireString(
-    requireKey(suite, "obligation", "conformance_suite"),
-    "suite.obligation",
-  );
-  const producer = requireObject(
-    requireKey(suite, "producer", "conformance_suite"),
-    "suite.producer",
-  );
-  const assumptions = requireStringList(suite.assumptions ?? [], "suite.assumptions");
-  const cases = requireObjectList(requireKey(suite, "cases", "conformance_suite"), "suite.cases");
-  return {
-    category: EVIDENCE_CATEGORY,
-    obligation,
-    producer,
-    theoryIdentity: theory.identity,
-    realizationIdentity: realization.identity,
-    assumptions,
-    caseResults: cases.map((testCase) => runCase(testCase, transition, replay)),
-  };
-};
+    const recipeIdentity = yield* contentIdentity(parsed.recipePayload);
+    const withoutIdentity: Omit<EvidenceResult, "identity"> = {
+      artifactKind: ARTIFACT_KIND_EVIDENCE_RESULT,
+      schemaVersion: EVIDENCE_RESULT_SCHEMA_VERSION,
+      category: EVIDENCE_CATEGORY,
+      producer: parsed.producer,
+      recipeIdentity,
+      theoryIdentity: theory.identity,
+      realizationIdentity: realization.identity,
+      obligation: parsed.obligation,
+      assumptions: parsed.assumptions,
+      caseResults: parsed.caseResults,
+    };
+    const identity = yield* contentIdentity(evidenceResultIdentityPayload(withoutIdentity));
+    return { identity, ...withoutIdentity };
+  });
 
 /**
  * Evidence-production boundary (contract slices 2-3): the producer is the
@@ -147,57 +206,73 @@ export const produceEvidence = (
   realization: Realization,
   suites: ReadonlyArray<JsonObject>,
   adapters: EvidenceAdapters,
-): ProducerOutcome => {
-  const subjectId = realizationId(realization);
-  const subjectIdentity = realization.identity;
-  const reject = (kind: ProducerDiagnosticKind, message: string): ProducerOutcome => ({
-    ok: false,
-    realizationId: subjectId,
-    realizationIdentity: subjectIdentity,
-    diagnostic: { kind, message },
+): Effect.Effect<ProducerOutcome, DocumentError, Crypto.Crypto> =>
+  Effect.gen(function* () {
+    const subjectId = realizationId(realization);
+    const subjectIdentity = realization.identity;
+    const reject = (kind: ProducerDiagnosticKind, message: string): ProducerOutcome => ({
+      ok: false,
+      realizationId: subjectId,
+      realizationIdentity: subjectIdentity,
+      diagnostic: { kind, message },
+    });
+    if (!realization.targetsTheory) {
+      return reject("not_targeted", `realization does not target theory '${theoryId}'`);
+    }
+    if (requiredObligation === null) {
+      return reject(
+        "obligation_unsupported",
+        "the theory does not declare exactly one required obligation",
+      );
+    }
+    const matching = suites.filter((suite) => suite.theory === theoryId);
+    if (matching.length === 0) {
+      return reject("missing_evidence", `no conformance suite declares theory '${theoryId}'`);
+    }
+    if (matching.length > 1) {
+      return reject(
+        "ambiguous_evidence",
+        `multiple conformance suites declare theory '${theoryId}'`,
+      );
+    }
+    const suite = matching[0]!;
+    if (suite.theory_identity !== theory.identity) {
+      return reject(
+        "stale_evidence_recipe",
+        "the conformance suite targets a stale theory identity",
+      );
+    }
+    if (suite.obligation !== requiredObligation) {
+      return reject(
+        "evidence_obligation_mismatch",
+        `the suite declares obligation '${String(suite.obligation)}' but the theory requires '${requiredObligation}'`,
+      );
+    }
+    const operations = yield* Effect.try({
+      try: () => ({
+        transition: adapters.resolveTransition(
+          operationBinding(realization.document, "transition"),
+        ),
+        replay: adapters.resolveReplay(operationBinding(realization.document, "replay")),
+      }),
+      catch: (cause): DocumentError =>
+        cause instanceof DocumentError
+          ? cause
+          : new DocumentError({ message: "cannot resolve realization operations", cause }),
+    }).pipe(Effect.result);
+    if (Result.isFailure(operations)) {
+      return reject("unbound_operation", operations.failure.message);
+    }
+    return {
+      ok: true,
+      realizationId: subjectId,
+      realizationIdentity: subjectIdentity,
+      result: yield* runConformance(
+        theory,
+        realization,
+        suite,
+        operations.success.transition,
+        operations.success.replay,
+      ),
+    };
   });
-  if (!realization.targetsTheory) {
-    return reject("not_targeted", `realization does not target theory '${theoryId}'`);
-  }
-  if (requiredObligation === null) {
-    return reject(
-      "obligation_unsupported",
-      "the theory does not declare exactly one required obligation",
-    );
-  }
-  const matching = suites.filter((suite) => suite.theory === theoryId);
-  if (matching.length === 0) {
-    return reject("missing_evidence", `no conformance suite declares theory '${theoryId}'`);
-  }
-  if (matching.length > 1) {
-    return reject("ambiguous_evidence", `multiple conformance suites declare theory '${theoryId}'`);
-  }
-  const suite = matching[0]!;
-  if (suite.theory_identity !== theory.identity) {
-    return reject(
-      "stale_evidence_recipe",
-      "the conformance suite targets a stale theory identity",
-    );
-  }
-  if (suite.obligation !== requiredObligation) {
-    return reject(
-      "evidence_obligation_mismatch",
-      `the suite declares obligation '${String(suite.obligation)}' but the theory requires '${requiredObligation}'`,
-    );
-  }
-  let transition: Transition;
-  let replay: Replay;
-  try {
-    transition = adapters.resolveTransition(operationBinding(realization.document, "transition"));
-    replay = adapters.resolveReplay(operationBinding(realization.document, "replay"));
-  } catch (error) {
-    if (error instanceof DocumentError) return reject("unbound_operation", error.message);
-    throw error;
-  }
-  return {
-    ok: true,
-    realizationId: subjectId,
-    realizationIdentity: subjectIdentity,
-    result: runConformance(theory, realization, suite, transition, replay),
-  };
-};
