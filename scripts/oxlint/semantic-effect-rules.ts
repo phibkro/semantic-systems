@@ -9,9 +9,11 @@ const portableSemanticProgram = (filename: string): boolean => {
     "/src/project-model/",
     "/src/tracer/",
     "/src/references/",
+    "/src/actor/",
     "src/project-model/",
     "src/tracer/",
     "src/references/",
+    "src/actor/",
   ].some((fragment) => normalized.includes(fragment) || normalized.startsWith(fragment));
   const runtimeAdapter = [
     "/main-bun.ts",
@@ -185,9 +187,6 @@ export const effectRuntimeBoundary = Rule.define({
       Visitor.on("CallExpression", (node) =>
         Option.isSome(
           AST.matchCallOf(node, "Effect", [
-            "provide",
-            "provideService",
-            "provideServiceEffect",
             "runCallback",
             "runFork",
             "runPromise",

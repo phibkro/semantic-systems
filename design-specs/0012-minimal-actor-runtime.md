@@ -6,6 +6,12 @@ Date: 2026-07-30
 
 Problem owner: main research and integration agent
 
+Revision 1: ownership counterexamples invalidated the original assumption that
+an opaque `ActorRef` alone prevents mutable aliases. The frozen boundary now
+requires structured-clone transfer for initial state, accepted messages,
+committed state, and receipt events. This strengthens the stated ownership
+claim without changing inventory semantics, mailbox order, or runtime support.
+
 Semantic frontier: isolated state ownership, typed actor messaging, mailbox
 ordering, and inventory-realization equivalence
 
@@ -60,14 +66,27 @@ The first tracer exposes a small portable module:
   event;
 - `ActorRuntime` — a scoped capability that spawns actors and supervises their
   mailbox workers;
-- typed `ActorClosed`, `ActorTransitionFailed`, and invalid-definition errors;
-  and
+- typed `ActorClosed`, `ActorMessageNotTransferable`,
+  `ActorTransitionFailed`, and invalid-definition errors; and
 - a machine-readable trace vocabulary for accepted, started, committed,
-  rejected, and closed lifecycle observations.
+  transition-failed, and closed lifecycle observations.
 
 TypeScript structural typing is not treated as a formal uniqueness proof.
 State confinement is established for this implementation by the public API,
 module closure, adversarial tests, and review.
+
+The v0 transfer boundary is the host's standard structured-clone algorithm.
+Initial state is cloned before worker creation. Each message is cloned before
+mailbox acceptance, so a clone failure consumes no capacity or sequence and
+fails with `ActorMessageNotTransferable`. The transition receives a disposable
+clone of current state rather than the actor's stored state. Successful
+transition state and event values are cloned separately before commit,
+preventing either the transition closure or receipt holder from retaining a
+mutable alias to actor state.
+Non-cloneable initial state is an invalid definition. Non-cloneable transition
+output is a typed transition failure and stops that actor. This deliberately
+limits v0 state, message, and event values to the structured-cloneable subset;
+it is runtime validation of confinement, not proof of affine ownership.
 
 ### Mailbox semantics
 
@@ -95,7 +114,7 @@ observing the receipt.
 Only the mailbox worker may hold or replace actor state. For each accepted
 envelope it:
 
-1. reads the current private state;
+1. copies the current private state into a transition-owned snapshot;
 2. interprets the typed transition Effect once;
 3. obtains one candidate next state and one domain event;
 4. commits the state and event together in actor memory;
@@ -168,15 +187,18 @@ Before implementation, executable tests must observe red for:
 
 1. two sends completing without a real mailbox worker;
 2. reversed, duplicated, or skipped accepted sequence numbers;
-3. a public state getter or returned mutable state alias;
-4. post-close send acceptance or nontermination;
-5. close discarding an already accepted envelope;
-6. transition failure being rendered as a domain rejection;
-7. a caller interruption after acceptance cancelling actor-owned work;
-8. requesting a fresh identifier for an invalid reservation;
-9. actor events or replayed state diverging from the pure oracle;
-10. runtime-specific authority imported by the portable actor closure; and
-11. Bun and Node producing different normalized observations.
+3. a public state getter or any retained mutable alias to initial state,
+   accepted messages, committed state, or returned events;
+4. non-transferable actor values crossing a boundary without the declared
+   typed failure;
+5. post-close send acceptance or nontermination;
+6. close discarding an already accepted envelope;
+7. transition failure being rendered as a domain rejection;
+8. a caller interruption after acceptance cancelling actor-owned work;
+9. requesting a fresh identifier for an invalid reservation;
+10. actor events or replayed state diverging from the pure oracle;
+11. runtime-specific authority imported by the portable actor closure; and
+12. Bun and Node producing different normalized observations.
 
 Each oracle must fail for its intended semantic reason before the conforming
 implementation is accepted.
@@ -197,17 +219,20 @@ The first actor tracer is accepted only when:
 8. typed transition failure stops only the failing actor and remains distinct
    from domain rejection;
 9. invalid inventory reservations do not consume a fresh identifier;
-10. the inventory actor event sequence equals the pure reference sequence;
-11. replay of actor events equals both actor and pure final observations;
-12. the trace states only the frozen ordering, delivery, and lifecycle
+10. initial state, accepted messages, committed state, and returned events do
+    not share caller-mutable aliases;
+11. non-transferable values fail at their declared typed boundaries;
+12. the inventory actor event sequence equals the pure reference sequence;
+13. replay of actor events equals both actor and pure final observations;
+14. the trace states only the frozen ordering, delivery, and lifecycle
     guarantees;
-13. Bun and Node live layers produce byte-equivalent normalized bounded
+15. Bun and Node live layers produce byte-equivalent normalized bounded
     observations;
-14. the portable actor core's transitive imports contain no concrete runtime
+16. the portable actor core's transitive imports contain no concrete runtime
     or ambient platform authority;
-15. existing inventory resolution, evidence, execution, and generated-view
+17. existing inventory resolution, evidence, execution, and generated-view
     oracles remain green; and
-16. no output upgrades tests, runtime validation, static analysis, or review
+18. no output upgrades tests, runtime validation, static analysis, or review
     into proof.
 
 ## Executable acceptance commands
@@ -270,3 +295,9 @@ category, resolver policy, platform trust, or deployment claim. It introduces
 receiver-local mailbox order, scoped actor lifecycle, and actor-private state
 as explicit runtime contracts with bounded test and runtime-validation
 evidence.
+
+Revision 1 makes the previously implicit value-transfer assumption explicit:
+v0 accepts only structured-cloneable actor values and copies them at every
+ownership boundary. The initial opaque-reference contract and its earlier
+tests are invalidated as sufficient ownership evidence; the mutable-alias
+counterexamples and exact-head review must be rerun.

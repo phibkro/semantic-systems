@@ -4,7 +4,7 @@ Canonical problem contract:
 [`design-specs/0012-minimal-actor-runtime.md`](../../design-specs/0012-minimal-actor-runtime.md).
 This mutable execution record must not redefine the frozen contract.
 
-Status: contract frozen; oracle construction in progress
+Status: implementation green locally; ownership revision awaiting independent review
 
 Owner: main integration agent
 
@@ -13,8 +13,11 @@ Owner: main integration agent
 - The pure inventory transition, replay function, deterministic scenario, and
   exact semantic identities are integrated and green.
 - Effect v4 beta.102 and the official Bun/Node platform layers are pinned.
-- No actor module, actor runtime command, actor acceptance program, or actor
-  evidence claim exists at the base head.
+- The portable actor runtime, inventory adapter, Bun/Node composition roots,
+  bounded journey, and acceptance program now exist in the feature worktree.
+- A mutable-alias counterexample invalidated the first ownership
+  implementation. Revision 1 now copies values at each ownership boundary and
+  rejects non-transferable values with typed failures.
 - The ready-frontier item `work.actor-runtime` supplies the initial acceptance
   envelope, but this plan and design spec own the executable feature boundary.
 
@@ -23,6 +26,8 @@ Owner: main integration agent
 - `design-specs/0012-minimal-actor-runtime.md` (frozen after this commit);
 - `plans/active/0012-minimal-actor-runtime.md`;
 - `scripts/accept/0012-minimal-actor-runtime.ts`;
+- `scripts/oxlint/semantic-effect-rules.ts` only to add the actor portable
+  closure and its two composition-root exclusions;
 - `src/actor/**`;
 - `tests/actor-runtime.test.ts`;
 - the smallest inventory-domain refactor required to expose the existing
@@ -126,3 +131,15 @@ paths, acceptance commands, expected deliverables, and this posture:
   transition failure, deterministic fresh identifiers, and pure-inventory
   equivalence. Stronger delivery, scheduling, durability, and proof claims are
   explicitly excluded.
+- 2026-07-30: observed the initial missing-test acceptance gate fail because
+  `tests/actor-runtime.test.ts` did not exist. The first implementation then
+  passed six focused counterexamples and the full bounded acceptance journey.
+  This records one process deviation: not every original counterexample family
+  had a separately retained pre-implementation red execution.
+- 2026-07-30: adversarial ownership inspection found that opaque references
+  alone did not prevent caller aliases to initial state, accepted messages, or
+  transition outputs. Revised the frozen boundary explicitly, added five
+  discriminating transfer/alias counterexamples, and implemented
+  structured-clone transfer. Twelve focused tests (33 expectations),
+  TypeScript, and Oxlint are green; exact acceptance and independent review
+  must be rerun before integration.

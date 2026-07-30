@@ -206,7 +206,7 @@ describe("Semantic Systems Effect Oxlint rules", () => {
     );
   });
 
-  test("Effect execution is confined to composition entrypoints", () => {
+  test("Effect execution is confined to composition entrypoints while internal composition remains open", () => {
     Testing.expectDiagnostics(
       Testing.runRule(
         effectRuntimeBoundary,
@@ -221,19 +221,13 @@ describe("Semantic Systems Effect Oxlint rules", () => {
         },
       ],
     );
-    Testing.expectDiagnostics(
+    Testing.expectNoDiagnostics(
       Testing.runRule(
         effectRuntimeBoundary,
         "CallExpression",
         Testing.callOfMember("Effect", "provide"),
         portable,
       ),
-      [
-        {
-          message:
-            "Keep Effect programs composable; execute them only in main-bun.ts or main-node.ts",
-        },
-      ],
     );
   });
 

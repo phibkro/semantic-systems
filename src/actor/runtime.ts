@@ -1,0 +1,320 @@
+import { Cause, Data, Deferred, Effect, Exit, Queue, Ref, Semaphore, type Scope } from "effect";
+
+export type ActorTrace =
+  | { readonly kind: "accepted"; readonly actorId: string; readonly sequence: number }
+  | { readonly kind: "started"; readonly actorId: string; readonly sequence: number }
+  | { readonly kind: "committed"; readonly actorId: string; readonly sequence: number }
+  | {
+      readonly kind: "transition_failed";
+      readonly actorId: string;
+      readonly sequence: number;
+      readonly cause: string;
+    }
+  | { readonly kind: "closed"; readonly actorId: string; readonly acceptedCount: number };
+
+export interface DeliveryReceipt<Event> {
+  readonly actorId: string;
+  readonly sequence: number;
+  readonly event: Event;
+}
+
+export interface ActorDefinition<Message, State, Event, TransitionError, Requirements> {
+  readonly id: string;
+  readonly initialState: State;
+  readonly mailboxCapacity: number;
+  readonly transition: (
+    message: Message,
+    state: State,
+  ) => Effect.Effect<readonly [State, Event], TransitionError, Requirements>;
+}
+
+export class InvalidActorDefinition extends Data.TaggedError("InvalidActorDefinition")<{
+  readonly message: string;
+}> {}
+
+export class ActorClosed extends Data.TaggedError("ActorClosed")<{
+  readonly actorId: string;
+  readonly reason: "closed" | "transition_failed";
+}> {
+  override get message(): string {
+    return `actor ${this.actorId} is ${this.reason === "closed" ? "closed" : "stopped after transition failure"}`;
+  }
+}
+
+export class ActorTransitionFailed extends Data.TaggedError("ActorTransitionFailed")<{
+  readonly actorId: string;
+  readonly sequence: number;
+  readonly cause: string;
+}> {
+  override get message(): string {
+    return `actor ${this.actorId} transition ${this.sequence} failed: ${this.cause}`;
+  }
+}
+
+export class ActorMessageNotTransferable extends Data.TaggedError("ActorMessageNotTransferable")<{
+  readonly actorId: string;
+  readonly cause: string;
+}> {
+  override get message(): string {
+    return `message for actor ${this.actorId} is not structured-cloneable: ${this.cause}`;
+  }
+}
+
+export type ActorSendError = ActorClosed | ActorMessageNotTransferable | ActorTransitionFailed;
+
+export interface ActorRef<Message, Event> {
+  readonly id: string;
+  readonly mailboxCapacity: number;
+  readonly send: (message: Message) => Effect.Effect<DeliveryReceipt<Event>, ActorSendError>;
+  readonly close: Effect.Effect<ReadonlyArray<ActorTrace>>;
+}
+
+interface Envelope<Message, Event> {
+  readonly kind: "message";
+  readonly sequence: number;
+  readonly message: Message;
+  readonly receipt: Deferred.Deferred<DeliveryReceipt<Event>, ActorSendError>;
+}
+
+interface CloseSignal {
+  readonly kind: "close";
+}
+
+type MailboxSignal<Message, Event> = Envelope<Message, Event> | CloseSignal;
+
+const appendTrace = (trace: Ref.Ref<ReadonlyArray<ActorTrace>>, entry: ActorTrace) =>
+  Ref.update(trace, (entries) => [...entries, entry]);
+
+/**
+ * Spawn one scoped actor.
+ *
+ * A capacity semaphore is acquired interruptibly before acceptance. Once a
+ * permit exists, sequence allocation, trace append, and the unbounded
+ * implementation-queue offer run uninterruptibly under one acceptance gate.
+ * The permit is transferred to the actor and released only after processing.
+ * This makes bounded backpressure interruptible without creating sequence
+ * gaps or cancelling already accepted actor-owned work.
+ */
+export const spawn = <Message, State, Event, TransitionError, Requirements>(
+  definition: ActorDefinition<Message, State, Event, TransitionError, Requirements>,
+): Effect.Effect<ActorRef<Message, Event>, InvalidActorDefinition, Requirements | Scope.Scope> =>
+  Effect.gen(function* () {
+    if (definition.id.trim().length === 0) {
+      return yield* new InvalidActorDefinition({ message: "actor id must be nonempty" });
+    }
+    if (!Number.isSafeInteger(definition.mailboxCapacity) || definition.mailboxCapacity <= 0) {
+      return yield* new InvalidActorDefinition({
+        message: "mailbox capacity must be a positive safe integer",
+      });
+    }
+
+    const mailbox = yield* Queue.unbounded<MailboxSignal<Message, Event>>();
+    const capacity = yield* Semaphore.make(definition.mailboxCapacity);
+    const acceptanceGate = yield* Semaphore.make(1);
+    const trace = yield* Ref.make<ReadonlyArray<ActorTrace>>([]);
+    const closed = yield* Deferred.make<ReadonlyArray<ActorTrace>>();
+    let accepting: "open" | "closing" | "transition_failed" = "open";
+    let nextSequence = 0;
+    let privateState = yield* Effect.try({
+      try: () => structuredClone(definition.initialState),
+      catch: (cause) =>
+        new InvalidActorDefinition({
+          message: `initial state must be structured-cloneable: ${String(cause)}`,
+        }),
+    });
+
+    const finishClosed = Effect.gen(function* () {
+      const entries = yield* Ref.get(trace);
+      const alreadyClosed = entries.some((entry) => entry.kind === "closed");
+      if (!alreadyClosed) {
+        yield* appendTrace(trace, {
+          kind: "closed",
+          actorId: definition.id,
+          acceptedCount: nextSequence,
+        });
+      }
+      yield* Deferred.succeed(closed, yield* Ref.get(trace));
+    });
+
+    const failPending = (failure: ActorTransitionFailed): Effect.Effect<void> =>
+      Effect.gen(function* () {
+        while (true) {
+          const candidate = Queue.takeUnsafe(mailbox);
+          if (candidate === undefined) break;
+          if (Exit.isSuccess(candidate)) {
+            const signal = candidate.value;
+            if (signal.kind === "message") {
+              yield* Deferred.fail(
+                signal.receipt,
+                new ActorTransitionFailed({
+                  actorId: definition.id,
+                  sequence: signal.sequence,
+                  cause: `not processed because ${failure.message}`,
+                }),
+              );
+              yield* capacity.release(1);
+            }
+          }
+        }
+      });
+
+    const worker = Effect.gen(function* () {
+      while (true) {
+        const signal = yield* Queue.take(mailbox);
+        if (signal.kind === "close") {
+          yield* finishClosed;
+          return;
+        }
+
+        yield* appendTrace(trace, {
+          kind: "started",
+          actorId: definition.id,
+          sequence: signal.sequence,
+        });
+        const result = yield* Effect.exit(
+          Effect.try({
+            try: () => structuredClone(privateState),
+            catch: (cause) =>
+              new ActorTransitionFailed({
+                actorId: definition.id,
+                sequence: signal.sequence,
+                cause: `private state could not cross the transition boundary: ${String(cause)}`,
+              }),
+          }).pipe(
+            Effect.flatMap((transitionState) =>
+              definition.transition(signal.message, transitionState),
+            ),
+            Effect.flatMap(([nextState, event]) =>
+              Effect.try({
+                try: () =>
+                  [structuredClone(nextState), structuredClone(event)] as readonly [State, Event],
+                catch: (cause) =>
+                  new ActorTransitionFailed({
+                    actorId: definition.id,
+                    sequence: signal.sequence,
+                    cause: `transition result must be structured-cloneable: ${String(cause)}`,
+                  }),
+              }),
+            ),
+          ),
+        );
+        if (Exit.isFailure(result)) {
+          const failure = new ActorTransitionFailed({
+            actorId: definition.id,
+            sequence: signal.sequence,
+            cause: Cause.pretty(result.cause),
+          });
+          yield* appendTrace(trace, {
+            kind: "transition_failed",
+            actorId: definition.id,
+            sequence: signal.sequence,
+            cause: failure.cause,
+          });
+          yield* Deferred.fail(signal.receipt, failure);
+          yield* capacity.release(1);
+          yield* acceptanceGate.withPermit(
+            Effect.sync(() => {
+              accepting = "transition_failed";
+            }),
+          );
+          yield* failPending(failure);
+          yield* finishClosed;
+          return;
+        }
+
+        privateState = result.value[0];
+        yield* appendTrace(trace, {
+          kind: "committed",
+          actorId: definition.id,
+          sequence: signal.sequence,
+        });
+        yield* Deferred.succeed(signal.receipt, {
+          actorId: definition.id,
+          sequence: signal.sequence,
+          event: result.value[1],
+        });
+        yield* capacity.release(1);
+      }
+    });
+
+    yield* Effect.forkScoped(worker);
+
+    const accept = (
+      message: Message,
+    ): Effect.Effect<Envelope<Message, Event>, ActorClosed | ActorMessageNotTransferable> =>
+      Effect.uninterruptibleMask((restore) =>
+        Effect.gen(function* () {
+          yield* restore(capacity.take(1));
+          return yield* acceptanceGate.withPermit(
+            Effect.gen(function* () {
+              if (accepting !== "open") {
+                yield* capacity.release(1);
+                return yield* new ActorClosed({
+                  actorId: definition.id,
+                  reason: accepting === "transition_failed" ? "transition_failed" : "closed",
+                });
+              }
+              const ownedMessage = yield* Effect.try({
+                try: () => structuredClone(message),
+                catch: (cause) =>
+                  new ActorMessageNotTransferable({
+                    actorId: definition.id,
+                    cause: String(cause),
+                  }),
+              }).pipe(Effect.tapError(() => capacity.release(1)));
+              const sequence = nextSequence + 1;
+              const receipt = yield* Deferred.make<DeliveryReceipt<Event>, ActorSendError>();
+              const envelope: Envelope<Message, Event> = {
+                kind: "message",
+                sequence,
+                message: ownedMessage,
+                receipt,
+              };
+              nextSequence = sequence;
+              yield* appendTrace(trace, {
+                kind: "accepted",
+                actorId: definition.id,
+                sequence,
+              });
+              if (!Queue.offerUnsafe(mailbox, envelope)) {
+                return yield* Effect.die(
+                  new Error("unbounded actor implementation queue rejected an accepted envelope"),
+                );
+              }
+              return envelope;
+            }),
+          );
+        }),
+      );
+
+    const close = acceptanceGate
+      .withPermit(
+        Effect.gen(function* () {
+          if (accepting === "open") {
+            accepting = "closing";
+            if (!Queue.offerUnsafe(mailbox, { kind: "close" })) {
+              return yield* Effect.die(
+                new Error("unbounded actor implementation queue rejected close"),
+              );
+            }
+          }
+        }),
+      )
+      .pipe(Effect.flatMap(() => Deferred.await(closed)));
+
+    yield* Effect.addFinalizer(() => close.pipe(Effect.asVoid));
+
+    return {
+      id: definition.id,
+      mailboxCapacity: definition.mailboxCapacity,
+      send: (message) =>
+        accept(message).pipe(Effect.flatMap((envelope) => Deferred.await(envelope.receipt))),
+      close,
+    };
+  });
+
+export interface ActorRuntime {
+  readonly spawn: typeof spawn;
+}
+
+export const ActorRuntime: ActorRuntime = { spawn };

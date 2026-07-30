@@ -44,6 +44,13 @@ export type Transition = (
 ) => readonly [State, Event];
 export type Replay = (state: State, events: ReadonlyArray<Event>) => State;
 
+export type PreparedReferenceTransition =
+  | { readonly kind: "complete"; readonly result: readonly [State, Event] }
+  | {
+      readonly kind: "needs_fresh_identifier";
+      readonly complete: (freshId: string) => readonly [State, Event];
+    };
+
 export const stateToJson = (state: State): JsonObject => ({
   stock: { ...state.stock },
   reservations: Object.fromEntries(
@@ -190,8 +197,35 @@ const release = (
   ];
 };
 
-export const referenceTransition: Transition = (message, state, freshId) =>
-  message.kind === "Reserve" ? reserve(message, state, freshId, true) : release(message, state);
+/**
+ * Prepare the accepted inventory transition without prematurely obtaining a
+ * fresh identifier. Invalid and insufficient reservations complete directly;
+ * only a reservation that passed those guards exposes the fresh-ID seam.
+ */
+export const prepareReferenceTransition = (
+  message: Message,
+  state: State,
+): PreparedReferenceTransition => {
+  if (message.kind === "Release") {
+    return { kind: "complete", result: release(message, state) };
+  }
+  if (message.quantity <= 0 || message.quantity > (state.stock[message.item] ?? 0)) {
+    return { kind: "complete", result: reserve(message, state, null, true) };
+  }
+  return {
+    kind: "needs_fresh_identifier",
+    complete: (freshId) => reserve(message, state, freshId, true),
+  };
+};
+
+export const referenceTransition: Transition = (message, state, freshId) => {
+  const prepared = prepareReferenceTransition(message, state);
+  if (prepared.kind === "complete") return prepared.result;
+  if (freshId === null) {
+    throw new DocumentError({ message: "Reserve requires a fresh reservation identifier" });
+  }
+  return prepared.complete(freshId);
+};
 
 export const brokenTransition: Transition = (message, state, freshId) =>
   message.kind === "Reserve" ? reserve(message, state, freshId, false) : release(message, state);
