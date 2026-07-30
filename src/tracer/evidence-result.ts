@@ -28,11 +28,19 @@ export const ARTIFACT_KIND_EVIDENCE_RESULT = "evidence_result";
 export const EVIDENCE_RESULT_SCHEMA_VERSION = 1;
 export const EVIDENCE_CATEGORY = "example_test";
 
-export interface CaseResult {
-  readonly caseId: string;
-  readonly passed: boolean;
-  readonly detail: JsonObject | null;
-}
+/**
+ * A discriminated union, not `{ passed: boolean; detail: JsonObject | null }`:
+ * only `passed: true, detail: null` and `passed: false, detail: JsonObject`
+ * are representable. A resolver, serializer, or any other normal typed
+ * construction can therefore never build a `CaseResult` with an
+ * inconsistent passed/detail combination — the invalid state is
+ * unrepresentable in the type, not merely rejected at runtime. Only the
+ * parser (which reads untyped external JSON) still needs an explicit
+ * runtime check for this invariant.
+ */
+export type CaseResult =
+  | { readonly caseId: string; readonly passed: true; readonly detail: null }
+  | { readonly caseId: string; readonly passed: false; readonly detail: JsonObject };
 
 /**
  * The frozen v1 artifact (design spec 0003, "`evidence_result_v1`"). Every
@@ -178,6 +186,41 @@ interface ParsedFields {
   readonly storedCounterexamples: JsonValue;
 }
 
+/**
+ * `evidenceToJson`'s complete emitted key set. The parser is a closed
+ * fixed-v1 boundary: any top-level key outside this set is rejected rather
+ * than silently discarded, so a field that is not part of the frozen
+ * artifact can never ride through the parser unnoticed.
+ */
+const RESULT_ALLOWED_KEYS: ReadonlySet<string> = new Set([
+  "artifact_kind",
+  "schema_version",
+  "identity",
+  "category",
+  "producer",
+  "recipe_identity",
+  "theory_identity",
+  "realization_identity",
+  "obligation",
+  "assumptions",
+  "case_results",
+  "passed",
+  "total_cases",
+  "passed_cases",
+  "counterexamples",
+]);
+
+/** `caseResultToJson`'s complete emitted key set for one case result. */
+const CASE_RESULT_ALLOWED_KEYS: ReadonlySet<string> = new Set(["case_id", "passed", "detail"]);
+
+const requireNonEmptyString = (value: JsonValue, context: string): string => {
+  const stringValue = requireString(value, context);
+  if (stringValue.length === 0) {
+    throw new DocumentError({ message: `${context} must be a nonempty string` });
+  }
+  return stringValue;
+};
+
 const parseEvidenceResultFields = (document: JsonObject): ParsedFields => {
   const artifactKind = requireString(
     requireKey(document, "artifact_kind", "evidence_result"),
@@ -187,6 +230,13 @@ const parseEvidenceResultFields = (document: JsonObject): ParsedFields => {
     throw new DocumentError({
       message: `evidence-result parser requires artifact_kind '${ARTIFACT_KIND_EVIDENCE_RESULT}', got '${artifactKind}'`,
     });
+  }
+  for (const key of Object.keys(document)) {
+    if (!RESULT_ALLOWED_KEYS.has(key)) {
+      throw new DocumentError({
+        message: `evidence_result contains an unknown top-level key '${key}'`,
+      });
+    }
   }
   const schemaVersion = requireInteger(
     requireKey(document, "schema_version", "evidence_result"),
@@ -214,27 +264,27 @@ const parseEvidenceResultFields = (document: JsonObject): ParsedFields => {
     requireKey(document, "producer", "evidence_result"),
     "evidence_result.producer",
   );
-  requireString(
+  requireNonEmptyString(
     requireKey(producer, "id", "evidence_result.producer"),
     "evidence_result.producer.id",
   );
-  requireString(
+  requireNonEmptyString(
     requireKey(producer, "version", "evidence_result.producer"),
     "evidence_result.producer.version",
   );
-  const recipeIdentity = requireString(
+  const recipeIdentity = requireNonEmptyString(
     requireKey(document, "recipe_identity", "evidence_result"),
     "evidence_result.recipe_identity",
   );
-  const theoryIdentity = requireString(
+  const theoryIdentity = requireNonEmptyString(
     requireKey(document, "theory_identity", "evidence_result"),
     "evidence_result.theory_identity",
   );
-  const realizationIdentity = requireString(
+  const realizationIdentity = requireNonEmptyString(
     requireKey(document, "realization_identity", "evidence_result"),
     "evidence_result.realization_identity",
   );
-  const obligation = requireString(
+  const obligation = requireNonEmptyString(
     requireKey(document, "obligation", "evidence_result"),
     "evidence_result.obligation",
   );
@@ -249,25 +299,34 @@ const parseEvidenceResultFields = (document: JsonObject): ParsedFields => {
   if (rawCases.length === 0) {
     throw new DocumentError({ message: "evidence_result.case_results must not be empty" });
   }
-  const caseResults = rawCases.map((raw, index) => {
+  const caseResults: ReadonlyArray<CaseResult> = rawCases.map((raw, index) => {
     const context = `evidence_result.case_results[${index}]`;
+    for (const key of Object.keys(raw)) {
+      if (!CASE_RESULT_ALLOWED_KEYS.has(key)) {
+        throw new DocumentError({ message: `${context} contains an unknown key '${key}'` });
+      }
+    }
     const caseId = requireString(requireKey(raw, "case_id", context), `${context}.case_id`);
     if (caseId.length === 0) {
       throw new DocumentError({ message: `${context}.case_id must be a nonempty string` });
     }
     const passed = requireBoolean(requireKey(raw, "passed", context), `${context}.passed`);
+    // `detail`'s interior keys are payload (the case's own failure detail)
+    // and are preserved losslessly, never filtered — only this envelope's
+    // own case_id/passed/detail keys are checked against a closed set.
     const detail = requireDetail(requireKey(raw, "detail", context), `${context}.detail`);
-    if (passed && detail !== null) {
-      throw new DocumentError({
-        message: `${context}.detail must be null when passed is true`,
-      });
+    if (passed) {
+      if (detail !== null) {
+        throw new DocumentError({ message: `${context}.detail must be null when passed is true` });
+      }
+      return { caseId, passed: true, detail: null };
     }
-    if (!passed && detail === null) {
+    if (detail === null) {
       throw new DocumentError({
         message: `${context}.detail must be a non-null object when passed is false`,
       });
     }
-    return { caseId, passed, detail };
+    return { caseId, passed: false, detail };
   });
   const seenCaseIds = new Set<string>();
   for (const item of caseResults) {

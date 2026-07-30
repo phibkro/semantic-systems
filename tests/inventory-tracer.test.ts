@@ -1338,6 +1338,61 @@ describe("evidence-production boundary and resolver packet consumption", () => {
       parseEvidenceResult(mutate({ case_results: emptyIdCases })),
       "nonempty",
     );
+
+    // Adding an extra key changes nothing the identity payload reads, so
+    // the recomputed identity still matches the stored one exactly — this
+    // proves rejection comes only from the closed-key-set check itself,
+    // not from any hash refresh.
+    await expectFailure(
+      parseEvidenceResult(mutate({ unsigned_top_level: "unsigned-value" })),
+      "unknown top-level key",
+    );
+    const caseWithUnsignedField = { ...rawCases[0]!, unsigned_case_field: "unsigned-value" };
+    await expectFailure(
+      parseEvidenceResult(mutate({ case_results: [caseWithUnsignedField, ...rawCases.slice(1)] })),
+      "unknown key",
+    );
+
+    // Fully refreshed empty-binding mutations: each of these fields must be
+    // rejected as empty by the field-specific nonempty check, not by an
+    // incidental identity mismatch, so the identity and every derived
+    // aggregate are recomputed correctly for the mutated fields below.
+    const baseFields: Omit<EvidenceResult, "identity"> = {
+      artifactKind: outcome.result.artifactKind,
+      schemaVersion: outcome.result.schemaVersion,
+      category: outcome.result.category,
+      producer: outcome.result.producer,
+      recipeIdentity: outcome.result.recipeIdentity,
+      theoryIdentity: outcome.result.theoryIdentity,
+      realizationIdentity: outcome.result.realizationIdentity,
+      obligation: outcome.result.obligation,
+      assumptions: outcome.result.assumptions,
+      caseResults: outcome.result.caseResults,
+    };
+    const emptyFieldMutations: ReadonlyArray<{
+      readonly label: string;
+      readonly fields: Omit<EvidenceResult, "identity">;
+    }> = [
+      {
+        label: "producer.id",
+        fields: { ...baseFields, producer: { ...baseFields.producer, id: "" } },
+      },
+      {
+        label: "producer.version",
+        fields: { ...baseFields, producer: { ...baseFields.producer, version: "" } },
+      },
+      { label: "recipe_identity", fields: { ...baseFields, recipeIdentity: "" } },
+      { label: "theory_identity", fields: { ...baseFields, theoryIdentity: "" } },
+      { label: "realization_identity", fields: { ...baseFields, realizationIdentity: "" } },
+      { label: "obligation", fields: { ...baseFields, obligation: "" } },
+    ];
+    for (const mutation of emptyFieldMutations) {
+      const mutatedIdentity = await runBun(
+        contentIdentity(evidenceResultIdentityPayload(mutation.fields)),
+      );
+      const mutatedJson = evidenceToJson({ identity: mutatedIdentity, ...mutation.fields });
+      await expectFailure(parseEvidenceResult(mutatedJson), mutation.label);
+    }
   });
 
   test("produceEvidence and runConformance reject a malformed recipe envelope with a stable message before adapter resolution or case execution", async () => {
@@ -1371,6 +1426,10 @@ describe("evidence-production boundary and resolver packet consumption", () => {
       { ...baseSuite, execution_seed: 42 },
       "unknown top-level key",
     );
+    // A valid string `name` is accepted (and stays excluded from the recipe
+    // identity, per the sibling name-identity test); only a non-string
+    // `name` is rejected.
+    await expectEnvelopeRejection({ ...baseSuite, name: 42 }, "suite.name must be a string");
     await expectEnvelopeRejection({ ...baseSuite, cases: [] }, "cases must not be empty");
 
     const rawCases = baseSuite.cases as ReadonlyArray<JsonObject>;
@@ -1383,74 +1442,215 @@ describe("evidence-production boundary and resolver packet consumption", () => {
 
     // runConformance shares the same validator, so calling it directly with
     // a malformed recipe (bypassing produceEvidence entirely) must also
-    // reject before any case executes.
+    // reject before any case executes. Counting transition/replay calls
+    // (rather than reusing the real operations) proves phase ordering
+    // directly: a real transition/replay would silently succeed even if
+    // called, so passing them earlier could not distinguish "validated
+    // first" from "executed first and happened to still pass."
+    let transitionCalls = 0;
+    let replayCalls = 0;
+    const countingTransition: Parameters<typeof runConformance>[4] = (...args) => {
+      transitionCalls += 1;
+      return resolveTransition(operationBinding(pure.document, "transition"))(...args);
+    };
+    const countingReplay: Parameters<typeof runConformance>[5] = (...args) => {
+      replayCalls += 1;
+      return resolveReplay(operationBinding(pure.document, "replay"))(...args);
+    };
     await expectFailure(
       runConformance(
         theory,
+        THEORY_ID,
         pure,
         { ...baseSuite, execution_seed: "unauthorized" },
-        resolveTransition(operationBinding(pure.document, "transition")),
-        resolveReplay(operationBinding(pure.document, "replay")),
+        countingTransition,
+        countingReplay,
       ),
       "unknown top-level key",
     );
+    expect(transitionCalls).toBe(0);
+    expect(replayCalls).toBe(0);
+  });
+
+  test("runConformance binds the recipe to the exact supplied theory before any transition/replay call", async () => {
+    const { fixture, theory, pure } = await loadPureAndBroken();
+    const baseSuite = fixture.evidenceSuites[0]!;
+
+    const expectDirectRejection = async (
+      suite: JsonObject,
+      theoryId: string,
+      message: string,
+    ): Promise<void> => {
+      let transitionCalls = 0;
+      let replayCalls = 0;
+      const countingTransition: Parameters<typeof runConformance>[4] = (...args) => {
+        transitionCalls += 1;
+        return resolveTransition(operationBinding(pure.document, "transition"))(...args);
+      };
+      const countingReplay: Parameters<typeof runConformance>[5] = (...args) => {
+        replayCalls += 1;
+        return resolveReplay(operationBinding(pure.document, "replay"))(...args);
+      };
+      await expectFailure(
+        runConformance(theory, theoryId, pure, suite, countingTransition, countingReplay),
+        message,
+      );
+      expect(transitionCalls).toBe(0);
+      expect(replayCalls).toBe(0);
+    };
+
+    // Foreign ID: the recipe's own declared `theory` does not match the
+    // theory the caller actually supplied, even though `theory_identity`
+    // still matches this exact Theory's content identity.
+    await expectDirectRejection(
+      baseSuite,
+      "theory.some-other-contract",
+      "not the supplied theory",
+    );
+
+    // Foreign identity: the same declared theory ID, but a different
+    // (well-formed-looking) content identity than the supplied Theory's.
+    await expectDirectRejection(
+      {
+        ...baseSuite,
+        theory_identity:
+          "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      },
+      THEORY_ID,
+      "foreign theory_identity",
+    );
+
+    // Empty identity: rejected by the nonempty check specifically, not the
+    // foreign-identity equality check below it.
+    await expectDirectRejection(
+      { ...baseSuite, theory_identity: "" },
+      THEORY_ID,
+      "suite.theory_identity must be a nonempty string",
+    );
+
+    // Empty declared theory/id/obligation: rejected before any adapter
+    // work. produceEvidence's own pre-existing theory/obligation
+    // diagnostics would otherwise short-circuit on these same fields
+    // earlier (as missing_evidence/stale_evidence_recipe), which is why
+    // this exercises the shared validator directly instead.
+    await expectDirectRejection(
+      { ...baseSuite, theory: "" },
+      THEORY_ID,
+      "suite.theory must be a nonempty string",
+    );
+    await expectDirectRejection(
+      { ...baseSuite, id: "" },
+      THEORY_ID,
+      "suite.id must be a nonempty string",
+    );
+    await expectDirectRejection(
+      { ...baseSuite, obligation: "" },
+      THEORY_ID,
+      "suite.obligation must be a nonempty string",
+    );
+  });
+
+  test("conformance_suite requires an explicit assumptions array; omission is rejected but an explicit empty array is accepted", async () => {
+    const { fixture, theory, pure } = await loadPureAndBroken();
+    const obligation = requiredObligation(theory);
+    const baseSuite = fixture.evidenceSuites[0]!;
+    const suiteWithoutAssumptions = Object.fromEntries(
+      Object.entries(baseSuite).filter(([key]) => key !== "assumptions"),
+    ) as JsonObject;
+
+    const spy = spyEvidenceAdapters();
+    await expectFailure(
+      produceEvidence(theory, THEORY_ID, obligation, pure, [suiteWithoutAssumptions], spy.adapters),
+      "assumptions",
+    );
+    expect(spy.calls).toEqual([]);
+
+    // An explicit empty array is a different, valid declaration: it must
+    // not be rejected, and it participates in the recipe identity exactly
+    // like any other authored value (no special-cased normalization).
+    const suiteWithExplicitEmptyAssumptions: JsonObject = { ...baseSuite, assumptions: [] };
+    const adapters: EvidenceAdapters = { resolveTransition, resolveReplay };
+    const outcome = await runBun(
+      produceEvidence(
+        theory,
+        THEORY_ID,
+        obligation,
+        pure,
+        [suiteWithExplicitEmptyAssumptions],
+        adapters,
+      ),
+    );
+    expect(outcome.ok).toBeTrue();
+    if (!outcome.ok) throw new Error("expected the pure realization to produce evidence");
+    expect(outcome.result.assumptions).toEqual([]);
   });
 
   test("evidence-result parser rejects a failed case with null detail even when identity and aggregates are fully refreshed", async () => {
-    const withoutIdentity: Omit<EvidenceResult, "identity"> = {
-      artifactKind: ARTIFACT_KIND_EVIDENCE_RESULT,
-      schemaVersion: EVIDENCE_RESULT_SCHEMA_VERSION,
+    // Constructed as raw JSON, not the typed EvidenceResult/CaseResult
+    // shape: CaseResult is a discriminated union that cannot represent this
+    // deliberately invalid passed/detail combination through normal typed
+    // construction (correctness by construction). This proves the PARSER
+    // still rejects it when an untyped external document supplies it
+    // directly, with the identity and every derived aggregate correctly
+    // recomputed for this exact payload beforehand.
+    const caseResultsJson: ReadonlyArray<JsonObject> = [
+      { case_id: "case-pass", passed: true, detail: null },
+      { case_id: "case-fail-with-null-detail", passed: false, detail: null },
+    ];
+    const payloadWithoutIdentity: JsonObject = {
+      artifact_kind: ARTIFACT_KIND_EVIDENCE_RESULT,
+      schema_version: EVIDENCE_RESULT_SCHEMA_VERSION,
       category: "example_test",
       producer: { id: "producer.test", version: "0" },
-      recipeIdentity: "sha256:fixture-recipe-for-shape-rule",
-      theoryIdentity: "sha256:fixture-theory-for-shape-rule",
-      realizationIdentity: "sha256:fixture-realization-for-shape-rule",
+      recipe_identity: "sha256:fixture-recipe-for-shape-rule",
+      theory_identity: "sha256:fixture-theory-for-shape-rule",
+      realization_identity: "sha256:fixture-realization-for-shape-rule",
       obligation: "obligation.inventory.conformance",
       assumptions: [],
-      caseResults: [
-        { caseId: "case-pass", passed: true, detail: null },
-        { caseId: "case-fail-with-null-detail", passed: false, detail: null },
-      ],
+      case_results: caseResultsJson,
     };
-    const identity = await runBun(contentIdentity(evidenceResultIdentityPayload(withoutIdentity)));
-    const evidence: EvidenceResult = { identity, ...withoutIdentity };
-    const json = evidenceToJson(evidence);
-    // Sanity: identity and every derived aggregate are already fully
-    // refreshed/self-consistent with this exact (malformed) case payload —
-    // the shape rule below must be what rejects this document, never a
-    // stale hash or a stale aggregate.
-    expect(json.identity).toBe(identity);
-    expect(json.passed).toBeFalse();
-    expect(json.passed_cases).toBe(1);
-    expect(json.total_cases).toBe(2);
-    expect(json.counterexamples).toEqual([
-      { case_id: "case-fail-with-null-detail", passed: false, detail: null },
-    ]);
+    const identity = await runBun(contentIdentity(payloadWithoutIdentity));
+    const json: JsonObject = {
+      ...payloadWithoutIdentity,
+      identity,
+      // Sanity: every derived aggregate below is already fully
+      // refreshed/self-consistent with this exact (malformed) case
+      // payload — the shape rule inside the parser must be what rejects
+      // this document, never a stale hash or a stale aggregate.
+      passed: false,
+      total_cases: 2,
+      passed_cases: 1,
+      counterexamples: [{ case_id: "case-fail-with-null-detail", passed: false, detail: null }],
+    };
 
     await expectFailure(parseEvidenceResult(json), "detail");
   });
 
   test("evidence-result parser rejects a passed case with a non-null detail even when identity and aggregates are fully refreshed", async () => {
-    const withoutIdentity: Omit<EvidenceResult, "identity"> = {
-      artifactKind: ARTIFACT_KIND_EVIDENCE_RESULT,
-      schemaVersion: EVIDENCE_RESULT_SCHEMA_VERSION,
+    const caseResultsJson: ReadonlyArray<JsonObject> = [
+      { case_id: "case-pass-with-detail", passed: true, detail: { unexpected: "detail" } },
+    ];
+    const payloadWithoutIdentity: JsonObject = {
+      artifact_kind: ARTIFACT_KIND_EVIDENCE_RESULT,
+      schema_version: EVIDENCE_RESULT_SCHEMA_VERSION,
       category: "example_test",
       producer: { id: "producer.test", version: "0" },
-      recipeIdentity: "sha256:fixture-recipe-for-shape-rule-2",
-      theoryIdentity: "sha256:fixture-theory-for-shape-rule-2",
-      realizationIdentity: "sha256:fixture-realization-for-shape-rule-2",
+      recipe_identity: "sha256:fixture-recipe-for-shape-rule-2",
+      theory_identity: "sha256:fixture-theory-for-shape-rule-2",
+      realization_identity: "sha256:fixture-realization-for-shape-rule-2",
       obligation: "obligation.inventory.conformance",
       assumptions: [],
-      caseResults: [
-        { caseId: "case-pass-with-detail", passed: true, detail: { unexpected: "detail" } },
-      ],
+      case_results: caseResultsJson,
     };
-    const identity = await runBun(contentIdentity(evidenceResultIdentityPayload(withoutIdentity)));
-    const evidence: EvidenceResult = { identity, ...withoutIdentity };
-    const json = evidenceToJson(evidence);
-    expect(json.identity).toBe(identity);
-    expect(json.passed).toBeTrue();
-    expect(json.counterexamples).toEqual([]);
+    const identity = await runBun(contentIdentity(payloadWithoutIdentity));
+    const json: JsonObject = {
+      ...payloadWithoutIdentity,
+      identity,
+      passed: true,
+      total_cases: 1,
+      passed_cases: 1,
+      counterexamples: [],
+    };
 
     await expectFailure(parseEvidenceResult(json), "detail");
   });

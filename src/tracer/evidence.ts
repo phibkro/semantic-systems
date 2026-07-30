@@ -112,18 +112,43 @@ interface RecipeEnvelope {
   readonly recipePayload: JsonObject;
 }
 
+const requireNonEmptyString = (value: JsonValue, context: string): string => {
+  const stringValue = requireString(value, context);
+  if (stringValue.length === 0) {
+    throw new DocumentError({ message: `${context} must be a nonempty string` });
+  }
+  return stringValue;
+};
+
 /**
  * The smallest pure recipe-envelope validator shared by `produceEvidence`
  * (before adapter resolution) and `runConformance` (before case execution),
- * so neither can select or execute a malformed recipe. It rejects every
- * unknown top-level key — the allowed set is exactly `kind`,
- * `schema_version`, `id`, `name`, `theory`, `theory_identity`, `obligation`,
- * `category`, `producer`, `assumptions`, `cases` — a non-literal `kind` or
- * `schema_version`, a `producer` without nonempty string `id`/`version`, an
- * empty or duplicate-ID case list, and any case with an empty `id`. This is
- * independent of `loader.ts`'s schema: both exported functions can be
- * called directly with an arbitrary `JsonObject`, so the boundary re-checks
- * everything itself rather than trusting the loader to have run first.
+ * so neither can select or execute a malformed recipe, and neither trusts
+ * the recipe's own claimed theory binding without checking it against the
+ * exact theory the caller actually supplied. It rejects:
+ *
+ * - every unknown top-level key — the allowed set is exactly `kind`,
+ *   `schema_version`, `id`, `name`, `theory`, `theory_identity`,
+ *   `obligation`, `category`, `producer`, `assumptions`, `cases`;
+ * - a non-literal `kind` or `schema_version`;
+ * - an empty `id`, `theory`, `theory_identity`, or `obligation`;
+ * - a recipe whose `theory`/`theory_identity` does not exactly match the
+ *   `theoryId`/`theoryIdentity` the caller supplies (a foreign or empty
+ *   binding never reaches transition/replay/case work);
+ * - a `name` present with a non-string value (a valid string `name` is
+ *   still accepted and remains the sole presentation-only field excluded
+ *   from the recipe identity below);
+ * - a `producer` without nonempty string `id`/`version`;
+ * - a missing `assumptions` key (an author must declare `[]` explicitly;
+ *   omission is rejected, not silently defaulted — this changes nothing
+ *   about the *identity* of an explicit `[]`, only whether omission is
+ *   accepted at all);
+ * - an empty or duplicate-ID case list, and any case with an empty `id`.
+ *
+ * This is independent of `loader.ts`'s schema: both exported functions can
+ * be called directly with an arbitrary `JsonObject`, so the boundary
+ * re-checks everything itself rather than trusting the loader to have run
+ * first.
  *
  * It also derives the exact recipe identity payload (design spec 0003 slice
  * 2/frozen requirement 3): a SHA-256 content identity over the source
@@ -135,7 +160,11 @@ interface RecipeEnvelope {
  * deliberately hashes the complete authored `cases` array, never an ad hoc
  * reduced list of case IDs.
  */
-const validateRecipeEnvelope = (suite: JsonObject): RecipeEnvelope => {
+const validateRecipeEnvelope = (
+  suite: JsonObject,
+  theoryId: string,
+  theoryIdentity: string,
+): RecipeEnvelope => {
   for (const key of Object.keys(suite)) {
     if (!RECIPE_ALLOWED_KEYS.has(key)) {
       throw new DocumentError({
@@ -158,16 +187,29 @@ const validateRecipeEnvelope = (suite: JsonObject): RecipeEnvelope => {
       message: `conformance_suite requires schema_version ${CONFORMANCE_SUITE_SCHEMA_VERSION}, got ${JSON.stringify(schemaVersion)}`,
     });
   }
-  const id = requireString(requireKey(suite, "id", "conformance_suite"), "suite.id");
-  const theoryField = requireString(
+  const id = requireNonEmptyString(requireKey(suite, "id", "conformance_suite"), "suite.id");
+  if ("name" in suite && typeof suite.name !== "string") {
+    throw new DocumentError({ message: "suite.name must be a string when present" });
+  }
+  const declaredTheory = requireNonEmptyString(
     requireKey(suite, "theory", "conformance_suite"),
     "suite.theory",
   );
-  const theoryIdentity = requireString(
+  const declaredTheoryIdentity = requireNonEmptyString(
     requireKey(suite, "theory_identity", "conformance_suite"),
     "suite.theory_identity",
   );
-  const obligation = requireString(
+  if (declaredTheory !== theoryId) {
+    throw new DocumentError({
+      message: `conformance_suite targets theory '${declaredTheory}', not the supplied theory '${theoryId}'`,
+    });
+  }
+  if (declaredTheoryIdentity !== theoryIdentity) {
+    throw new DocumentError({
+      message: `conformance_suite targets a foreign theory_identity '${declaredTheoryIdentity}', not the supplied theory identity '${theoryIdentity}'`,
+    });
+  }
+  const obligation = requireNonEmptyString(
     requireKey(suite, "obligation", "conformance_suite"),
     "suite.obligation",
   );
@@ -178,21 +220,12 @@ const validateRecipeEnvelope = (suite: JsonObject): RecipeEnvelope => {
     });
   }
   const producer = requireObject(requireKey(suite, "producer", "conformance_suite"), "suite.producer");
-  const producerId = requireString(
-    requireKey(producer, "id", "suite.producer"),
-    "suite.producer.id",
+  requireNonEmptyString(requireKey(producer, "id", "suite.producer"), "suite.producer.id");
+  requireNonEmptyString(requireKey(producer, "version", "suite.producer"), "suite.producer.version");
+  const assumptions = requireStringList(
+    requireKey(suite, "assumptions", "conformance_suite"),
+    "suite.assumptions",
   );
-  if (producerId.length === 0) {
-    throw new DocumentError({ message: "suite.producer.id must be a nonempty string" });
-  }
-  const producerVersion = requireString(
-    requireKey(producer, "version", "suite.producer"),
-    "suite.producer.version",
-  );
-  if (producerVersion.length === 0) {
-    throw new DocumentError({ message: "suite.producer.version must be a nonempty string" });
-  }
-  const assumptions = requireStringList(suite.assumptions ?? [], "suite.assumptions");
   const cases = requireObjectList(requireKey(suite, "cases", "conformance_suite"), "suite.cases");
   if (cases.length === 0) {
     throw new DocumentError({ message: "conformance_suite.cases must not be empty" });
@@ -223,8 +256,8 @@ const validateRecipeEnvelope = (suite: JsonObject): RecipeEnvelope => {
       kind,
       schema_version: schemaVersion,
       id,
-      theory: theoryField,
-      theory_identity: theoryIdentity,
+      theory: declaredTheory,
+      theory_identity: declaredTheoryIdentity,
       obligation,
       category,
       producer,
@@ -239,8 +272,17 @@ const toDocumentError = (cause: unknown): DocumentError =>
     ? cause
     : new DocumentError({ message: "cannot validate conformance recipe", cause });
 
+/**
+ * `theoryId` is threaded in explicitly (rather than recovered from
+ * `theory`) because `Theory` (see `theory.ts`) carries only the normalized
+ * `identity` and `payload` — the author-declared ID is not part of the
+ * normalized shape at all. Binding the recipe to the exact supplied theory
+ * (both `theoryId` and `theory.identity`) happens inside
+ * `validateRecipeEnvelope` below, before any transition/replay/case work.
+ */
 export const runConformance = (
   theory: Theory,
+  theoryId: string,
   realization: Realization,
   suite: JsonObject,
   transition: Transition,
@@ -248,7 +290,7 @@ export const runConformance = (
 ): Effect.Effect<EvidenceResult, DocumentError, Crypto.Crypto> =>
   Effect.gen(function* () {
     const envelope = yield* Effect.try({
-      try: () => validateRecipeEnvelope(suite),
+      try: () => validateRecipeEnvelope(suite, theoryId, theory.identity),
       catch: toDocumentError,
     });
     const caseResults = yield* Effect.try({
@@ -351,7 +393,7 @@ export const produceEvidence = (
     // fails this Effect outright, consistent with the existing
     // wrong-category hard failure below — it is not a `ProducerDiagnostic`.
     yield* Effect.try({
-      try: () => validateRecipeEnvelope(suite),
+      try: () => validateRecipeEnvelope(suite, theoryId, theory.identity),
       catch: toDocumentError,
     });
     // Extracting the operation-binding keys from the realization document is
@@ -407,6 +449,7 @@ export const produceEvidence = (
       realizationIdentity: subjectIdentity,
       result: yield* runConformance(
         theory,
+        theoryId,
         realization,
         suite,
         operations.transition,
