@@ -68,6 +68,16 @@ mutation, forbidden-import, lint, format, and type gates but failed the frozen
 checker-size gate. It is rejected for integration and does not establish this
 claim. Uncertainty 0004 records the recut alternatives.
 
+Observed result (2026-07-30): TypeScript recut `a373ae9` was independently
+rejected and reverted at `adf7e8d`. Its reported 68.07% size ratio compared
+asymmetric surfaces (194 checker lines against a 285-line resolver file that
+included excluded serialization/reporting); the resolver's symmetric
+adjudication region was 92 lines before excluded checker validation and
+semantic-diff code were counted. Review also found accepted foreign outcomes,
+an unsupported self-consistent rebound claim, policy-matching drift, duplicate
+authored candidates, and a non-transitive dependency oracle. This is
+counterevidence, not runtime validation, and does not establish the hypothesis.
+
 Invalidation: any change to the evidence-result schema, resolution-claim
 schema, policy rules, identity algorithm, checker algorithm, or canonical
 binding adapter requires the full mutation and independence gates to rerun.

@@ -25,6 +25,17 @@ and kill criteria are frozen in design spec 0003.
   Its behavioral, mutation, forbidden-import, Ruff, format, and Pyright gates
   pass, but its checker decision surface remains larger than the permitted
   70% bound. The experiment is rejected for integration.
+- The TypeScript recut at `a373ae9` is also rejected and was reverted by
+  `adf7e8d` after exact-head independent review. Its published 68.07% ratio
+  asymmetrically counted resolver serialization/reporting while excluding
+  checker-side semantic validation. The honest adjudication comparison was
+  already 194 checker lines versus 92 resolver lines before another 92
+  checker-input validation lines and 49 semantic-diff lines were included.
+- The same review found foreign outcomes could remain unconsumed, the required
+  self-consistent rebound falsifier lacked an independently custodial
+  realization-specific observation, policy matching diverged, duplicate
+  authored candidates were accepted, and the dependency oracle was not
+  transitive. No evidence from that experiment establishes CLM-0002.
 
 ## Contract-owned implementation slices
 
@@ -129,6 +140,17 @@ validity.
 - 2026-07-29: Opened uncertainty 0004 to compare a declarative generated rule
   contract, certificate validation, and a narrower claim boundary without
   weakening independent observation.
+- 2026-07-30: A TypeScript recut at `a373ae9` passed its local focused gate but
+  independent exact-head review found two frozen-contract kill criteria and
+  four additional semantic/oracle defects. In particular, its 194/285 size
+  result compared asymmetric surfaces; the symmetric resolver decision region
+  was 92 lines, while checker input validation and semantic comparison had
+  been excluded. The reviewer also constructed accepted foreign-outcome,
+  self-consistent rebound, wrong-obligation, unsupported-ambiguity, and
+  duplicate-authored-candidate counterexamples. Main integration reverted the
+  experiment at `adf7e8d`, retained both commits as evidence, and returned the
+  frontier to uncertainty 0004 rather than weakening or reinterpreting the
+  frozen gate.
 
 ## Decisions and deviations
 
