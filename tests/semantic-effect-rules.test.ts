@@ -20,12 +20,24 @@ const referencesCuratorHolder = { filename: "/repo/src/references/curator-holder
 
 const runAmbientConsole = (
   events: ReadonlyArray<readonly [visitor: string, node: unknown]>,
-  globalReference = true,
+  referenceKind: "global" | "unresolved" | "shadowed" = "global",
 ) => {
   const { context, diagnostics } = Testing.createMockContext();
   Object.defineProperty(context.sourceCode, "isGlobalReference", {
-    value: () => globalReference,
+    value: () => referenceKind === "global",
   });
+  if (referenceKind === "shadowed") {
+    Object.defineProperty(context.sourceCode, "getScope", {
+      value: () => Testing.scope({ variables: [Testing.variable("console")] }),
+    });
+  } else if (referenceKind === "unresolved") {
+    Object.defineProperty(context.sourceCode, "getScope", {
+      value: (node: unknown) => ({
+        ...Testing.scope(),
+        through: [{ identifier: node }],
+      }),
+    });
+  }
   const visitors = ambientConsole.create(context);
   for (const [visitor, node] of events) visitors[visitor]?.(node as never);
   return diagnostics;
@@ -52,6 +64,16 @@ describe("Semantic Systems Effect Oxlint rules", () => {
     ]);
     expect(globalThisConsole).toHaveLength(1);
 
+    const unresolvedConsole = runAmbientConsole(
+      [
+        ["ImportDeclaration", Testing.importDecl("effect")],
+        ["Identifier", Testing.id("console")],
+        ["Program:exit", { type: "Program", body: [] }],
+      ],
+      "unresolved",
+    );
+    expect(unresolvedConsole).toHaveLength(1);
+
     const unrelated = runAmbientConsole([
       ["Identifier", Testing.id("console")],
       ["Program:exit", { type: "Program", body: [] }],
@@ -64,7 +86,7 @@ describe("Semantic Systems Effect Oxlint rules", () => {
         ["Identifier", Testing.id("console")],
         ["Program:exit", { type: "Program", body: [] }],
       ],
-      false,
+      "shadowed",
     );
     Testing.expectNoDiagnostics(shadowed);
   });

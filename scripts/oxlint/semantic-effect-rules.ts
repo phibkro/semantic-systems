@@ -106,6 +106,25 @@ export const ambientConsole = Rule.define({
     >([]);
     const remember = (node: Parameters<typeof Diagnostic.make>[0]["node"]) =>
       Ref.update(ambientReferences, (nodes) => [...nodes, node]);
+    const isAmbientReference = (
+      node: Parameters<typeof ctx.sourceCode.isGlobalReference>[0] & {
+        readonly name: string;
+      },
+    ): boolean => {
+      if (ctx.sourceCode.isGlobalReference(node)) return true;
+      for (
+        let scope: ReturnType<typeof ctx.sourceCode.getScope> | null =
+          ctx.sourceCode.getScope(node);
+        scope !== null;
+        scope = scope.upper
+      ) {
+        const reference = scope.references.find((item) => item.identifier === node);
+        if (reference !== undefined) return reference.resolved === null;
+        if (scope.through.some((item) => item.identifier === node)) return true;
+        if (scope.set.has(node.name)) return false;
+      }
+      return false;
+    };
 
     return Visitor.merge(
       Visitor.on("ImportDeclaration", (node) =>
@@ -120,15 +139,13 @@ export const ambientConsole = Rule.define({
           : Effect.void,
       ),
       Visitor.on("Identifier", (node) =>
-        node.name === "console" && ctx.sourceCode.isGlobalReference(node)
-          ? remember(node)
-          : Effect.void,
+        node.name === "console" && isAmbientReference(node) ? remember(node) : Effect.void,
       ),
       Visitor.on("MemberExpression", (node) => {
         if (
           node.object.type !== "Identifier" ||
           node.object.name !== "globalThis" ||
-          !ctx.sourceCode.isGlobalReference(node.object)
+          !isAmbientReference(node.object)
         ) {
           return Effect.void;
         }
