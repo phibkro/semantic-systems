@@ -1,4 +1,4 @@
-import { Crypto, Effect } from "effect";
+import { Effect, type Crypto } from "effect";
 import {
   evidenceCounterexamples,
   evidencePassed,
@@ -420,7 +420,9 @@ export const resolve = (
         };
       },
       catch: (cause) =>
-        cause instanceof DocumentError ? cause : new DocumentError({ message: "cannot resolve deployment", cause }),
+        cause instanceof DocumentError
+          ? cause
+          : new DocumentError({ message: "cannot resolve deployment", cause }),
     });
   });
 

@@ -1,4 +1,4 @@
-import { Crypto, Effect } from "effect";
+import { Effect, type Crypto } from "effect";
 import { contentIdentity, jsonEqual } from "./canonical.ts";
 import { parseState, runSteps, stateToJson, type Replay, type Transition } from "./domain.ts";
 import {
@@ -213,15 +213,24 @@ const validateRecipeEnvelope = (
     requireKey(suite, "obligation", "conformance_suite"),
     "suite.obligation",
   );
-  const category = requireString(requireKey(suite, "category", "conformance_suite"), "suite.category");
+  const category = requireString(
+    requireKey(suite, "category", "conformance_suite"),
+    "suite.category",
+  );
   if (category !== EVIDENCE_CATEGORY) {
     throw new DocumentError({
       message: `the conformance runner produces example_test evidence; the recipe cannot relabel it as '${category}'`,
     });
   }
-  const producer = requireObject(requireKey(suite, "producer", "conformance_suite"), "suite.producer");
+  const producer = requireObject(
+    requireKey(suite, "producer", "conformance_suite"),
+    "suite.producer",
+  );
   requireNonEmptyString(requireKey(producer, "id", "suite.producer"), "suite.producer.id");
-  requireNonEmptyString(requireKey(producer, "version", "suite.producer"), "suite.producer.version");
+  requireNonEmptyString(
+    requireKey(producer, "version", "suite.producer"),
+    "suite.producer.version",
+  );
   const assumptions = requireStringList(
     requireKey(suite, "assumptions", "conformance_suite"),
     "suite.assumptions",
@@ -437,7 +446,10 @@ export const produceEvidence = (
       ),
       Effect.mapError(
         (error) =>
-          new DocumentError({ message: "cannot resolve realization operations", cause: error.cause }),
+          new DocumentError({
+            message: "cannot resolve realization operations",
+            cause: error.cause,
+          }),
       ),
     );
     if (operations.kind === "unbound") {

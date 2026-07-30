@@ -1,4 +1,4 @@
-import { Crypto, Effect } from "effect";
+import { Effect, type Crypto } from "effect";
 import { contentIdentity } from "./canonical.ts";
 import {
   evidenceToJson,

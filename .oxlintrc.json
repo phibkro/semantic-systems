@@ -29,7 +29,8 @@
     {
       "files": ["tests/**/*.ts"],
       "rules": {
-        "typescript/no-explicit-any": "off"
+        "typescript/no-explicit-any": "off",
+        "unicorn/consistent-function-scoping": "off"
       }
     }
   ]

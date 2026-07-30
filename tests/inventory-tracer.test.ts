@@ -192,7 +192,7 @@ const runBun = <A, E>(
 const runJson = async (root = INVENTORY, policy = "development"): Promise<JsonObject> =>
   demoToJson(await runBun(runDemo(root, policy)));
 
-const candidate = (document: JsonObject, id: string): JsonObject => {
+const resolutionCandidateJson = (document: JsonObject, id: string): JsonObject => {
   const resolution = document.resolution as JsonObject;
   return (resolution.candidates as ReadonlyArray<JsonObject>).find(
     (item) => item.realization_id === id,
@@ -254,8 +254,8 @@ describe("inventory tracer Effect v4 slice", () => {
     const resolution = document.resolution as JsonObject;
     expect(resolution.status).toBe("selected");
     expect(resolution.selected_realization).toBe("realization.inventory.pure");
-    const pure = candidate(document, "realization.inventory.pure");
-    const broken = candidate(document, "realization.inventory.broken");
+    const pure = resolutionCandidateJson(document, "realization.inventory.pure");
+    const broken = resolutionCandidateJson(document, "realization.inventory.broken");
     expect(pure.realization_identity).toBe(
       "sha256:67a6b723fa37eaaa7fffe0890f27174f2d04027e05f3eaf8760d9a430a7201b9",
     );
@@ -287,9 +287,9 @@ describe("inventory tracer Effect v4 slice", () => {
 
     const highAssurance = await runJson(INVENTORY, "high-assurance");
     expect((highAssurance.resolution as JsonObject).status).toBe("rejected");
-    expect(candidate(highAssurance, "realization.inventory.pure").reason_codes).toContain(
-      "evidence_category_not_accepted",
-    );
+    expect(
+      resolutionCandidateJson(highAssurance, "realization.inventory.pure").reason_codes,
+    ).toContain("evidence_category_not_accepted");
   });
 
   test("multiple eligible realizations reject as ambiguous", async () => {
@@ -313,9 +313,9 @@ describe("inventory tracer Effect v4 slice", () => {
     pure.theory = "theory.some-other-contract";
     await writeJson(purePath, pure);
     const wrongTheory = await runJson(inventory);
-    expect(candidate(wrongTheory, "realization.inventory.pure").reason_codes).toEqual([
-      "theory_mismatch",
-    ]);
+    expect(resolutionCandidateJson(wrongTheory, "realization.inventory.pure").reason_codes).toEqual(
+      ["theory_mismatch"],
+    );
 
     const second = await copyInventory();
     const unbound = (await readJson(join(second, "realizations", "pure.json"))) as Record<
@@ -329,9 +329,9 @@ describe("inventory tracer Effect v4 slice", () => {
     expect((document.resolution as JsonObject).selected_realization).toBe(
       "realization.inventory.pure",
     );
-    expect(candidate(document, "realization.inventory.unbound").reason_codes).toEqual([
-      "unbound_operation",
-    ]);
+    expect(resolutionCandidateJson(document, "realization.inventory.unbound").reason_codes).toEqual(
+      ["unbound_operation"],
+    );
   });
 
   test("duplicate realization IDs fail before selection", async () => {
@@ -451,8 +451,8 @@ describe("inventory tracer Effect v4 slice", () => {
   test("canonical graph bindings match the executable TypeScript result", async () => {
     const result = await runJson();
     const theoryIdentity = (result.theory as JsonObject).identity;
-    const pure = candidate(result, "realization.inventory.pure");
-    const broken = candidate(result, "realization.inventory.broken");
+    const pure = resolutionCandidateJson(result, "realization.inventory.pure");
+    const broken = resolutionCandidateJson(result, "realization.inventory.broken");
     const semantic = await readJson(join(ROOT, "model", "semantic", "inventory-tracer.json"));
     const components = await readJson(join(ROOT, "model", "architecture", "components.json"));
     const architecture = await readJson(
@@ -1202,6 +1202,7 @@ describe("evidence-production boundary and resolver packet consumption", () => {
     const thrown = { marker: "arbitrary-adapter-defect" };
     const adapters: EvidenceAdapters = {
       resolveTransition: () => {
+        // oxlint-disable-next-line no-throw-literal -- test only: preserve an arbitrary thrown object's identity through the adapter boundary
         throw thrown;
       },
       resolveReplay,
@@ -1502,7 +1503,9 @@ describe("evidence-production boundary and resolver packet consumption", () => {
     duplicatedCases[1] = { ...duplicatedCases[0]! };
     await expectEnvelopeRejection({ ...baseSuite, cases: duplicatedCases }, "duplicate case ID");
 
-    const emptyIdCases = rawCases.map((item, index) => (index === 0 ? { ...item, id: "" } : item));
+    const emptyIdCases = rawCases.map((item, index) =>
+      index === 0 ? Object.assign({}, item, { id: "" }) : item,
+    );
     await expectEnvelopeRejection({ ...baseSuite, cases: emptyIdCases }, "nonempty");
 
     // runConformance shares the same validator, so calling it directly with

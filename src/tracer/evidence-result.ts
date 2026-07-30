@@ -1,4 +1,4 @@
-import { Crypto, Effect } from "effect";
+import { Effect, type Crypto } from "effect";
 import { contentIdentity, jsonEqual } from "./canonical.ts";
 import {
   DocumentError,
@@ -260,7 +260,10 @@ export const parseProducerDiagnostic = (value: JsonValue, context: string): Prod
       message: `${context}.kind must be a known producer diagnostic kind, got '${kind}'`,
     });
   }
-  const message = requireNonEmptyString(requireKey(object, "message", context), `${context}.message`);
+  const message = requireNonEmptyString(
+    requireKey(object, "message", context),
+    `${context}.message`,
+  );
   return { kind: kind as ProducerDiagnosticKind, message };
 };
 
@@ -432,7 +435,8 @@ const finalizeEvidenceResult = (
   }
   if (!jsonEqual(parsed.storedCounterexamples, recomputedCounterexamples)) {
     throw new DocumentError({
-      message: "evidence_result.counterexamples mismatch: stored value does not match recomputed counterexamples",
+      message:
+        "evidence_result.counterexamples mismatch: stored value does not match recomputed counterexamples",
     });
   }
   return result;
