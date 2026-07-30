@@ -1,4 +1,5 @@
 import { Crypto, Effect, FileSystem, Schema } from "effect";
+import { stringifyCanonicalJson } from "./canonical-json.ts";
 import { CatalogError } from "./errors.ts";
 import { TomlParser } from "./toml.ts";
 
@@ -103,68 +104,6 @@ export interface CatalogSource {
 export const isLockable = (source: CatalogSource): boolean =>
   source.track !== null && source.licensePaths.length > 0;
 
-const escapeJsonString = (value: string): string => {
-  let out = '"';
-  for (let index = 0; index < value.length; index += 1) {
-    const ch = value[index]!;
-    const code = value.charCodeAt(index);
-    switch (ch) {
-      case '"':
-        out += '\\"';
-        break;
-      case "\\":
-        out += "\\\\";
-        break;
-      case "\b":
-        out += "\\b";
-        break;
-      case "\f":
-        out += "\\f";
-        break;
-      case "\n":
-        out += "\\n";
-        break;
-      case "\r":
-        out += "\\r";
-        break;
-      case "\t":
-        out += "\\t";
-        break;
-      default:
-        out += code < 0x20 || code > 0x7e ? `\\u${code.toString(16).padStart(4, "0")}` : ch;
-    }
-  }
-  return out + '"';
-};
-
-/**
- * `JSON.stringify(value, Object.keys(value).sort())`-shaped output but
- * matching Python's `json.dumps(value, sort_keys=True, separators=(",",
- * ":"), ensure_ascii=True)` byte-for-byte: compact separators, keys sorted
- * recursively, and every non-ASCII/control character escaped as `\uXXXX`
- * (explicitly iterating UTF-16 code units makes astral characters produce
- * the same surrogate-pair escape sequence Python emits).
- */
-const canonicalizeForDigest = (value: unknown): string => {
-  if (value === null) return "null";
-  if (typeof value === "boolean") return value ? "true" : "false";
-  if (typeof value === "number") {
-    if (!Number.isFinite(value)) {
-      throw new Error("canonical digest rejects non-finite numbers");
-    }
-    return String(value);
-  }
-  if (typeof value === "string") return escapeJsonString(value);
-  if (Array.isArray(value)) return `[${value.map(canonicalizeForDigest).join(",")}]`;
-  if (typeof value === "object") {
-    const entries = Object.entries(value as Record<string, unknown>).sort(([left], [right]) =>
-      left < right ? -1 : left > right ? 1 : 0,
-    );
-    return `{${entries.map(([key, item]) => `${escapeJsonString(key)}:${canonicalizeForDigest(item)}`).join(",")}}`;
-  }
-  throw new Error(`canonical digest cannot encode a value of type ${typeof value}`);
-};
-
 const toHex = (bytes: Uint8Array): string =>
   Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 
@@ -175,7 +114,7 @@ export const catalogDigest = (
   Effect.gen(function* () {
     const crypto = yield* Crypto.Crypto;
     const canonical = yield* Effect.try({
-      try: () => canonicalizeForDigest(raw),
+      try: () => stringifyCanonicalJson(raw),
       catch: (cause) =>
         new CatalogError({ message: "cannot canonicalize catalog record for digest", cause }),
     });

@@ -146,11 +146,18 @@ const parseString = (text: string, index: number): Parsed<string> => {
 
 const NUMBER_PATTERN = /-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/y;
 
-const parseNumber = (text: string, index: number): Parsed<number> => {
+const parseNumber = (text: string, index: number): Parsed<number | bigint> => {
   NUMBER_PATTERN.lastIndex = index;
   const match = NUMBER_PATTERN.exec(text);
   if (match === null || match.index !== index) return fail("invalid number", index);
-  return { value: Number(match[0]), next: index + match[0].length };
+  const token = match[0];
+  return {
+    value:
+      token.includes(".") || token.includes("e") || token.includes("E")
+        ? Number(token)
+        : BigInt(token),
+    next: index + token.length,
+  };
 };
 
 export const parseStrictJsonSync = (text: string): unknown => {

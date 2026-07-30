@@ -10,10 +10,10 @@
  */
 import { afterEach, describe, expect, test } from "bun:test";
 import { BunCrypto, BunFileSystem, BunPath } from "@effect/platform-bun";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { Effect, Exit, type Crypto, type FileSystem, type Path } from "effect";
+import { Effect, Exit, FileSystem, type Crypto, type Path } from "effect";
 import {
   catalogDigest,
   isConcreteGitRef,
@@ -23,7 +23,7 @@ import {
   isValidSourceId,
   parseCatalogText,
 } from "../src/references/catalog.ts";
-import { loadLock, parseLockText } from "../src/references/lockfile.ts";
+import { loadLock, parseLockText, serializeLock, writeLock } from "../src/references/lockfile.ts";
 import {
   catalogBindingReasons,
   computeLockOnlyStatus,
@@ -159,6 +159,19 @@ except LockFileError as exc:
   return pythonEval(code).stdout.startsWith("ACCEPTED");
 };
 
+/** Python's canonical lock bytes for an already JSON-encoded lock fixture. */
+const pythonSerializeLock = (text: string): string => {
+  const code = `
+import sys
+sys.path.insert(0, ${JSON.stringify(PYTHONPATH)})
+from semantic_references.lockfile import parse_lock_text, serialize_lock
+sys.stdout.write(serialize_lock(parse_lock_text(${JSON.stringify(text)})).decode("utf-8"))
+`;
+  const result = pythonEval(code);
+  if (result.exitCode !== 0) throw new Error(`python lock serializer failed: ${result.stderr}`);
+  return result.stdout;
+};
+
 /** Whether Python's `parse_catalog_text` accepts (vs. rejects) `text`. */
 const pythonAcceptsCatalogText = (text: string): boolean => {
   const code = `
@@ -288,6 +301,8 @@ describe("reference custody Effect v4 slice: catalog parsing", () => {
     const record = {
       id: "demo.repo",
       questions: ["Does \u{1f600} preserve reference custody?"],
+      "\ue000": "private-use sorts before astral by Unicode code point",
+      "\u{1f600}": "astral key",
     };
     expect(await runBun(catalogDigest(record))).toBe(pythonCanonicalRecordDigest(record));
   });
@@ -474,6 +489,72 @@ describe("reference custody Effect v4 slice: lock parsing", () => {
     const text = JSON.stringify(parsed);
     expect(Exit.isFailure(Effect.runSyncExit(parseLockText(text)))).toBeTrue();
     expect(pythonAcceptsLockText(text)).toBeFalse();
+  });
+
+  test("serializes canonical lock bytes identically to Python", () => {
+    const document = JSON.parse(buildLockJson(FAKE_SHA256));
+    document.generator = "semantic-references/\u{1f600}";
+    const text = JSON.stringify(document);
+    const lock = Effect.runSync(parseLockText(text));
+    expect(new TextDecoder().decode(serializeLock(lock))).toBe(pythonSerializeLock(text));
+  });
+
+  test("preserves arbitrary-size JSON integers and rejects integer-valued floats like Python", () => {
+    const hugeInteger = buildLockJson(FAKE_SHA256).replace(
+      '"size": 42',
+      '"size": 9007199254740993',
+    );
+    const lock = Effect.runSync(parseLockText(hugeInteger));
+    expect(new TextDecoder().decode(serializeLock(lock))).toBe(pythonSerializeLock(hugeInteger));
+
+    const exponentFloat = buildLockJson(FAKE_SHA256).replace('"size": 42', '"size": 4.2e1');
+    expect(Exit.isFailure(Effect.runSyncExit(parseLockText(exponentFloat)))).toBeTrue();
+    expect(pythonAcceptsLockText(exponentFloat)).toBeFalse();
+  });
+
+  test("atomically writes a canonical lock and makes byte-identical writes true no-ops", async () => {
+    const root = await temporaryProject(BASE_CATALOG);
+    const lockPath = join(root, "references", "sources.lock.json");
+    const text = buildLockJson(FAKE_SHA256);
+    const lock = Effect.runSync(parseLockText(text));
+
+    await runBun(writeLock(lockPath, lock));
+    const firstBytes = await readFile(lockPath);
+    const firstStat = await stat(lockPath);
+    expect(firstBytes.toString()).toBe(pythonSerializeLock(text));
+
+    await runBun(writeLock(lockPath, lock));
+    const secondStat = await stat(lockPath);
+    expect(secondStat.ino).toBe(firstStat.ino);
+    expect((await readFile(lockPath)).toString()).toBe(firstBytes.toString());
+    expect(
+      (await readdir(join(root, "references"))).some((name) => name.startsWith(".sources.lock.")),
+    ).toBeFalse();
+  });
+
+  test("a failed atomic rename preserves the prior lock and cleans temporary files", async () => {
+    const root = await temporaryProject(BASE_CATALOG);
+    const lockPath = join(root, "references", "sources.lock.json");
+    const prior = "prior valid artifact remains visible\n";
+    await writeFile(lockPath, prior);
+    const lock = Effect.runSync(parseLockText(buildLockJson(FAKE_SHA256)));
+
+    const injected = Effect.gen(function* () {
+      const live = yield* FileSystem.FileSystem;
+      const failing = FileSystem.FileSystem.of({
+        ...live,
+        rename: () => Effect.die("injected rename failure"),
+      });
+      return yield* writeLock(lockPath, lock).pipe(
+        Effect.provideService(FileSystem.FileSystem, failing),
+      );
+    });
+    const exit = await runBunExit(injected);
+    expect(Exit.isFailure(exit)).toBeTrue();
+    expect((await readFile(lockPath)).toString()).toBe(prior);
+    expect(
+      (await readdir(join(root, "references"))).some((name) => name.startsWith(".sources.lock.")),
+    ).toBeFalse();
   });
 });
 

@@ -278,3 +278,18 @@ accepted; no new Python implementation is permitted.
   end-to-end (`lock`, `materialize`, non-`--lock-only` `status`) and design
   spec 0010 requires deleting a superseded module only after its slice's own
   parity gate passes, not merely after one path through it is reproduced.
+- 2026-07-30: extended the custody slice with canonical lock serialization and
+  atomic writing. A shared canonical JSON encoder now preserves recursive
+  Unicode-code-point key ordering, Python-compatible ASCII/surrogate escaping,
+  compact catalog-digest bytes, and indented lock bytes. The writer reuses
+  Effect v4's portable `FileSystem` file handles and scoped temporary-file
+  lifecycle: it writes in the destination directory, flushes with `sync`,
+  closes before one rename, makes byte-identical writes true no-ops, and
+  removes temporary artifacts on failure. Differential lock bytes (including
+  astral Unicode), lossless arbitrary-size JSON integers, rejection of
+  integer-valued exponent floats, stable inode on a no-op, and an injected
+  rename defect that preserves the prior artifact and cleans the temporary
+  directory raise the focused custody suite to 40 passing tests. Typecheck,
+  Oxlint, Oxfmt, and the exact pinned Node catalog command are green. This
+  writer is not yet exposed by the CLI; the later Git-acquisition slice remains
+  the only authority that may construct and commit new observations.

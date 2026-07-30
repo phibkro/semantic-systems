@@ -1,4 +1,5 @@
-import { Effect, FileSystem } from "effect";
+import { Effect, FileSystem, Path } from "effect";
+import { stringifyCanonicalJson } from "./canonical-json.ts";
 import {
   isConcreteGitRef,
   isGitSafeValue,
@@ -40,7 +41,7 @@ const TOP_LEVEL_FIELDS = new Set(["schema", "generator", "sources"]);
 
 export interface LicenseObservation {
   readonly mode: string;
-  readonly size: number;
+  readonly size: number | bigint;
   readonly sha256: string;
 }
 
@@ -62,6 +63,42 @@ export interface Lock {
   readonly generator: string;
   readonly sources: ReadonlyMap<string, LockEntry>;
 }
+
+const licenseObservationToJson = (observation: LicenseObservation): Record<string, unknown> => ({
+  mode: observation.mode,
+  size: observation.size,
+  sha256: observation.sha256,
+});
+
+const lockEntryToJson = (entry: LockEntry): Record<string, unknown> => ({
+  origin: entry.origin,
+  track: entry.track,
+  resolved_ref: entry.resolvedRef,
+  object_format: entry.objectFormat,
+  commit: entry.commit,
+  tree: entry.tree,
+  catalog_digest: entry.catalogDigest,
+  retrieved_at: entry.retrievedAt,
+  acquisition: entry.acquisition,
+  origin_verified: entry.originVerified,
+  licenses: Object.fromEntries(
+    [...entry.licenses].map(([path, observation]) => [path, licenseObservationToJson(observation)]),
+  ),
+});
+
+export const lockToJson = (lock: Lock): Record<string, unknown> => ({
+  schema: SCHEMA_NAME,
+  generator: lock.generator,
+  sources: Object.fromEntries(
+    [...lock.sources].map(([sourceId, entry]) => [sourceId, lockEntryToJson(entry)]),
+  ),
+});
+
+export const serializeLock = (lock: Lock): Uint8Array =>
+  new TextEncoder().encode(`${stringifyCanonicalJson(lockToJson(lock), 2)}\n`);
+
+const bytesEqual = (left: Uint8Array, right: Uint8Array): boolean =>
+  left.length === right.length && left.every((byte, index) => byte === right[index]);
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -107,8 +144,8 @@ const requireBoolean = (label: string, value: unknown): Effect.Effect<boolean, L
 const requireNonNegativeInteger = (
   label: string,
   value: unknown,
-): Effect.Effect<number, LockFileError> =>
-  typeof value === "number" && Number.isInteger(value) && value >= 0
+): Effect.Effect<bigint, LockFileError> =>
+  typeof value === "bigint" && value >= 0n
     ? Effect.succeed(value)
     : Effect.fail(new LockFileError({ message: `${label} must be a non-negative integer` }));
 
@@ -344,4 +381,48 @@ export const loadLock = (path: string): Effect.Effect<Lock, LockFileError, FileS
         ),
       );
     return yield* parseLockText(text);
+  });
+
+/**
+ * Atomically replace a lock with canonical bytes. A byte-identical lock is a
+ * true no-op; otherwise the new file is written and synced in the destination
+ * directory before one rename makes it visible. The scoped temporary file is
+ * removed on every pre-rename failure.
+ */
+export const writeLock = (
+  path: string,
+  lock: Lock,
+): Effect.Effect<void, LockFileError, FileSystem.FileSystem | Path.Path> =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const paths = yield* Path.Path;
+    const bytes = serializeLock(lock);
+    const mapWriteError = (cause: unknown) =>
+      new LockFileError({ message: `cannot atomically write lock file at ${path}`, cause });
+
+    const exists = yield* fs.exists(path).pipe(Effect.mapError(mapWriteError));
+    if (exists) {
+      const current = yield* fs.readFile(path).pipe(Effect.mapError(mapWriteError));
+      if (bytesEqual(current, bytes)) return;
+    }
+
+    const directory = paths.dirname(path);
+    yield* fs.makeDirectory(directory, { recursive: true }).pipe(Effect.mapError(mapWriteError));
+    yield* Effect.scoped(
+      Effect.gen(function* () {
+        const temporary = yield* fs.makeTempFileScoped({
+          directory,
+          prefix: ".sources.lock.",
+          suffix: ".tmp",
+        });
+        yield* Effect.scoped(
+          Effect.gen(function* () {
+            const file = yield* fs.open(temporary, { flag: "w" });
+            yield* file.writeAll(bytes);
+            yield* file.sync;
+          }),
+        );
+        yield* fs.rename(temporary, path);
+      }),
+    ).pipe(Effect.mapError(mapWriteError));
   });
