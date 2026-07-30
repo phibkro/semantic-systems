@@ -65,7 +65,7 @@ const requireSafeRelativePath = (
       );
 };
 
-const ensureNotLink = (
+export const ensureNotLink = (
   path: string,
   symlinkMessage: string,
 ): Effect.Effect<void, AcquisitionError, FileSystem.FileSystem> =>

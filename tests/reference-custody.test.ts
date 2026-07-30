@@ -31,6 +31,7 @@ import {
   Cause,
   Effect,
   Exit,
+  Fiber,
   FileSystem,
   Layer,
   Option,
@@ -48,6 +49,7 @@ import {
   isValidLicensePath,
   isValidSourceId,
   parseCatalogText,
+  type CatalogSource,
 } from "../src/references/catalog.ts";
 import {
   acquireCuratorLock,
@@ -57,17 +59,35 @@ import {
 } from "../src/references/curator.ts";
 import { AcquisitionError, CuratorLockedError } from "../src/references/errors.ts";
 import {
+  commitObjectExists,
   GitEnvironment,
   makeGitEnvironment,
   requireAllowedLocation,
   runGit,
 } from "../src/references/git.ts";
-import { loadLock, parseLockText, serializeLock, writeLock } from "../src/references/lockfile.ts";
+import {
+  loadLock,
+  parseLockText,
+  serializeLock,
+  writeLock,
+  type LockEntry,
+} from "../src/references/lockfile.ts";
 import { lockOfflineSources } from "../src/references/offline-lock.ts";
+import { materializeOfflineSources } from "../src/references/offline-materialize.ts";
 import { inspectObjectCache } from "../src/references/paths.ts";
+import {
+  lockRemoteSources,
+  publishStagedCaches,
+  type StagedCache,
+} from "../src/references/remote-lock.ts";
+import {
+  materializeRemoteSource,
+  materializeRemoteSources,
+} from "../src/references/remote-materialize.ts";
 import {
   catalogBindingReasons,
   computeLockOnlyStatus,
+  computeStatus,
   isStrictOk,
   orphanedLockReport,
 } from "../src/references/status.ts";
@@ -374,6 +394,158 @@ const installCheckout = async (
   const commit = runCommand(["git", "rev-parse", "HEAD"], checkout);
   runCommand(["git", "checkout", "--quiet", "--detach", commit], checkout);
   return checkout;
+};
+
+const GIT_EXECUTABLE = Bun.which("git") ?? "/run/current-system/sw/bin/git";
+
+const remoteSourceBlock = (
+  id: string,
+  origin: string,
+  track = "main",
+  licensePaths: ReadonlyArray<string> = ["LICENSE"],
+): string => `
+[[source]]
+id = ${JSON.stringify(id)}
+kind = "git"
+origin = ${JSON.stringify(`file://${origin}`)}
+track = ${JSON.stringify(track)}
+license_paths = ${JSON.stringify(licensePaths)}
+classes = ["testing"]
+`;
+
+const remoteSourceText = (
+  id: string,
+  origin: string,
+  track = "main",
+  licensePaths: ReadonlyArray<string> = ["LICENSE"],
+): string => `schema = 1\n${remoteSourceBlock(id, origin, track, licensePaths)}`;
+
+interface MultiRemoteSourceEntry {
+  readonly id: string;
+  readonly origin: string;
+  readonly track?: string;
+  readonly licensePaths?: ReadonlyArray<string>;
+}
+
+const multiRemoteSourceText = (entries: ReadonlyArray<MultiRemoteSourceEntry>): string =>
+  `schema = 1\n${entries
+    .map((entry) => remoteSourceBlock(entry.id, entry.origin, entry.track, entry.licensePaths))
+    .join("\n")}`;
+
+/** A real local Git repository used as a "remote" origin over `file://`. */
+const remoteOriginFixture = async (
+  branch = "main",
+): Promise<{ readonly project: string; readonly origin: string; readonly license: string }> => {
+  const root = await mkdtemp(join(tmpdir(), "semantic-references-remote-"));
+  temporaryRoots.push(root);
+  const project = join(root, "project");
+  const origin = join(root, "origin");
+  await mkdir(project);
+  await mkdir(origin);
+  runCommand(["git", "init", "-q", "-b", branch], origin);
+  const license = "custodied remote license bytes\n";
+  await writeFile(join(origin, "LICENSE"), license);
+  runCommand(["git", "add", "LICENSE"], origin);
+  runCommand(
+    [
+      "git",
+      "-c",
+      "user.name=Semantic Custody Test",
+      "-c",
+      "user.email=custody@example.invalid",
+      "commit",
+      "-q",
+      "-m",
+      "test: seed remote custody fixture",
+    ],
+    origin,
+  );
+  runCommand(["git", "config", "uploadpack.allowFilter", "true"], origin);
+  return { project, origin, license };
+};
+
+const commitAll = (repository: string, message: string): string => {
+  runCommand(["git", "add", "-A"], repository);
+  runCommand(
+    [
+      "git",
+      "-c",
+      "user.name=Semantic Custody Test",
+      "-c",
+      "user.email=custody@example.invalid",
+      "commit",
+      "-q",
+      "-m",
+      message,
+    ],
+    repository,
+  );
+  return runCommand(["git", "rev-parse", "HEAD"], repository);
+};
+
+/**
+ * A `git` shim placed ahead of the real binary on `PATH` that rejects a
+ * `fetch` invocation naming any of `rejectRefs` with an operational failure
+ * (never a "ref not found"-shaped one), while writing `widenedMarker` for any
+ * OTHER `fetch` (proving whether a broader request was ever attempted) and
+ * delegating every invocation to the real `git`. Used to prove that an
+ * operational failure on the narrow request is never silently reinterpreted
+ * as license to try a wider one.
+ */
+const writeFakeGitRejectingFetch = async (
+  bin: string,
+  rejectRefs: ReadonlyArray<string>,
+  widenedMarker: string,
+): Promise<void> => {
+  await mkdir(bin, { recursive: true });
+  const helper = join(bin, "git");
+  await writeFile(
+    helper,
+    `#!${NODE_EXECUTABLE}\n` +
+      'const fs = require("node:fs");\n' +
+      'const { spawnSync } = require("node:child_process");\n' +
+      "const args = process.argv.slice(2);\n" +
+      `const rejectRefs = ${JSON.stringify(rejectRefs)};\n` +
+      `if (args.includes("fetch")) {\n` +
+      "  if (rejectRefs.some((ref) => args.includes(ref))) {\n" +
+      '    process.stderr.write("simulated: operational fetch failure\\n");\n' +
+      "    process.exit(1);\n" +
+      "  }\n" +
+      `  fs.writeFileSync(${JSON.stringify(widenedMarker)}, "invoked\\n");\n` +
+      "}\n" +
+      `const result = spawnSync(${JSON.stringify(GIT_EXECUTABLE)}, args, { stdio: "inherit" });\n` +
+      "process.exit(result.status ?? 1);\n",
+  );
+  await chmod(helper, 0o755);
+};
+
+/**
+ * A `git` shim that returns a fabricated `ls-remote` answer for exactly the
+ * confirmation query (the second, cross-checking `ls-remote` against the
+ * already-resolved concrete ref), reproducing a selector that moves between
+ * the observation and confirmation query. Every other invocation, including
+ * the first `ls-remote` query, delegates to the real `git`.
+ */
+const writeFakeGitMovingSelector = async (
+  bin: string,
+  confirmationPattern: string,
+  fabricatedCommit: string,
+): Promise<void> => {
+  await mkdir(bin, { recursive: true });
+  const helper = join(bin, "git");
+  await writeFile(
+    helper,
+    `#!${NODE_EXECUTABLE}\n` +
+      'const { spawnSync } = require("node:child_process");\n' +
+      "const args = process.argv.slice(2);\n" +
+      `if (args.includes("ls-remote") && args.includes(${JSON.stringify(confirmationPattern)})) {\n` +
+      `  process.stdout.write(${JSON.stringify(fabricatedCommit)} + "\\t" + ${JSON.stringify(confirmationPattern)} + "\\n");\n` +
+      "  process.exit(0);\n" +
+      "}\n" +
+      `const result = spawnSync(${JSON.stringify(GIT_EXECUTABLE)}, args, { stdio: "inherit" });\n` +
+      "process.exit(result.status ?? 1);\n",
+  );
+  await chmod(helper, 0o755);
 };
 
 const lockedFixture = async (
@@ -3168,5 +3340,966 @@ origin = "https://example.com/other.git"
     const py = runPythonCli(["--root", root, "status", "demo.repo", "--lock-only"]);
     expect(ts.exitCode).toBe(2);
     expect(ts.exitCode).toBe(py.exitCode);
+  });
+});
+
+describe("reference custody Effect v4 slice: remote lock and materialization", () => {
+  test("remote lock records acquisition remote/origin_verified, and its cache materializes the complete tree offline after the origin disappears", async () => {
+    const remote = await remoteOriginFixture();
+    await writeFile(join(remote.origin, "payload.bin"), "non-license payload bytes\n");
+    const expectedCommit = commitAll(remote.origin, "add payload");
+
+    await mkdir(join(remote.project, "references"));
+    await writeFile(
+      join(remote.project, "references", "sources.toml"),
+      remoteSourceText("remote.demo", remote.origin),
+    );
+
+    const result = await runBun(lockRemoteSources(remote.project, ["remote.demo"], "test/0.0.0"));
+    expect(result.committed).toBeTrue();
+    expect(result.failures).toEqual([]);
+    const entry = result.locked.get("remote.demo");
+    if (entry === undefined) throw new Error("remote lock did not record an entry");
+    expect(entry.acquisition).toBe("remote");
+    expect(entry.originVerified).toBeTrue();
+    expect(entry.commit).toBe(expectedCommit);
+
+    const cache = join(remote.project, ".references", "remote.demo", ".git-cache");
+    expect(await Bun.file(join(cache, "HEAD")).exists()).toBeTrue();
+
+    await rename(remote.origin, `${remote.origin}-unavailable`);
+
+    const materialized = await runBun(materializeOfflineSources(remote.project, ["remote.demo"]));
+    expect(materialized.failures).toEqual([]);
+    const checkout = materialized.materialized.get("remote.demo");
+    if (checkout === undefined) throw new Error("offline materialize did not produce a checkout");
+    expect(await readFile(join(checkout, "payload.bin"), "utf8")).toBe(
+      "non-license payload bytes\n",
+    );
+
+    const lock = await runBun(loadLock(join(remote.project, "references", "sources.lock.json")));
+    const catalogText = await readFile(join(remote.project, "references", "sources.toml"), "utf8");
+    const catalog = await runBun(parseCatalogText(catalogText));
+    const source = catalog.sources.get("remote.demo");
+    if (source === undefined) throw new Error("catalog did not contain remote.demo");
+    const digest = await runBun(catalogDigest(source.raw));
+    const report = await runBun(
+      computeStatus(source, digest, lock, join(remote.project, ".references"), false),
+    );
+    expect(report.state).toBe("materialized_verified");
+  });
+
+  test("branch movement after locking cannot change materialized bytes; only an explicit re-lock selects the new commit", async () => {
+    const remote = await remoteOriginFixture();
+    const commitA = runCommand(["git", "rev-parse", "HEAD"], remote.origin);
+    await mkdir(join(remote.project, "references"));
+    await writeFile(
+      join(remote.project, "references", "sources.toml"),
+      remoteSourceText("remote.movement", remote.origin),
+    );
+
+    const first = await runBun(
+      lockRemoteSources(remote.project, ["remote.movement"], "test/0.0.0"),
+    );
+    expect(first.committed).toBeTrue();
+    expect(first.locked.get("remote.movement")?.commit).toBe(commitA);
+
+    await writeFile(join(remote.origin, "extra.txt"), "advanced\n");
+    const commitB = commitAll(remote.origin, "advance");
+    expect(commitB).not.toBe(commitA);
+
+    const materialized = await runBun(
+      materializeOfflineSources(remote.project, ["remote.movement"]),
+    );
+    expect(materialized.failures).toEqual([]);
+    const checkout = materialized.materialized.get("remote.movement");
+    if (checkout === undefined) throw new Error("offline materialize did not produce a checkout");
+    expect(runCommand(["git", "rev-parse", "HEAD"], checkout)).toBe(commitA);
+
+    const relock = await runBun(
+      lockRemoteSources(remote.project, ["remote.movement"], "test/0.0.0"),
+    );
+    expect(relock.committed).toBeTrue();
+    expect(relock.locked.get("remote.movement")?.commit).toBe(commitB);
+  });
+
+  test("a genuinely moved ref is detected independently via ls-remote, refused without the flag, and only then resolved by explicit history fallback", async () => {
+    const remote = await remoteOriginFixture();
+    const commitA = runCommand(["git", "rev-parse", "HEAD"], remote.origin);
+    await mkdir(join(remote.project, "references"));
+    await writeFile(
+      join(remote.project, "references", "sources.toml"),
+      remoteSourceText("remote.sequence", remote.origin),
+    );
+    const lockResult = await runBun(
+      lockRemoteSources(remote.project, ["remote.sequence"], "test/0.0.0"),
+    );
+    expect(lockResult.committed).toBeTrue();
+    expect(lockResult.locked.get("remote.sequence")?.commit).toBe(commitA);
+
+    await writeFile(join(remote.origin, "extra.txt"), "advance past locked commit\n");
+    commitAll(remote.origin, "advance past locked commit");
+
+    // No shim is needed: the recorded ref has genuinely moved, and
+    // `resolveRemoteRefTarget` (a real `ls-remote`, not an interpretation of
+    // a failed fetch) is what independently establishes that — the only
+    // condition allowed to justify moving past the exact commit.
+    const noFallback = await runBun(
+      materializeRemoteSources(remote.project, ["remote.sequence"], false),
+    );
+    expect(noFallback.failures).toHaveLength(1);
+    expect(noFallback.failures[0]?.error.message).toContain("allow-history-fallback");
+    expect(noFallback.failures[0]?.error.message).toContain("no longer resolves");
+    const checkoutExistsAfterRefusal = await stat(
+      join(remote.project, ".references", "remote.sequence", "checkout"),
+    ).then(
+      () => true,
+      () => false,
+    );
+    expect(checkoutExistsAfterRefusal).toBeFalse();
+
+    const withFallback = await runBun(
+      materializeRemoteSources(remote.project, ["remote.sequence"], true),
+    );
+    expect(withFallback.failures).toEqual([]);
+    const checkout = withFallback.materialized.get("remote.sequence");
+    if (checkout === undefined) throw new Error("history-fallback materialize produced nothing");
+    expect(runCommand(["git", "rev-parse", "HEAD"], checkout)).toBe(commitA);
+  });
+
+  test("an operational fetch failure while the recorded ref still matches never widens to history fallback, even with --allow-history-fallback", async () => {
+    const remote = await remoteOriginFixture();
+    const commitA = runCommand(["git", "rev-parse", "HEAD"], remote.origin);
+    await mkdir(join(remote.project, "references"));
+    await writeFile(
+      join(remote.project, "references", "sources.toml"),
+      remoteSourceText("remote.no-widen", remote.origin),
+    );
+    const lockResult = await runBun(
+      lockRemoteSources(remote.project, ["remote.no-widen"], "test/0.0.0"),
+    );
+    expect(lockResult.committed).toBeTrue();
+    expect(lockResult.locked.get("remote.no-widen")?.commit).toBe(commitA);
+    const resolvedRef = lockResult.locked.get("remote.no-widen")?.resolvedRef;
+    if (resolvedRef === undefined) throw new Error("lock did not record a resolved_ref");
+
+    // The origin does not move: `resolveRemoteRefTarget` will independently
+    // confirm the recorded ref still names the locked commit. A shim then
+    // forces both the exact-commit and the named-ref fetch to fail for an
+    // unrelated ("operational") reason — never a ref-not-found kind of
+    // failure — and a marker proves whether the broader history fetch (which
+    // would otherwise succeed) was ever attempted.
+    const bin = join(remote.project, "bin");
+    const widenedMarker = join(bin, "widened-to-history-fetch");
+    await writeFakeGitRejectingFetch(bin, [commitA, resolvedRef], widenedMarker);
+    const FakeGitEnvironmentLayer = Layer.succeed(
+      GitEnvironment,
+      makeGitEnvironment({ ...process.env, PATH: `${bin}:${process.env.PATH ?? ""}` }),
+    );
+    const result = await Effect.runPromise(
+      materializeRemoteSources(remote.project, ["remote.no-widen"], true).pipe(
+        Effect.provide([BunFileSystem.layer, BunPath.layer, BunCrypto.layer, BunTomlParser]),
+        Effect.provide([BunChildProcessLayer, CuratorProcessLayer, FakeGitEnvironmentLayer]),
+      ),
+    );
+    expect(result.failures).toHaveLength(1);
+    expect(result.failures[0]?.error.message).toContain(resolvedRef);
+    expect(result.failures[0]?.error.message).not.toContain("even after a broader history fetch");
+    expect(await Bun.file(widenedMarker).exists()).toBeFalse();
+    const checkoutExists = await stat(
+      join(remote.project, ".references", "remote.no-widen", "checkout"),
+    ).then(
+      () => true,
+      () => false,
+    );
+    expect(checkoutExists).toBeFalse();
+  });
+
+  test("a rejected origin location aborts materialize immediately, even with --allow-history-fallback", async () => {
+    const remote = await remoteOriginFixture();
+    const commitA = runCommand(["git", "rev-parse", "HEAD"], remote.origin);
+    const tree = runCommand(["git", "rev-parse", `${commitA}^{tree}`], remote.origin);
+    const raw = {
+      id: "remote.rejected-origin",
+      kind: "git",
+      origin: "ssh://example.invalid/demo.git",
+      track: "main",
+      license_paths: ["LICENSE"],
+    };
+    const digest = await runBun(catalogDigest(raw));
+    const source: CatalogSource = {
+      id: raw.id,
+      kind: raw.kind,
+      origin: raw.origin,
+      localHint: null,
+      originAliases: [],
+      track: raw.track,
+      licensePaths: raw.license_paths,
+      classes: [],
+      questions: [],
+      raw,
+    };
+    const entry: LockEntry = {
+      origin: raw.origin,
+      track: "main",
+      resolvedRef: "refs/heads/main",
+      objectFormat: "sha1",
+      commit: commitA,
+      tree,
+      catalogDigest: digest,
+      retrievedAt: "2026-01-01T00:00:00Z",
+      acquisition: "remote",
+      originVerified: true,
+      licenses: new Map([
+        ["LICENSE", { mode: "100644", size: remote.license.length, sha256: "0".repeat(64) }],
+      ]),
+    };
+    const referencesRoot = join(remote.project, ".references");
+
+    const result = await Effect.runPromiseExit(
+      materializeRemoteSource(source, entry, referencesRoot, true).pipe(
+        Effect.provide([BunFileSystem.layer, BunPath.layer, BunCrypto.layer]),
+        Effect.provide([BunChildProcessLayer, GitEnvironmentLayer]),
+      ),
+    );
+    expect(Exit.isFailure(result)).toBeTrue();
+    const message = Exit.isFailure(result) ? Cause.pretty(result.cause) : "";
+    expect(message).toMatch(/transport|protocol|scheme|SSH/i);
+    expect(message).not.toContain("even after a broader history fetch");
+    expect(
+      await stat(join(referencesRoot, "remote.rejected-origin", "checkout")).then(
+        () => true,
+        () => false,
+      ),
+    ).toBeFalse();
+  });
+
+  test("a later failure in lock --all preserves every prior cache and the prior lock bytes", async () => {
+    const remote = await remoteOriginFixture();
+    const commitA = runCommand(["git", "rev-parse", "HEAD"], remote.origin);
+    await mkdir(join(remote.project, "references"));
+    await writeFile(
+      join(remote.project, "references", "sources.toml"),
+      multiRemoteSourceText([
+        { id: "remote.a", origin: remote.origin },
+        { id: "remote.z", origin: join(remote.project, "nonexistent-origin") },
+      ]),
+    );
+
+    const first = runTsCli(["--root", remote.project, "lock", "remote.a"]);
+    expect(first.exitCode).toBe(0);
+    const lockPath = join(remote.project, "references", "sources.lock.json");
+    const lockBytesBefore = await readFile(lockPath);
+    const cache = join(remote.project, ".references", "remote.a", ".git-cache");
+    // `commitObjectExists` (unlike a raw `git cat-file -e`) denies transport,
+    // so it cannot be fooled by the cache's own promisor remote lazily
+    // fetching a commit that was never actually published into it.
+    expect(await runBun(commitObjectExists(cache, commitA))).toBeTrue();
+
+    await writeFile(join(remote.origin, "LICENSE"), "MIT (revised)\n");
+    const commitB = commitAll(remote.origin, "advance");
+    expect(commitB).not.toBe(commitA);
+
+    const all = runTsCli(["--root", remote.project, "lock", "--all"]);
+    expect(all.exitCode).toBe(1);
+
+    expect(await readFile(lockPath)).toEqual(lockBytesBefore);
+    expect(await runBun(commitObjectExists(cache, commitA))).toBeTrue();
+    expect(await runBun(commitObjectExists(cache, commitB))).toBeFalse();
+    // `remote.a`'s own scoped temporary fetch directory (staged again during
+    // the failed `--all` attempt, since it is not byte-stable across a real
+    // remote refetch) must not linger once the curator-held transaction
+    // concludes: its lifetime is bound to that scope, not to a manual
+    // cleanup branch.
+    const sourceRootA = join(remote.project, ".references", "remote.a");
+    expect(
+      (await readdir(sourceRootA)).some((name) => name.startsWith(".lock-fetch-")),
+    ).toBeFalse();
+    const sourceRootZ = join(remote.project, ".references", "remote.z");
+    const sourceRootZExists = await stat(sourceRootZ).then(
+      () => true,
+      () => false,
+    );
+    if (sourceRootZExists) {
+      expect(
+        (await readdir(sourceRootZ)).some((name) => name.startsWith(".lock-fetch-")),
+      ).toBeFalse();
+    }
+
+    const materialize = runTsCli([
+      "--root",
+      remote.project,
+      "materialize",
+      "remote.a",
+      "--offline",
+    ]);
+    expect(materialize.exitCode).toBe(0);
+    const checkout = join(remote.project, ".references", "remote.a", "checkout");
+    expect(runCommand(["git", "rev-parse", "HEAD"], checkout)).toBe(commitA);
+  });
+
+  test("interrupting a remote lock in progress removes its scoped temporary fetch directory", async () => {
+    const remote = await remoteOriginFixture();
+    await mkdir(join(remote.project, "references"));
+    await writeFile(
+      join(remote.project, "references", "sources.toml"),
+      remoteSourceText("remote.interrupt", remote.origin),
+    );
+
+    // A `git` shim signals (via a marker file) exactly when the clone step —
+    // the first step to run after the temporary fetch directory has been
+    // created — has started, then blocks for a generous window before
+    // delegating to the real `git`. The test polls for that marker instead
+    // of guessing a fixed delay, so the interrupt is deterministically
+    // issued after the temporary directory exists but before the build
+    // completes, regardless of host speed.
+    const bin = join(remote.project, "bin");
+    await mkdir(bin, { recursive: true });
+    const cloneStarted = join(bin, "clone-started");
+    const helper = join(bin, "git");
+    await writeFile(
+      helper,
+      `#!${NODE_EXECUTABLE}\n` +
+        'const fs = require("node:fs");\n' +
+        'const { spawnSync } = require("node:child_process");\n' +
+        "const args = process.argv.slice(2);\n" +
+        `if (args.includes("clone")) {\n` +
+        `  fs.writeFileSync(${JSON.stringify(cloneStarted)}, "started\\n");\n` +
+        '  spawnSync("sleep", ["5"]);\n' +
+        "}\n" +
+        `const result = spawnSync(${JSON.stringify(GIT_EXECUTABLE)}, args, { stdio: "inherit" });\n` +
+        "process.exit(result.status ?? 1);\n",
+    );
+    await chmod(helper, 0o755);
+    const FakeGitEnvironmentLayer = Layer.succeed(
+      GitEnvironment,
+      makeGitEnvironment({ ...process.env, PATH: `${bin}:${process.env.PATH ?? ""}` }),
+    );
+
+    const program = lockRemoteSources(remote.project, ["remote.interrupt"], "test/0.0.0").pipe(
+      Effect.provide([BunFileSystem.layer, BunPath.layer, BunCrypto.layer, BunTomlParser]),
+      Effect.provide([BunChildProcessLayer, CuratorProcessLayer, FakeGitEnvironmentLayer]),
+    );
+    const fiber = Effect.runFork(program);
+
+    const deadline = Date.now() + 5000;
+    while (!(await Bun.file(cloneStarted).exists())) {
+      if (Date.now() > deadline) throw new Error("the shimmed clone never started");
+      await new Promise((done) => setTimeout(done, 10));
+    }
+    // `Fiber.interrupt` waits for the fiber to fully terminate, including
+    // running every scope finalizer, before resolving.
+    await Effect.runPromise(Fiber.interrupt(fiber));
+
+    const sourceRoot = join(remote.project, ".references", "remote.interrupt");
+    const leftovers = await readdir(sourceRoot).catch(() => []);
+    expect(leftovers.some((name) => name.startsWith(".lock-fetch-"))).toBeFalse();
+  });
+
+  test("interrupting cache publication cannot split the installed cache from its matching lock", async () => {
+    const root = await mkdtemp(join(tmpdir(), "semantic-references-publish-interrupt-"));
+    temporaryRoots.push(root);
+    const target = join(root, ".git-cache");
+    const stagedDirectory = join(root, ".lock-fetch-staged");
+    const backup = `${target}.backup-swap`;
+    const lockPath = join(root, "sources.lock.json");
+    const publishStarted = join(root, "publish-started");
+    await mkdir(target);
+    await mkdir(stagedDirectory);
+    await writeFile(join(target, "generation"), "old\n");
+    await writeFile(join(stagedDirectory, "generation"), "new\n");
+    await writeFile(lockPath, "old-lock\n");
+
+    const staged: StagedCache = {
+      sourceId: "remote.interrupt-publication",
+      temporaryDirectory: stagedDirectory,
+      targetDirectory: target,
+    };
+    const PausingFileSystemLayer = Layer.effect(
+      FileSystem.FileSystem,
+      Effect.gen(function* () {
+        const real = yield* FileSystem.FileSystem;
+        return {
+          ...real,
+          rename: (oldPath: string, newPath: string) => {
+            const renamed = real.rename(oldPath, newPath);
+            return oldPath === stagedDirectory && newPath === target
+              ? renamed.pipe(
+                  Effect.andThen(real.writeFileString(publishStarted, "started\n")),
+                  Effect.andThen(Effect.sleep("250 millis")),
+                )
+              : renamed;
+          },
+        };
+      }),
+    ).pipe(Layer.provide(BunFileSystem.layer));
+
+    const transaction = publishStagedCaches(
+      [staged],
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        yield* fs.writeFileString(lockPath, "new-lock\n");
+      }),
+    ).pipe(Effect.provide(PausingFileSystemLayer));
+    const fiber = Effect.runFork(transaction);
+
+    const deadline = Date.now() + 5000;
+    while (!(await Bun.file(publishStarted).exists())) {
+      if (Date.now() > deadline) throw new Error("cache publication never reached the rename");
+      await new Promise((done) => setTimeout(done, 10));
+    }
+    await Effect.runPromise(Fiber.interrupt(fiber));
+
+    expect(await readFile(join(target, "generation"), "utf8")).toBe("new\n");
+    expect(await readFile(lockPath, "utf8")).toBe("new-lock\n");
+    expect(
+      await stat(backup).then(
+        () => true,
+        () => false,
+      ),
+    ).toBeFalse();
+    expect(
+      await stat(stagedDirectory).then(
+        () => true,
+        () => false,
+      ),
+    ).toBeFalse();
+  });
+
+  test("a corrupted object recompute during remote lock fails closed and publishes nothing", async () => {
+    const remote = await remoteOriginFixture();
+    await mkdir(join(remote.project, "references"));
+    await writeFile(
+      join(remote.project, "references", "sources.toml"),
+      remoteSourceText("remote.corrupt", remote.origin),
+    );
+    // The independent post-hydration closure re-verification (reusing
+    // `inspectObjectCacheAdministration` and `verifyRepositoryObjectClosure`,
+    // the same proof offline acquisition already requires of an existing
+    // cache/sibling) recomputes every selected object's identity via
+    // `git hash-object`. A shim that corrupts every `hash-object` answer
+    // proves that check actually runs and fails closed, rather than trusting
+    // a fresh fetch's own self-reported consistency on faith.
+    const bin = join(remote.project, "bin");
+    await mkdir(bin, { recursive: true });
+    const helper = join(bin, "git");
+    await writeFile(
+      helper,
+      `#!${NODE_EXECUTABLE}\n` +
+        'const { spawnSync } = require("node:child_process");\n' +
+        "const args = process.argv.slice(2);\n" +
+        `if (args.includes("hash-object")) {\n` +
+        `  process.stdout.write(${JSON.stringify("f".repeat(40))} + "\\n");\n` +
+        "  process.exit(0);\n" +
+        "}\n" +
+        `const result = spawnSync(${JSON.stringify(GIT_EXECUTABLE)}, args, { stdio: "inherit" });\n` +
+        "process.exit(result.status ?? 1);\n",
+    );
+    await chmod(helper, 0o755);
+    const FakeGitEnvironmentLayer = Layer.succeed(
+      GitEnvironment,
+      makeGitEnvironment({ ...process.env, PATH: `${bin}:${process.env.PATH ?? ""}` }),
+    );
+
+    const result = await Effect.runPromise(
+      lockRemoteSources(remote.project, ["remote.corrupt"], "test/0.0.0").pipe(
+        Effect.provide([BunFileSystem.layer, BunPath.layer, BunCrypto.layer, BunTomlParser]),
+        Effect.provide([BunChildProcessLayer, CuratorProcessLayer, FakeGitEnvironmentLayer]),
+      ),
+    );
+    expect(result.committed).toBeFalse();
+    expect(result.failures).toHaveLength(1);
+    expect(result.failures[0]?.error.message).toContain("integrity failed");
+    const cacheExists = await stat(
+      join(remote.project, ".references", "remote.corrupt", ".git-cache"),
+    ).then(
+      () => true,
+      () => false,
+    );
+    expect(cacheExists).toBeFalse();
+  });
+
+  test("a pre-existing cache backup fails the publish closed instead of being deleted; prior cache, backup, and lock bytes are untouched", async () => {
+    const remote = await remoteOriginFixture();
+    await mkdir(join(remote.project, "references"));
+    await writeFile(
+      join(remote.project, "references", "sources.toml"),
+      remoteSourceText("remote.stale-backup", remote.origin),
+    );
+    const first = await runBun(
+      lockRemoteSources(remote.project, ["remote.stale-backup"], "test/0.0.0"),
+    );
+    expect(first.committed).toBeTrue();
+    const lockPath = join(remote.project, "references", "sources.lock.json");
+    const lockBytesBefore = await readFile(lockPath);
+    const cache = join(remote.project, ".references", "remote.stale-backup", ".git-cache");
+    const cacheBytesBefore = await directoryByteSnapshot(cache);
+
+    // Simulate unexplained recovery state: a `.backup-swap` directory left
+    // behind by some earlier, never-completed transaction.
+    const backup = `${cache}.backup-swap`;
+    await mkdir(backup);
+    await writeFile(join(backup, "marker"), "must survive untouched\n");
+    const backupBytesBefore = await directoryByteSnapshot(backup);
+
+    await writeFile(join(remote.origin, "extra.txt"), "advance\n");
+    commitAll(remote.origin, "advance");
+
+    const relock = await Effect.runPromiseExit(
+      lockRemoteSources(remote.project, ["remote.stale-backup"], "test/0.0.0").pipe(
+        Effect.provide([BunFileSystem.layer, BunPath.layer, BunCrypto.layer, BunTomlParser]),
+        Effect.provide([BunChildProcessLayer, CuratorProcessLayer, GitEnvironmentLayer]),
+      ),
+    );
+    expect(Exit.isFailure(relock)).toBeTrue();
+    const message = Exit.isFailure(relock) ? Cause.pretty(relock.cause) : "";
+    expect(message).toContain("already exists");
+
+    expect(await readFile(lockPath)).toEqual(lockBytesBefore);
+    expect(await directoryByteSnapshot(cache)).toBe(cacheBytesBefore);
+    expect(await directoryByteSnapshot(backup)).toBe(backupBytesBefore);
+  });
+
+  test("a residual cache-backup cleanup failure after a durably successful publish is reported as a warning, not as an uncommitted lock", async () => {
+    const remote = await remoteOriginFixture();
+    await mkdir(join(remote.project, "references"));
+    await writeFile(
+      join(remote.project, "references", "sources.toml"),
+      remoteSourceText("remote.residual-backup", remote.origin),
+    );
+    const first = await runBun(
+      lockRemoteSources(remote.project, ["remote.residual-backup"], "test/0.0.0"),
+    );
+    expect(first.committed).toBeTrue();
+    expect(first.residualBackups).toEqual([]);
+
+    await writeFile(join(remote.origin, "extra.txt"), "advance\n");
+    commitAll(remote.origin, "advance");
+    const cache = join(remote.project, ".references", "remote.residual-backup", ".git-cache");
+
+    // Make only the *backup* (the displaced prior cache, once renamed aside)
+    // unwritable, so removing its contents fails, without touching the
+    // rename/publish path itself: unlinking an entry needs write permission
+    // on the directory that contains it, so `chmod`ing the pre-displacement
+    // target directory carries that restriction over to its renamed backup.
+    await chmod(cache, 0o500);
+    const backupDirectory = `${cache}.backup-swap`;
+    // After a successful relock, `cache` names the freshly published
+    // (normal-permission) cache and the chmod'd directory has been renamed
+    // to `backupDirectory`, so cleanup must restore permissions there.
+    const restore = () => chmod(backupDirectory, 0o700).catch(() => undefined);
+    try {
+      const relock = await runBun(
+        lockRemoteSources(remote.project, ["remote.residual-backup"], "test/0.0.0"),
+      );
+      expect(relock.committed).toBeTrue();
+      expect(relock.residualBackups).toHaveLength(1);
+      expect(relock.residualBackups[0]?.sourceId).toBe("remote.residual-backup");
+      expect(relock.residualBackups[0]?.backupDirectory).toBe(backupDirectory);
+
+      // The lock and the new cache are genuinely durable, not merely
+      // reported as such.
+      const lock = await runBun(loadLock(join(remote.project, "references", "sources.lock.json")));
+      expect(lock.sources.get("remote.residual-backup")?.commit).toBe(
+        relock.locked.get("remote.residual-backup")?.commit,
+      );
+      const materialized = await runBun(
+        materializeOfflineSources(remote.project, ["remote.residual-backup"]),
+      );
+      expect(materialized.failures).toEqual([]);
+    } finally {
+      await restore();
+      await rm(backupDirectory, { recursive: true, force: true });
+    }
+  });
+
+  test("a rollback restoration failure after a publish failure is surfaced explicitly, while every installed cache is still attempted", async () => {
+    const root = await mkdtemp(join(tmpdir(), "semantic-references-rollback-"));
+    temporaryRoots.push(root);
+    const project = join(root, "project");
+    const originA = join(root, "origin-a");
+    const originB = join(root, "origin-b");
+    await mkdir(project);
+    for (const origin of [originA, originB]) {
+      await mkdir(origin);
+      runCommand(["git", "init", "-q", "-b", "main"], origin);
+      await writeFile(join(origin, "LICENSE"), "MIT\n");
+      runCommand(["git", "add", "LICENSE"], origin);
+      commitAll(origin, "init");
+      runCommand(["git", "config", "uploadpack.allowFilter", "true"], origin);
+    }
+    await mkdir(join(project, "references"));
+    await writeFile(
+      join(project, "references", "sources.toml"),
+      multiRemoteSourceText([
+        { id: "remote.rollback-a", origin: originA },
+        { id: "remote.rollback-b", origin: originB },
+      ]),
+    );
+
+    const first = await runBun(
+      lockRemoteSources(project, ["remote.rollback-a", "remote.rollback-b"], "test/0.0.0"),
+    );
+    expect(first.committed).toBeTrue();
+    const lockPath = join(project, "references", "sources.lock.json");
+    const lockBytesBefore = await readFile(lockPath);
+    const cacheA = join(project, ".references", "remote.rollback-a", ".git-cache");
+    const cacheB = join(project, ".references", "remote.rollback-b", ".git-cache");
+
+    // Advance both origins so the relock genuinely fetches new content and
+    // `displaceExisting` creates a real backup for each.
+    for (const origin of [originA, originB]) {
+      await writeFile(join(origin, "extra.txt"), "advance\n");
+      commitAll(origin, "advance");
+    }
+
+    // A wrapped `FileSystem` service (not a shell shim: this failure must be
+    // injected at the exact `rename` calls `publishStagedCaches` itself
+    // makes) blocks two specific renames: B's forward publish (so the
+    // transaction fails and rolls back), and any restore-from-backup rename
+    // for either source (so rollback itself cannot fully undo the installs
+    // it is trying to reverse).
+    const FailingPublishLayer = Layer.effect(
+      FileSystem.FileSystem,
+      Effect.gen(function* () {
+        const real = yield* FileSystem.FileSystem;
+        return {
+          ...real,
+          rename: (oldPath: string, newPath: string) => {
+            if (oldPath.endsWith(".backup-swap")) {
+              return Effect.fail(
+                PlatformError.systemError({
+                  _tag: "PermissionDenied",
+                  module: "FileSystem",
+                  method: "rename",
+                  pathOrDescriptor: oldPath,
+                  description: "simulated: backup restore blocked",
+                }),
+              );
+            }
+            if (newPath === cacheB) {
+              return Effect.fail(
+                PlatformError.systemError({
+                  _tag: "PermissionDenied",
+                  module: "FileSystem",
+                  method: "rename",
+                  pathOrDescriptor: newPath,
+                  description: "simulated: publish blocked",
+                }),
+              );
+            }
+            return real.rename(oldPath, newPath);
+          },
+        };
+      }),
+    ).pipe(Layer.provide(BunFileSystem.layer));
+
+    const relock = await Effect.runPromiseExit(
+      lockRemoteSources(project, ["remote.rollback-a", "remote.rollback-b"], "test/0.0.0").pipe(
+        Effect.provide([FailingPublishLayer, BunPath.layer, BunCrypto.layer, BunTomlParser]),
+        Effect.provide([BunChildProcessLayer, CuratorProcessLayer, GitEnvironmentLayer]),
+      ),
+    );
+    expect(Exit.isFailure(relock)).toBeTrue();
+    const message = Exit.isFailure(relock) ? Cause.pretty(relock.cause) : "";
+    // Both the original failure and the rollback's own inability to restore
+    // are visible — neither is silently swallowed.
+    expect(message).toContain("rollback could not fully restore");
+    expect(message).toContain(cacheA);
+    expect(message).toContain(cacheB);
+    expect(message).toContain("simulated: publish blocked");
+
+    // `writeLock` is reached only after every cache renames cleanly, which
+    // did not happen here, so the lock is untouched regardless.
+    expect(await readFile(lockPath)).toEqual(lockBytesBefore);
+  });
+
+  test("selector movement between the observation and confirmation query fails closed and publishes nothing", async () => {
+    const remote = await remoteOriginFixture();
+    await mkdir(join(remote.project, "references"));
+    await writeFile(
+      join(remote.project, "references", "sources.toml"),
+      remoteSourceText("remote.moving", remote.origin),
+    );
+    const bin = join(remote.project, "bin");
+    await writeFakeGitMovingSelector(bin, "refs/heads/main", "f".repeat(40));
+    const FakeGitEnvironmentLayer = Layer.succeed(
+      GitEnvironment,
+      makeGitEnvironment({ ...process.env, PATH: `${bin}:${process.env.PATH ?? ""}` }),
+    );
+
+    const result = await Effect.runPromise(
+      lockRemoteSources(remote.project, ["remote.moving"], "test/0.0.0").pipe(
+        Effect.provide([BunFileSystem.layer, BunPath.layer, BunCrypto.layer, BunTomlParser]),
+        Effect.provide([BunChildProcessLayer, CuratorProcessLayer, FakeGitEnvironmentLayer]),
+      ),
+    );
+    expect(result.committed).toBeFalse();
+    expect(result.failures).toHaveLength(1);
+    expect(result.failures[0]?.error).toBeInstanceOf(AcquisitionError);
+    const cacheExists = await stat(
+      join(remote.project, ".references", "remote.moving", ".git-cache"),
+    ).then(
+      () => true,
+      () => false,
+    );
+    expect(cacheExists).toBeFalse();
+  });
+
+  test("an ambiguous selector fails closed without publishing a cache; an unambiguous tag records a concrete resolved_ref", async () => {
+    const remote = await remoteOriginFixture();
+    const commitA = runCommand(["git", "rev-parse", "HEAD"], remote.origin);
+    await writeFile(join(remote.origin, "extra.txt"), "more\n");
+    const commitB = commitAll(remote.origin, "two");
+    runCommand(["git", "branch", "x", commitB], remote.origin);
+    runCommand(["git", "tag", "x", commitA], remote.origin);
+    runCommand(["git", "tag", "v1", commitA], remote.origin);
+
+    await mkdir(join(remote.project, "references"));
+    await writeFile(
+      join(remote.project, "references", "sources.toml"),
+      multiRemoteSourceText([
+        { id: "remote.ambiguous", origin: remote.origin, track: "x" },
+        { id: "remote.tag-only", origin: remote.origin, track: "v1" },
+      ]),
+    );
+
+    const ambiguous = await runBun(
+      lockRemoteSources(remote.project, ["remote.ambiguous"], "test/0.0.0"),
+    );
+    expect(ambiguous.committed).toBeFalse();
+    expect(ambiguous.failures[0]?.error.message).toContain("ambiguous");
+    const ambiguousCacheExists = await stat(
+      join(remote.project, ".references", "remote.ambiguous", ".git-cache"),
+    ).then(
+      () => true,
+      () => false,
+    );
+    expect(ambiguousCacheExists).toBeFalse();
+
+    const tagOnly = await runBun(
+      lockRemoteSources(remote.project, ["remote.tag-only"], "test/0.0.0"),
+    );
+    expect(tagOnly.committed).toBeTrue();
+    const entry = tagOnly.locked.get("remote.tag-only");
+    expect(entry?.commit).toBe(commitA);
+    expect(entry?.resolvedRef).toBe("refs/tags/v1");
+  });
+
+  test("online acquisition rejects a custom remote helper without executing it", async () => {
+    const root = await mkdtemp(join(tmpdir(), "semantic-references-helper-"));
+    temporaryRoots.push(root);
+    const marker = join(root, "transport-invoked");
+    const bin = join(root, "bin");
+    await mkdir(bin);
+    const helper = join(bin, "git-remote-custodyprobe");
+    await writeFile(
+      helper,
+      `#!${NODE_EXECUTABLE}\n` +
+        `require("node:fs").writeFileSync(${JSON.stringify(marker)}, "invoked\\n");\n` +
+        "process.exit(1);\n",
+    );
+    await chmod(helper, 0o755);
+
+    const project = join(root, "project");
+    await mkdir(join(project, "references"), { recursive: true });
+    // `remoteSourceText` always wraps its origin with `file://`; a helper
+    // spelling must not go through that wrapper, so the catalog is written
+    // directly with the exact adversarial origin string.
+    await writeFile(
+      join(project, "references", "sources.toml"),
+      `
+schema = 1
+
+[[source]]
+id = "remote.unapproved-helper"
+kind = "git"
+origin = "custodyprobe::anything"
+track = "main"
+license_paths = ["LICENSE"]
+`,
+    );
+    const ProbeGitEnvironmentLayer = Layer.succeed(
+      GitEnvironment,
+      makeGitEnvironment({ ...process.env, PATH: `${bin}:${process.env.PATH ?? ""}` }),
+    );
+    const result = await Effect.runPromise(
+      lockRemoteSources(project, ["remote.unapproved-helper"], "test/0.0.0").pipe(
+        Effect.provide([BunFileSystem.layer, BunPath.layer, BunCrypto.layer, BunTomlParser]),
+        Effect.provide([BunChildProcessLayer, CuratorProcessLayer, ProbeGitEnvironmentLayer]),
+      ),
+    );
+    expect(result.committed).toBeFalse();
+    expect(result.failures[0]?.error.message).toMatch(/transport|protocol|scheme/);
+    expect(await Bun.file(marker).exists()).toBeFalse();
+  });
+
+  test("a missing declared license at the remote origin fails lock closed without publishing a cache", async () => {
+    const root = await mkdtemp(join(tmpdir(), "semantic-references-remote-nolicense-"));
+    temporaryRoots.push(root);
+    const project = join(root, "project");
+    const origin = join(root, "origin");
+    await mkdir(project);
+    await mkdir(origin);
+    runCommand(["git", "init", "-q", "-b", "main"], origin);
+    await writeFile(join(origin, "README.md"), "no license here\n");
+    commitAll(origin, "init");
+    runCommand(["git", "config", "uploadpack.allowFilter", "true"], origin);
+
+    await mkdir(join(project, "references"));
+    await writeFile(
+      join(project, "references", "sources.toml"),
+      remoteSourceText("remote.nolicense", origin),
+    );
+    const result = await runBun(lockRemoteSources(project, ["remote.nolicense"], "test/0.0.0"));
+    expect(result.committed).toBeFalse();
+    expect(result.failures[0]?.error.message).toContain("not in commit");
+    const cacheExists = await stat(
+      join(project, ".references", "remote.nolicense", ".git-cache"),
+    ).then(
+      () => true,
+      () => false,
+    );
+    expect(cacheExists).toBeFalse();
+  });
+
+  test("a remote materialize publication race cannot replace a destination that appears after preflight", async () => {
+    const remote = await remoteOriginFixture();
+    await mkdir(join(remote.project, "references"));
+    await writeFile(
+      join(remote.project, "references", "sources.toml"),
+      remoteSourceText("remote.race", remote.origin),
+    );
+    const lockResult = runTsCli(["--root", remote.project, "lock", "remote.race"]);
+    expect(lockResult.exitCode).toBe(0);
+
+    const bin = join(remote.project, "bin");
+    const helper = join(bin, "mv");
+    await mkdir(bin);
+    await writeFile(
+      helper,
+      `#!${NODE_EXECUTABLE}\n` +
+        'const fs = require("node:fs");\n' +
+        'const cp = require("node:child_process");\n' +
+        "const args = process.argv.slice(2);\n" +
+        "const target = args.at(-1);\n" +
+        "if (target === undefined) process.exit(64);\n" +
+        "fs.mkdirSync(target, { recursive: false });\n" +
+        `const result = cp.spawnSync(${JSON.stringify(MV_EXECUTABLE)}, args, { stdio: "inherit" });\n` +
+        "process.exit(result.status ?? 1);\n",
+    );
+    await chmod(helper, 0o755);
+    const environment = { ...process.env, PATH: `${bin}:${process.env.PATH ?? ""}` };
+
+    const result = runTsCli(["--root", remote.project, "materialize", "remote.race"], environment);
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("cannot atomically publish checkout");
+    const sourceRoot = join(remote.project, ".references", "remote.race");
+    const checkout = join(sourceRoot, "checkout");
+    expect(await readdir(checkout)).toEqual([]);
+    expect(
+      (await readdir(sourceRoot)).some((name) => name.startsWith(".materialize-")),
+    ).toBeFalse();
+  });
+
+  for (const objectFormatName of ["sha1", "sha256"] as const) {
+    test(`remote lock and materialize round-trip for object format ${objectFormatName}`, async () => {
+      const root = await mkdtemp(join(tmpdir(), "semantic-references-remote-fmt-"));
+      temporaryRoots.push(root);
+      const project = join(root, "project");
+      const origin = join(root, "origin");
+      await mkdir(project);
+      await mkdir(origin);
+      runCommand(
+        ["git", "init", "-q", "-b", "main", `--object-format=${objectFormatName}`, "."],
+        origin,
+      );
+      await writeFile(join(origin, "LICENSE"), "MIT\n");
+      await writeFile(join(origin, "payload.txt"), `${objectFormatName}\n`);
+      commitAll(origin, "init");
+      runCommand(["git", "config", "uploadpack.allowFilter", "true"], origin);
+
+      const sourceId = `remote.${objectFormatName}`;
+      await mkdir(join(project, "references"));
+      await writeFile(
+        join(project, "references", "sources.toml"),
+        remoteSourceText(sourceId, origin),
+      );
+
+      const locked = await runBun(lockRemoteSources(project, [sourceId], "test/0.0.0"));
+      expect(locked.committed).toBeTrue();
+      const entry = locked.locked.get(sourceId);
+      expect(entry?.objectFormat).toBe(objectFormatName);
+
+      const materialized = await runBun(materializeRemoteSources(project, [sourceId], false));
+      expect(materialized.failures).toEqual([]);
+      const checkout = materialized.materialized.get(sourceId);
+      if (checkout === undefined)
+        throw new Error(`${objectFormatName} materialize produced nothing`);
+      expect(runCommand(["git", "rev-parse", "--show-object-format"], checkout)).toBe(
+        objectFormatName,
+      );
+    });
+  }
+
+  test("online lock and materialize succeed identically under Node and Bun live layers", async () => {
+    const remoteNode = await remoteOriginFixture();
+    const remoteBun = await remoteOriginFixture();
+    const expectedNode = runCommand(["git", "rev-parse", "HEAD"], remoteNode.origin);
+    const expectedBun = runCommand(["git", "rev-parse", "HEAD"], remoteBun.origin);
+    for (const remote of [remoteNode, remoteBun]) {
+      await mkdir(join(remote.project, "references"));
+      await writeFile(
+        join(remote.project, "references", "sources.toml"),
+        remoteSourceText("remote.parity", remote.origin),
+      );
+    }
+
+    const node = runNodeCli(["--root", remoteNode.project, "lock", "remote.parity"]);
+    if (node.exitCode !== 0) throw new Error(`Node remote lock failed: ${node.stderr}`);
+    expect(node.stdout.trim()).toBe(`remote.parity: locked at ${expectedNode}`);
+    const bun = runTsCli(["--root", remoteBun.project, "lock", "remote.parity"]);
+    expect(bun.exitCode).toBe(0);
+    expect(bun.stdout.trim()).toBe(`remote.parity: locked at ${expectedBun}`);
+
+    const nodeMaterialize = runNodeCli([
+      "--root",
+      remoteNode.project,
+      "materialize",
+      "remote.parity",
+    ]);
+    expect(nodeMaterialize.exitCode).toBe(0);
+    const bunMaterialize = runTsCli(["--root", remoteBun.project, "materialize", "remote.parity"]);
+    expect(bunMaterialize.exitCode).toBe(0);
+
+    const nodeCheckout = join(remoteNode.project, ".references", "remote.parity", "checkout");
+    const bunCheckout = join(remoteBun.project, ".references", "remote.parity", "checkout");
+    expect(runCommand(["git", "rev-parse", "HEAD"], nodeCheckout)).toBe(expectedNode);
+    expect(runCommand(["git", "rev-parse", "HEAD"], bunCheckout)).toBe(expectedBun);
+  });
+
+  test("--allow-history-fallback is grammar-valid only for materialize", async () => {
+    const root = await temporaryProject(BASE_CATALOG);
+    const materializeUsage = runTsCli([
+      "--root",
+      root,
+      "materialize",
+      "demo.repo",
+      "--allow-history-fallback",
+    ]);
+    expect(materializeUsage.exitCode).toBe(1);
+    expect(materializeUsage.stderr).toContain("no lock entry");
+
+    const lockUsage = runTsCli(["--root", root, "lock", "demo.repo", "--allow-history-fallback"]);
+    expect(lockUsage.exitCode).toBe(2);
+
+    const statusUsage = runTsCli([
+      "--root",
+      root,
+      "status",
+      "demo.repo",
+      "--allow-history-fallback",
+    ]);
+    expect(statusUsage.exitCode).toBe(2);
   });
 });

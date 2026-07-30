@@ -163,6 +163,7 @@ export interface RunGitOptions {
   readonly allowTransport?: boolean;
   readonly cwd?: string;
   readonly repositoryCeiling?: string;
+  readonly input?: Uint8Array;
 }
 
 export const runGit = (
@@ -191,7 +192,7 @@ export const runGit = (
         extendEnv: false,
         shell: false,
         detached: false,
-        stdin: "ignore",
+        stdin: options.input === undefined ? "ignore" : Stream.succeed(options.input),
       },
     );
     const result = yield* Effect.scoped(
@@ -530,10 +531,17 @@ export const cloneLocalRepository = (
     Effect.asVoid,
   );
 
-/** Populate an ordinary working tree at exactly one detached local commit. */
+/**
+ * Populate an ordinary working tree at exactly one detached local commit.
+ *
+ * `allowTransport` is only ever set for a repository that was itself fetched
+ * blobless from the network in this same acquisition: checking out its
+ * working tree legitimately needs the blobs that fetch withheld.
+ */
 export const checkoutDetached = (
   repository: string,
   commit: string,
+  options: { readonly allowTransport?: boolean } = {},
 ): Effect.Effect<
   void,
   AcquisitionError,
@@ -541,15 +549,10 @@ export const checkoutDetached = (
 > =>
   rejectOptionLike("commit", commit).pipe(
     Effect.andThen(
-      runGit([
-        "-C",
-        repository,
-        "checkout",
-        "--detach",
-        "--quiet",
-        "--no-recurse-submodules",
-        commit,
-      ]),
+      runGit(
+        ["-C", repository, "checkout", "--detach", "--quiet", "--no-recurse-submodules", commit],
+        { allowTransport: options.allowTransport ?? false },
+      ),
     ),
     Effect.asVoid,
   );
@@ -761,6 +764,7 @@ export const lsTreeEntry = (
   repository: string,
   commit: string,
   path: string,
+  options: { readonly allowTransport?: boolean } = {},
 ): Effect.Effect<
   TreeEntry | null,
   AcquisitionError,
@@ -768,6 +772,7 @@ export const lsTreeEntry = (
 > =>
   runGit(["-C", repository, "ls-tree", "-l", "-z", commit, "--", path], {
     check: false,
+    allowTransport: options.allowTransport ?? false,
   }).pipe(
     Effect.flatMap((result) => {
       if (result.exitCode !== 0) {
@@ -1043,13 +1048,16 @@ export const inspectLocalBlobs = (
 export const blobSha256 = (
   repository: string,
   oid: string,
+  options: { readonly allowTransport?: boolean } = {},
 ): Effect.Effect<
   string,
   AcquisitionError,
   ChildProcessSpawner.ChildProcessSpawner | GitEnvironment | Crypto.Crypto
 > =>
   Effect.gen(function* () {
-    const result = yield* runGit(["-C", repository, "cat-file", "blob", oid]);
+    const result = yield* runGit(["-C", repository, "cat-file", "blob", oid], {
+      allowTransport: options.allowTransport ?? false,
+    });
     const crypto = yield* Crypto.Crypto;
     const digest = yield* crypto
       .digest("SHA-256", result.stdout)
@@ -1069,6 +1077,7 @@ interface RemoteRefs {
 const lsRemoteRefs = (
   location: string,
   pattern: string,
+  allowTransport = false,
 ): Effect.Effect<
   RemoteRefs,
   AcquisitionError,
@@ -1076,7 +1085,7 @@ const lsRemoteRefs = (
 > =>
   Effect.scoped(
     Effect.gen(function* () {
-      yield* requireAllowedLocation(location, false);
+      yield* requireAllowedLocation(location, allowTransport);
       yield* rejectOptionLike("ref", pattern);
       const fs = yield* FileSystem.FileSystem;
       const paths = yield* Path.Path;
@@ -1104,6 +1113,7 @@ const lsRemoteRefs = (
       const result = yield* runGit(["ls-remote", "--symref", location, pattern], {
         cwd,
         repositoryCeiling: scratch,
+        allowTransport,
       });
       const symrefs: Array<readonly [string, string]> = [];
       const refs: Array<readonly [string, string]> = [];
@@ -1125,13 +1135,14 @@ export const observeConcreteRef = (
   location: string,
   track: string,
   expectedCommit: string,
+  allowTransport = false,
 ): Effect.Effect<
   string,
   AcquisitionError,
   ChildProcessSpawner.ChildProcessSpawner | FileSystem.FileSystem | GitEnvironment | Path.Path
 > =>
   Effect.gen(function* () {
-    const observed = yield* lsRemoteRefs(location, track);
+    const observed = yield* lsRemoteRefs(location, track, allowTransport);
     const symrefTargets = new Set(
       observed.symrefs.filter(([queried]) => queried === track).map(([, target]) => target),
     );
@@ -1155,7 +1166,7 @@ export const observeConcreteRef = (
         message: `selector ${JSON.stringify(track)} resolved to non-concrete ref ${JSON.stringify(concrete)}`,
       });
     }
-    const confirmation = yield* lsRemoteRefs(location, concrete);
+    const confirmation = yield* lsRemoteRefs(location, concrete, allowTransport);
     const matching = new Set(
       confirmation.refs.filter(([, ref]) => undereference(ref) === concrete).map(([oid]) => oid),
     );
@@ -1167,6 +1178,48 @@ export const observeConcreteRef = (
       });
     }
     return concrete;
+  });
+
+/**
+ * Ask `location` what commit an already-concrete `ref` currently names,
+ * independently of any fetch attempt. Returns `null` only when the location
+ * does not currently advertise `ref` at all.
+ *
+ * This is the single structural, independently-verifiable check that may
+ * justify moving from a narrower acquisition request to a broader one (for
+ * example, from an exact-commit fetch to a full-history fetch): it observes
+ * the remote directly rather than interpreting a failed fetch's exit code or
+ * stderr, which cannot distinguish "the ref moved" from an unrelated
+ * operational or corruption failure.
+ */
+export const resolveRemoteRefTarget = (
+  location: string,
+  ref: string,
+  allowTransport = false,
+): Effect.Effect<
+  string | null,
+  AcquisitionError,
+  ChildProcessSpawner.ChildProcessSpawner | FileSystem.FileSystem | GitEnvironment | Path.Path
+> =>
+  Effect.gen(function* () {
+    if (!isConcreteGitRef(ref)) {
+      return yield* new AcquisitionError({
+        message: `refusing to resolve a non-concrete ref ${JSON.stringify(ref)}`,
+      });
+    }
+    const observed = yield* lsRemoteRefs(location, ref, allowTransport);
+    const matching = new Set(
+      observed.refs.filter(([, candidate]) => undereference(candidate) === ref).map(([oid]) => oid),
+    );
+    if (matching.size === 0) return null;
+    if (matching.size !== 1) {
+      return yield* new AcquisitionError({
+        message:
+          `ref ${JSON.stringify(ref)} at ${JSON.stringify(location)} resolves ambiguously: ` +
+          `${JSON.stringify([...matching].sort())}`,
+      });
+    }
+    return [...matching][0]!;
   });
 
 export const rawLocalRemoteUrl = (
@@ -1217,3 +1270,264 @@ export const rawLocalRemoteUrl = (
       return Effect.succeed(values[0]!);
     }),
   );
+
+const SUPPORTED_OBJECT_FORMATS = new Set(["sha1", "sha256"]);
+/** The branch a tool-owned object cache uses to name the commit it holds. */
+export const CACHE_BRANCH = "custody";
+
+/** Initialize an empty repository at an already-existing directory. */
+export const initRepository = (
+  path: string,
+  repositoryObjectFormat: string,
+): Effect.Effect<
+  void,
+  AcquisitionError,
+  FileSystem.FileSystem | ChildProcessSpawner.ChildProcessSpawner | GitEnvironment
+> =>
+  Effect.gen(function* () {
+    if (!SUPPORTED_OBJECT_FORMATS.has(repositoryObjectFormat)) {
+      return yield* new AcquisitionError({
+        message: `unsupported Git object format ${JSON.stringify(repositoryObjectFormat)}`,
+      });
+    }
+    const fs = yield* FileSystem.FileSystem;
+    yield* fs
+      .makeDirectory(path, { recursive: true })
+      .pipe(
+        Effect.mapError(
+          (cause) =>
+            new AcquisitionError({ message: `cannot create checkout directory ${path}`, cause }),
+        ),
+      );
+    yield* runGit([
+      "init",
+      "-q",
+      "-b",
+      CACHE_BRANCH,
+      `--object-format=${repositoryObjectFormat}`,
+      path,
+    ]);
+  });
+
+/**
+ * Create a shallow bare partial clone while negotiating its object format.
+ *
+ * `git clone` learns SHA-1 versus SHA-256 from the origin before creating the
+ * repository; initializing first would irreversibly choose SHA-1.
+ */
+export const cloneRemoteBare = (
+  url: string,
+  destination: string,
+): Effect.Effect<
+  void,
+  AcquisitionError,
+  ChildProcessSpawner.ChildProcessSpawner | GitEnvironment
+> =>
+  requireAllowedLocation(url, true).pipe(
+    Effect.andThen(
+      runGit(
+        [
+          "clone",
+          "--bare",
+          "--quiet",
+          "--depth=1",
+          "--filter=blob:none",
+          "--no-tags",
+          "--single-branch",
+          url,
+          destination,
+        ],
+        { allowTransport: true },
+      ),
+    ),
+    Effect.asVoid,
+  );
+
+/** Fetch `ref` from `url` shallowly, without blobs or tags. Returns the fetched commit. */
+export const fetchShallowBlobless = (
+  repository: string,
+  url: string,
+  ref: string,
+): Effect.Effect<
+  string,
+  AcquisitionError,
+  ChildProcessSpawner.ChildProcessSpawner | GitEnvironment
+> =>
+  rejectOptionLike("url", url).pipe(
+    Effect.andThen(rejectOptionLike("ref", ref)),
+    Effect.andThen(requireAllowedLocation(url, true)),
+    Effect.andThen(
+      runGit(
+        ["-C", repository, "fetch", "--depth=1", "--filter=blob:none", "--no-tags", url, ref],
+        { allowTransport: true },
+      ),
+    ),
+    Effect.andThen(resolveCommit(repository, "FETCH_HEAD")),
+  );
+
+export const isShallowRepository = (
+  repository: string,
+): Effect.Effect<
+  boolean,
+  AcquisitionError,
+  ChildProcessSpawner.ChildProcessSpawner | GitEnvironment
+> =>
+  runGit(["-C", repository, "rev-parse", "--is-shallow-repository"]).pipe(
+    Effect.map((result) => text(result).trim() === "true"),
+  );
+
+/**
+ * Broader (deepened, but still blob-filtered) history fetch.
+ *
+ * The deepening is explicit: an earlier shallow attempt leaves the repository
+ * shallow, and a plain fetch would not widen it. This path is reached only
+ * behind `--allow-history-fallback`.
+ */
+export const fetchBloblessHistory = (
+  repository: string,
+  url: string,
+  ref: string,
+): Effect.Effect<
+  string,
+  AcquisitionError,
+  ChildProcessSpawner.ChildProcessSpawner | GitEnvironment
+> =>
+  Effect.gen(function* () {
+    yield* rejectOptionLike("url", url);
+    yield* rejectOptionLike("ref", ref);
+    yield* requireAllowedLocation(url, true);
+    const shallow = yield* isShallowRepository(repository);
+    yield* runGit(
+      [
+        "-C",
+        repository,
+        "fetch",
+        ...(shallow ? ["--unshallow"] : []),
+        "--filter=blob:none",
+        "--no-tags",
+        url,
+        ref,
+      ],
+      { allowTransport: true },
+    );
+    return yield* resolveCommit(repository, "FETCH_HEAD");
+  });
+
+/**
+ * Fetch every object needed to replay `commit`, then prove completeness.
+ *
+ * The initial clone/fetch remains blobless to preserve the acquisition
+ * boundary. This explicit hydration is the cache-construction step: it reads
+ * every object reachable within the selected superproject while the declared
+ * origin is available. Gitlinks remain external by definition and are
+ * surfaced later as unverifiable content.
+ */
+export const hydrateReplayObjects = (
+  repository: string,
+  commit: string,
+): Effect.Effect<
+  void,
+  AcquisitionError,
+  ChildProcessSpawner.ChildProcessSpawner | GitEnvironment
+> =>
+  Effect.gen(function* () {
+    yield* rejectOptionLike("commit", commit);
+    const objects = yield* runGit(["-C", repository, "rev-list", "--objects", commit], {
+      allowTransport: true,
+    });
+    const objectIds = text(objects)
+      .split("\n")
+      .filter((line) => line.length > 0)
+      .map((line) => line.split(/\s+/)[0]!);
+    if (objectIds.length === 0) {
+      return yield* new AcquisitionError({
+        message: `commit ${commit} produced no replay object closure`,
+      });
+    }
+    const checked = yield* runGit(["-C", repository, "cat-file", "--batch-check"], {
+      allowTransport: true,
+      input: new TextEncoder().encode(`${objectIds.join("\n")}\n`),
+    });
+    if (
+      text(checked)
+        .split("\n")
+        .some((line) => line.endsWith(" missing"))
+    ) {
+      return yield* new AcquisitionError({
+        message: `commit ${commit} has missing objects after replay-cache hydration`,
+      });
+    }
+
+    const missing = yield* runGit(
+      ["-C", repository, "rev-list", "--objects", "--missing=print", commit],
+      { allowTransport: false },
+    );
+    const missingLines = text(missing)
+      .split("\n")
+      .filter((line) => line.startsWith("?"));
+    if (missingLines.length > 0) {
+      return yield* new AcquisitionError({
+        message: `commit ${commit} replay cache is incomplete: ${missingLines.length} object(s) missing`,
+      });
+    }
+  });
+
+const setBranch = (
+  repository: string,
+  branch: string,
+  commit: string,
+): Effect.Effect<
+  void,
+  AcquisitionError,
+  ChildProcessSpawner.ChildProcessSpawner | GitEnvironment
+> =>
+  rejectOptionLike("branch", branch).pipe(
+    Effect.andThen(rejectOptionLike("commit", commit)),
+    Effect.andThen(runGit(["-C", repository, "update-ref", `refs/heads/${branch}`, commit])),
+    Effect.asVoid,
+  );
+
+const setRef = (
+  repository: string,
+  ref: string,
+  commit: string,
+): Effect.Effect<
+  void,
+  AcquisitionError,
+  ChildProcessSpawner.ChildProcessSpawner | GitEnvironment
+> =>
+  rejectOptionLike("ref", ref).pipe(
+    Effect.andThen(rejectOptionLike("commit", commit)),
+    Effect.andThen(runGit(["-C", repository, "check-ref-format", ref])),
+    Effect.andThen(runGit(["-C", repository, "update-ref", ref, commit])),
+    Effect.asVoid,
+  );
+
+/** Retain only refs that name the complete selected replay closure. */
+export const prepareReplayRefs = (
+  repository: string,
+  resolvedRef: string,
+  commit: string,
+): Effect.Effect<
+  void,
+  AcquisitionError,
+  ChildProcessSpawner.ChildProcessSpawner | GitEnvironment
+> =>
+  Effect.gen(function* () {
+    yield* setBranch(repository, CACHE_BRANCH, commit);
+    yield* setRef(repository, resolvedRef, commit);
+    const retained = new Set([`refs/heads/${CACHE_BRANCH}`, resolvedRef]);
+    const refsResult = yield* runGit(["-C", repository, "for-each-ref", "--format=%(refname)"]);
+    const refs = text(refsResult)
+      .split("\n")
+      .filter((line) => line.length > 0);
+    for (const ref of refs) {
+      if (!retained.has(ref)) {
+        yield* runGit(["-C", repository, "update-ref", "-d", ref]);
+      }
+    }
+    const headRef = resolvedRef.startsWith("refs/heads/")
+      ? resolvedRef
+      : `refs/heads/${CACHE_BRANCH}`;
+    yield* runGit(["-C", repository, "symbolic-ref", "HEAD", headRef]);
+  });

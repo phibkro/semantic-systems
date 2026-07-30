@@ -182,11 +182,12 @@ export const resolveOfflineMaterializationRepository = (
     return { repository: sibling, acquisition: "local-sibling" };
   });
 
-const hashLicenses = (
+export const hashLicenses = (
   repository: string,
   source: CatalogSource,
   commit: string,
   format: string,
+  allowTransport = false,
 ): Effect.Effect<
   ReadonlyMap<string, LicenseObservation>,
   AcquisitionError,
@@ -195,7 +196,7 @@ const hashLicenses = (
   Effect.gen(function* () {
     const licenses = new Map<string, LicenseObservation>();
     for (const path of source.licensePaths) {
-      const entry = yield* lsTreeEntry(repository, commit, path);
+      const entry = yield* lsTreeEntry(repository, commit, path, { allowTransport });
       if (entry === null) {
         return yield* new AcquisitionError({
           message: `source ${JSON.stringify(source.id)}: license path ${JSON.stringify(path)} not in commit`,
@@ -224,13 +225,13 @@ const hashLicenses = (
       licenses.set(path, {
         mode: entry.mode,
         size: entry.size,
-        sha256: yield* blobSha256(repository, entry.oid),
+        sha256: yield* blobSha256(repository, entry.oid, { allowTransport }),
       });
     }
     return licenses;
   });
 
-const retrievedAt = (milliseconds: number): string =>
+export const retrievedAt = (milliseconds: number): string =>
   new Date(Math.floor(milliseconds / 1000) * 1000).toISOString().replace(".000Z", "Z");
 
 const observeOfflineRepository = (

@@ -5,8 +5,10 @@ import type { CuratorProcess } from "./curator.ts";
 import { CatalogError } from "./errors.ts";
 import type { GitEnvironment } from "./git.ts";
 import { loadLock } from "./lockfile.ts";
-import { lockOfflineSources } from "./offline-lock.ts";
+import { lockOfflineSources, type OfflineLockResult } from "./offline-lock.ts";
 import { materializeOfflineSources } from "./offline-materialize.ts";
+import { lockRemoteSources, type RemoteLockResult } from "./remote-lock.ts";
+import { materializeRemoteSources } from "./remote-materialize.ts";
 import { computeStatus, isStrictOk, orphanedLockReport, type StatusReport } from "./status.ts";
 import type { TomlParser } from "./toml.ts";
 
@@ -29,6 +31,7 @@ interface LockCommand {
   readonly name: "lock";
   readonly id: string | undefined;
   readonly all: boolean;
+  readonly offline: boolean;
 }
 
 interface MaterializeCommand {
@@ -36,14 +39,27 @@ interface MaterializeCommand {
   readonly name: "materialize";
   readonly id: string | undefined;
   readonly all: boolean;
+  readonly offline: boolean;
+  readonly allowHistoryFallback: boolean;
 }
 
 type Command = CatalogCheckCommand | LockCommand | MaterializeCommand | StatusCommand;
 
+/**
+ * Only the online lock result carries `residualBackups` (offline observation
+ * never mutates a cache to back up), so the two result shapes are normalized
+ * here, at the CLI union boundary, rather than by widening the frozen
+ * offline lock result shape itself.
+ */
+const residualBackupsOf = (
+  result: OfflineLockResult | RemoteLockResult,
+): RemoteLockResult["residualBackups"] =>
+  "residualBackups" in result ? result.residualBackups : [];
+
 const usage =
   "usage: semrefs [--root PATH] catalog-check\n" +
-  "       semrefs [--root PATH] lock <id>|--all --offline\n" +
-  "       semrefs [--root PATH] materialize <id>|--all --offline\n" +
+  "       semrefs [--root PATH] lock <id>|--all [--offline]\n" +
+  "       semrefs [--root PATH] materialize <id>|--all [--offline] [--allow-history-fallback]\n" +
   "       semrefs [--root PATH] status <id>|--all [--lock-only] [--json]\n" +
   "(offline lock/materialize read an existing managed object cache or a declared local_hint sibling)";
 
@@ -67,23 +83,29 @@ const parseCommand = (arguments_: ReadonlyArray<string>): Command | undefined =>
   let lockOnly = false;
   let json = false;
   let offline = false;
+  let allowHistoryFallback = false;
   for (; index < arguments_.length; index += 1) {
     const argument = arguments_[index]!;
     if (argument === "--all") all = true;
     else if (argument === "--lock-only") lockOnly = true;
     else if (argument === "--json") json = true;
     else if (argument === "--offline") offline = true;
+    else if (argument === "--allow-history-fallback") allowHistoryFallback = true;
     else if (!argument.startsWith("--") && id === undefined) id = argument;
     else return undefined;
   }
   if (all === (id !== undefined)) return undefined;
   if (name === "lock") {
-    return offline && !lockOnly && !json ? { root, name: "lock", id, all } : undefined;
+    return !lockOnly && !json && !allowHistoryFallback
+      ? { root, name: "lock", id, all, offline }
+      : undefined;
   }
   if (name === "materialize") {
-    return offline && !lockOnly && !json ? { root, name: "materialize", id, all } : undefined;
+    return !lockOnly && !json
+      ? { root, name: "materialize", id, all, offline, allowHistoryFallback }
+      : undefined;
   }
-  if (offline) return undefined;
+  if (offline || allowHistoryFallback) return undefined;
   return { root, name: "status", id, all, json, lockOnly };
 };
 
@@ -178,7 +200,9 @@ export const runSemrefs = (
               : `unknown source id ${JSON.stringify(command.id)}`,
         });
       }
-      const result = yield* lockOfflineSources(root, ids, "semantic-systems/0.0.0");
+      const result = command.offline
+        ? yield* lockOfflineSources(root, ids, "semantic-systems/0.0.0")
+        : yield* lockRemoteSources(root, ids, "semantic-systems/0.0.0");
       for (const id of result.skipped) {
         yield* Console.error(`${id}: skipped (not lockable, missing track/license_paths)`);
       }
@@ -194,6 +218,12 @@ export const runSemrefs = (
       }
       for (const [id, entry] of result.locked) {
         yield* Console.log(`${id}: locked at ${entry.commit}`);
+      }
+      for (const residual of residualBackupsOf(result)) {
+        yield* Console.error(
+          `${residual.sourceId}: warning: locked and published, but a stale cache backup ` +
+            `${residual.backupDirectory} could not be removed`,
+        );
       }
       return 0;
     }
@@ -212,7 +242,9 @@ export const runSemrefs = (
               : `unknown source id ${JSON.stringify(command.id)}`,
         });
       }
-      const result = yield* materializeOfflineSources(root, ids);
+      const result = command.offline
+        ? yield* materializeOfflineSources(root, ids)
+        : yield* materializeRemoteSources(root, ids, command.allowHistoryFallback);
       for (const { id, error } of result.failures) {
         yield* Console.error(`${id}: materialize failed: ${error.message}`);
       }

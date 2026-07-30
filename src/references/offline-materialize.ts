@@ -16,7 +16,7 @@ import type { TomlParser } from "./toml.ts";
 import { publicationBlockingReasons, verifyCheckout } from "./verify.ts";
 import { catalogBindingReasons } from "./status.ts";
 
-type MaterializationCapabilities =
+export type MaterializationCapabilities =
   | ChildProcessSpawner.ChildProcessSpawner
   | Crypto.Crypto
   | FileSystem.FileSystem
@@ -29,7 +29,7 @@ const acquisitionError = (message: string, cause?: unknown) =>
     ...(cause === undefined ? {} : { cause }),
   });
 
-const publishDirectoryNoReplace = (
+export const publishDirectoryNoReplace = (
   source: string,
   target: string,
 ): Effect.Effect<
@@ -72,7 +72,7 @@ const publishDirectoryNoReplace = (
     ),
   );
 
-const requireCatalogBinding = (
+export const requireCatalogBinding = (
   source: CatalogSource,
   entry: LockEntry,
 ): Effect.Effect<void, AcquisitionError, Crypto.Crypto> =>
@@ -94,13 +94,13 @@ const requireCatalogBinding = (
     }
   });
 
-const verificationReasons = (
+export const verificationReasons = (
   headMismatch: string | null,
   reasons: ReadonlyArray<string>,
   blocking: ReadonlyArray<string>,
 ): ReadonlyArray<string> => (headMismatch === null ? blocking : reasons);
 
-const requirePublishableCheckout = (
+export const requirePublishableCheckout = (
   sourceId: string,
   worktree: string,
   entry: LockEntry,
@@ -112,6 +112,32 @@ const requirePublishableCheckout = (
     const reasons = verificationReasons(verification.headMismatch, verification.reasons, blocking);
     return yield* acquisitionError(
       `source ${JSON.stringify(sourceId)}: ${reasons.join("; ") || "checkout verification failed"}`,
+    );
+  });
+
+/**
+ * Return an already-materialized checkout that verifies against `entry`, or
+ * `null` if none is materialized yet. A present-but-mismatched checkout is
+ * never repaired, overwritten, or deleted (design spec 0004, kill criteria):
+ * this fails instead so both the offline and remote acquisition paths share
+ * exactly one "refuse to touch a foreign checkout" rule.
+ */
+export const resolveExistingCheckout = (
+  sourceId: string,
+  referencesRoot: string,
+  entry: LockEntry,
+): Effect.Effect<string | null, AcquisitionError, MaterializationCapabilities> =>
+  Effect.gen(function* () {
+    const existing = yield* inspectManagedDirectory(referencesRoot, sourceId, "checkout");
+    if (existing === null) return null;
+    const verification = yield* verifyCheckout(existing, entry);
+    const blocking = publicationBlockingReasons(verification);
+    if (verification.headMismatch === null && blocking.length === 0) return existing;
+    const reasons = verificationReasons(verification.headMismatch, verification.reasons, blocking);
+    return yield* acquisitionError(
+      `source ${JSON.stringify(sourceId)}: an existing checkout at ${existing} does not ` +
+        "match the locked commit; refusing to overwrite or delete it — remove it manually " +
+        `first if you want it rebuilt: ${reasons.join("; ")}`,
     );
   });
 
@@ -130,22 +156,8 @@ export const materializeOfflineSource = (
     const paths = yield* Path.Path;
     const root = paths.resolve(referencesRoot);
     const target = paths.join(root, source.id, "checkout");
-    const existing = yield* inspectManagedDirectory(root, source.id, "checkout");
-    if (existing !== null) {
-      const verification = yield* verifyCheckout(existing, entry);
-      const blocking = publicationBlockingReasons(verification);
-      if (verification.headMismatch === null && blocking.length === 0) return existing;
-      const reasons = verificationReasons(
-        verification.headMismatch,
-        verification.reasons,
-        blocking,
-      );
-      return yield* acquisitionError(
-        `source ${JSON.stringify(source.id)}: an existing checkout at ${existing} does not ` +
-          "match the locked commit; refusing to overwrite or delete it — remove it manually " +
-          `first if you want it rebuilt: ${reasons.join("; ")}`,
-      );
-    }
+    const existing = yield* resolveExistingCheckout(source.id, root, entry);
+    if (existing !== null) return existing;
 
     const selected = yield* resolveOfflineMaterializationRepository(
       source,
