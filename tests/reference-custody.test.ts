@@ -9,11 +9,14 @@
  * mutates `references/`.
  */
 import { afterEach, describe, expect, test } from "bun:test";
-import { BunCrypto, BunFileSystem, BunPath } from "@effect/platform-bun";
+import { BunChildProcessSpawner, BunCrypto, BunFileSystem, BunPath } from "@effect/platform-bun";
+import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { Effect, Exit, FileSystem, type Crypto, type Path } from "effect";
+import { Effect, Exit, FileSystem, Layer, type Crypto, type Path } from "effect";
+import type { ChildProcessSpawner } from "effect/unstable/process";
+import { lockFromLocalSibling } from "../src/references/acquire.ts";
 import {
   catalogDigest,
   isConcreteGitRef,
@@ -23,6 +26,11 @@ import {
   isValidSourceId,
   parseCatalogText,
 } from "../src/references/catalog.ts";
+import {
+  GitEnvironment,
+  makeGitEnvironment,
+  requireAllowedLocation,
+} from "../src/references/git.ts";
 import { loadLock, parseLockText, serializeLock, writeLock } from "../src/references/lockfile.ts";
 import {
   catalogBindingReasons,
@@ -33,12 +41,22 @@ import {
 import { layer as BunTomlParser } from "../src/references/toml-bun.ts";
 import type { TomlParser } from "../src/references/toml.ts";
 
-type TestCapabilities = FileSystem.FileSystem | Path.Path | Crypto.Crypto | TomlParser;
+type TestCapabilities =
+  | FileSystem.FileSystem
+  | Path.Path
+  | Crypto.Crypto
+  | ChildProcessSpawner.ChildProcessSpawner
+  | GitEnvironment
+  | TomlParser;
 
 const ROOT = resolve(import.meta.dir, "..");
 const PYTHONPATH = join(ROOT, "src");
 const MAIN_BUN = join(ROOT, "src", "references", "main-bun.ts");
 const temporaryRoots: Array<string> = [];
+const GitEnvironmentLayer = Layer.succeed(GitEnvironment, makeGitEnvironment(process.env));
+const BunChildProcessLayer = BunChildProcessSpawner.layer.pipe(
+  Layer.provide([BunFileSystem.layer, BunPath.layer]),
+);
 
 afterEach(async () => {
   await Promise.all(temporaryRoots.splice(0).map((path) => rm(path, { recursive: true })));
@@ -48,6 +66,7 @@ const runBun = <A, E>(effect: Effect.Effect<A, E, TestCapabilities>): Promise<A>
   Effect.runPromise(
     effect.pipe(
       Effect.provide([BunFileSystem.layer, BunPath.layer, BunCrypto.layer, BunTomlParser]),
+      Effect.provide([BunChildProcessLayer, GitEnvironmentLayer]),
     ),
   );
 
@@ -55,6 +74,7 @@ const runBunExit = <A, E>(effect: Effect.Effect<A, E, TestCapabilities>) =>
   Effect.runPromiseExit(
     effect.pipe(
       Effect.provide([BunFileSystem.layer, BunPath.layer, BunCrypto.layer, BunTomlParser]),
+      Effect.provide([BunChildProcessLayer, GitEnvironmentLayer]),
     ),
   );
 
@@ -197,6 +217,72 @@ const temporaryProject = async (catalogToml: string, lockJson?: string): Promise
     await writeFile(join(root, "references", "sources.lock.json"), lockJson);
   }
   return root;
+};
+
+const runCommand = (command: ReadonlyArray<string>, cwd: string): string => {
+  const result = Bun.spawnSync({
+    cmd: [...command],
+    cwd,
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  if (result.exitCode !== 0) {
+    throw new Error(
+      `${command.join(" ")} failed (${result.exitCode}): ${result.stderr.toString()}`,
+    );
+  }
+  return result.stdout.toString().trim();
+};
+
+const localSiblingFixture = async (
+  origin = "https://example.com/demo.git",
+): Promise<{
+  readonly project: string;
+  readonly sibling: string;
+  readonly sourceText: string;
+  readonly license: string;
+}> => {
+  const root = await mkdtemp(join(tmpdir(), "semantic-references-git-"));
+  temporaryRoots.push(root);
+  const project = join(root, "project");
+  const sibling = join(root, "sibling");
+  await mkdir(project);
+  await mkdir(sibling);
+  runCommand(["git", "init", "-b", "main"], sibling);
+  const license = "custodied license bytes\n";
+  await writeFile(join(sibling, "LICENSE"), license);
+  runCommand(["git", "add", "LICENSE"], sibling);
+  runCommand(
+    [
+      "git",
+      "-c",
+      "user.name=Semantic Custody Test",
+      "-c",
+      "user.email=custody@example.invalid",
+      "commit",
+      "-m",
+      "test: seed custody fixture",
+    ],
+    sibling,
+  );
+  runCommand(["git", "remote", "add", "origin", origin], sibling);
+  return {
+    project,
+    sibling,
+    license,
+    sourceText: `
+schema = 1
+
+[[source]]
+id = "demo.repo"
+kind = "git"
+origin = ${JSON.stringify(origin)}
+local_hint = "../sibling"
+track = "main"
+license_paths = ["LICENSE"]
+classes = ["testing"]
+`,
+  };
 };
 
 const BASE_CATALOG = `
@@ -392,6 +478,99 @@ origin = "https://example.com/unlocked.git"
     const source = catalog.sources.get("unlocked.repo")!;
     expect(isLockable(source)).toBeFalse();
     expect(pythonAcceptsCatalogText(text)).toBeTrue();
+  });
+});
+
+describe("reference custody Effect v4 slice: offline Git observation", () => {
+  test("Git receives an allowlisted, default-deny environment", () => {
+    const ambient = {
+      PATH: "/test/bin",
+      HOME: "/test/home",
+      GIT_CONFIG_COUNT: "99",
+      GIT_CONFIG_KEY_0: "credential.helper",
+      GIT_CONFIG_VALUE_0: "evil",
+      HTTPS_PROXY: "https://proxy.example",
+      LD_PRELOAD: "/evil.so",
+    };
+    const offline = makeGitEnvironment(ambient).forMode(false);
+    expect(offline.PATH).toBe("/test/bin");
+    expect(offline.HOME).toBe("/test/home");
+    expect(offline.GIT_TERMINAL_PROMPT).toBe("0");
+    expect(offline.GIT_CONFIG_GLOBAL).toBe("/dev/null");
+    expect(offline.GIT_NO_LAZY_FETCH).toBe("1");
+    expect(offline).not.toHaveProperty("GIT_CONFIG_COUNT");
+    expect(offline).not.toHaveProperty("GIT_CONFIG_KEY_0");
+    expect(offline).not.toHaveProperty("GIT_CONFIG_VALUE_0");
+    expect(offline).not.toHaveProperty("HTTPS_PROXY");
+    expect(offline).not.toHaveProperty("LD_PRELOAD");
+
+    const online = makeGitEnvironment(ambient).forMode(true);
+    expect(online.HTTPS_PROXY).toBe("https://proxy.example");
+    expect(online).not.toHaveProperty("GIT_CONFIG_COUNT");
+    expect(online).not.toHaveProperty("LD_PRELOAD");
+  });
+
+  test("offline locations reject transports and helper syntax", () => {
+    expect(
+      Exit.isSuccess(Effect.runSyncExit(requireAllowedLocation("../sibling", false))),
+    ).toBeTrue();
+    expect(
+      Exit.isFailure(
+        Effect.runSyncExit(requireAllowedLocation("https://example.com/demo.git", false)),
+      ),
+    ).toBeTrue();
+    expect(
+      Exit.isFailure(Effect.runSyncExit(requireAllowedLocation("git@example.com:demo.git", false))),
+    ).toBeTrue();
+    expect(
+      Exit.isFailure(Effect.runSyncExit(requireAllowedLocation("ext::helper payload", false))),
+    ).toBeTrue();
+    expect(
+      Exit.isSuccess(
+        Effect.runSyncExit(requireAllowedLocation("https://example.com/demo.git", true)),
+      ),
+    ).toBeTrue();
+  });
+
+  test("locks only committed objects from an origin-matched local sibling", async () => {
+    const fixture = await localSiblingFixture();
+    const catalog = await runBun(parseCatalogText(fixture.sourceText));
+    const source = catalog.sources.get("demo.repo")!;
+    const entry = await runBun(lockFromLocalSibling(source, fixture.project, null));
+    const expectedCommit = runCommand(["git", "rev-parse", "HEAD"], fixture.sibling);
+    const expectedTree = runCommand(["git", "rev-parse", "HEAD^{tree}"], fixture.sibling);
+    const expectedLicenseHash = createHash("sha256").update(fixture.license).digest("hex");
+
+    expect(entry.origin).toBe("https://example.com/demo.git");
+    expect(entry.track).toBe("main");
+    expect(entry.resolvedRef).toBe("refs/heads/main");
+    expect(entry.objectFormat).toBe("sha1");
+    expect(entry.commit).toBe(expectedCommit);
+    expect(entry.tree).toBe(expectedTree);
+    expect(entry.acquisition).toBe("local-sibling");
+    expect(entry.originVerified).toBeFalse();
+    expect(entry.licenses.get("LICENSE")).toEqual({
+      mode: "100644",
+      size: BigInt(Buffer.byteLength(fixture.license)),
+      sha256: expectedLicenseHash,
+    });
+
+    await writeFile(join(fixture.sibling, "LICENSE"), "uncommitted hostile replacement\n");
+    const repeated = await runBun(lockFromLocalSibling(source, fixture.project, entry));
+    expect(repeated).toBe(entry);
+    expect(repeated.licenses.get("LICENSE")?.sha256).toBe(expectedLicenseHash);
+  });
+
+  test("rejects a local sibling whose configured origin is outside catalog custody", async () => {
+    const fixture = await localSiblingFixture();
+    runCommand(
+      ["git", "remote", "set-url", "origin", "https://example.com/untrusted.git"],
+      fixture.sibling,
+    );
+    const catalog = await runBun(parseCatalogText(fixture.sourceText));
+    const source = catalog.sources.get("demo.repo")!;
+    const exit = await runBunExit(lockFromLocalSibling(source, fixture.project, null));
+    expect(Exit.isFailure(exit)).toBeTrue();
   });
 });
 

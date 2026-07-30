@@ -9,3 +9,12 @@ export class LockFileError extends Data.TaggedError("LockFileError")<{
   readonly message: string;
   readonly cause?: unknown;
 }> {}
+
+export class AcquisitionError extends Data.TaggedError("AcquisitionError")<{
+  readonly message: string;
+  readonly cause?: unknown;
+}> {}
+
+export class NotLockableError extends Data.TaggedError("NotLockableError")<{
+  readonly message: string;
+}> {}

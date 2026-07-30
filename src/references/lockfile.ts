@@ -97,6 +97,10 @@ export const lockToJson = (lock: Lock): Record<string, unknown> => ({
 export const serializeLock = (lock: Lock): Uint8Array =>
   new TextEncoder().encode(`${stringifyCanonicalJson(lockToJson(lock), 2)}\n`);
 
+export const lockEntryContentEqual = (left: LockEntry, right: LockEntry): boolean =>
+  stringifyCanonicalJson(lockEntryToJson({ ...left, retrievedAt: "" })) ===
+  stringifyCanonicalJson(lockEntryToJson({ ...right, retrievedAt: "" }));
+
 const bytesEqual = (left: Uint8Array, right: Uint8Array): boolean =>
   left.length === right.length && left.every((byte, index) => byte === right[index]);
 

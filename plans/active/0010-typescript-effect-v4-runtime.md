@@ -19,13 +19,13 @@ Owner: main integration agent
   selected TypeScript, Unicorn, Import, and Promise rules. Effect-aware
   `@effect/tsgo` diagnostics and the local architecture plugin remain
   dependency-gated.
-- Remaining Python surface: reference custody's Git-touching half (`acquire`,
-  `materialize`, `curator`, `gitutil`, `verify`, and the checkout-inspecting
-  half of `status`), the `lock`/`materialize` CLI commands, and its test
-  module, plus transitional Nix/fast/integration wiring. The catalog/lock
-  parsing boundary and network-free `status --lock-only` are now TypeScript
-  (see item 6 below). Project model, tracer, and governance tests are
-  TypeScript.
+- Remaining Python surface: reference custody's remote acquisition, local
+  object-cache fallback, materialization, curator lock, checkout verification,
+  and the checkout-inspecting half of status; the `lock`/`materialize` CLI
+  commands and its test module; plus transitional Nix/fast/integration wiring.
+  Catalog/lock parsing, atomic lock writing, offline local-sibling Git
+  observation, and network-free `status --lock-only` are now TypeScript (see
+  item 6 below). Project model, tracer, and governance tests are TypeScript.
 - External `.references/` checkouts are excluded from repository-source
   migration.
 
@@ -58,11 +58,12 @@ Other active feature worktrees and their owned files remain forbidden.
 6. Implement reference custody with explicit Git/filesystem/lock services.
    **Catalog/lock/status-lock-only boundary complete** (`src/references/`):
    `sources.toml` parsing/validation, `reference-lock-v1` parsing, canonical
-   catalog digests, and network-free `status --lock-only` now run on Effect
-   v4/Bun with a differential/adversarial Bun suite against the Python
-   oracle. Git acquisition, materialization, the curator lock, checkout
-   verification, and the `lock`/`materialize` CLI commands remain Python and
-   are the rest of this item.
+   catalog digests, atomic lock writing, network-free `status --lock-only`,
+   and offline local-sibling Git observation now run on Effect v4/Bun with a
+   differential/adversarial Bun suite against the Python oracle. Local
+   object-cache fallback, remote acquisition, materialization, the curator
+   lock, checkout verification, and the `lock`/`materialize` CLI commands
+   remain Python and are the rest of this item.
 7. Migrate development-control and policy tests to Bun. **Complete for
    development-control and reuse-first governance; custody tests remain with
    their owning implementation slice.**
@@ -293,3 +294,18 @@ accepted; no new Python implementation is permitted.
   Oxlint, Oxfmt, and the exact pinned Node catalog command are green. This
   writer is not yet exposed by the CLI; the later Git-acquisition slice remains
   the only authority that may construct and commit new observations.
+- 2026-07-30: ported the first Git-touching custody tracer bullet: offline
+  observation of a declared, origin-matched local sibling. The portable core
+  uses Effect v4 `FileSystem`, `Path`, `Crypto`, `Clock`, and the official
+  `ChildProcessSpawner`; the ambient process environment is captured only by
+  an injected `GitEnvironment` capability that reconstructs Git's environment
+  from an allowlist. Shell execution, inherited Git configuration, prompts,
+  helpers, SSH/scp spellings, and every offline transport scheme are denied.
+  The lock is derived exclusively from the selected commit/tree and regular
+  committed license blobs; dirty working-tree bytes are irrelevant, and a
+  byte-identical observation retains the prior custody timestamp. Four new
+  adversarial tests cover environment poisoning, transport syntax, committed
+  object custody/stable reuse, and remote-origin mismatch, raising the focused
+  suite to 44 passing tests. This slice deliberately does not expose the
+  mutating `lock` CLI: publication must remain serialized until the curator
+  lock and multi-source transaction are ported.
