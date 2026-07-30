@@ -428,6 +428,48 @@ const forgedAttemptIsRejected = (base: ReferenceScenario): boolean => {
   );
 };
 
+const copiedStoreIsRejected = (base: ReferenceScenario): boolean => {
+  const copied = {
+    ...base.initial,
+    cells: base.initial.cells.map((cell) => ({ ...cell })),
+  } as Store<string>;
+  return (
+    beginAttempt(copied, succeed(base.initial.domain, "copied-store-probe", null)).kind ===
+    "store_rejected"
+  );
+};
+
+const expressionShapedDataIsPreserved = (base: ReferenceScenario): boolean => {
+  const literalShaped = { kind: "literal", value: { domain: "data" } };
+  const addShaped = { kind: "add", payload: 1 };
+  return (
+    canonicalJson(
+      commit(base.initial, succeed(base.initial.domain, "literal-data", literalShaped)).value,
+    ) === canonicalJson(literalShaped) &&
+    canonicalJson(
+      commit(base.initial, sequence(base.initial.domain, "add-data", [], addShaped)).value,
+    ) === canonicalJson(addShaped)
+  );
+};
+
+const inertCaptureRejectsUserCode = (): {
+  readonly gettersNotRun: boolean;
+  readonly proxyRejected: boolean;
+} => {
+  let getterCount = 0;
+  const accessorValue = Object.defineProperty({}, "secret", {
+    enumerable: true,
+    get() {
+      getterCount += 1;
+      return "executed";
+    },
+  });
+  return Object.freeze({
+    gettersNotRun: !isPortableData({ nested: accessorValue }) && getterCount === 0,
+    proxyRejected: !isPortableData(new Proxy({ safe: true }, {})),
+  });
+};
+
 const descriptionIsDeeplyFrozen = (attempt: Attempt): boolean =>
   Object.isFrozen(attempt.description) &&
   Object.isFrozen(attempt.description.instructions) &&
@@ -473,6 +515,7 @@ export const buildStmLawReport = (runtimeLayer: RuntimeLayer): JsonObject => {
   const historyResult = histories(base);
   const nestingAtomic = nestingIsAtomic(base);
   const portableActions = isPortableData({ kind: "inert-action" }) && !isPortableData(() => null);
+  const inertCapture = inertCaptureRejectsUserCode();
   const repeatedSettlement = settleAttempt(base.committed.store, base.rerun);
   const allBoundedSchedulesSerializable = historyResult.boundedSchedules.every(
     (schedule) => schedule.serially_equivalent === true,
@@ -486,6 +529,7 @@ export const buildStmLawReport = (runtimeLayer: RuntimeLayer): JsonObject => {
     "crash-safe exactly-once action delivery",
     "general affine resource ownership",
     "unbounded serializability proof",
+    "trap-free classification of arbitrary ECMAScript Proxy values",
   ]);
 
   const observations = [
@@ -550,6 +594,12 @@ export const buildStmLawReport = (runtimeLayer: RuntimeLayer): JsonObject => {
       historyResult.boundedSchedules.length > 2 && allBoundedSchedulesSerializable,
     ),
     observation("attempt-forgery-rejected", forgedAttemptIsRejected(base)),
+    observation("store-copy-rejected", copiedStoreIsRejected(base)),
+    observation("expression-data-collision", expressionShapedDataIsPreserved(base)),
+    observation(
+      "inert-capture-rejects-user-code",
+      inertCapture.gettersNotRun && inertCapture.proxyRejected,
+    ),
     observation("description-deep-freeze", descriptionIsDeeplyFrozen(base.firstAttempt)),
     observation("or-else-values", alternativeValuesArePreserved(base)),
   ];
@@ -569,10 +619,14 @@ export const buildStmLawReport = (runtimeLayer: RuntimeLayer): JsonObject => {
     Object.freeze({
       id: "law-l2-observed",
       law: "L2",
-      observed: base.conflict.stale.includes("x") && forgedAttemptIsRejected(base),
+      observed:
+        base.conflict.stale.includes("x") &&
+        forgedAttemptIsRejected(base) &&
+        copiedStoreIsRejected(base),
       evidence: Object.freeze({
         stale: Object.freeze([...base.conflict.stale]),
         forged_attempt_rejected: forgedAttemptIsRejected(base),
+        copied_store_rejected: copiedStoreIsRejected(base),
       }),
     }),
     Object.freeze({
@@ -639,8 +693,17 @@ export const buildStmLawReport = (runtimeLayer: RuntimeLayer): JsonObject => {
     Object.freeze({
       id: "law-l8-observed",
       law: "L8",
-      observed: portableActions,
-      evidence: Object.freeze({ inert_data_only: portableActions }),
+      observed:
+        portableActions &&
+        expressionShapedDataIsPreserved(base) &&
+        inertCapture.gettersNotRun &&
+        inertCapture.proxyRejected,
+      evidence: Object.freeze({
+        inert_data_only: portableActions,
+        expression_shaped_data_preserved: expressionShapedDataIsPreserved(base),
+        getters_not_run: inertCapture.gettersNotRun,
+        proxy_rejected: inertCapture.proxyRejected,
+      }),
     }),
     Object.freeze({
       id: "law-l9-observed",

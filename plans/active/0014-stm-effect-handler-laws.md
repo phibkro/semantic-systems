@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0014-stm-effect-handler-laws.md`](../../design-specs/0014-stm-effect-handler-laws.md).
 This mutable execution record cannot redefine that contract.
 
-Status: independent review correction implemented; exact acceptance green; full integration gate and exact-head re-review pending
+Status: second independent-review correction implemented; exact-head acceptance and full integration green; re-review pending
 
 Owner: main research and integration agent
 
@@ -170,3 +170,47 @@ decision.stm-library`; generated readiness must derive from that source edge.
   tests/1,760 assertions, 68 transitional custody checks, zero Effect
   diagnostics, formatting, lint, typecheck, commit-policy conformance,
   Bun/Node probes, model validation, and generated-view checking.
+- 2026-07-30: second exact-head review rejected `25041a7` because structural
+  expression recognition confused ordinary `kind`-bearing JSON with executable
+  AST nodes, `Object.entries` could execute accessors, hostile object
+  reflection was not normalized, and copied structural stores retained
+  settlement authority.
+- 2026-07-30: the second correction made expression authority private
+  WeakSet custody. `succeed`, `write`, `sequence`, and `orElse` preserve
+  ordinary JSON objects whose `kind` fields resemble AST nodes, while copied,
+  inherited, and Proxy-wrapped nodes cannot enter expression combinators.
+- 2026-07-30: inert values now pass a descriptor-snapshot boundary that rejects
+  accessors, symbols, non-enumerable properties, sparse arrays, unsupported
+  prototypes, cycles, and unsupported primitives before cloning. Nested
+  values/actions are recursively copied and frozen, so later caller mutation
+  cannot change a description, attempt, result, store, or action log. Hostile
+  reflection failures are normalized to `TypeError`; transparent Proxies fail
+  the structured-clone probe and cannot become portable data.
+- 2026-07-30: JavaScript has no portable, untrappable Proxy predicate.
+  WeakSet-custodied expression, Store, TVar, transaction, attempt, and
+  suspension boundaries reject Proxy wrappers without invoking traps. Raw
+  user data must be inspected to continue accepting ordinary object literals;
+  a hostile `ownKeys`/descriptor Proxy trap can therefore run only on the
+  rejected construction path. Its exception is contained and normalized, and
+  no getter/accessor executes. Eliminating even that rejected-path trap would
+  require platform authority such as `node:util.types.isProxy` or a breaking
+  pre-custodied-data API; both are deferred rather than weakening the frozen
+  portable closure.
+- 2026-07-30: Store is now explicitly handler-authenticated, not a trusted
+  external premise. `makeStore` and successful publication register immutable
+  snapshots; copied structural stores are rejected before attempt evaluation
+  or settlement and cannot consume a live attempt, inject an old version, or
+  acquire rerun/wake authority. An explicit non-negative initial version keeps
+  the exact-bigint boundary executable without structural Store forgery.
+- 2026-07-30: second-correction mutation checks restored structural `kind`
+  recognition, permitted accessors, bypassed Store custody, and removed the
+  transparent-Proxy rejection probe one at a time. The corresponding
+  AST-collision, accessor, copied-Store, and Proxy oracles each failed. All
+  mutations were reverted before acceptance.
+- 2026-07-30: second-correction exact-head acceptance passed with 26 STM
+  tests/182 assertions, 82 neighboring actor/inventory tests/483 assertions,
+  eight semantic-lint tests, genuine Bun/Node report parity, portable-closure
+  inspection, typecheck, lint, formatting, model validation, and generated
+  views. The full integration loop passed with 348 Bun tests/1,809 assertions,
+  68 transitional custody checks, zero Effect diagnostics, commit-policy
+  conformance, and every repository gate green.

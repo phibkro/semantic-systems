@@ -21,6 +21,8 @@ const knownAttemptCustody = new WeakSet<object>();
 const liveAttemptCustody = new WeakSet<object>();
 const rerunnableAttemptCustody = new WeakSet<object>();
 const liveSuspensionCustody = new WeakSet<object>();
+const expressionCustody = new WeakSet<object>();
+const storeCustody = new WeakSet<object>();
 
 export interface Domain<out Name extends string = string> {
   readonly [DomainTypeId]: true;
@@ -159,10 +161,20 @@ export interface DescriptionRejection {
   readonly attemptStarted: false;
 }
 
+export interface StoreRejection {
+  readonly kind: "store_rejected";
+  readonly reason: "not_handler_custodied";
+  readonly attemptStarted: false;
+}
+
 export interface InvalidAttempt {
   readonly kind: "invalid_attempt";
   readonly store: Store<string>;
-  readonly reason: "not_handler_custodied" | "already_settled" | "not_rerunnable";
+  readonly reason:
+    | "not_handler_custodied"
+    | "store_not_handler_custodied"
+    | "already_settled"
+    | "not_rerunnable";
   readonly commitActions: readonly [];
   readonly abortActions: readonly [];
 }
@@ -171,6 +183,7 @@ export type BeginResult =
   | { readonly kind: "attempt"; readonly attempt: Attempt }
   | DomainRejection
   | DescriptionRejection
+  | StoreRejection
   | InvalidAttempt;
 
 export interface Suspension {
@@ -233,42 +246,138 @@ export interface DiscardedAttempt {
   readonly attemptOrdinal: bigint;
 }
 
-const isRecord = (value: object): value is Record<string, unknown> => {
-  const prototype = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
-};
+interface PortableObjectSnapshot {
+  readonly array: boolean;
+  readonly keys: ReadonlyArray<string>;
+  readonly descriptors: Readonly<Record<PropertyKey, PropertyDescriptor>>;
+}
 
-const portableValue = (input: unknown, seen = new Set<object>()): JsonValue => {
+const inertDataFailure = (): TypeError =>
+  new TypeError("transaction values must be plain inert JSON data");
+
+const snapshotPortableObjects = (
+  input: unknown,
+  snapshots: Map<object, PortableObjectSnapshot>,
+  visiting: Set<object>,
+): void => {
   if (
     input === null ||
     typeof input === "string" ||
     typeof input === "boolean" ||
     (typeof input === "number" && Number.isFinite(input))
   ) {
-    return input;
+    return;
   }
   if (typeof input !== "object") {
     throw new TypeError("transaction values must be inert JSON data");
   }
-  if (seen.has(input)) throw new TypeError("transaction values must not contain cycles");
-  seen.add(input);
+  if (visiting.has(input)) throw new TypeError("transaction values must not contain cycles");
+  if (snapshots.has(input)) return;
+  visiting.add(input);
   try {
-    if (Array.isArray(input)) {
-      return Object.freeze(input.map((item) => portableValue(item, seen)));
+    let array: boolean;
+    let prototype: object | null;
+    let descriptors: Record<PropertyKey, PropertyDescriptor>;
+    try {
+      array = Array.isArray(input);
+      prototype = Object.getPrototypeOf(input);
+      descriptors = Object.getOwnPropertyDescriptors(input);
+    } catch {
+      throw inertDataFailure();
     }
-    if (!isRecord(input)) {
-      throw new TypeError("transaction values must be plain inert JSON data");
+    if (
+      (array && prototype !== Array.prototype) ||
+      (!array && prototype !== Object.prototype && prototype !== null)
+    ) {
+      throw inertDataFailure();
     }
-    return Object.freeze(
-      Object.fromEntries(
-        Object.entries(input)
-          .sort(([left], [right]) => left.localeCompare(right))
-          .map(([key, value]) => [key, portableValue(value, seen)]),
-      ),
-    ) as JsonObject;
+    const ownKeys = Reflect.ownKeys(descriptors);
+    if (ownKeys.some((key) => typeof key === "symbol")) throw inertDataFailure();
+    const keys = ownKeys.filter((key): key is string => typeof key === "string");
+    const valueKeys = array ? keys.filter((key) => key !== "length") : keys;
+    if (
+      (!array && valueKeys.length !== keys.length) ||
+      valueKeys.some((key) => {
+        const descriptor = descriptors[key];
+        return (
+          descriptor === undefined ||
+          !descriptor.enumerable ||
+          !("value" in descriptor) ||
+          "get" in descriptor ||
+          "set" in descriptor
+        );
+      })
+    ) {
+      throw inertDataFailure();
+    }
+    if (array) {
+      const lengthDescriptor = descriptors["length"];
+      if (
+        lengthDescriptor === undefined ||
+        !("value" in lengthDescriptor) ||
+        typeof lengthDescriptor.value !== "number" ||
+        valueKeys.length !== lengthDescriptor.value ||
+        valueKeys.some((key, index) => key !== String(index))
+      ) {
+        throw inertDataFailure();
+      }
+    }
+    const snapshot = Object.freeze({
+      array,
+      keys: Object.freeze([...valueKeys]),
+      descriptors: Object.freeze(descriptors),
+    });
+    snapshots.set(input, snapshot);
+    for (const key of valueKeys) {
+      snapshotPortableObjects(descriptors[key]!.value, snapshots, visiting);
+    }
   } finally {
-    seen.delete(input);
+    visiting.delete(input);
   }
+};
+
+const clonePortableSnapshot = (
+  input: unknown,
+  snapshots: ReadonlyMap<object, PortableObjectSnapshot>,
+  clones: Map<object, JsonValue>,
+): JsonValue => {
+  if (input === null || typeof input !== "object") return input as JsonValue;
+  const existing = clones.get(input);
+  if (existing !== undefined) return existing;
+  const snapshot = snapshots.get(input);
+  if (snapshot === undefined) throw inertDataFailure();
+  if (snapshot.array) {
+    const output = snapshot.keys.map((key) =>
+      clonePortableSnapshot(snapshot.descriptors[key]!.value, snapshots, clones),
+    );
+    const frozen = Object.freeze(output);
+    clones.set(input, frozen);
+    return frozen;
+  }
+  const output = Object.fromEntries(
+    [...snapshot.keys]
+      .sort((left, right) => left.localeCompare(right))
+      .map((key) => [
+        key,
+        clonePortableSnapshot(snapshot.descriptors[key]!.value, snapshots, clones),
+      ]),
+  ) as JsonObject;
+  const frozen = Object.freeze(output);
+  clones.set(input, frozen);
+  return frozen;
+};
+
+const portableValue = (input: unknown): JsonValue => {
+  const snapshots = new Map<object, PortableObjectSnapshot>();
+  snapshotPortableObjects(input, snapshots, new Set());
+  if (typeof input === "object" && input !== null) {
+    try {
+      structuredClone(input);
+    } catch {
+      throw inertDataFailure();
+    }
+  }
+  return clonePortableSnapshot(input, snapshots, new Map());
 };
 
 export const isPortableData = (input: unknown): input is JsonValue => {
@@ -287,22 +396,17 @@ const requireId = (value: string, label: string): string => {
   return value;
 };
 
-const freezeExpression = (expression: Expression): Expression => {
-  switch (expression.kind) {
-    case "literal":
-      return Object.freeze({ kind: "literal", value: portableValue(expression.value) });
-    case "binding":
-      return Object.freeze({ kind: "binding", name: requireId(expression.name, "binding") });
-    case "add":
-    case "subtract":
-    case "equal":
-    case "greater_than":
-      return Object.freeze({
-        kind: expression.kind,
-        left: freezeExpression(expression.left),
-        right: freezeExpression(expression.right),
-      });
+const ownExpression = <A extends Expression>(expression: A): A => {
+  const frozen = Object.freeze(expression);
+  expressionCustody.add(frozen);
+  return frozen;
+};
+
+const requireExpression = (expression: Expression): Expression => {
+  if (!expressionCustody.has(expression)) {
+    throw new TypeError("expression is not handler-custodied");
   }
+  return expression;
 };
 
 const requireCustodiedDescription = (
@@ -332,7 +436,7 @@ const freezeInstruction = (instruction: Instruction): Instruction => {
       return Object.freeze({
         kind: "write",
         ref: instruction.ref,
-        value: freezeExpression(instruction.value),
+        value: requireExpression(instruction.value),
       });
     }
     case "after_commit":
@@ -369,7 +473,7 @@ const freezeInstruction = (instruction: Instruction): Instruction => {
       requireCustodiedDescription(instruction.ifFalse);
       return Object.freeze({
         kind: "when",
-        condition: freezeExpression(instruction.condition),
+        condition: requireExpression(instruction.condition),
         ifTrue: instruction.ifTrue,
         ifFalse: instruction.ifFalse,
         ...(instruction.bind === undefined ? {} : { bind: requireId(instruction.bind, "binding") }),
@@ -403,7 +507,7 @@ const makeTxn = <
     domain,
     id: requireId(id, "transaction id"),
     instructions: Object.freeze(instructions.map(freezeInstruction)),
-    result: freezeExpression(result),
+    result: requireExpression(result),
   });
   descriptionCustody.add(transaction);
   return transaction;
@@ -435,21 +539,33 @@ export const tvar = <D extends string, A extends JsonValue>(
 };
 
 export const literal = (value: JsonValue): Expression =>
-  freezeExpression({ kind: "literal", value });
+  ownExpression({ kind: "literal", value: portableValue(value) });
 
-export const binding = (name: string): Expression => freezeExpression({ kind: "binding", name });
+export const binding = (name: string): Expression =>
+  ownExpression({ kind: "binding", name: requireId(name, "binding") });
 
-export const add = (left: Expression, right: Expression): Expression =>
-  freezeExpression({ kind: "add", left, right });
+const binaryExpression = (
+  kind: "add" | "subtract" | "equal" | "greater_than",
+  left: Expression,
+  right: Expression,
+): Expression =>
+  ownExpression({
+    kind,
+    left: requireExpression(left),
+    right: requireExpression(right),
+  });
 
 export const subtract = (left: Expression, right: Expression): Expression =>
-  freezeExpression({ kind: "subtract", left, right });
+  binaryExpression("subtract", left, right);
 
 export const equal = (left: Expression, right: Expression): Expression =>
-  freezeExpression({ kind: "equal", left, right });
+  binaryExpression("equal", left, right);
 
 export const greaterThan = (left: Expression, right: Expression): Expression =>
-  freezeExpression({ kind: "greater_than", left, right });
+  binaryExpression("greater_than", left, right);
+
+export const add = (left: Expression, right: Expression): Expression =>
+  binaryExpression("add", left, right);
 
 export const succeed = <D extends string, A extends JsonValue>(
   owner: Domain<D>,
@@ -617,32 +733,36 @@ export const when = <
   );
 
 const isExpression = (value: JsonValue | Expression): value is Expression =>
-  typeof value === "object" &&
-  value !== null &&
-  !Array.isArray(value) &&
-  "kind" in value &&
-  ["literal", "binding", "add", "subtract", "equal", "greater_than"].includes(String(value.kind));
+  typeof value === "object" && value !== null && expressionCustody.has(value);
 
 export const makeStore = <D extends string>(
   owner: Domain<D>,
   refs: ReadonlyArray<TVar<D, JsonValue>>,
+  initialVersion = 0n,
 ): Store<D> => {
   if (!domainCustody.has(owner)) throw new TypeError("store domain is not handler-custodied");
+  if (initialVersion < 0n) throw new RangeError("initial store version must be non-negative");
   const ids = new Set<string>();
   const cells = refs
     .map((ref) => {
-      if (!tvarCustody.has(ref)) throw new TypeError(`TVar ${ref.id} is not handler-custodied`);
+      if (!tvarCustody.has(ref)) throw new TypeError("TVar is not handler-custodied");
       if (ref.domain !== owner) throw new TypeError(`TVar ${ref.id} belongs to another domain`);
       if (ids.has(ref.id)) throw new TypeError(`duplicate TVar id ${ref.id}`);
       ids.add(ref.id);
-      return Object.freeze({ id: ref.id, value: portableValue(ref.initialValue), version: 0n });
+      return Object.freeze({
+        id: ref.id,
+        value: portableValue(ref.initialValue),
+        version: initialVersion,
+      });
     })
     .sort((left, right) => left.id.localeCompare(right.id));
-  return Object.freeze({
+  const store = Object.freeze({
     [StoreTypeId]: true as const,
     domain: owner,
     cells: Object.freeze(cells),
   });
+  storeCustody.add(store);
+  return store;
 };
 
 const cellOf = (store: Store<string>, id: string): CellState => {
@@ -655,6 +775,8 @@ export const inspectCell = (
   store: Store<string>,
   ref: TVar<string, JsonValue>,
 ): { readonly value: JsonValue; readonly version: bigint } => {
+  if (!storeCustody.has(store)) throw new TypeError("store is not handler-custodied");
+  if (!tvarCustody.has(ref)) throw new TypeError("TVar is not handler-custodied");
   if (ref.domain !== store.domain) throw new TypeError(`TVar ${ref.id} belongs to another domain`);
   const cell = cellOf(store, ref.id);
   return Object.freeze({ value: cell.value, version: cell.version });
@@ -894,6 +1016,13 @@ export const beginAttempt = <
   ordinal = 1n,
 ): BeginResult => {
   if (ordinal < 1n) throw new RangeError("attempt ordinal must be positive");
+  if (!storeCustody.has(store)) {
+    return Object.freeze({
+      kind: "store_rejected",
+      reason: "not_handler_custodied",
+      attemptStarted: false,
+    });
+  }
   const erased = transaction as Txn<string, JsonValue, JsonValue, JsonValue, JsonValue>;
   if (!descriptionCustody.has(erased)) {
     return Object.freeze({
@@ -946,6 +1075,9 @@ const invalidAttempt = (store: Store<string>, reason: InvalidAttempt["reason"]):
   });
 
 export const settleAttempt = (currentStore: Store<string>, attempt: Attempt): Settlement => {
+  if (!storeCustody.has(currentStore)) {
+    return invalidAttempt(currentStore, "store_not_handler_custodied");
+  }
   if (!knownAttemptCustody.has(attempt)) {
     return invalidAttempt(currentStore, "not_handler_custodied");
   }
@@ -1019,6 +1151,7 @@ export const settleAttempt = (currentStore: Store<string>, attempt: Attempt): Se
     domain: currentStore.domain,
     cells: Object.freeze(cells),
   }) as Store<string>;
+  storeCustody.add(nextStore);
   return Object.freeze({
     kind: "committed",
     store: nextStore,
@@ -1043,6 +1176,9 @@ export const discardAttempt = (
   attempt: Attempt,
   reason: "interrupted" | "defect",
 ): DiscardedAttempt | InvalidAttempt => {
+  if (!storeCustody.has(store)) {
+    return invalidAttempt(store, "store_not_handler_custodied");
+  }
   if (!knownAttemptCustody.has(attempt)) {
     return invalidAttempt(store, "not_handler_custodied");
   }
@@ -1059,6 +1195,13 @@ export const discardAttempt = (
 };
 
 export const rerunAttempt = (store: Store<string>, attempt: Attempt): BeginResult => {
+  if (!storeCustody.has(store)) {
+    return Object.freeze({
+      kind: "store_rejected",
+      reason: "not_handler_custodied",
+      attemptStarted: false,
+    });
+  }
   if (!knownAttemptCustody.has(attempt)) {
     return invalidAttempt(store, "not_handler_custodied");
   }
@@ -1071,26 +1214,36 @@ export const rerunAttempt = (store: Store<string>, attempt: Attempt): BeginResul
 export const changedDependencies = (
   suspension: Suspension,
   store: Store<string>,
-): ReadonlyArray<string> =>
-  Object.freeze(
+): ReadonlyArray<string> => {
+  if (!storeCustody.has(store)) throw new TypeError("store is not handler-custodied");
+  return Object.freeze(
     suspension.dependencies
       .filter((dependency) => cellOf(store, dependency.id).version !== dependency.observedVersion)
       .map((dependency) => dependency.id)
       .sort(),
   );
+};
 
 export const wakeAndRerun = (
   suspension: Suspension,
   store: Store<string>,
 ): BeginResult | undefined => {
+  if (!storeCustody.has(store)) {
+    return Object.freeze({
+      kind: "store_rejected",
+      reason: "not_handler_custodied",
+      attemptStarted: false,
+    });
+  }
   if (!liveSuspensionCustody.has(suspension)) return undefined;
   if (changedDependencies(suspension, store).length === 0) return undefined;
   liveSuspensionCustody.delete(suspension);
   return beginAttempt(store, suspension.description, suspension.attemptOrdinal + 1n);
 };
 
-export const projectStore = (store: Store<string>): JsonObject =>
-  Object.freeze({
+export const projectStore = (store: Store<string>): JsonObject => {
+  if (!storeCustody.has(store)) throw new TypeError("store is not handler-custodied");
+  return Object.freeze({
     domain: store.domain.name,
     cells: Object.freeze(
       store.cells.map((cell) =>
@@ -1102,6 +1255,7 @@ export const projectStore = (store: Store<string>): JsonObject =>
       ),
     ),
   });
+};
 
 const permutations = <A>(items: ReadonlyArray<A>): ReadonlyArray<ReadonlyArray<A>> => {
   if (items.length <= 1) return [items];
@@ -1118,8 +1272,9 @@ const valueMap = (initial: Store<string>): Map<string, JsonValue> =>
 export const serialOrderingsFor = (
   initial: Store<string>,
   history: ReadonlyArray<CommitRecord>,
-): ReadonlyArray<ReadonlyArray<string>> =>
-  Object.freeze(
+): ReadonlyArray<ReadonlyArray<string>> => {
+  if (!storeCustody.has(initial)) throw new TypeError("store is not handler-custodied");
+  return Object.freeze(
     permutations(history).flatMap((ordering) => {
       const state = valueMap(initial);
       for (const record of ordering) {
@@ -1133,6 +1288,7 @@ export const serialOrderingsFor = (
       return [Object.freeze(ordering.map((record) => record.transactionId))];
     }),
   );
+};
 
 export const isSeriallyEquivalent = (
   initial: Store<string>,

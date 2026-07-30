@@ -33,6 +33,7 @@ import {
   type BeginResult,
   type CommitRecord,
   type Domain,
+  type Expression,
   type Settlement,
   type Store,
   type TVar,
@@ -224,6 +225,170 @@ describe("STM law boundary 0014", () => {
     const committed = requireSettlement(settleAttempt(store, legitimate), "committed");
     expect(inspectCell(committed.store, x).value).toBe(1);
     expect(committed.commitActions).toEqual([{ legitimate: true }]);
+  });
+
+  test("[L2 custody] copied stores cannot inject stale versions or consume a live attempt", () => {
+    const { owner, store, x } = fixture();
+    const description = sequence(owner, "store-custody", [
+      read(x, "store-custody-x"),
+      write(x, add(binding("store-custody-x"), literal(1))),
+    ]);
+    const attempt = requireAttempt(beginAttempt(store, description));
+    const current = commit(store, write(x, 10)).store;
+    const staleCopy = {
+      ...current,
+      cells: current.cells.map((cell) =>
+        cell.id === "x" ? { ...cell, value: 0, version: 0n } : cell,
+      ),
+    } as Store<string>;
+
+    expect(beginAttempt(staleCopy, description)).toEqual({
+      kind: "store_rejected",
+      reason: "not_handler_custodied",
+      attemptStarted: false,
+    });
+    expect(settleAttempt(staleCopy, attempt)).toEqual({
+      kind: "invalid_attempt",
+      store: staleCopy,
+      reason: "store_not_handler_custodied",
+      commitActions: [],
+      abortActions: [],
+    });
+    expect(settleAttempt(current, attempt).kind).toBe("conflict");
+    expect(inspectCell(current, x)).toEqual({ value: 10, version: 1n });
+  });
+
+  test("[expression custody] data-shaped AST collisions remain exact values", () => {
+    const owner = domain("value-domain");
+    const slot = tvar(owner, "slot", null as JsonValue);
+    const store = makeStore(owner, [slot]);
+    const literalShaped = { kind: "literal", value: { domain: "data" } };
+    const addShaped = { kind: "add", payload: 1 };
+
+    const succeeded = commit(store, succeed(owner, "literal-shaped-data", literalShaped));
+    expect(succeeded.value).toEqual(literalShaped);
+
+    const written = commit(store, write(slot, addShaped));
+    expect(inspectCell(written.store, slot).value).toEqual(addShaped);
+    const readBack = commit(
+      written.store,
+      sequence(
+        owner,
+        "read-data-shaped-value",
+        [read(slot, "stored-value")],
+        binding("stored-value"),
+      ),
+    );
+    expect(readBack.value).toEqual(addShaped);
+
+    expect(commit(store, sequence(owner, "sequence-data-result", [], literalShaped)).value).toEqual(
+      literalShaped,
+    );
+    expect(
+      commit(
+        store,
+        orElse(retry(owner, "data-left-retry"), succeed(owner, "data-right-value", addShaped)),
+      ).value,
+    ).toEqual(addShaped);
+  });
+
+  test("[expression custody] copied, inherited, and Proxy nodes cannot gain expression authority", () => {
+    const genuine = literal(1);
+    const copied = { ...genuine } as Expression;
+    const inherited = Object.create(genuine) as Expression;
+    let proxyTrapCount = 0;
+    const proxied = new Proxy(genuine, {
+      get() {
+        proxyTrapCount += 1;
+        throw new Error("expression Proxy trap executed");
+      },
+      getPrototypeOf() {
+        proxyTrapCount += 1;
+        throw new Error("expression Proxy trap executed");
+      },
+      ownKeys() {
+        proxyTrapCount += 1;
+        throw new Error("expression Proxy trap executed");
+      },
+    });
+
+    expect(() => add(copied, genuine)).toThrow("expression is not handler-custodied");
+    expect(() => add(inherited, genuine)).toThrow("expression is not handler-custodied");
+    expect(() => add(proxied, genuine)).toThrow("expression is not handler-custodied");
+    expect(proxyTrapCount).toBe(0);
+  });
+
+  test("[L8 inert data] accessors and hostile object shapes fail without executing getters", () => {
+    const { owner } = fixture();
+    let getterCount = 0;
+    const accessorValue = Object.defineProperty({}, "secret", {
+      enumerable: true,
+      get() {
+        getterCount += 1;
+        return "executed";
+      },
+    });
+    const nestedAccessor = { safe: accessorValue };
+    const nonEnumerable = Object.defineProperty({}, "hidden", {
+      enumerable: false,
+      value: 1,
+    });
+    const symbolBearing = { safe: 1 } as Record<PropertyKey, unknown>;
+    symbolBearing[Symbol("hidden")] = 2;
+    const inherited = Object.create({ inherited: true }) as Record<string, unknown>;
+    inherited.own = true;
+
+    for (const value of [accessorValue, nestedAccessor, nonEnumerable, symbolBearing, inherited]) {
+      expect(isPortableData(value)).toBe(false);
+      expect(() => succeed(owner, "reject-host-object", value as JsonValue)).toThrow(TypeError);
+    }
+    expect(getterCount).toBe(0);
+  });
+
+  test("[L8 inert data] Proxy-hostile values remain typed failures and transparent Proxies reject", () => {
+    const { owner } = fixture();
+    let trapCount = 0;
+    const hostile = new Proxy(
+      { safe: 1 },
+      {
+        ownKeys() {
+          trapCount += 1;
+          throw new Error("hostile ownKeys");
+        },
+      },
+    );
+    const transparent = new Proxy({ safe: 1 }, {});
+
+    expect(isPortableData(hostile)).toBe(false);
+    expect(() => succeed(owner, "reject-hostile-proxy", hostile)).toThrow("plain inert JSON data");
+    expect(trapCount).toBe(2);
+    expect(isPortableData(transparent)).toBe(false);
+    expect(() => write(tvar(owner, "proxy-slot", null as JsonValue), transparent)).toThrow(
+      "plain inert JSON data",
+    );
+  });
+
+  test("[L8 inert data] nested values and action logs snapshot caller aliases", () => {
+    const owner = domain("snapshot-domain");
+    const slot = tvar(owner, "slot", null as JsonValue);
+    const store = makeStore(owner, [slot]);
+    const value = { nested: { count: 1 } };
+    const action = { nested: { count: 2 } };
+    const description = sequence(
+      owner,
+      "snapshot-aliases",
+      [write(slot, value), afterCommit(owner, action)],
+      value,
+    );
+    value.nested.count = 999;
+    action.nested.count = 999;
+
+    const settled = commit(store, description);
+    expect(settled.value).toEqual({ nested: { count: 1 } });
+    expect(inspectCell(settled.store, slot).value).toEqual({ nested: { count: 1 } });
+    expect(settled.commitActions).toEqual([{ nested: { count: 2 } }]);
+    expect(Object.isFrozen((settled.value as { nested: object }).nested)).toBe(true);
+    expect(Object.isFrozen((settled.commitActions[0] as { nested: object }).nested)).toBe(true);
   });
 
   test("[L4 custody] reruns reuse one recursively frozen canonical description", () => {
@@ -534,20 +699,10 @@ describe("STM law boundary 0014", () => {
   });
 
   test("exact versions cross Number.MAX_SAFE_INTEGER without JSON rounding", () => {
-    const { store, x } = fixture();
-    const injected = {
-      ...store,
-      cells: store.cells.map((cell) =>
-        cell.id === "x"
-          ? {
-              id: cell.id,
-              version: BigInt(Number.MAX_SAFE_INTEGER),
-              value: 0,
-            }
-          : cell,
-      ),
-    } as Store<string>;
-    const committed = commit(injected, write(x, 1));
+    const owner = domain("exact-version-domain");
+    const x = tvar(owner, "x", 0);
+    const store = makeStore(owner, [x], BigInt(Number.MAX_SAFE_INTEGER));
+    const committed = commit(store, write(x, 1));
     expect(inspectCell(committed.store, x).version).toBe(9_007_199_254_740_992n);
     expect(JSON.stringify(projectStore(committed.store))).toContain('"version":"9007199254740992"');
   });
