@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0015-open-semantic-system-design-lens.md`](../../design-specs/0015-open-semantic-system-design-lens.md).
 This mutable execution record cannot redefine that contract.
 
-Status: fifth independent-review counterexamples corrected; exact-head re-review
+Status: sixth independent-review counterexamples corrected; exact-head re-review
 pending
 
 Owner: primary Semantic Systems lead
@@ -231,6 +231,23 @@ state, and unrelated project-model changes.
   visibility approximation: external stylesheets, classes, inherited CSS,
   dynamic DOM state, and broader visual properties are explicitly outside the
   gate's evidence.
+- 2026-07-31: sixth independent review rejected exact head `8b09643`. All 47
+  inherited cases passed, but three new direct-inline cases showed that a
+  syntactically parsed yet property-invalid later declaration such as
+  `display:bogus` incorrectly replaced an earlier valid hiding declaration.
+  The exact production range and repository gates passed; the finding was a
+  false accept inside the gate's declared direct-inline boundary.
+- 2026-07-31: the cascade now consults CSS Tree's property grammar before a
+  declaration can replace the prior effective value. Invalid property values
+  are ignored according to cascade order; deferred `var()`, `env()`, and
+  `attr()` substitution remains explicitly unknown rather than being
+  fabricated as hidden or visible. Focused evidence is 15 tests/83
+  expectations plus green typecheck, severe lint, formatting, and diff checks.
+  Exact acceptance also passed with 24 control-loop tests/250 expectations,
+  project-model validation, and eight generated views. Full integration passed
+  with 338 Bun tests/1,733 expectations, zero Effect diagnostics, and 68
+  transitional Python custody checks. Clean-head custody and re-review remain
+  pending.
 
 ## Acceptance command
 

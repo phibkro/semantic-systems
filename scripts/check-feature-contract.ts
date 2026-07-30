@@ -14,6 +14,7 @@ import { spawnSync } from "node:child_process";
 import {
   generate as generateCss,
   ident as cssIdentifier,
+  lexer as cssLexer,
   parse as parseCss,
   type Declaration,
   type DeclarationList,
@@ -247,12 +248,16 @@ const directStyleHides = (style: string): boolean => {
     const declaration = child as Declaration;
     const property = cssIdentifier.decode(declaration.property).toLowerCase();
     if (property !== "display" && property !== "visibility") continue;
+    const value = cssIdentifier.decode(generateCss(declaration.value).trim()).toLowerCase();
+    const grammar = cssLexer.matchProperty(property, value);
+    const hasDeferredSubstitution = /(?:^|[^a-z0-9_-])(?:attr|env|var)\(/.test(value);
+    if (grammar.error !== null && !hasDeferredSubstitution) continue;
     const important = Boolean(declaration.important);
     const previous = cascaded.get(property);
     if (previous?.important === true && !important) continue;
     cascaded.set(property, {
       important,
-      value: cssIdentifier.decode(generateCss(declaration.value).trim()).toLowerCase(),
+      value,
     });
   }
 
