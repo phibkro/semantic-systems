@@ -261,7 +261,11 @@ accepted; no new Python implementation is permitted.
   drift scenarios, and adversarial duplicate-JSON-key/duplicate-TOML-key/
   abbreviated-object-id/unsafe-path cases), plus pure unit coverage of every
   validation predicate. `bun test`, `bun run typecheck`, and `bun run lint`
-  are green; `oxfmt` formatted only the owned files. The exact pinned Node
+  are green; `oxfmt` formatted only the owned files. Exact-head TSGO initially
+  reported 28 `unnecessaryFailYieldableError` suggestions: the tagged custody
+  errors are themselves Effect v4 yieldables, so `yield* Effect.fail(error)`
+  was replaced with direct `yield* error`; type checking now emits no
+  diagnostics and the 36-test differential suite remains green. The exact pinned Node
   24.18.0 runtime independently executed `main-node.ts catalog-check` against
   the real repository catalog and reported the same 23 validated sources;
   automated Bun/Node parity remains part of the later full runtime gate. Out

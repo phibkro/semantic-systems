@@ -136,14 +136,12 @@ export const runSemrefs = (
     } else if (command.id !== undefined && catalog.sources.has(command.id)) {
       ids = [command.id];
     } else {
-      return yield* Effect.fail(
-        new CatalogError({
-          message:
-            command.id === undefined
-              ? "an explicit source id or --all is required"
-              : `unknown source id ${JSON.stringify(command.id)}`,
-        }),
-      );
+      return yield* new CatalogError({
+        message:
+          command.id === undefined
+            ? "an explicit source id or --all is required"
+            : `unknown source id ${JSON.stringify(command.id)}`,
+      });
     }
 
     const reports: Array<StatusReport> = [];

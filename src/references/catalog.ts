@@ -216,64 +216,50 @@ const validateRecord = (
     );
 
     if (!isValidSourceId(fields.id)) {
-      return yield* Effect.fail(
-        new CatalogError({
-          message:
-            `source id ${JSON.stringify(fields.id)} is not a path-safe dotted identifier ` +
-            "(expected lowercase alphanumeric/hyphen segments joined by single dots)",
-        }),
-      );
+      return yield* new CatalogError({
+        message:
+          `source id ${JSON.stringify(fields.id)} is not a path-safe dotted identifier ` +
+          "(expected lowercase alphanumeric/hyphen segments joined by single dots)",
+      });
     }
     if (!isGitSafeValue(fields.origin)) {
-      return yield* Effect.fail(
-        new CatalogError({
-          message: `source ${JSON.stringify(fields.id)}: 'origin' is not safe (option-like or has control characters)`,
-        }),
-      );
+      return yield* new CatalogError({
+        message: `source ${JSON.stringify(fields.id)}: 'origin' is not safe (option-like or has control characters)`,
+      });
     }
     const originAliases = fields.origin_aliases ?? [];
     for (const alias of originAliases) {
       if (!isGitSafeValue(alias)) {
-        return yield* Effect.fail(
-          new CatalogError({
-            message: `source ${JSON.stringify(fields.id)}: origin_aliases entry ${JSON.stringify(alias)} is not safe`,
-          }),
-        );
+        return yield* new CatalogError({
+          message: `source ${JSON.stringify(fields.id)}: origin_aliases entry ${JSON.stringify(alias)} is not safe`,
+        });
       }
     }
     const track = fields.track ?? null;
     if (track !== null && !isGitSafeValue(track)) {
-      return yield* Effect.fail(
-        new CatalogError({
-          message: `source ${JSON.stringify(fields.id)}: 'track' is not safe (option-like or has control characters)`,
-        }),
-      );
+      return yield* new CatalogError({
+        message: `source ${JSON.stringify(fields.id)}: 'track' is not safe (option-like or has control characters)`,
+      });
     }
     const licensePathsRaw = fields.license_paths ?? [];
     for (const path of licensePathsRaw) {
       if (!isValidLicensePath(path)) {
-        return yield* Effect.fail(
-          new CatalogError({
-            message: `source ${JSON.stringify(fields.id)}: license path ${JSON.stringify(path)} is not a normalized relative path`,
-          }),
-        );
+        return yield* new CatalogError({
+          message: `source ${JSON.stringify(fields.id)}: license path ${JSON.stringify(path)} is not a normalized relative path`,
+        });
       }
     }
     if (new Set(licensePathsRaw).size !== licensePathsRaw.length) {
-      return yield* Effect.fail(
-        new CatalogError({
-          message: `source ${JSON.stringify(fields.id)}: license_paths contains duplicates`,
-        }),
-      );
+      return yield* new CatalogError({
+        message: `source ${JSON.stringify(fields.id)}: license_paths contains duplicates`,
+      });
     }
     if ((track === null) !== (licensePathsRaw.length === 0)) {
-      return yield* Effect.fail(
-        new CatalogError({
-          message:
-            `source ${JSON.stringify(fields.id)}: 'track' and 'license_paths' must be declared ` +
-            "together (a source is either fully lockable or fully unlocked)",
-        }),
-      );
+      return yield* new CatalogError({
+        message:
+          `source ${JSON.stringify(fields.id)}: 'track' and 'license_paths' must be declared ` +
+          "together (a source is either fully lockable or fully unlocked)",
+      });
     }
 
     const source: CatalogSource = {
@@ -317,25 +303,21 @@ export const parseCatalogText = (text: string): Effect.Effect<Catalog, CatalogEr
       ),
     );
     if (document.schema !== 1) {
-      return yield* Effect.fail(
-        new CatalogError({
-          message: `catalog schema ${JSON.stringify(document.schema)} is not the supported value (1)`,
-        }),
-      );
+      return yield* new CatalogError({
+        message: `catalog schema ${JSON.stringify(document.schema)} is not the supported value (1)`,
+      });
     }
 
     const sources = new Map<string, CatalogSource>();
     for (const record of document.source ?? []) {
       if (typeof record !== "object" || record === null || Array.isArray(record)) {
-        return yield* Effect.fail(
-          new CatalogError({ message: "each [[source]] entry must be a table" }),
-        );
+        return yield* new CatalogError({ message: "each [[source]] entry must be a table" });
       }
       const source = yield* validateRecord(record as Record<string, unknown>);
       if (sources.has(source.id)) {
-        return yield* Effect.fail(
-          new CatalogError({ message: `duplicate source id ${JSON.stringify(source.id)}` }),
-        );
+        return yield* new CatalogError({
+          message: `duplicate source id ${JSON.stringify(source.id)}`,
+        });
       }
       sources.set(source.id, source);
     }

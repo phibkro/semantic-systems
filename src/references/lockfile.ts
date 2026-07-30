@@ -118,22 +118,20 @@ const validateLicenseObservation = (
 ): Effect.Effect<LicenseObservation, LockFileError> =>
   Effect.gen(function* () {
     if (!isPlainObject(data)) {
-      return yield* Effect.fail(
-        new LockFileError({ message: `license entry ${JSON.stringify(path)} must be a table` }),
-      );
+      return yield* new LockFileError({
+        message: `license entry ${JSON.stringify(path)} must be a table`,
+      });
     }
     yield* requireExactFields(`license entry ${JSON.stringify(path)}`, data, LICENSE_FIELDS);
 
     const mode = data.mode;
     if (typeof mode !== "string" || !REGULAR_BLOB_MODES.has(mode)) {
-      return yield* Effect.fail(
-        new LockFileError({
-          message:
-            `license entry ${JSON.stringify(path)}: 'mode' must be a regular blob mode ` +
-            `${JSON.stringify([...REGULAR_BLOB_MODES].sort())} — a symlink, gitlink, or tree cannot ` +
-            "be a license artifact",
-        }),
-      );
+      return yield* new LockFileError({
+        message:
+          `license entry ${JSON.stringify(path)}: 'mode' must be a regular blob mode ` +
+          `${JSON.stringify([...REGULAR_BLOB_MODES].sort())} — a symlink, gitlink, or tree cannot ` +
+          "be a license artifact",
+      });
     }
     const size = yield* requireNonNegativeInteger(
       `license entry ${JSON.stringify(path)}: 'size'`,
@@ -141,11 +139,9 @@ const validateLicenseObservation = (
     );
     const sha256 = data.sha256;
     if (typeof sha256 !== "string" || !SHA256_PATTERN.test(sha256)) {
-      return yield* Effect.fail(
-        new LockFileError({
-          message: `license entry ${JSON.stringify(path)}: 'sha256' must be a full 64-hex digest`,
-        }),
-      );
+      return yield* new LockFileError({
+        message: `license entry ${JSON.stringify(path)}: 'sha256' must be a full 64-hex digest`,
+      });
     }
     return { mode, size, sha256 };
   });
@@ -156,11 +152,9 @@ const validateLicensesField = (
 ): Effect.Effect<ReadonlyMap<string, LicenseObservation>, LockFileError> =>
   Effect.gen(function* () {
     if (!isPlainObject(data) || Object.keys(data).length === 0) {
-      return yield* Effect.fail(
-        new LockFileError({
-          message: `lock entry ${JSON.stringify(sourceId)}: 'licenses' must be a non-empty table`,
-        }),
-      );
+      return yield* new LockFileError({
+        message: `lock entry ${JSON.stringify(sourceId)}: 'licenses' must be a non-empty table`,
+      });
     }
     const licenses = new Map<string, LicenseObservation>();
     for (const [path, value] of Object.entries(data)) {
@@ -185,9 +179,9 @@ const validateLockEntry = (
 ): Effect.Effect<LockEntry, LockFileError> =>
   Effect.gen(function* () {
     if (!isPlainObject(data)) {
-      return yield* Effect.fail(
-        new LockFileError({ message: `lock entry ${JSON.stringify(sourceId)} must be a table` }),
-      );
+      return yield* new LockFileError({
+        message: `lock entry ${JSON.stringify(sourceId)} must be a table`,
+      });
     }
     yield* requireExactFields(`lock entry ${JSON.stringify(sourceId)}`, data, ENTRY_FIELDS);
 
@@ -204,64 +198,50 @@ const validateLockEntry = (
       data.resolved_ref,
     );
     if (!isConcreteGitRef(resolvedRef)) {
-      return yield* Effect.fail(
-        new LockFileError({
-          message: `lock entry ${JSON.stringify(sourceId)}: 'resolved_ref' must be a concrete valid refs/... name`,
-        }),
-      );
+      return yield* new LockFileError({
+        message: `lock entry ${JSON.stringify(sourceId)}: 'resolved_ref' must be a concrete valid refs/... name`,
+      });
     }
 
     const objectFormat = data.object_format;
     if (typeof objectFormat !== "string" || !(objectFormat in OBJECT_FORMAT_HEX_LENGTH)) {
-      return yield* Effect.fail(
-        new LockFileError({
-          message: `lock entry ${JSON.stringify(sourceId)}: unsupported object_format ${JSON.stringify(objectFormat)}`,
-        }),
-      );
+      return yield* new LockFileError({
+        message: `lock entry ${JSON.stringify(sourceId)}: unsupported object_format ${JSON.stringify(objectFormat)}`,
+      });
     }
     const hexPattern = HEX_PATTERN[objectFormat]!;
     const commit = data.commit;
     if (typeof commit !== "string" || !hexPattern.test(commit)) {
-      return yield* Effect.fail(
-        new LockFileError({
-          message: `lock entry ${JSON.stringify(sourceId)}: 'commit' must be a full ${objectFormat} object id`,
-        }),
-      );
+      return yield* new LockFileError({
+        message: `lock entry ${JSON.stringify(sourceId)}: 'commit' must be a full ${objectFormat} object id`,
+      });
     }
     const tree = data.tree;
     if (typeof tree !== "string" || !hexPattern.test(tree)) {
-      return yield* Effect.fail(
-        new LockFileError({
-          message: `lock entry ${JSON.stringify(sourceId)}: 'tree' must be a full ${objectFormat} object id`,
-        }),
-      );
+      return yield* new LockFileError({
+        message: `lock entry ${JSON.stringify(sourceId)}: 'tree' must be a full ${objectFormat} object id`,
+      });
     }
 
     const catalogDigest = data.catalog_digest;
     if (typeof catalogDigest !== "string" || !SHA256_PATTERN.test(catalogDigest)) {
-      return yield* Effect.fail(
-        new LockFileError({
-          message: `lock entry ${JSON.stringify(sourceId)}: 'catalog_digest' must be a full sha256 digest`,
-        }),
-      );
+      return yield* new LockFileError({
+        message: `lock entry ${JSON.stringify(sourceId)}: 'catalog_digest' must be a full sha256 digest`,
+      });
     }
 
     const retrievedAt = data.retrieved_at;
     if (typeof retrievedAt !== "string" || !TIMESTAMP_PATTERN.test(retrievedAt)) {
-      return yield* Effect.fail(
-        new LockFileError({
-          message: `lock entry ${JSON.stringify(sourceId)}: 'retrieved_at' must be an ISO-8601 UTC timestamp`,
-        }),
-      );
+      return yield* new LockFileError({
+        message: `lock entry ${JSON.stringify(sourceId)}: 'retrieved_at' must be an ISO-8601 UTC timestamp`,
+      });
     }
 
     const acquisition = data.acquisition;
     if (typeof acquisition !== "string" || !ACQUISITION_KINDS.has(acquisition)) {
-      return yield* Effect.fail(
-        new LockFileError({
-          message: `lock entry ${JSON.stringify(sourceId)}: unsupported acquisition kind ${JSON.stringify(acquisition)}`,
-        }),
-      );
+      return yield* new LockFileError({
+        message: `lock entry ${JSON.stringify(sourceId)}: unsupported acquisition kind ${JSON.stringify(acquisition)}`,
+      });
     }
     const originVerified = yield* requireBoolean(
       `lock entry ${JSON.stringify(sourceId)}: 'origin_verified'`,
@@ -271,13 +251,11 @@ const validateLockEntry = (
     // local sibling or object cache is an assumption about identity, never a
     // verification of it, and the converse pairing is equally impossible.
     if (originVerified !== (acquisition === REMOTE_ACQUISITION)) {
-      return yield* Effect.fail(
-        new LockFileError({
-          message:
-            `lock entry ${JSON.stringify(sourceId)}: acquisition ${JSON.stringify(acquisition)} cannot report ` +
-            `'origin_verified' ${originVerified}`,
-        }),
-      );
+      return yield* new LockFileError({
+        message:
+          `lock entry ${JSON.stringify(sourceId)}: acquisition ${JSON.stringify(acquisition)} cannot report ` +
+          `'origin_verified' ${originVerified}`,
+      });
     }
 
     const licenses = yield* validateLicensesField(sourceId, data.licenses);
@@ -307,27 +285,25 @@ export const parseLockText = (text: string): Effect.Effect<Lock, LockFileError> 
       ),
     );
     if (!isPlainObject(parsed)) {
-      return yield* Effect.fail(new LockFileError({ message: "lock file must be a JSON object" }));
+      return yield* new LockFileError({ message: "lock file must be a JSON object" });
     }
     yield* requireExactFields("lock file", parsed, TOP_LEVEL_FIELDS);
 
     if (parsed.schema !== SCHEMA_NAME) {
-      return yield* Effect.fail(
-        new LockFileError({
-          message: `unknown lock schema ${JSON.stringify(parsed.schema)} (expected ${JSON.stringify(SCHEMA_NAME)})`,
-        }),
-      );
+      return yield* new LockFileError({
+        message: `unknown lock schema ${JSON.stringify(parsed.schema)} (expected ${JSON.stringify(SCHEMA_NAME)})`,
+      });
     }
     const generator = parsed.generator;
     if (typeof generator !== "string" || generator.length === 0) {
-      return yield* Effect.fail(
-        new LockFileError({ message: "lock file 'generator' must be a non-empty string" }),
-      );
+      return yield* new LockFileError({
+        message: "lock file 'generator' must be a non-empty string",
+      });
     }
     if (!isPlainObject(parsed.sources)) {
-      return yield* Effect.fail(
-        new LockFileError({ message: "lock file 'sources' must be a JSON object" }),
-      );
+      return yield* new LockFileError({
+        message: "lock file 'sources' must be a JSON object",
+      });
     }
 
     const sources = new Map<string, LockEntry>();
