@@ -7,6 +7,7 @@ import {
   producerDiagnosticToJson,
   requireBoolean,
   requireNonEmptyString,
+  type CaseResult,
   type EvidenceResult,
   type ProducerDiagnostic,
 } from "./evidence-result.ts";
@@ -37,9 +38,26 @@ import {
  * production mapping and `demo.ts` for where the claim is built and
  * surfaced.
  *
+ * `ResolutionClaim` is a validated type, not a plain record: the only two
+ * ways to obtain one are `buildResolutionClaim` (from production resolver
+ * data) and `parseResolutionClaim` (from untrusted JSON), which both funnel
+ * through `finalizeResolutionClaim`. Three separate mechanisms carry that
+ * one guarantee, because each closes a route the others cannot:
+ *
+ *   compile time  module-private brand (RESOLUTION_CLAIM_VALIDATED)
+ *                 → a forged literal is not a ResolutionClaim
+ *   provenance    module-private WeakSet (VALIDATED_CLAIMS)
+ *                 → only minted object identities emit; copies cannot
+ *   durability    deep-frozen copies (mintResolutionClaim)
+ *                 → a minted claim's contents can never change afterwards
+ *
+ * Together they make `resolutionClaimToJson`'s output equal to what
+ * `finalizeResolutionClaim` validated, for typed and untyped callers alike.
+ *
  * This module recomputes only what is available from the claim's own
- * asserted fields (evidence/diagnostic exclusivity, eligible/reason-set
- * agreement, selected-subject and selected-assumption consistency). It does
+ * asserted fields (evidence/diagnostic exclusivity, evidence
+ * theory/realization/obligation binding, eligible/reason-set agreement,
+ * selected-subject and selected-assumption consistency). It does
  * not — and, receiving no authored theory/realization/policy documents,
  * cannot — recompute policy/candidate eligibility, evidence subject truth
  * against authored inputs, or canonical-model agreement; those remain the
@@ -80,7 +98,45 @@ export interface ResolutionClaimCandidate {
   readonly reasonCodes: ReadonlyArray<string>;
 }
 
-export interface ResolutionClaim {
+/**
+ * The compile-time half of the validated-claim boundary: a brand key no code
+ * outside this module can name, so a structurally complete object literal is
+ * not assignable to `ResolutionClaim` and cannot reach
+ * `resolutionClaimToJson`. The supported-API bypass is unrepresentable in the
+ * type rather than merely discouraged.
+ *
+ * Its run-time presence is inert — nothing ever reads it. It must not be the
+ * run-time witness, because a property is *copyable*: `{ ...claim, status:
+ * "rejected" }` carries every own property of a genuine claim, symbol-keyed
+ * ones included, so a property witness would certify a record that never
+ * passed `finalizeResolutionClaim`. A symbol key does keep the brand out of
+ * `Object.keys`/`JSON.stringify`, so it cannot leak into the artifact.
+ */
+const RESOLUTION_CLAIM_VALIDATED: unique symbol = Symbol("resolution_claim.validated");
+
+/**
+ * The run-time half, and the sole authority the emitter consults: the exact
+ * object identities `mintResolutionClaim` produced. Membership is not a
+ * property, so unlike a brand field it survives neither spreading,
+ * `Object.assign`, `structuredClone`, nor symbol reflection — the only way
+ * into this set is to have been minted here.
+ *
+ * Identity alone would still only witness *past* validity, so every minted
+ * claim is also deeply frozen over freshly copied structures (see
+ * `mintResolutionClaim`). Identity says "this object was validated"; the
+ * freeze says "and its contents are still what was validated". Together the
+ * emitter can trust its argument without re-deriving anything.
+ */
+const VALIDATED_CLAIMS = new WeakSet<object>();
+
+/**
+ * Module-private: the claim's field shape without its brand, which exists
+ * only so `mintResolutionClaim` can state the fields it is given and TypeScript
+ * can add the brand by intersection. It is deliberately not exported —
+ * publishing an unbranded structural twin of `ResolutionClaim` would hand
+ * callers back exactly the forgeable shape the brand removes.
+ */
+interface ResolutionClaimFields {
   readonly artifactKind: typeof ARTIFACT_KIND_RESOLUTION_CLAIM;
   readonly schemaVersion: typeof RESOLUTION_CLAIM_SCHEMA_VERSION;
   readonly theory: IdentityPair;
@@ -91,6 +147,124 @@ export interface ResolutionClaim {
   readonly selected: IdentityPair | null;
   readonly selectedAssumptions: ReadonlyArray<string>;
 }
+
+/**
+ * A resolution claim whose internal coherence has already been checked. Only
+ * `mintResolutionClaim` (called solely by `finalizeResolutionClaim`) produces
+ * one, so every value of this type has passed every invariant that function
+ * enforces, and downstream consumers (`resolver.ts`, `demo.ts`, the emitter)
+ * need not re-derive them.
+ */
+export type ResolutionClaim = ResolutionClaimFields & {
+  readonly [RESOLUTION_CLAIM_VALIDATED]: true;
+};
+
+/**
+ * `Object.freeze` that preserves the argument's exact type. Every shape below
+ * is already `readonly` in the type system; this is what makes that promise
+ * true at run time as well, for callers the type system does not reach.
+ */
+const frozen = <T extends object>(value: T): T => {
+  Object.freeze(value);
+  return value;
+};
+
+/**
+ * Deep frozen copies of the two arbitrary-depth JSON payloads a claim owns
+ * (an evidence result's `producer` and a failing case's `detail`). Both are
+ * JSON documents by contract — they have already round-tripped through
+ * canonical JSON to produce the evidence identity — so they are acyclic and
+ * need no cycle guard.
+ */
+const frozenJsonObject = (value: JsonObject): JsonObject => {
+  const copy: Record<string, JsonValue> = {};
+  for (const [key, item] of Object.entries(value)) copy[key] = frozenJsonValue(item);
+  return frozen(copy);
+};
+
+const frozenJsonValue = (value: JsonValue): JsonValue => {
+  if (Array.isArray(value)) return frozen(value.map(frozenJsonValue));
+  if (value === null || typeof value !== "object") return value;
+  // `Array.isArray` cannot narrow `ReadonlyArray` out of the union, so reuse
+  // `json.ts`'s object narrowing rather than restating its cast here. The
+  // throw is unreachable: the array and scalar cases are already handled.
+  return frozenJsonObject(requireObject(value, "resolution_claim json payload"));
+};
+
+const frozenStrings = (values: ReadonlyArray<string>): ReadonlyArray<string> => frozen([...values]);
+
+const frozenCaseResult = (result: CaseResult): CaseResult => {
+  const copy: CaseResult = result.passed
+    ? { caseId: result.caseId, passed: true, detail: null }
+    : { caseId: result.caseId, passed: false, detail: frozenJsonObject(result.detail) };
+  return frozen(copy);
+};
+
+const frozenEvidence = (evidence: EvidenceResult): EvidenceResult =>
+  frozen({
+    identity: evidence.identity,
+    artifactKind: evidence.artifactKind,
+    schemaVersion: evidence.schemaVersion,
+    category: evidence.category,
+    producer: frozenJsonObject(evidence.producer),
+    recipeIdentity: evidence.recipeIdentity,
+    theoryIdentity: evidence.theoryIdentity,
+    realizationIdentity: evidence.realizationIdentity,
+    obligation: evidence.obligation,
+    assumptions: frozenStrings(evidence.assumptions),
+    caseResults: frozen(evidence.caseResults.map(frozenCaseResult)),
+  });
+
+const frozenCandidate = (candidate: ResolutionClaimCandidate): ResolutionClaimCandidate =>
+  frozen({
+    realizationId: candidate.realizationId,
+    realizationIdentity: candidate.realizationIdentity,
+    targetsTheory: candidate.targetsTheory,
+    realizationAssumptions: frozenStrings(candidate.realizationAssumptions),
+    evidence: candidate.evidence === null ? null : frozenEvidence(candidate.evidence),
+    producerDiagnostic:
+      candidate.producerDiagnostic === null
+        ? null
+        : frozen({
+            kind: candidate.producerDiagnostic.kind,
+            message: candidate.producerDiagnostic.message,
+          }),
+    eligible: candidate.eligible,
+    reasonCodes: frozenStrings(candidate.reasonCodes),
+  });
+
+/**
+ * The single mint: turns already-validated fields into the one
+ * `ResolutionClaim` value the module hands out. Every nested structure is
+ * *copied* before being frozen, so the claim aliases nothing a caller still
+ * holds — mutating the resolver's own `Candidate.evidence` or a
+ * realization's assumption array afterwards cannot reach into a claim, and
+ * freezing a claim cannot reach back out and immobilize caller data.
+ *
+ * This is also the only writer of `VALIDATED_CLAIMS`, which is what makes
+ * that set's membership mean "validated by `finalizeResolutionClaim`".
+ */
+const mintResolutionClaim = (
+  fields: Omit<ResolutionClaimFields, "artifactKind" | "schemaVersion">,
+): ResolutionClaim => {
+  const claim: ResolutionClaim = {
+    [RESOLUTION_CLAIM_VALIDATED]: true,
+    artifactKind: ARTIFACT_KIND_RESOLUTION_CLAIM,
+    schemaVersion: RESOLUTION_CLAIM_SCHEMA_VERSION,
+    theory: frozen({ id: fields.theory.id, identity: fields.theory.identity }),
+    requiredObligation: fields.requiredObligation,
+    policy: frozen({ id: fields.policy.id, contentIdentity: fields.policy.contentIdentity }),
+    candidates: frozen(fields.candidates.map(frozenCandidate)),
+    status: fields.status,
+    selected:
+      fields.selected === null
+        ? null
+        : frozen({ id: fields.selected.id, identity: fields.selected.identity }),
+    selectedAssumptions: frozenStrings(fields.selectedAssumptions),
+  };
+  VALIDATED_CLAIMS.add(frozen(claim));
+  return claim;
+};
 
 const compareStrings = (left: string, right: string): number =>
   left < right ? -1 : left > right ? 1 : 0;
@@ -169,7 +343,12 @@ const validateCandidateShape = (candidate: ResolutionClaimCandidate, context: st
  * the presentation-only normalization required by the frozen contract
  * (lexical candidate-ID and reason-code order) and rejects an inconsistent
  * selected binding, a duplicate candidate/reason set, a missing
- * evidence/diagnostic payload, or a stale selected-assumption projection.
+ * evidence/diagnostic payload, evidence bound to a foreign
+ * theory/realization/obligation, or a stale selected-assumption projection.
+ *
+ * It is also the sole minter of the `RESOLUTION_CLAIM_VALIDATED` witness, so
+ * "a `ResolutionClaim` exists" and "these invariants were checked" are the
+ * same fact rather than two facts that could drift.
  */
 const finalizeResolutionClaim = (
   theory: IdentityPair,
@@ -238,13 +417,36 @@ const finalizeResolutionClaim = (
         message: `resolution_claim candidate '${item.realizationId}' carries evidence bound to a different realization identity than its own candidate`,
       });
     }
+    // The claim's own `required_obligation` is the single obligation the
+    // whole claim adjudicates, so evidence for any other obligation is not
+    // evidence about this claim at all. `resolver.ts` already refuses to
+    // mark such a candidate evidence-bearing (`evaluateCandidate`'s
+    // `evidence.obligation !== obligation` gate yields
+    // `evidence_obligation_mismatch` with no evidence attached), and
+    // `evidence.ts` never emits an `ok: true` outcome for a mismatched
+    // suite; this recomputes the same binding from the claim's own asserted
+    // fields so a hand-built claim (builder) or a serialized one (parser)
+    // cannot smuggle in foreign-obligation evidence that those upstream
+    // gates would have rejected. `requiredObligation === null` — a theory
+    // that declares no single obligation — therefore admits no
+    // evidence-bearing candidate at all, since an `EvidenceResult` always
+    // carries a nonempty obligation.
+    if (item.evidence !== null && item.evidence.obligation !== requiredObligation) {
+      throw new DocumentError({
+        message: `resolution_claim candidate '${item.realizationId}' carries evidence for obligation '${item.evidence.obligation}' but the claim requires ${
+          requiredObligation === null ? "no single obligation" : `'${requiredObligation}'`
+        }`,
+      });
+    }
   }
 
   const candidates = rawCandidates
     .map((item) => ({ ...item, reasonCodes: [...item.reasonCodes].sort(compareStrings) }))
     .sort((left, right) => compareStrings(left.realizationId, right.realizationId));
 
-  const eligibleEvidenceBearing = candidates.filter((item) => item.eligible && item.evidence !== null);
+  const eligibleEvidenceBearing = candidates.filter(
+    (item) => item.eligible && item.evidence !== null,
+  );
 
   if (status === "selected") {
     if (eligibleEvidenceBearing.length !== 1) {
@@ -260,7 +462,8 @@ const finalizeResolutionClaim = (
     }
     if (selected.id !== winner.realizationId || selected.identity !== winner.realizationIdentity) {
       throw new DocumentError({
-        message: "resolution_claim.selected does not match the unique eligible evidence-bearing candidate",
+        message:
+          "resolution_claim.selected does not match the unique eligible evidence-bearing candidate",
       });
     }
     const recomputed = sortedUniqueStrings([
@@ -273,9 +476,7 @@ const finalizeResolutionClaim = (
           "resolution_claim.selected_assumptions is stale: it does not match the recomputed projection",
       });
     }
-    return {
-      artifactKind: ARTIFACT_KIND_RESOLUTION_CLAIM,
-      schemaVersion: RESOLUTION_CLAIM_SCHEMA_VERSION,
+    return mintResolutionClaim({
       theory,
       requiredObligation,
       policy,
@@ -283,7 +484,7 @@ const finalizeResolutionClaim = (
       status,
       selected,
       selectedAssumptions: recomputed,
-    };
+    });
   }
 
   if (eligibleEvidenceBearing.length === 1) {
@@ -302,9 +503,7 @@ const finalizeResolutionClaim = (
       message: "resolution_claim.selected_assumptions must be empty when status is 'rejected'",
     });
   }
-  return {
-    artifactKind: ARTIFACT_KIND_RESOLUTION_CLAIM,
-    schemaVersion: RESOLUTION_CLAIM_SCHEMA_VERSION,
+  return mintResolutionClaim({
     theory,
     requiredObligation,
     policy,
@@ -312,16 +511,26 @@ const finalizeResolutionClaim = (
     status,
     selected: null,
     selectedAssumptions: [],
-  };
+  });
 };
 
-export const resolutionClaimCandidateToJson = (candidate: ResolutionClaimCandidate): JsonObject => ({
+/**
+ * Module-private: the only supported emitter entry point is
+ * `resolutionClaimToJson`, which takes a whole validated claim. Exporting a
+ * per-candidate emitter would reopen exactly the bypass the
+ * `RESOLUTION_CLAIM_VALIDATED` witness closes, since
+ * `ResolutionClaimCandidate` is (and must stay) a plain structural builder
+ * input.
+ */
+const resolutionClaimCandidateToJson = (candidate: ResolutionClaimCandidate): JsonObject => ({
   realization: { id: candidate.realizationId, identity: candidate.realizationIdentity },
   targets_theory: candidate.targetsTheory,
   realization_assumptions: candidate.realizationAssumptions,
   evidence: candidate.evidence === null ? null : evidenceToJson(candidate.evidence),
   producer_diagnostic:
-    candidate.producerDiagnostic === null ? null : producerDiagnosticToJson(candidate.producerDiagnostic),
+    candidate.producerDiagnostic === null
+      ? null
+      : producerDiagnosticToJson(candidate.producerDiagnostic),
   eligible: candidate.eligible,
   reason_codes: candidate.reasonCodes,
 });
@@ -354,17 +563,38 @@ const CANDIDATE_ALLOWED_KEYS: ReadonlySet<string> = new Set([
   "reason_codes",
 ]);
 
-export const resolutionClaimToJson = (claim: ResolutionClaim): JsonObject => ({
-  artifact_kind: claim.artifactKind,
-  schema_version: claim.schemaVersion,
-  theory: { id: claim.theory.id, identity: claim.theory.identity },
-  required_obligation: claim.requiredObligation,
-  policy: { id: claim.policy.id, content_identity: claim.policy.contentIdentity },
-  candidates: claim.candidates.map(resolutionClaimCandidateToJson),
-  status: claim.status,
-  selected: claim.selected === null ? null : { id: claim.selected.id, identity: claim.selected.identity },
-  selected_assumptions: claim.selectedAssumptions,
-});
+/**
+ * Emits the serialized `resolution_claim_v1` artifact. It re-derives nothing
+ * and does not need to: what it is handed was validated by
+ * `finalizeResolutionClaim` (provenance, checked below) and has been
+ * immutable ever since (the deep freeze in `mintResolutionClaim`), so
+ * "emitted" and "validated and canonically ordered" are the same content.
+ *
+ * The guard covers the residue no TypeScript type can express — an untyped
+ * caller, an `as` cast, or a spread/`Object.assign` copy of a genuine claim.
+ * None of those object identities were minted here, so each becomes a loud
+ * `DocumentError` instead of a silently emitted unvalidated artifact.
+ */
+export const resolutionClaimToJson = (claim: ResolutionClaim): JsonObject => {
+  if (!VALIDATED_CLAIMS.has(claim)) {
+    throw new DocumentError({
+      message:
+        "resolution_claim was not produced by buildResolutionClaim or parseResolutionClaim; refusing to emit an unvalidated claim",
+    });
+  }
+  return {
+    artifact_kind: claim.artifactKind,
+    schema_version: claim.schemaVersion,
+    theory: { id: claim.theory.id, identity: claim.theory.identity },
+    required_obligation: claim.requiredObligation,
+    policy: { id: claim.policy.id, content_identity: claim.policy.contentIdentity },
+    candidates: claim.candidates.map(resolutionClaimCandidateToJson),
+    status: claim.status,
+    selected:
+      claim.selected === null ? null : { id: claim.selected.id, identity: claim.selected.identity },
+    selected_assumptions: claim.selectedAssumptions,
+  };
+};
 
 const toBuildError = (cause: unknown): DocumentError =>
   cause instanceof DocumentError
@@ -419,8 +649,9 @@ export const buildResolutionClaim = (
         const selectedCandidate =
           input.selectedRealizationId === null
             ? null
-            : (input.candidates.find((item) => item.realizationId === input.selectedRealizationId) ??
-              null);
+            : (input.candidates.find(
+                (item) => item.realizationId === input.selectedRealizationId,
+              ) ?? null);
         if (input.selectedRealizationId !== null && selectedCandidate === null) {
           throw new DocumentError({
             message: `resolution_claim selected realization '${input.selectedRealizationId}' is absent from candidates`,
@@ -429,7 +660,10 @@ export const buildResolutionClaim = (
         const selected: IdentityPair | null =
           selectedCandidate === null
             ? null
-            : { id: selectedCandidate.realizationId, identity: selectedCandidate.realizationIdentity };
+            : {
+                id: selectedCandidate.realizationId,
+                identity: selectedCandidate.realizationIdentity,
+              };
         const selectedAssumptions =
           selectedCandidate === null
             ? []
@@ -504,7 +738,8 @@ const parseCandidateShell = (raw: JsonObject, context: string): ParsedCandidateS
     `${context}.realization_assumptions`,
   );
   const rawEvidenceValue = requireKey(raw, "evidence", context);
-  const rawEvidence = rawEvidenceValue === null ? null : requireObject(rawEvidenceValue, `${context}.evidence`);
+  const rawEvidence =
+    rawEvidenceValue === null ? null : requireObject(rawEvidenceValue, `${context}.evidence`);
   const rawDiagnosticValue = requireKey(raw, "producer_diagnostic", context);
   const producerDiagnostic =
     rawDiagnosticValue === null
@@ -598,7 +833,15 @@ const parseResolutionClaimShell = (document: JsonObject): ParsedClaimShell => {
     requireKey(document, "selected_assumptions", "resolution_claim"),
     "resolution_claim.selected_assumptions",
   );
-  return { theory, requiredObligation, policy, rawCandidates, status, selected, selectedAssumptions };
+  return {
+    theory,
+    requiredObligation,
+    policy,
+    rawCandidates,
+    status,
+    selected,
+    selectedAssumptions,
+  };
 };
 
 /**
@@ -606,10 +849,13 @@ const parseResolutionClaimShell = (document: JsonObject): ParsedClaimShell => {
  * output shape of `resolutionClaimToJson`). Every embedded evidence result
  * is independently revalidated through `parseEvidenceResult` — never
  * trusted as structurally-typed input — and every claim-level invariant
- * (evidence/diagnostic exclusivity, candidate uniqueness by ID and
- * identity, eligible/reason-set agreement, status/selected consistency, and
- * the selected-assumption projection) is recomputed and compared against
- * what is stored via the same `finalizeResolutionClaim` the builder uses.
+ * (evidence/diagnostic exclusivity, candidate uniqueness by ID, evidence
+ * theory/realization/obligation binding, eligible/reason-set agreement,
+ * status/selected consistency, and the selected-assumption projection) is
+ * recomputed and compared against what is stored via the same
+ * `finalizeResolutionClaim` the builder uses. Cross-candidate
+ * `realization.identity` uniqueness is deliberately *not* required; see the
+ * note in `finalizeResolutionClaim`.
  * It does not verify the claim against authored theory/realization/policy
  * documents; that external coverage is the later independent checker's
  * responsibility (design spec 0003).
