@@ -1,9 +1,11 @@
+import { Crypto, Effect } from "effect";
 import {
   evidenceCounterexamples,
   evidencePassed,
   evidencePassedCases,
   evidenceToJson,
   evidenceTotalCases,
+  parseEvidenceResult,
   producerDiagnosticToJson,
   type EvidenceResult,
   type ProducerDiagnostic,
@@ -320,33 +322,99 @@ const bindOutcomes = (
   return outcomeById;
 };
 
+/**
+ * A `ProducerOutcome`/`EvidenceResult` are plain data shapes — nothing in
+ * their TypeScript types stops a caller from hand-building one with a
+ * tampered `identity` or duplicate/empty case IDs, and the resolver's own
+ * field-level checks above (`bindOutcomes`) verify only the realization/
+ * theory *binding*, never the evidence artifact's own internal
+ * consistency. This re-derives that same internal consistency the exact
+ * way `parseEvidenceResult` would from a serialized packet — recomputing
+ * the identity and rejecting duplicate/empty case IDs or malformed
+ * detail/passed shapes — by round-tripping the successful result through
+ * `evidenceToJson`/`parseEvidenceResult` before it can ever reach
+ * `evaluateCandidate`. A structurally-typed but tampered or invalid
+ * `EvidenceResult` therefore fails resolution outright instead of relying
+ * on TypeScript structural typing or a caller promise. Diagnostics carry
+ * no such artifact and pass through unchanged.
+ */
+const validateProducerOutcome = (
+  outcome: ProducerOutcome,
+): Effect.Effect<ProducerOutcome, DocumentError, Crypto.Crypto> => {
+  if (!outcome.ok) return Effect.succeed(outcome);
+  return Effect.gen(function* () {
+    const validatedResult = yield* parseEvidenceResult(evidenceToJson(outcome.result));
+    return { ...outcome, result: validatedResult };
+  });
+};
+
+/**
+ * Binding precedence is preserved exactly: policy shape and `bindOutcomes`
+ * (duplicate/missing/unknown-realization outcomes, and the wrapper/inner
+ * realization/theory identity cross-checks) still run first and remain the
+ * first failure for those defects. Only once every outcome is bound to
+ * exactly one known realization does each *successfully* bound result get
+ * independently re-validated via `parseEvidenceResult` — the frozen
+ * invariant is "validated before eligibility," not "validated before
+ * binding."
+ */
 export const resolve = (
   theory: Theory,
   realizations: ReadonlyArray<Realization>,
   evidenceOutcomes: ReadonlyArray<ProducerOutcome>,
   policy: JsonObject,
-): Resolution => {
-  const ambiguity = requireString(requireKey(policy, "ambiguity", "policy"), "policy.ambiguity");
-  if (ambiguity !== "reject") {
-    throw new DocumentError({ message: `unsupported ambiguity policy '${ambiguity}'` });
-  }
-  const outcomeById = bindOutcomes(theory, realizations, evidenceOutcomes);
-  const candidates = realizations.map((realization) =>
-    evaluateCandidate(theory, realization, outcomeById.get(realizationId(realization))!, policy),
-  );
-  const eligible = candidates.filter((candidate) => candidate.eligible);
-  if (eligible.length === 1) {
-    return {
-      status: "selected",
-      selectedRealization: realizationId(eligible[0]!.realization),
-      reasonCodes: [],
-      candidates,
-    };
-  }
-  return {
-    status: "rejected",
-    selectedRealization: null,
-    reasonCodes: [eligible.length === 0 ? REASON_NO_ELIGIBLE : REASON_AMBIGUOUS],
-    candidates,
-  };
-};
+): Effect.Effect<Resolution, DocumentError, Crypto.Crypto> =>
+  Effect.gen(function* () {
+    const outcomeById = yield* Effect.try({
+      try: () => {
+        const ambiguity = requireString(
+          requireKey(policy, "ambiguity", "policy"),
+          "policy.ambiguity",
+        );
+        if (ambiguity !== "reject") {
+          throw new DocumentError({ message: `unsupported ambiguity policy '${ambiguity}'` });
+        }
+        return bindOutcomes(theory, realizations, evidenceOutcomes);
+      },
+      catch: (cause) =>
+        cause instanceof DocumentError
+          ? cause
+          : new DocumentError({ message: "cannot resolve deployment", cause }),
+    });
+    const boundIds = [...outcomeById.keys()];
+    const validatedOutcomes = yield* Effect.forEach(boundIds, (id) =>
+      validateProducerOutcome(outcomeById.get(id)!),
+    );
+    const validatedOutcomeById = new Map<string, ProducerOutcome>(
+      boundIds.map((id, index) => [id, validatedOutcomes[index]!]),
+    );
+    return yield* Effect.try({
+      try: () => {
+        const candidates = realizations.map((realization) =>
+          evaluateCandidate(
+            theory,
+            realization,
+            validatedOutcomeById.get(realizationId(realization))!,
+            policy,
+          ),
+        );
+        const eligible = candidates.filter((candidate) => candidate.eligible);
+        if (eligible.length === 1) {
+          return {
+            status: "selected" as const,
+            selectedRealization: realizationId(eligible[0]!.realization),
+            reasonCodes: [],
+            candidates,
+          };
+        }
+        return {
+          status: "rejected" as const,
+          selectedRealization: null,
+          reasonCodes: [eligible.length === 0 ? REASON_NO_ELIGIBLE : REASON_AMBIGUOUS],
+          candidates,
+        };
+      },
+      catch: (cause) =>
+        cause instanceof DocumentError ? cause : new DocumentError({ message: "cannot resolve deployment", cause }),
+    });
+  });

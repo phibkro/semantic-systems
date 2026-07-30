@@ -80,9 +80,9 @@ export const runDemo = (
         EVIDENCE_ADAPTERS,
       ),
     );
+    const resolution = yield* resolve(theory, realizations, evidenceOutcomes, fixture.policy);
     return yield* Effect.try({
       try: () => {
-        const resolution = resolve(theory, realizations, evidenceOutcomes, fixture.policy);
         let execution: ExecutionResult | null = null;
         if (resolution.status === "selected") {
           const selected = resolution.candidates.find(

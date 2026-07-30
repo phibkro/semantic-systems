@@ -650,12 +650,93 @@ describe("evidence-production boundary and resolver packet consumption", () => {
       realizationIdentity: realization.identity,
       result: injected,
     };
-    const resolution = resolveDeployment(theory, [realization], [outcome], fixture.policy);
+    const resolution = await runBun(
+      resolveDeployment(theory, [realization], [outcome], fixture.policy),
+    );
     expect(resolution.status).toBe("selected");
     const candidate = resolution.candidates[0]!;
     expect(candidate.eligible).toBeTrue();
     expect(candidate.evidence).toEqual(injected);
     expect(candidate.producerDiagnostic).toBeNull();
+  });
+
+  test("resolver rejects an injected result with a tampered identity before it can reach selection", async () => {
+    // `ProducerOutcome`/`EvidenceResult` are plain data shapes: nothing in
+    // their TypeScript types stops a caller from hand-building one whose
+    // stored `identity` does not match its own content. Only the
+    // `identity` field is tampered here; the realization/theory binding
+    // `bindOutcomes` checks is otherwise fully valid, so only the
+    // resolver's own internal-consistency validation (parseEvidenceResult)
+    // can catch this.
+    const { fixture, theory, realization } = await loadPureRealization();
+    const injectedFields: Omit<EvidenceResult, "identity"> = {
+      artifactKind: ARTIFACT_KIND_EVIDENCE_RESULT,
+      schemaVersion: EVIDENCE_RESULT_SCHEMA_VERSION,
+      category: "example_test",
+      producer: { id: "producer.injected", version: "0" },
+      recipeIdentity: "sha256:fixture-injected-recipe-tampered",
+      theoryIdentity: theory.identity,
+      realizationIdentity: realization.identity,
+      obligation: "obligation.inventory.conformance",
+      assumptions: [],
+      caseResults: [{ caseId: "injected-case", passed: true, detail: null }],
+    };
+    const injectedIdentity = await runBun(
+      contentIdentity(evidenceResultIdentityPayload(injectedFields)),
+    );
+    const tamperedResult: EvidenceResult = {
+      identity: `${injectedIdentity}-tampered`,
+      ...injectedFields,
+    };
+    const outcome: ProducerOutcome = {
+      ok: true,
+      realizationId: realizationId(realization),
+      realizationIdentity: realization.identity,
+      result: tamperedResult,
+    };
+    await expectFailure(
+      resolveDeployment(theory, [realization], [outcome], fixture.policy),
+      "identity mismatch",
+    );
+  });
+
+  test("resolver rejects an injected result with duplicate case IDs before it can reach selection", async () => {
+    const { fixture, theory, realization } = await loadPureRealization();
+    const duplicatedFields: Omit<EvidenceResult, "identity"> = {
+      artifactKind: ARTIFACT_KIND_EVIDENCE_RESULT,
+      schemaVersion: EVIDENCE_RESULT_SCHEMA_VERSION,
+      category: "example_test",
+      producer: { id: "producer.injected", version: "0" },
+      recipeIdentity: "sha256:fixture-injected-recipe-duplicate",
+      theoryIdentity: theory.identity,
+      realizationIdentity: realization.identity,
+      obligation: "obligation.inventory.conformance",
+      assumptions: [],
+      caseResults: [
+        { caseId: "duplicated-case", passed: true, detail: null },
+        { caseId: "duplicated-case", passed: true, detail: null },
+      ],
+    };
+    // Fully refreshed: the identity is recomputed for this exact (invalid)
+    // case list, so rejection can only come from the duplicate-ID rule
+    // itself, never a stale hash.
+    const duplicatedIdentity = await runBun(
+      contentIdentity(evidenceResultIdentityPayload(duplicatedFields)),
+    );
+    const duplicatedResult: EvidenceResult = {
+      identity: duplicatedIdentity,
+      ...duplicatedFields,
+    };
+    const outcome: ProducerOutcome = {
+      ok: true,
+      realizationId: realizationId(realization),
+      realizationIdentity: realization.identity,
+      result: duplicatedResult,
+    };
+    await expectFailure(
+      resolveDeployment(theory, [realization], [outcome], fixture.policy),
+      "duplicate case ID",
+    );
   });
 
   test("an injected producer diagnostic remains visible and blocks that candidate", async () => {
@@ -670,7 +751,9 @@ describe("evidence-production boundary and resolver packet consumption", () => {
       realizationIdentity: realization.identity,
       diagnostic,
     };
-    const resolution = resolveDeployment(theory, [realization], [outcome], fixture.policy);
+    const resolution = await runBun(
+      resolveDeployment(theory, [realization], [outcome], fixture.policy),
+    );
     expect(resolution.status).toBe("rejected");
     const candidate = resolution.candidates[0]!;
     expect(candidate.eligible).toBeFalse();
@@ -713,7 +796,9 @@ describe("evidence-production boundary and resolver packet consumption", () => {
     if (outcome.ok) throw new Error("expected a not_targeted diagnostic");
     expect(outcome.diagnostic.kind).toBe("not_targeted");
 
-    const resolution = resolveDeployment(theory, [wrongTheoryRealization], [outcome], fixture.policy);
+    const resolution = await runBun(
+      resolveDeployment(theory, [wrongTheoryRealization], [outcome], fixture.policy),
+    );
     const candidate = resolution.candidates[0]!;
     expect(candidate.reasonCodes).toEqual(["theory_mismatch"]);
     expect(candidate.producerDiagnostic).toEqual(outcome.diagnostic);
@@ -740,7 +825,9 @@ describe("evidence-production boundary and resolver packet consumption", () => {
     if (outcome.ok) throw new Error("expected an obligation_unsupported diagnostic");
     expect(outcome.diagnostic.kind).toBe("obligation_unsupported");
 
-    const resolution = resolveDeployment(theory, [pure], [outcome], fixture.policy);
+    const resolution = await runBun(
+      resolveDeployment(theory, [pure], [outcome], fixture.policy),
+    );
     const candidate = resolution.candidates[0]!;
     expect(candidate.reasonCodes).toEqual(["required_obligation_set_unsupported"]);
     expect(candidate.producerDiagnostic).toEqual(outcome.diagnostic);
@@ -758,9 +845,10 @@ describe("evidence-production boundary and resolver packet consumption", () => {
       fixture.evidenceSuites,
       adapters,
     ));
-    expect(() =>
+    await expectFailure(
       resolveDeployment(theory, [pure, pure], [pureOutcome], fixture.policy),
-    ).toThrow("duplicate authored realization ID");
+      "duplicate authored realization ID",
+    );
   });
 
   test("resolver rejects two differently-identitied realizations sharing one authored ID", async () => {
@@ -789,9 +877,10 @@ describe("evidence-production boundary and resolver packet consumption", () => {
     // `variant` into one entry and could still resolve to a selection
     // without ever surfacing that two distinct, differently-identitied
     // realizations claimed the same authored ID (the review probe).
-    expect(() =>
+    await expectFailure(
       resolveDeployment(theory, [pure, variant], [pureOutcome], fixture.policy),
-    ).toThrow("duplicate authored realization ID");
+      "duplicate authored realization ID",
+    );
   });
 
   test("resolver binds outcomes by realization identity, not array order", async () => {
@@ -816,11 +905,8 @@ describe("evidence-production boundary and resolver packet consumption", () => {
     ));
     // Realizations and outcomes are each passed in reversed, mismatched
     // order; correct binding must come from identity, not position.
-    const resolution = resolveDeployment(
-      theory,
-      [broken, pure],
-      [pureOutcome, brokenOutcome],
-      fixture.policy,
+    const resolution = await runBun(
+      resolveDeployment(theory, [broken, pure], [pureOutcome, brokenOutcome], fixture.policy),
     );
     expect(resolution.status).toBe("selected");
     expect(resolution.selectedRealization).toBe("realization.inventory.pure");
@@ -858,9 +944,10 @@ describe("evidence-production boundary and resolver packet consumption", () => {
       realizationIdentity: broken.identity,
       result: pureOutcome.result,
     };
-    expect(() =>
+    await expectFailure(
       resolveDeployment(theory, [pure, broken], [pureOutcome, reboundOutcome], fixture.policy),
-    ).toThrow("evidence result for realization 'realization.inventory.broken' carries a mismatched realization identity");
+      "evidence result for realization 'realization.inventory.broken' carries a mismatched realization identity",
+    );
   });
 
   test("DEFERRED: a fully refreshed rebind of passing cases onto the broken realization is not caught by this partial slice", async () => {
@@ -906,7 +993,9 @@ describe("evidence-production boundary and resolver packet consumption", () => {
       realizationIdentity: broken.identity,
       result: forgedResult,
     };
-    const resolution = resolveDeployment(theory, [broken], [forgedOutcome], fixture.policy);
+    const resolution = await runBun(
+      resolveDeployment(theory, [broken], [forgedOutcome], fixture.policy),
+    );
     expect(resolution.status).toBe("selected");
     expect(resolution.selectedRealization).toBe("realization.inventory.broken");
   });
@@ -936,14 +1025,10 @@ describe("evidence-production boundary and resolver packet consumption", () => {
       realizationIdentity: pure.identity,
       diagnostic,
     };
-    expect(() =>
-      resolveDeployment(
-        theory,
-        [pure, broken],
-        [pureOutcome, misboundDiagnostic],
-        fixture.policy,
-      ),
-    ).toThrow("mismatched realization identity");
+    await expectFailure(
+      resolveDeployment(theory, [pure, broken], [pureOutcome, misboundDiagnostic], fixture.policy),
+      "mismatched realization identity",
+    );
   });
 
   test("a successful result bound to a mismatched theory identity is rejected deterministically", async () => {
@@ -971,9 +1056,10 @@ describe("evidence-production boundary and resolver packet consumption", () => {
       ...pureOutcome,
       result: { ...wrongTheoryFields, identity: wrongTheoryIdentity },
     };
-    expect(() =>
+    await expectFailure(
       resolveDeployment(theory, [pure], [wrongTheoryOutcome], fixture.policy),
-    ).toThrow("mismatched theory identity");
+      "mismatched theory identity",
+    );
   });
 
   test("resolver rejects a missing evidence-production outcome instead of defaulting", async () => {
@@ -988,9 +1074,10 @@ describe("evidence-production boundary and resolver packet consumption", () => {
       fixture.evidenceSuites,
       adapters,
     ));
-    expect(() =>
+    await expectFailure(
       resolveDeployment(theory, [pure, broken], [pureOutcome], fixture.policy),
-    ).toThrow("missing evidence-production outcome");
+      "missing evidence-production outcome",
+    );
   });
 
   test("resolver rejects two outcomes bound to the same realization identity", async () => {
@@ -1005,9 +1092,10 @@ describe("evidence-production boundary and resolver packet consumption", () => {
       fixture.evidenceSuites,
       adapters,
     ));
-    expect(() =>
+    await expectFailure(
       resolveDeployment(theory, [pure], [pureOutcome, pureOutcome], fixture.policy),
-    ).toThrow("duplicate evidence-production outcome");
+      "duplicate evidence-production outcome",
+    );
   });
 
   test("resolver rejects an outcome bound to a realization outside the current set", async () => {
@@ -1030,9 +1118,10 @@ describe("evidence-production boundary and resolver packet consumption", () => {
       fixture.evidenceSuites,
       adapters,
     ));
-    expect(() =>
+    await expectFailure(
       resolveDeployment(theory, [pure], [pureOutcome, brokenOutcome], fixture.policy),
-    ).toThrow("unknown realization");
+      "unknown realization",
+    );
   });
 
   test("invalid preflights never resolve execution adapters or run conformance", async () => {
