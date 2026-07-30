@@ -11,6 +11,13 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import {
+  generate as generateCss,
+  ident as cssIdentifier,
+  parse as parseCss,
+  type Declaration,
+  type DeclarationList,
+} from "css-tree";
 import { fromMarkdown } from "mdast-util-from-markdown";
 import type { Heading, Nodes, RootContent } from "mdast";
 import { micromark } from "micromark";
@@ -208,6 +215,7 @@ const atxHeadingTitle = (content: string, heading: Heading): string | undefined 
 };
 
 const NONVISIBLE_HTML_ELEMENTS = new Set([
+  "audio",
   "canvas",
   "datalist",
   "head",
@@ -220,7 +228,39 @@ const NONVISIBLE_HTML_ELEMENTS = new Set([
   "style",
   "template",
   "title",
+  "video",
 ]);
+
+const directStyleHides = (style: string): boolean => {
+  let declarationList: DeclarationList;
+  try {
+    const parsed = parseCss(style, { context: "declarationList", positions: false });
+    if (parsed.type !== "DeclarationList") return false;
+    declarationList = parsed;
+  } catch {
+    return false;
+  }
+
+  const cascaded = new Map<string, { important: boolean; value: string }>();
+  for (const child of declarationList.children) {
+    if (child.type !== "Declaration") continue;
+    const declaration = child as Declaration;
+    const property = cssIdentifier.decode(declaration.property).toLowerCase();
+    if (property !== "display" && property !== "visibility") continue;
+    const important = Boolean(declaration.important);
+    const previous = cascaded.get(property);
+    if (previous?.important === true && !important) continue;
+    cascaded.set(property, {
+      important,
+      value: cssIdentifier.decode(generateCss(declaration.value).trim()).toLowerCase(),
+    });
+  }
+
+  return (
+    cascaded.get("display")?.value === "none" ||
+    new Set(["hidden", "collapse"]).has(cascaded.get("visibility")?.value ?? "")
+  );
+};
 
 const staticallyHidden = (node: DefaultTreeAdapterTypes.Element): boolean => {
   if (NONVISIBLE_HTML_ELEMENTS.has(node.tagName)) return true;
@@ -228,14 +268,8 @@ const staticallyHidden = (node: DefaultTreeAdapterTypes.Element): boolean => {
   if (node.tagName === "dialog" && !node.attrs.some((attribute) => attribute.name === "open")) {
     return true;
   }
-  const style = node.attrs
-    .find((attribute) => attribute.name === "style")
-    ?.value.toLowerCase()
-    .replaceAll(/\s+/g, "");
-  return (
-    style !== undefined &&
-    /(?:^|;)(?:display:none|visibility:(?:hidden|collapse))(?:!important)?(?:;|$)/.test(style)
-  );
+  const style = node.attrs.find((attribute) => attribute.name === "style")?.value;
+  return style !== undefined && directStyleHides(style);
 };
 
 const renderedMarkdownContent = (source: string): string => {
@@ -243,6 +277,17 @@ const renderedMarkdownContent = (source: string): string => {
     if ("value" in node) return node.value;
     if (node.nodeName === "#comment" || node.nodeName === "#documentType") return "";
     if ("tagName" in node && staticallyHidden(node)) return "";
+    if (
+      "tagName" in node &&
+      node.tagName === "details" &&
+      !node.attrs.some((attribute) => attribute.name === "open")
+    ) {
+      const summary = node.childNodes.find(
+        (child): child is DefaultTreeAdapterTypes.Element =>
+          "tagName" in child && child.tagName === "summary",
+      );
+      return summary === undefined ? "" : textFrom(summary);
+    }
     if ("childNodes" in node) return node.childNodes.map((child) => textFrom(child)).join("\n");
     return "";
   };

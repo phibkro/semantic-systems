@@ -303,7 +303,15 @@ ${DESIGN_LENS_HEADINGS.map((heading) => `  ### ${heading}\n\n  Hidden account.`)
   });
 
   test("counts rendered HTML text but not comments or nonvisible element content", () => {
-    for (const visibleHtml of ["<div>\nConcrete account.\n</div>", "<p>Concrete account.</p>"]) {
+    for (const visibleHtml of [
+      "<div>\nConcrete account.\n</div>",
+      "<p>Concrete account.</p>",
+      '<div style="display:none; display:block">Concrete account.</div>',
+      '<div style="visibility:hidden; visibility:visible">Concrete account.</div>',
+      '<div style="display:none; display:block !important">Concrete account.</div>',
+      "<details><summary>Concrete account.</summary>Hidden detail.</details>",
+      "<details open><p>Concrete account.</p></details>",
+    ]) {
       const lens = completeLens((heading) =>
         heading === DESIGN_LENS_HEADINGS[0] ? visibleHtml : `Account for ${heading}.`,
       );
@@ -322,7 +330,15 @@ ${DESIGN_LENS_HEADINGS.map((heading) => `  ### ${heading}\n\n  Hidden account.`)
       "<noembed>Concrete account.</noembed>",
       "<noframes>Concrete account.</noframes>",
       '<div style="display: none">Concrete account.</div>',
+      '<div style="display:/**/none">Concrete account.</div>',
+      '<div style="d\\69splay:none">Concrete account.</div>',
+      '<div style="visibility:h\\69 dden">Concrete account.</div>',
+      '<div style="display:none !important; display:block">Concrete account.</div>',
+      '<div style="visibility:visible; visibility:collapse">Concrete account.</div>',
       "<dialog>Concrete account.</dialog>",
+      "<details><p>Concrete account.</p></details>",
+      "<audio>Concrete account.</audio>",
+      "<video>Concrete account.</video>",
     ]) {
       const lens = completeLens((heading) =>
         heading === DESIGN_LENS_HEADINGS[0] ? hiddenHtml : `Account for ${heading}.`,

@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0015-open-semantic-system-design-lens.md`](../../design-specs/0015-open-semantic-system-design-lens.md).
 This mutable execution record cannot redefine that contract.
 
-Status: fourth independent-review counterexamples corrected; exact-head re-review
+Status: fifth independent-review counterexamples corrected; exact-head re-review
 pending
 
 Owner: primary Semantic Systems lead
@@ -209,6 +209,28 @@ state, and unrelated project-model changes.
   views. Full integration passed with 338 Bun tests/1,716 expectations, zero
   Effect diagnostics, and 68 transitional Python custody checks. Clean
   commit/range custody and re-review remain pending.
+- 2026-07-31: fifth independent review rejected exact clean head `12383a9`.
+  All preceding falsifiers and production gates passed, but the direct-style
+  regex ignored declaration order and CSS comments: visible later declarations
+  were falsely rejected while `display:/**/none` was falsely accepted. Closed
+  `details` bodies and supported `audio`/`video` fallback text could also lend
+  nonvisible prose to the shape gate. The reviewer observed 41 expected and six
+  mismatched outcomes across a 47-case adversarial matrix.
+- 2026-07-31: replaced the bounded style regex with exact
+  `css-tree@3.2.1` plus `@types/css-tree@2.3.11` (MIT,
+  `csstree/csstree` and DefinitelyTyped) declaration-list parsing. The static
+  cascade now respects declaration order and `!important`, tokenizes comments,
+  and decodes escaped CSS identifiers. Closed `details` contributes only its
+  first visible `summary`; supported `audio` and `video` fallback children
+  contribute no rendered prose. Focused evidence is 15 tests/79 expectations
+  plus green typecheck, severe lint, formatting, and diff checks. Exact
+  acceptance also passed with 24 control-loop tests/250 expectations,
+  project-model validation, and eight generated views. Full integration passed
+  with 338 Bun tests/1,729 expectations, zero Effect diagnostics, and 68
+  transitional Python custody checks. This remains a direct-inline static
+  visibility approximation: external stylesheets, classes, inherited CSS,
+  dynamic DOM state, and broader visual properties are explicitly outside the
+  gate's evidence.
 
 ## Acceptance command
 
