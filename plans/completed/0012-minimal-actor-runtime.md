@@ -1,10 +1,10 @@
-# Active plan 0012: minimal actor runtime
+# Completed plan 0012: minimal actor runtime
 
 Canonical problem contract:
 [`design-specs/0012-minimal-actor-runtime.md`](../../design-specs/0012-minimal-actor-runtime.md).
 This mutable execution record must not redefine the frozen contract.
 
-Status: revision 2 green locally; fresh exact-head review required
+Status: complete; accepted implementation integrated at `8ad9dfb`
 
 Owner: main integration agent
 
@@ -14,7 +14,8 @@ Owner: main integration agent
   exact semantic identities are integrated and green.
 - Effect v4 beta.102 and the official Bun/Node platform layers are pinned.
 - The portable actor runtime, inventory adapter, Bun/Node composition roots,
-  bounded journey, and acceptance program now exist in the feature worktree.
+  bounded journey, and acceptance program are integrated on the main project
+  branch.
 - A mutable-alias counterexample invalidated the first ownership
   implementation. Revision 1 now copies values at each ownership boundary and
   rejects non-transferable values with typed failures.
@@ -66,9 +67,10 @@ Owner: main integration agent
 
 ```bash
 bun test tests/actor-runtime.test.ts
+node --test tests/actor-runtime-node.test.ts
 bun run typecheck
 bun run lint
-bunx oxfmt --check src/actor tests/actor-runtime.test.ts scripts/accept/0012-minimal-actor-runtime.ts
+bunx oxfmt --check src/actor tests/actor-runtime.test.ts tests/actor-runtime-node.test.ts scripts/accept/0012-minimal-actor-runtime.ts
 bun scripts/accept/0012-minimal-actor-runtime.ts
 node src/actor/main-node.ts examples/inventory/scenarios/demo.json
 git diff --check
@@ -181,3 +183,17 @@ paths, acceptance commands, expected deliverables, and this posture:
   genuine-Node transfer-boundary tests, TypeScript, and Oxlint. The full
   acceptance journey and independent exact-head review remain required before
   integration.
+- 2026-07-30: independent exact-head review accepted `8ad9dfb`. Fifty
+  post-observed-failure iterations per runtime rejected the next send without
+  sequence allocation; twenty preaccepted-envelope iterations per runtime
+  failed pending work without starting it. The reviewer independently
+  recomputed distinct pre/post ownership-revision identities and reconfirmed
+  shared-memory, hostile-cause, definition-custody, freshness-equivalence, and
+  scope-drain counterexamples.
+- 2026-07-30: the feature acceptance passed twice at `8ad9dfb` with 18 Bun
+  actor tests (52 expectations), two genuine-Node actor tests, 64 inventory
+  tests (429 expectations), semantic lint, model/view drift, and normalized
+  Bun/Node journey parity. The repository integration loop then passed 315 Bun
+  tests (1,488 expectations) and 68 Python compatibility tests. These remain
+  test, runtime-validation, static-analysis, and independent-assertion
+  evidence—not proof, fuzzing, or model checking.

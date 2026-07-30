@@ -213,12 +213,19 @@
       "kind": "work_item",
       "name": "Implement minimal actor runtime",
       "summary": "Typed mailbox loop with unique actor-owned state.",
-      "status": "in_progress",
+      "status": "complete",
       "tags": ["actors"],
       "attributes": {
-        "phase": "implementation",
+        "phase": "validation",
         "effort": 8,
         "design_spec": "design-specs/0012-minimal-actor-runtime.md",
+        "plan": "plans/completed/0012-minimal-actor-runtime.md",
+        "completion": {
+          "implementation_head": "8ad9dfbd25fc54ea7e49dc192175c53b780d1503",
+          "feature_acceptance": "runtime_validation",
+          "integration_gate": "test_and_static_analysis",
+          "independent_review": "assertion"
+        },
         "acceptance": [
           "Simulation has deterministic mailbox ordering",
           "Actor state cannot be directly shared",
@@ -240,11 +247,18 @@
       "kind": "work_item",
       "name": "Implement inventory actor realization",
       "summary": "Wrap the domain machine in a typed actor protocol.",
-      "status": "planned",
+      "status": "complete",
       "tags": ["inventory", "actors"],
       "attributes": {
-        "phase": "implementation",
+        "phase": "validation",
         "effort": 5,
+        "design_spec": "design-specs/0012-minimal-actor-runtime.md",
+        "plan": "plans/completed/0012-minimal-actor-runtime.md",
+        "completion": {
+          "implementation_head": "8ad9dfbd25fc54ea7e49dc192175c53b780d1503",
+          "equivalence_evidence": "runtime_validation",
+          "independent_review": "assertion"
+        },
         "acceptance": [
           "Actor and pure versions emit equivalent events",
           "Only the actor mutates private state",
