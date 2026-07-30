@@ -25,6 +25,19 @@ and kill criteria are frozen in design spec 0003.
   algebra are implemented. The resolver revalidates every bound successful
   packet through that parser before eligibility rather than trusting a
   structurally typed producer value.
+- `resolution_claim_v1` is integrated. Its neutral typed builder and strict
+  parser preserve the complete candidate set, exact subjects and policy
+  identity, evidence or diagnostic payload, claimed reasons and eligibility,
+  terminal selection, and selected assumptions with deterministic
+  presentation-only ordering. Module-private provenance plus deep-frozen
+  non-aliasing copies prevent emitter forgery and post-validation mutation.
+  Legal own `__proto__` JSON keys remain ordinary data at every payload depth.
+- Exact-head Fable 5 review of source commit `886a813` returned `RESOLVED` with
+  no Blocker, Major, or Minor findings after strengthened nested-payload,
+  forgery, parse/emit/parse, deep-freeze, and non-aliasing probes. Integrated
+  commits are `310c4dd`, `b2772ef`, and `bd0e6c3`; full repository validation
+  passes 228 tests with 1,200 assertions plus TypeScript, severe Oxlint,
+  formatting, and diff hygiene at `48b388b`.
 - Canonical model identities and case counts agree today, but the agreement is
   hand-copied and guarded only by tests.
 - Independent adversarial review identified these seams before this contract
@@ -60,6 +73,15 @@ and kill criteria are frozen in design spec 0003.
   selected and no result establishes CLM-0002. The bounded evidence is recorded
   in
   `research/independent-checker-recut-experiment.md`.
+- Exact-head semantic analysis found two contradictions requiring this
+  design-spec recut before slice 5. The generic checker has no authored recipe
+  input, so it can validate `recipeIdentity` presence and propagation but
+  cannot bind it to recipe source. It also has no execution, canonical-model,
+  custody, signature, or authentication authority, so a fully refreshed
+  self-consistent observation rebound is indistinguishable at that boundary
+  from an authentic observation. Recipe-source custody is now a separate
+  adapter, and fully refreshed observation authenticity is an explicit
+  evidence limit rather than a fabricated generic-checker oracle.
 
 ## Contract-owned implementation slices
 
@@ -70,7 +92,7 @@ and kill criteria are frozen in design spec 0003.
    identities, strict parser, and producer diagnostics are implemented.
 3. Production resolver consumes packets rather than executing recipes.
    **Complete for the current tracer.**
-4. Serialized resolution claim.
+4. Serialized resolution claim. **Complete and independently reviewed.**
 5. Independent checker and forbidden-import gate.
 6. Execution gate and visible CLI.
 7. Inventory canonical-model binding adapter.
@@ -81,7 +103,7 @@ Slices 1, 2, 5, and 7 may be explored concurrently against this contract.
 Resolver/demo integration is serialized after packet and checker interfaces are
 stable. Final integration is owned by the main agent.
 
-## Next delegated slice contract: serialized resolution claim
+## Completed delegated slice contract: serialized resolution claim
 
 Slice 4 is frozen against design spec 0003. Autonomy is A3:
 integration-ready implementation in one isolated worktree based on the exact
@@ -297,7 +319,26 @@ validity.
   distinct authored IDs whose display-insensitive content identities are
   equal. The main agent stopped the worker before commit and corrected this
   execution contract to require unique authored candidate IDs while preserving
-  repeated content identities. The frozen design spec is unchanged.
+  repeated content identities. The frozen design spec was unchanged at that
+  checkpoint.
+- 2026-07-30: completed and integrated slice 4 as `310c4dd`, `b2772ef`, and
+  `bd0e6c3`. Initial review found that structural callers could bypass
+  validation and that embedded evidence obligations were not bound to the
+  claim obligation; both routes now share one finalizer, and only
+  module-provenance-minted immutable claims emit. A second independent review
+  exposed plain-assignment loss of legal own `__proto__` payload keys. The
+  accepted correction uses define-semantics consistent with canonicalization
+  and adds a falsifiable producer/detail regression. Exact-head Fable 5 review
+  returned `RESOLVED`; the broad integrated suite passes 228 tests and 1,200
+  assertions.
+- 2026-07-30: explicit contract recut before slice 5 preserves every check
+  derivable from declared inputs, moves authored-recipe source binding to a
+  recipe-custody adapter, separates stale subject inconsistency from fully
+  refreshed observation forgery, retains slice-6 execution and slice-7
+  canonical-model ownership, replaces the stale Python command family with
+  Bun, and leaves the symmetric 70% gate unchanged. The preferred next
+  experiment is the existing declarative shared-policy fallback, not another
+  direct checker implementation.
 
 ## Decisions and deviations
 
@@ -311,10 +352,24 @@ validity.
   an extra parenthesized specifier, and bare CommonJS `require` remain a known
   low-severity oracle surface; they must be closed before treating the
   forbidden-import gate as complete slice-5 evidence.
-- A fully refreshed forged result can still be rebound to the broken
-  realization if all current identity fields are recomputed. The current test
-  records this accepting behavior as deferred; only the checker and canonical
-  adapter slices may close it.
+- The generic checker must reject stale or internally inconsistent result
+  rebinding, including mismatched theory, realization, obligation, claim,
+  aggregate, or result-identity fields. It cannot distinguish a fully refreshed
+  self-consistent forged observation from an authentic observation. Slice 7 may
+  reject disagreement with a separately custodied canonical-model record, but
+  that is canonical consistency rather than forgery detection. Observation
+  provenance, freshness, witnessing, signatures, and authenticity are deferred
+  to a separately named future observation-custody and authentication frontier.
+- Authored recipes are not added to the generic checker input. The checker
+  validates nonempty recipe identity, its contribution to evidence-result
+  identity, and exact propagation into the claim. Binding that identity to an
+  authored recipe belongs to a separate recipe-custody adapter whose inputs
+  include the authored recipe.
+- Recipe custody is not canonical-model binding. The former compares authored
+  recipe content with a result; the latter remains slice 7 and compares an
+  already checked resolution with canonical inventory state.
+- Execution and the visible CLI remain slice 6. This recut grants the generic
+  checker no execution capability.
 - `produceEvidence` still selects from the raw recipe collection by reading
   `suite.theory` before validating the selected envelope. This inherited
   collection-ingestion discrepancy is explicit and deferred; it must not be
@@ -323,6 +378,24 @@ validity.
 - Do not reinterpret the size metric, expand the resolver denominator, or
   merge a known-red acceptance gate. The next slice is a fresh design
   experiment, not incremental patching of `b9cea28`.
+- The preferred bounded experiment is a declarative shared policy contract with
+  generated or independently compiled producer/checker evaluators. A direct
+  checker implementation must not begin unless that experiment demonstrates an
+  exhaustive symmetric surface at or below 70%, or a later reviewed contract
+  change explicitly replaces the gate. The shared policy becomes a visible
+  correlated semantic assumption and does not remove independent parsing,
+  authored identity recomputation, evidence aggregate derivation, coverage,
+  terminal, selected-assumption, deterministic-violation, or capability gates.
+- Two delegated review lanes disclosed accidental no-op or temporary Python
+  invocations while falsifying slice-4 mutations, despite the operator's
+  migration instruction. They changed no repository artifact and subsequent
+  work used TypeScript/Bun or shell-native read-only tools. Pagu was never used.
+- Fable review recorded an inherited resolver edge outside slice 4:
+  `requirements[evidence.obligation]` reads inherited properties. Pathological
+  authored obligation IDs such as `__proto__` fail closed but can produce the
+  wrong reason code, while `constructor` fails loudly. The next declarative
+  policy experiment must use own-property lookup and include these identifiers
+  as adversarial fixtures.
 
 ## Completion state
 

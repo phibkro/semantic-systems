@@ -536,7 +536,7 @@ accepted; no new Python implementation is permitted.
   piping was re-evaluated and again delivered an empty stream, so the scoped
   file is the smallest portable bounded bridge shared by Bun and Node.
   Publication now uses GNU `mv --no-copy --update=none-fail
-  --no-target-directory`, preserving same-filesystem atomicity while refusing
+--no-target-directory`, preserving same-filesystem atomicity while refusing
   a destination that appears after preflight. New controls cover cache
   miss/sibling fallback, commit and tree substitution, selected versus
   unrelated loose-object symlinks, sibling `.git` redirection, an injected
@@ -586,3 +586,12 @@ accepted; no new Python implementation is permitted.
   eligibility while preserving earlier binding-error precedence. The same
   targeted gates pass on the integrated head; broad and Nix gates remain
   deferred under severe I/O PSI.
+- 2026-07-30: added a scope-aware severe Effect Oxlint rule for ambient
+  `console` and `globalThis.console`. It applies only to modules importing
+  Effect packages, ignores lexically shadowed console identifiers, and directs
+  operational output to structured `Effect.log*`, the replaceable `Console`
+  service, or an injected capability. Genuinely developer-only output may use
+  a targeted suppression carrying a `dev only:` reason. All three existing
+  Effect-bearing violations moved to `Console.log` or `Console.error`. Seven
+  focused lint-rule tests, TypeScript, full severe Oxlint, formatting, and the
+  full 228-test repository suite pass at `48b388b`.
