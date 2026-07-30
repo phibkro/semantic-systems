@@ -21,7 +21,7 @@ import {
   type ProducerOutcome,
 } from "../src/tracer/evidence-result.ts";
 import { contentIdentity } from "../src/tracer/canonical.ts";
-import type { JsonObject } from "../src/tracer/json.ts";
+import { DocumentError, type JsonObject } from "../src/tracer/json.ts";
 import { loadInventory } from "../src/tracer/loader.ts";
 import { resolveReplay, resolveTransition } from "../src/tracer/operations.ts";
 import { normalizeRealization, realizationId } from "../src/tracer/realization.ts";
@@ -1076,6 +1076,62 @@ describe("evidence-production boundary and resolver packet consumption", () => {
       ));
       expect(outcome.ok).toBeFalse();
       expect(spy.calls).toEqual([]);
+    }
+  });
+
+  test("an adapter-thrown DocumentError becomes an unbound_operation diagnostic without running conformance", async () => {
+    const { fixture, theory, pure } = await loadPureAndBroken();
+    const obligation = requiredObligation(theory);
+    const replayCalls: Array<string> = [];
+    const adapters: EvidenceAdapters = {
+      resolveTransition: () => {
+        throw new DocumentError({
+          message: "unbound transition operation 'inventory.unavailable.v0'",
+        });
+      },
+      resolveReplay: (key) => {
+        replayCalls.push(key);
+        return resolveReplay(key);
+      },
+    };
+    const outcome = await runBun(
+      produceEvidence(theory, THEORY_ID, obligation, pure, fixture.evidenceSuites, adapters),
+    );
+    expect(outcome.ok).toBeFalse();
+    if (outcome.ok) throw new Error("expected an unbound_operation diagnostic");
+    expect(outcome.diagnostic.kind).toBe("unbound_operation");
+    expect(outcome.diagnostic.message).toContain("unbound transition operation");
+    // resolveReplay is only reached after resolveTransition returns
+    // normally; a thrown DocumentError from resolveTransition must
+    // short-circuit before replay resolution, let alone conformance
+    // execution.
+    expect(replayCalls).toEqual([]);
+  });
+
+  test("an adapter throwing a non-DocumentError value fails produceEvidence with a wrapping DocumentError, never a ProducerOutcome", async () => {
+    const { fixture, theory, pure } = await loadPureAndBroken();
+    const obligation = requiredObligation(theory);
+    const adapters: EvidenceAdapters = {
+      resolveTransition: () => {
+        throw new Error("boom");
+      },
+      resolveReplay,
+    };
+    const effect = produceEvidence(
+      theory,
+      THEORY_ID,
+      obligation,
+      pure,
+      fixture.evidenceSuites,
+      adapters,
+    );
+    const exit = await Effect.runPromiseExit(provideBun(effect));
+    expect(Exit.isSuccess(exit)).toBeFalse();
+    expect(Exit.isFailure(exit)).toBeTrue();
+    if (Exit.isFailure(exit)) {
+      const rendered = String(exit.cause);
+      expect(rendered).toContain("cannot resolve realization operations");
+      expect(rendered).toContain("boom");
     }
   });
 

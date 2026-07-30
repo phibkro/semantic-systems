@@ -1,4 +1,4 @@
-import { Crypto, Effect, Result } from "effect";
+import { Crypto, Effect } from "effect";
 import { contentIdentity, jsonEqual } from "./canonical.ts";
 import { parseState, runSteps, stateToJson, type Replay, type Transition } from "./domain.ts";
 import {
@@ -248,20 +248,35 @@ export const produceEvidence = (
         `the suite declares obligation '${String(suite.obligation)}' but the theory requires '${requiredObligation}'`,
       );
     }
-    const operations = yield* Effect.try({
-      try: () => ({
-        transition: adapters.resolveTransition(
-          operationBinding(realization.document, "transition"),
-        ),
-        replay: adapters.resolveReplay(operationBinding(realization.document, "replay")),
-      }),
-      catch: (cause): DocumentError =>
-        cause instanceof DocumentError
-          ? cause
-          : new DocumentError({ message: "cannot resolve realization operations", cause }),
-    }).pipe(Effect.result);
-    if (Result.isFailure(operations)) {
-      return reject("unbound_operation", operations.failure.message);
+    // The single-arg form of `Effect.try` maps a thrown value into
+    // `Cause.UnknownError`, preserving the original thrown value unchanged
+    // in `.cause`. `Effect.catchIf` then recovers ONLY when that original
+    // cause is a genuine adapter `DocumentError` (the unbound-operation
+    // case); any other cause re-fails with the original `UnknownError`,
+    // which `Effect.mapError` turns into a `DocumentError` that still
+    // retains the original thrown value as its own `cause` — so an
+    // unexpected adapter defect fails this Effect instead of silently
+    // becoming an `unbound_operation` diagnostic.
+    const operations = yield* Effect.try(() => ({
+      kind: "resolved" as const,
+      transition: adapters.resolveTransition(operationBinding(realization.document, "transition")),
+      replay: adapters.resolveReplay(operationBinding(realization.document, "replay")),
+    })).pipe(
+      Effect.catchIf(
+        (error) => error.cause instanceof DocumentError,
+        (error) =>
+          Effect.succeed({
+            kind: "unbound" as const,
+            message: (error.cause as DocumentError).message,
+          }),
+      ),
+      Effect.mapError(
+        (error) =>
+          new DocumentError({ message: "cannot resolve realization operations", cause: error.cause }),
+      ),
+    );
+    if (operations.kind === "unbound") {
+      return reject("unbound_operation", operations.message);
     }
     return {
       ok: true,
@@ -271,8 +286,8 @@ export const produceEvidence = (
         theory,
         realization,
         suite,
-        operations.success.transition,
-        operations.success.replay,
+        operations.transition,
+        operations.replay,
       ),
     };
   });
