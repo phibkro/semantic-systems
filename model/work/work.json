@@ -314,11 +314,13 @@
       "kind": "work_item",
       "name": "Specify STM effect and handler laws",
       "summary": "Define retry, rollback, commit actions, and serializability.",
-      "status": "planned",
+      "status": "in_progress",
       "tags": ["stm"],
       "attributes": {
         "phase": "research",
         "effort": 8,
+        "design_spec": "design-specs/0014-stm-effect-handler-laws.md",
+        "plan": "plans/active/0014-stm-effect-handler-laws.md",
         "acceptance": [
           "Speculative and commit-only effects are separate",
           "Affine capture restrictions are explicit",
@@ -500,8 +502,8 @@
     {
       "source": "work.stm-laws",
       "target": "decision.stm-library",
-      "kind": "requires",
-      "summary": "",
+      "kind": "informs",
+      "summary": "The bounded law tracer supplies evidence for accepting, revising, or rejecting the library-effect decision.",
       "attributes": {}
     },
     {

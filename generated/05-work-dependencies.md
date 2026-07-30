@@ -49,7 +49,7 @@ flowchart LR
     work_inventory_pure -->|blocks| work_inventory_design
     work_inventory_actor -->|blocks| work_inventory_design
     work_inventory_actor -->|blocks| work_actor_runtime
-    work_stm_laws -->|requires| decision_stm_library
+    work_stm_laws -->|informs| decision_stm_library
     work_stm_runtime -->|blocks| work_stm_laws
     work_inventory_stm -->|blocks| work_inventory_design
     work_inventory_stm -->|blocks| work_stm_runtime
