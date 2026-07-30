@@ -6,12 +6,7 @@ import { CatalogError } from "./errors.ts";
 import type { GitEnvironment } from "./git.ts";
 import { loadLock } from "./lockfile.ts";
 import { lockOfflineSources } from "./offline-lock.ts";
-import {
-  computeLockOnlyStatus,
-  isStrictOk,
-  orphanedLockReport,
-  type StatusReport,
-} from "./status.ts";
+import { computeStatus, isStrictOk, orphanedLockReport, type StatusReport } from "./status.ts";
 import type { TomlParser } from "./toml.ts";
 
 interface CatalogCheckCommand {
@@ -25,6 +20,7 @@ interface StatusCommand {
   readonly id: string | undefined;
   readonly all: boolean;
   readonly json: boolean;
+  readonly lockOnly: boolean;
 }
 
 interface LockCommand {
@@ -39,7 +35,7 @@ type Command = CatalogCheckCommand | LockCommand | StatusCommand;
 const usage =
   "usage: semrefs [--root PATH] catalog-check\n" +
   "       semrefs [--root PATH] lock <id>|--all --offline\n" +
-  "       semrefs [--root PATH] status <id>|--all --lock-only [--json]\n" +
+  "       semrefs [--root PATH] status <id>|--all [--lock-only] [--json]\n" +
   "(offline lock reads an existing managed object cache or a declared local_hint sibling)";
 
 const parseCommand = (arguments_: ReadonlyArray<string>): Command | undefined => {
@@ -75,8 +71,8 @@ const parseCommand = (arguments_: ReadonlyArray<string>): Command | undefined =>
   if (name === "lock") {
     return offline && !lockOnly && !json ? { root, name: "lock", id, all } : undefined;
   }
-  if (!lockOnly || offline) return undefined;
-  return { root, name: "status", id, all, json };
+  if (offline) return undefined;
+  return { root, name: "status", id, all, json, lockOnly };
 };
 
 const reportToJson = (report: StatusReport): unknown => ({
@@ -120,10 +116,9 @@ const printReport = (report: StatusReport): Effect.Effect<void> =>
   });
 
 /**
- * `semrefs catalog-check` and `semrefs status --lock-only`: the network-free,
- * mutation-free half of design spec 0004's CLI. `lock`, `materialize`, and
- * full (checkout-inspecting) `status` require Git/network capabilities this
- * slice does not port.
+ * Network-free catalog, offline lock, and strict status commands from design
+ * spec 0004. Full status inspects a managed checkout through hardened Git and
+ * portable filesystem services without mutating it.
  */
 export const runSemrefs = (
   arguments_: ReadonlyArray<string>,
@@ -211,11 +206,21 @@ export const runSemrefs = (
     for (const id of ids) {
       const source = catalog.sources.get(id)!;
       const digest = yield* catalogDigest(source.raw);
-      reports.push(computeLockOnlyStatus(source, digest, lock));
+      reports.push(
+        yield* computeStatus(
+          source,
+          digest,
+          lock,
+          path.join(root, ".references"),
+          command.lockOnly,
+        ),
+      );
     }
     if (command.all) {
       const orphanedIds = [...lock.sources.keys()].filter((id) => !catalog.sources.has(id)).sort();
-      for (const id of orphanedIds) reports.push(orphanedLockReport(id, lock.sources.get(id)!));
+      for (const id of orphanedIds) {
+        reports.push(orphanedLockReport(id, lock.sources.get(id)!, command.lockOnly));
+      }
     }
 
     if (command.json) {

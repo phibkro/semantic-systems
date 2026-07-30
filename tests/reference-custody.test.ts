@@ -141,10 +141,14 @@ const runPythonCli = (args: ReadonlyArray<string>): ProcResult => {
   };
 };
 
-const runTsCli = (args: ReadonlyArray<string>): ProcResult => {
+const runTsCli = (
+  args: ReadonlyArray<string>,
+  environment: Readonly<Record<string, string | undefined>> = process.env,
+): ProcResult => {
   const result = Bun.spawnSync({
     cmd: ["bun", MAIN_BUN, ...args],
     cwd: ROOT,
+    env: environment,
     stdout: "pipe",
     stderr: "pipe",
   });
@@ -352,6 +356,39 @@ const installObjectCache = async (
   runCommand(["git", "clone", "--bare", "--quiet", sibling, cache], project);
   runCommand(["git", "-C", cache, "remote", "set-url", "origin", origin], project);
   return cache;
+};
+
+const installCheckout = async (
+  project: string,
+  sibling: string,
+  sourceId = "demo.repo",
+): Promise<string> => {
+  const sourceRoot = join(project, ".references", sourceId);
+  const checkout = join(sourceRoot, "checkout");
+  await mkdir(sourceRoot, { recursive: true });
+  runCommand(["git", "clone", "--quiet", sibling, checkout], project);
+  const commit = runCommand(["git", "rev-parse", "HEAD"], checkout);
+  runCommand(["git", "checkout", "--quiet", "--detach", commit], checkout);
+  return checkout;
+};
+
+const lockedFixture = async (
+  materialize = true,
+): Promise<{
+  readonly fixture: Awaited<ReturnType<typeof localSiblingFixture>>;
+  readonly checkout: string | null;
+}> => {
+  const fixture = await localSiblingFixture();
+  await mkdir(join(fixture.project, "references"));
+  await writeFile(join(fixture.project, "references", "sources.toml"), fixture.sourceText);
+  const locked = runTsCli(["--root", fixture.project, "lock", "demo.repo", "--offline"]);
+  if (locked.exitCode !== 0) {
+    throw new Error(`fixture lock failed (${locked.exitCode}): ${locked.stderr}`);
+  }
+  return {
+    fixture,
+    checkout: materialize ? await installCheckout(fixture.project, fixture.sibling) : null,
+  };
 };
 
 const directoryByteSnapshot = async (root: string, relative = ""): Promise<string> => {
@@ -1649,6 +1686,342 @@ describe("reference custody Effect v4 slice: lock-only status", () => {
     expect(report.reasons).toEqual(["lock entry has no current catalog source"]);
     expect(isStrictOk(report)).toBeFalse();
   });
+});
+
+describe("reference custody Effect v4 slice: full checkout status", () => {
+  test("a detached exact checkout is byte-identical to Python under Bun and Node", async () => {
+    const { fixture, checkout } = await lockedFixture();
+    if (checkout === null) throw new Error("expected a materialized checkout");
+    const indexPath = join(checkout, ".git", "index");
+    const indexBytes = await readFile(indexPath);
+    const indexMtime = (await stat(indexPath)).mtimeMs;
+    const args = ["--root", fixture.project, "status", "demo.repo", "--json"];
+
+    const bun = runTsCli(args);
+    const node = runNodeCli(args);
+    const python = runPythonCli(args);
+    expect(bun.exitCode).toBe(0);
+    expect(node.exitCode).toBe(bun.exitCode);
+    expect(python.exitCode).toBe(bun.exitCode);
+    expect(JSON.parse(bun.stdout)).toEqual(JSON.parse(python.stdout));
+    expect(JSON.parse(node.stdout)).toEqual(JSON.parse(bun.stdout));
+    expect(JSON.parse(bun.stdout)[0].state).toBe("materialized_with_visible_assumption");
+    expect(await readFile(indexPath)).toEqual(indexBytes);
+    expect((await stat(indexPath)).mtimeMs).toBe(indexMtime);
+  });
+
+  test("full status reports an absent checkout as locked_unmaterialized", async () => {
+    const { fixture } = await lockedFixture(false);
+    const args = ["--root", fixture.project, "status", "demo.repo", "--json"];
+    const bun = runTsCli(args);
+    const python = runPythonCli(args);
+    expect(bun.exitCode).toBe(1);
+    expect(bun.exitCode).toBe(python.exitCode);
+    expect(JSON.parse(bun.stdout)).toEqual(JSON.parse(python.stdout));
+    expect(JSON.parse(bun.stdout)[0].state).toBe("locked_unmaterialized");
+  });
+
+  test("an attached checkout is unverifiable", async () => {
+    const { fixture, checkout } = await lockedFixture();
+    if (checkout === null) throw new Error("expected a materialized checkout");
+    runCommand(["git", "switch", "--quiet", "main"], checkout);
+    const args = ["--root", fixture.project, "status", "demo.repo", "--json"];
+    const bun = runTsCli(args);
+    const python = runPythonCli(args);
+    expect(bun.exitCode).toBe(1);
+    expect(JSON.parse(bun.stdout)).toEqual(JSON.parse(python.stdout));
+    expect(JSON.parse(bun.stdout)[0]).toMatchObject({
+      state: "unverifiable",
+      reasons: ["checkout HEAD is not detached"],
+    });
+  });
+
+  test("a checkout at another commit is drifted", async () => {
+    const { fixture, checkout } = await lockedFixture();
+    if (checkout === null) throw new Error("expected a materialized checkout");
+    await writeFile(join(checkout, "extra.txt"), "checkout drift\n");
+    runCommand(["git", "add", "extra.txt"], checkout);
+    runCommand(
+      [
+        "git",
+        "-c",
+        "user.name=Semantic Custody Test",
+        "-c",
+        "user.email=custody@example.invalid",
+        "commit",
+        "-m",
+        "test: drift checkout",
+      ],
+      checkout,
+    );
+    const args = ["--root", fixture.project, "status", "demo.repo", "--json"];
+    const bun = runTsCli(args);
+    const python = runPythonCli(args);
+    expect(bun.exitCode).toBe(1);
+    expect(JSON.parse(bun.stdout)).toEqual(JSON.parse(python.stdout));
+    expect(JSON.parse(bun.stdout)[0].state).toBe("drifted");
+  });
+
+  test("untracked dirt is unverifiable even when repository config hides it", async () => {
+    const { fixture, checkout } = await lockedFixture();
+    if (checkout === null) throw new Error("expected a materialized checkout");
+    runCommand(["git", "config", "status.showUntrackedFiles", "no"], checkout);
+    await writeFile(join(checkout, "untracked.txt"), "hidden dirt\n");
+    const args = ["--root", fixture.project, "status", "demo.repo", "--json"];
+    const bun = runTsCli(args);
+    const python = runPythonCli(args);
+    expect(bun.exitCode).toBe(1);
+    expect(JSON.parse(bun.stdout)).toEqual(JSON.parse(python.stdout));
+    expect(JSON.parse(bun.stdout)[0]).toMatchObject({
+      state: "unverifiable",
+      reasons: ["checkout has uncommitted changes"],
+    });
+  });
+
+  test("status never executes a repository-configured clean filter", async () => {
+    const fixture = await localSiblingFixture();
+    await writeFile(join(fixture.sibling, ".gitattributes"), "LICENSE filter=custody\n");
+    runCommand(["git", "add", ".gitattributes"], fixture.sibling);
+    runCommand(
+      [
+        "git",
+        "-c",
+        "user.name=Semantic Custody Test",
+        "-c",
+        "user.email=custody@example.invalid",
+        "commit",
+        "-m",
+        "test: declare clean filter",
+      ],
+      fixture.sibling,
+    );
+    await mkdir(join(fixture.project, "references"));
+    await writeFile(join(fixture.project, "references", "sources.toml"), fixture.sourceText);
+    expect(runTsCli(["--root", fixture.project, "lock", "demo.repo", "--offline"]).exitCode).toBe(
+      0,
+    );
+    const checkout = await installCheckout(fixture.project, fixture.sibling);
+    const marker = join(fixture.project, "filter-invoked");
+    const helper = join(fixture.project, "clean-filter");
+    await writeFile(helper, `#!/bin/sh\ntouch ${JSON.stringify(marker)}\ncat\n`);
+    await chmod(helper, 0o755);
+    runCommand(["git", "config", "filter.custody.clean", helper], checkout);
+    runCommand(["git", "config", "filter.custody.required", "true"], checkout);
+    await writeFile(join(checkout, "LICENSE"), `${"x".repeat(fixture.license.length - 1)}\n`);
+
+    const result = runTsCli(["--root", fixture.project, "status", "demo.repo", "--json"]);
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout)[0].state).toBe("unverifiable");
+    expect(await Bun.file(marker).exists()).toBeFalse();
+  });
+
+  test("assume-unchanged cannot hide license tampering", async () => {
+    const { fixture, checkout } = await lockedFixture();
+    if (checkout === null) throw new Error("expected a materialized checkout");
+    runCommand(["git", "update-index", "--assume-unchanged", "LICENSE"], checkout);
+    await writeFile(join(checkout, "LICENSE"), "tampered license\n");
+    expect(runCommand(["git", "status", "--porcelain=v1"], checkout)).toBe("");
+    const args = ["--root", fixture.project, "status", "demo.repo", "--json"];
+    const bun = runTsCli(args);
+    const python = runPythonCli(args);
+    const [bunReport] = JSON.parse(bun.stdout);
+    const [pythonReport] = JSON.parse(python.stdout);
+    expect(bun.exitCode).toBe(1);
+    expect(bun.exitCode).toBe(python.exitCode);
+    expect({ ...bunReport, reasons: bunReport.reasons.length }).toEqual({
+      ...pythonReport,
+      reasons: pythonReport.reasons.length,
+    });
+    expect(bunReport.state).toBe("unverifiable");
+    expect(bunReport.reasons.join(" ")).toContain("assume-unchanged");
+  });
+
+  for (const hiddenState of ["skip-worktree", "sparse"] as const) {
+    test(`${hiddenState} checkout suppression is unverifiable`, async () => {
+      const { fixture, checkout } = await lockedFixture();
+      if (checkout === null) throw new Error("expected a materialized checkout");
+      if (hiddenState === "skip-worktree") {
+        runCommand(["git", "update-index", "--skip-worktree", "LICENSE"], checkout);
+      } else {
+        runCommand(["git", "config", "core.sparseCheckout", "true"], checkout);
+      }
+      const args = ["--root", fixture.project, "status", "demo.repo", "--json"];
+      const bun = runTsCli(args);
+      const python = runPythonCli(args);
+      const [bunReport] = JSON.parse(bun.stdout);
+      const [pythonReport] = JSON.parse(python.stdout);
+      expect(bun.exitCode).toBe(1);
+      expect(bun.exitCode).toBe(python.exitCode);
+      expect({ ...bunReport, reasons: bunReport.reasons.length }).toEqual({
+        ...pythonReport,
+        reasons: pythonReport.reasons.length,
+      });
+      expect(bunReport.state).toBe("unverifiable");
+      expect(bunReport.reasons.join(" ")).toContain(hiddenState);
+    });
+  }
+
+  test("remote-verified custody reports materialized_verified", async () => {
+    const { fixture } = await lockedFixture();
+    const lockPath = join(fixture.project, "references", "sources.lock.json");
+    const lock = await runBun(loadLock(lockPath));
+    const entry = lock.sources.get("demo.repo");
+    if (entry === undefined) throw new Error("fixture lock entry is absent");
+    const sources = new Map(lock.sources);
+    sources.set("demo.repo", {
+      ...entry,
+      acquisition: "remote",
+      originVerified: true,
+    });
+    await runBun(writeLock(lockPath, { generator: lock.generator, sources }));
+    const args = ["--root", fixture.project, "status", "demo.repo", "--json"];
+    const bun = runTsCli(args);
+    const python = runPythonCli(args);
+    expect(bun.exitCode).toBe(0);
+    expect(JSON.parse(bun.stdout)).toEqual(JSON.parse(python.stdout));
+    expect(JSON.parse(bun.stdout)[0].state).toBe("materialized_verified");
+  });
+
+  test("locked tree and license observations are independently rebound to the checkout", async () => {
+    const { fixture } = await lockedFixture();
+    const lockPath = join(fixture.project, "references", "sources.lock.json");
+    const lock = await runBun(loadLock(lockPath));
+    const entry = lock.sources.get("demo.repo");
+    const license = entry?.licenses.get("LICENSE");
+    if (entry === undefined || license === undefined) {
+      throw new Error("fixture lock observation is absent");
+    }
+    const sources = new Map(lock.sources);
+    sources.set("demo.repo", {
+      ...entry,
+      tree: "b".repeat(entry.tree.length),
+      licenses: new Map([["LICENSE", { ...license, sha256: "c".repeat(64) }]]),
+    });
+    await runBun(writeLock(lockPath, { generator: lock.generator, sources }));
+    const args = ["--root", fixture.project, "status", "demo.repo", "--json"];
+    const bun = runTsCli(args);
+    const python = runPythonCli(args);
+    const [bunReport] = JSON.parse(bun.stdout);
+    const [pythonReport] = JSON.parse(python.stdout);
+    expect(bun.exitCode).toBe(1);
+    expect(bun.exitCode).toBe(python.exitCode);
+    expect({ ...bunReport, reasons: bunReport.reasons.length }).toEqual({
+      ...pythonReport,
+      reasons: pythonReport.reasons.length,
+    });
+    expect(bunReport.state).toBe("unverifiable");
+    expect(bunReport.reasons.join(" ")).toContain("checkout tree");
+    expect(bunReport.reasons.join(" ")).toContain("committed bytes changed");
+    expect(bunReport.reasons.join(" ")).toContain("working-tree bytes changed");
+  });
+
+  test("missing promisor objects fail closed without invoking a transport helper", async () => {
+    const { fixture, checkout } = await lockedFixture();
+    if (checkout === null) throw new Error("expected a materialized checkout");
+    const blob = runCommand(["git", "rev-parse", "HEAD:LICENSE"], checkout);
+    const objectPath = join(checkout, ".git", "objects", blob.slice(0, 2), blob.slice(2));
+    expect((await stat(objectPath)).isFile()).toBeTrue();
+
+    const probeRoot = join(resolve(checkout, "..", "..", ".."), "transport-probe");
+    const bin = join(probeRoot, "bin");
+    const marker = join(probeRoot, "invoked");
+    const helper = join(bin, "git-remote-custodyprobe");
+    await mkdir(bin, { recursive: true });
+    await writeFile(
+      helper,
+      `#!/bin/sh\ntouch ${JSON.stringify(marker)}\necho invoked >&2\nexit 1\n`,
+    );
+    await chmod(helper, 0o755);
+    runCommand(["git", "remote", "set-url", "origin", "custodyprobe::missing"], checkout);
+    runCommand(["git", "config", "remote.origin.promisor", "true"], checkout);
+    runCommand(["git", "config", "remote.origin.partialclonefilter", "blob:none"], checkout);
+    await rm(objectPath);
+
+    const probeEnvironment: Record<string, string | undefined> = {
+      ...process.env,
+      PATH: `${bin}:${process.env.PATH ?? ""}`,
+    };
+    delete probeEnvironment.GIT_NO_LAZY_FETCH;
+    const positiveCanary = Bun.spawnSync({
+      cmd: ["git", "-C", checkout, "cat-file", "blob", blob],
+      env: probeEnvironment,
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    expect(positiveCanary.exitCode).not.toBe(0);
+    expect(await readFile(marker, "utf8")).toBeDefined();
+    await rm(marker);
+
+    const result = runTsCli(
+      ["--root", fixture.project, "status", "demo.repo", "--json"],
+      probeEnvironment,
+    );
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout)[0].state).toBe("unverifiable");
+    expect(await Bun.file(marker).exists()).toBeFalse();
+  });
+
+  test("a symlinked managed checkout fails closed", async () => {
+    const { fixture, checkout } = await lockedFixture();
+    if (checkout === null) throw new Error("expected a materialized checkout");
+    const external = join(resolve(checkout, "..", "..", ".."), "external-checkout");
+    await rm(external, { force: true, recursive: true });
+    await mkdir(external);
+    await rm(checkout, { recursive: true });
+    await symlink(external, checkout);
+    const result = runTsCli(["--root", fixture.project, "status", "demo.repo", "--json"]);
+    expect(result.exitCode).toBe(1);
+    const [report] = JSON.parse(result.stdout);
+    expect(report.state).toBe("unverifiable");
+    expect(report.reasons.join(" ")).toContain("symlink");
+  });
+
+  for (const incompleteKind of ["gitlink", "lfs-pointer"] as const) {
+    test(`a non-license ${incompleteKind} remains visibly unmaterialized`, async () => {
+      const fixture = await localSiblingFixture();
+      if (incompleteKind === "gitlink") {
+        const commit = runCommand(["git", "rev-parse", "HEAD"], fixture.sibling);
+        runCommand(
+          ["git", "update-index", "--add", "--cacheinfo", "160000", commit, "nested"],
+          fixture.sibling,
+        );
+      } else {
+        await writeFile(
+          join(fixture.sibling, "payload.bin"),
+          `version https://git-lfs.github.com/spec/v1\noid sha256:${"0".repeat(64)}\nsize 4096\n`,
+        );
+        runCommand(["git", "add", "payload.bin"], fixture.sibling);
+      }
+      runCommand(
+        [
+          "git",
+          "-c",
+          "user.name=Semantic Custody Test",
+          "-c",
+          "user.email=custody@example.invalid",
+          "commit",
+          "-m",
+          `test: add ${incompleteKind}`,
+        ],
+        fixture.sibling,
+      );
+      await mkdir(join(fixture.project, "references"));
+      await writeFile(join(fixture.project, "references", "sources.toml"), fixture.sourceText);
+      const locked = runTsCli(["--root", fixture.project, "lock", "demo.repo", "--offline"]);
+      expect(locked.exitCode).toBe(0);
+      await installCheckout(fixture.project, fixture.sibling);
+      const args = ["--root", fixture.project, "status", "demo.repo", "--json"];
+      const bun = runTsCli(args);
+      const python = runPythonCli(args);
+      expect(bun.exitCode).toBe(1);
+      expect(bun.exitCode).toBe(python.exitCode);
+      const [report] = JSON.parse(bun.stdout);
+      expect(report.state).toBe("unverifiable");
+      expect(report.reasons.join(" ")).toContain(
+        incompleteKind === "gitlink" ? "submodule gitlink" : "Git LFS pointer",
+      );
+    });
+  }
 });
 
 describe("reference custody Effect v4 slice: CLI parity with Python", () => {

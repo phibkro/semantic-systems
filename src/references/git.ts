@@ -234,6 +234,10 @@ export interface TreeEntry {
   readonly size: bigint;
 }
 
+export interface TreePathEntry extends TreeEntry {
+  readonly path: string;
+}
+
 export const objectFormat = (repository: string) =>
   runGit(["-C", repository, "rev-parse", "--show-object-format"]).pipe(
     Effect.flatMap((result) => {
@@ -321,6 +325,185 @@ export const treeOfCommit = (repository: string, commit: string) =>
     Effect.map((result) => text(result).trim()),
   );
 
+/** Observe whether HEAD is detached, failing closed on non-quiet Git errors. */
+export const isDetachedHead = (
+  worktree: string,
+): Effect.Effect<
+  boolean,
+  AcquisitionError,
+  ChildProcessSpawner.ChildProcessSpawner | GitEnvironment
+> =>
+  runGit(["-C", worktree, "symbolic-ref", "-q", "HEAD"], { check: false }).pipe(
+    Effect.flatMap((result) => {
+      if (result.exitCode === 0) return Effect.succeed(false);
+      if (
+        result.exitCode === 1 &&
+        result.stdout.length === 0 &&
+        result.stderr.trim().length === 0
+      ) {
+        return Effect.succeed(true);
+      }
+      return Effect.fail(
+        new AcquisitionError({
+          message:
+            `cannot inspect checkout HEAD detachment (exit ${result.exitCode}): ` +
+            result.stderr.trim(),
+        }),
+      );
+    }),
+  );
+
+export const headCommit = (
+  worktree: string,
+): Effect.Effect<
+  string,
+  AcquisitionError,
+  ChildProcessSpawner.ChildProcessSpawner | GitEnvironment
+> =>
+  runGit(["-C", worktree, "rev-parse", "--verify", "HEAD"]).pipe(
+    Effect.map((result) => text(result).trim()),
+  );
+
+export const isCleanWorktree = (
+  worktree: string,
+): Effect.Effect<
+  boolean,
+  AcquisitionError,
+  ChildProcessSpawner.ChildProcessSpawner | GitEnvironment
+> =>
+  runGit([
+    "-C",
+    worktree,
+    "status",
+    "--porcelain=v1",
+    "--untracked-files=all",
+    "--ignored=no",
+  ]).pipe(Effect.map((result) => text(result).trim().length === 0));
+
+const splitNulRecords = (bytes: Uint8Array): ReadonlyArray<Uint8Array> => {
+  const records: Array<Uint8Array> = [];
+  let start = 0;
+  for (let index = 0; index < bytes.length; index += 1) {
+    if (bytes[index] !== 0) continue;
+    records.push(bytes.slice(start, index));
+    start = index + 1;
+  }
+  if (start < bytes.length) records.push(bytes.slice(start));
+  return records;
+};
+
+const decodePath = (bytes: Uint8Array, label: string): Effect.Effect<string, AcquisitionError> =>
+  Effect.try({
+    try: () => new TextDecoder("utf-8", { fatal: true }).decode(bytes),
+    catch: (cause) =>
+      new AcquisitionError({
+        message: `${label} contains a path that is not valid UTF-8`,
+        cause,
+      }),
+  });
+
+/**
+ * Expose index flags and sparse-checkout configuration that can suppress
+ * ordinary dirt. Every observation is read-only and inherits runGit's
+ * environment and transport hardening.
+ */
+export const hiddenIndexReasons = (
+  worktree: string,
+): Effect.Effect<
+  ReadonlyArray<string>,
+  AcquisitionError,
+  ChildProcessSpawner.ChildProcessSpawner | GitEnvironment
+> =>
+  Effect.gen(function* () {
+    const result = yield* runGit(["-C", worktree, "ls-files", "-v", "-z"], { check: false });
+    if (result.exitCode !== 0) {
+      return yield* new AcquisitionError({
+        message: `git ls-files -v failed: ${result.stderr.trim()}`,
+      });
+    }
+    const reasons: Array<string> = [];
+    for (const record of splitNulRecords(result.stdout)) {
+      if (record.length < 3 || record[1] !== 0x20) continue;
+      const marker = record[0]!;
+      const path = yield* decodePath(record.slice(2), "git ls-files -v output");
+      if (marker >= 0x61 && marker <= 0x7a) {
+        reasons.push(`tracked path ${JSON.stringify(path)} is hidden by assume-unchanged`);
+      }
+      if ((marker & 0xdf) === 0x53) {
+        reasons.push(`tracked path ${JSON.stringify(path)} is hidden by skip-worktree`);
+      }
+    }
+
+    const sparse = yield* runGit(["-C", worktree, "config", "--bool", "core.sparseCheckout"], {
+      check: false,
+    });
+    if (sparse.exitCode === 0) {
+      if (text(sparse).trim() === "true") {
+        reasons.push("checkout uses sparse-checkout and is not a complete locked tree");
+      }
+    } else if (sparse.exitCode !== 1) {
+      return yield* new AcquisitionError({
+        message:
+          `cannot inspect core.sparseCheckout (exit ${sparse.exitCode}): ` + sparse.stderr.trim(),
+      });
+    }
+    return reasons;
+  });
+
+/**
+ * Reject repository-local filter commands before any worktree comparison can
+ * cause Git to execute them. Includes are disabled so merely inspecting this
+ * boundary cannot widen the repository's configuration authority.
+ */
+export const repositoryProgramReasons = (
+  worktree: string,
+): Effect.Effect<
+  ReadonlyArray<string>,
+  AcquisitionError,
+  ChildProcessSpawner.ChildProcessSpawner | GitEnvironment
+> =>
+  runGit(
+    [
+      "-C",
+      worktree,
+      "config",
+      "--local",
+      "--no-includes",
+      "--null",
+      "--name-only",
+      "--get-regexp",
+      String.raw`^filter\..*\.(clean|smudge|process)$`,
+    ],
+    { check: false },
+  ).pipe(
+    Effect.flatMap((result) => {
+      if (result.exitCode === 1 && result.stdout.length === 0) return Effect.succeed([]);
+      if (result.exitCode !== 0) {
+        return Effect.fail(
+          new AcquisitionError({
+            message:
+              `cannot inspect repository-configured Git filters (exit ${result.exitCode}): ` +
+              result.stderr.trim(),
+          }),
+        );
+      }
+      if (result.stdout.length > 0 && result.stdout[result.stdout.length - 1] !== 0) {
+        return Effect.fail(
+          new AcquisitionError({
+            message: "repository-configured Git filter keys are not NUL-terminated",
+          }),
+        );
+      }
+      return Effect.forEach(splitNulRecords(result.stdout), (record) =>
+        decodePath(record, "repository-configured Git filter").pipe(
+          Effect.map(
+            (key) => `checkout config declares executable Git filter ${JSON.stringify(key)}`,
+          ),
+        ),
+      );
+    }),
+  );
+
 export const lsTreeEntry = (
   repository: string,
   commit: string,
@@ -384,6 +567,70 @@ export const lsTreeEntry = (
           }),
       });
     }),
+  );
+
+/**
+ * List every path in a committed tree without C-style path quoting. Invalid
+ * UTF-8 paths fail closed because the portable filesystem boundary cannot
+ * address them without silently changing their bytes.
+ */
+export const lsTreeRecursive = (
+  repository: string,
+  commit: string,
+): Effect.Effect<
+  ReadonlyArray<TreePathEntry>,
+  AcquisitionError,
+  ChildProcessSpawner.ChildProcessSpawner | GitEnvironment
+> =>
+  rejectOptionLike("commit", commit).pipe(
+    Effect.andThen(
+      runGit(["-C", repository, "ls-tree", "-r", "-l", "-z", "--full-tree", commit], {
+        check: false,
+      }),
+    ),
+    Effect.flatMap((result) =>
+      Effect.gen(function* () {
+        if (result.exitCode !== 0) {
+          return yield* new AcquisitionError({
+            message: `git ls-tree -r failed: ${result.stderr.trim()}`,
+          });
+        }
+        if (result.stdout.length > 0 && result.stdout[result.stdout.length - 1] !== 0) {
+          return yield* new AcquisitionError({
+            message: "unexpected non-NUL-terminated recursive ls-tree output",
+          });
+        }
+        const entries: Array<TreePathEntry> = [];
+        for (const record of splitNulRecords(result.stdout)) {
+          if (record.length === 0) continue;
+          const tab = record.indexOf(0x09);
+          if (tab < 0) {
+            return yield* new AcquisitionError({
+              message: "unexpected recursive ls-tree record without a path separator",
+            });
+          }
+          const metadata = yield* decodePath(record.slice(0, tab), "recursive ls-tree metadata");
+          const fields = metadata.split(/\s+/);
+          if (fields.length !== 4) {
+            return yield* new AcquisitionError({
+              message: `unexpected recursive ls-tree metadata ${JSON.stringify(metadata)}`,
+            });
+          }
+          const [mode, objectType, oid, rawSize] = fields as [string, string, string, string];
+          const path = yield* decodePath(record.slice(tab + 1), "recursive ls-tree output");
+          const size = yield* Effect.try({
+            try: () => (rawSize === "-" ? -1n : BigInt(rawSize)),
+            catch: (cause) =>
+              new AcquisitionError({
+                message: `invalid recursive ls-tree size for ${JSON.stringify(path)}`,
+                cause,
+              }),
+          });
+          entries.push({ path, mode, objectType, oid, size });
+        }
+        return entries;
+      }),
+    ),
   );
 
 export const blobSha256 = (

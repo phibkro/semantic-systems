@@ -1,6 +1,11 @@
+import { type Crypto, Effect, type FileSystem, type Path } from "effect";
+import type { ChildProcessSpawner } from "effect/unstable/process";
 import type { CatalogSource } from "./catalog.ts";
 import { isConcreteGitRef } from "./catalog.ts";
+import type { GitEnvironment } from "./git.ts";
 import type { Lock, LockEntry } from "./lockfile.ts";
+import { inspectManagedDirectory } from "./paths.ts";
+import { verifyCheckout } from "./verify.ts";
 
 export type CustodyState =
   | "queued_unlocked"
@@ -82,8 +87,7 @@ const STRICT_OK_STATES: ReadonlySet<CustodyState> = new Set([
  * Whether `report` satisfies strict status for the mode it ran in.
  * `--lock-only` never opens a checkout, so its success bar is a
  * structurally valid, undrifted lock (`locked_unmaterialized`); the strict
- * default still requires an actual verified materialization (out of scope
- * for this lock-only slice, so that branch is unreachable here).
+ * default requires an actual verified materialization.
  */
 export const isStrictOk = (report: StatusReport): boolean =>
   report.lockOnly ? report.state === "locked_unmaterialized" : STRICT_OK_STATES.has(report.state);
@@ -111,10 +115,7 @@ const reportFromEntry = (
 
 /**
  * Network-free, mutation-free strict status computed against catalog and
- * lock data alone. Only the three states reachable without inspecting a
- * checkout (`queued_unlocked`, `drifted`, `locked_unmaterialized`) are
- * produced; materialized/unverifiable states require the checkout
- * inspection this slice does not port (design spec 0004's `verify.py`).
+ * lock data alone.
  */
 export const computeLockOnlyStatus = (
   source: CatalogSource,
@@ -153,6 +154,71 @@ export const computeLockOnlyStatus = (
   );
 };
 
+type StatusCapabilities =
+  | ChildProcessSpawner.ChildProcessSpawner
+  | Crypto.Crypto
+  | FileSystem.FileSystem
+  | GitEnvironment
+  | Path.Path;
+
+/**
+ * Compute all six custody states. Full status opens only the managed checkout
+ * and invokes hardened, transport-disabled Git observations; it never
+ * acquires the curator lock because it performs no mutation.
+ */
+export const computeStatus = (
+  source: CatalogSource,
+  sourceDigest: string,
+  lock: Lock,
+  referencesRoot: string,
+  lockOnly: boolean,
+): Effect.Effect<StatusReport, never, StatusCapabilities> =>
+  Effect.gen(function* () {
+    const preliminary = computeLockOnlyStatus(source, sourceDigest, lock);
+    if (lockOnly) return preliminary;
+    if (preliminary.state !== "locked_unmaterialized") {
+      return { ...preliminary, lockOnly: false };
+    }
+
+    const entry = lock.sources.get(source.id);
+    if (entry === undefined) return { ...preliminary, lockOnly: false };
+    const checkout = yield* inspectManagedDirectory(referencesRoot, source.id, "checkout").pipe(
+      Effect.map((target) => ({ kind: "success" as const, target })),
+      Effect.catch((error) => Effect.succeed({ kind: "failure" as const, error })),
+    );
+    if (checkout.kind === "failure") {
+      return reportFromEntry(source.id, entry, "unverifiable", [checkout.error.message], false);
+    }
+    if (checkout.target === null) {
+      return reportFromEntry(source.id, entry, "locked_unmaterialized", [], false);
+    }
+
+    const verification = yield* verifyCheckout(checkout.target, entry);
+    if (verification.headMismatch !== null) {
+      return reportFromEntry(source.id, entry, "drifted", verification.reasons, false);
+    }
+    if (verification.reasons.length > 0) {
+      return reportFromEntry(source.id, entry, "unverifiable", verification.reasons, false);
+    }
+    return reportFromEntry(
+      source.id,
+      entry,
+      entry.originVerified ? "materialized_verified" : "materialized_with_visible_assumption",
+      [],
+      false,
+    );
+  });
+
 /** Report a lock observation whose canonical catalog source was removed. */
-export const orphanedLockReport = (sourceId: string, entry: LockEntry): StatusReport =>
-  reportFromEntry(sourceId, entry, "drifted", ["lock entry has no current catalog source"], true);
+export const orphanedLockReport = (
+  sourceId: string,
+  entry: LockEntry,
+  lockOnly = true,
+): StatusReport =>
+  reportFromEntry(
+    sourceId,
+    entry,
+    "drifted",
+    ["lock entry has no current catalog source"],
+    lockOnly,
+  );

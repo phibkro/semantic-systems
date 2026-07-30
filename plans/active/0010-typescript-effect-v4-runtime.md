@@ -19,13 +19,13 @@ Owner: main integration agent
   selected TypeScript, Unicorn, Import, and Promise rules. Effect-aware
   `@effect/tsgo` diagnostics and the local architecture plugin remain
   dependency-gated.
-- Remaining Python surface: reference custody's remote acquisition,
-  materialization, checkout verification, and the checkout-inspecting half of
-  status; online/general `lock`, `materialize`, and its test module; plus
-  transitional Nix/fast/integration wiring.
+- Remaining Python surface: reference custody's remote acquisition and
+  materialization; online/general `lock`, `materialize`, and the transitional
+  differential test module; plus transitional Nix/fast/integration wiring.
   Catalog/lock parsing, atomic lock writing, the interoperable curator guard,
   transactional offline locking from local siblings or managed object caches,
-  and network-free `status --lock-only` are now TypeScript (see item 6 below).
+  checkout verification, and both network-free status modes are now TypeScript
+  (see item 6 below).
   Project model, tracer, and governance tests are TypeScript.
 - External `.references/` checkouts are excluded from repository-source
   migration.
@@ -57,18 +57,18 @@ Other active feature worktrees and their owned files remain forbidden.
    parity and a final pinned Python oracle pass.**
 5. Recut the independent checker against the accepted TypeScript resolver.
 6. Implement reference custody with explicit Git/filesystem/lock services.
-   **Catalog/lock/status-lock-only boundary complete** (`src/references/`):
+   **Catalog/lock/offline-lock/full-status boundary complete**
+   (`src/references/`):
    `sources.toml` parsing/validation, `reference-lock-v1` parsing, canonical
-   catalog digests, atomic lock writing, network-free `status --lock-only`,
-   offline local-sibling and managed-cache Git observation, an interoperable
-   kernel curator guard, and all-or-nothing offline lock publication now run
-   on Effect v4 under Bun and Node. The
+   catalog digests, atomic lock writing, offline local-sibling and managed-cache
+   Git observation, an interoperable kernel curator guard, all-or-nothing
+   offline lock publication, checkout verification, and both network-free
+   status modes now run on Effect v4 under Bun and Node. The
    parsing/status/writer suite remains differential against the Python oracle;
    Git security boundaries use adversarial fixtures and deliberately exceed
    Python where review exposed shared defects. Remote acquisition,
-   materialization, checkout verification, and the remaining
-   `lock`/`materialize` CLI surface remain Python and are the rest of this
-   item.
+   materialization, and the remaining `lock`/`materialize` CLI surface remain
+   Python and are the rest of this item.
 7. Migrate development-control and policy tests to Bun. **Complete for
    development-control and reuse-first governance; custody tests remain with
    their owning implementation slice.**
@@ -395,3 +395,28 @@ accepted; no new Python implementation is permitted.
   tests. Remote cache construction/publication and materialization remain
   deferred. Nix and broad integration gates were not run while host I/O full
   pressure remained above 80%.
+- 2026-07-30: ported checkout verification and the checkout-inspecting half of
+  `status` to the portable Effect v4 custody core. Full status now derives all
+  six frozen custody states without network or mutation and binds a managed
+  checkout to a detached exact HEAD, locked commit/tree, clean worktree
+  including ordinary untracked dirt, visible index/sparse suppression, every
+  committed and working-tree license observation, and complete-tree Gitlink
+  and LFS indirections. Stable symlink/path escapes and invalid UTF-8 Git paths
+  fail closed. Read-only Git commands retain the sealed environment,
+  replacement-ref denial, `GIT_NO_LAZY_FETCH`, and `--no-optional-locks`.
+  A red adversarial oracle additionally demonstrated that same-size dirt can
+  make `git status` execute a repository-configured clean filter; full status
+  now inspects local configuration without includes and rejects executable
+  clean/smudge/process filters before comparing the worktree. The Python
+  verifier/status modules and existing Git utilities were evaluated as the
+  temporary differential oracle; the accepted Effect FileSystem, Path, Crypto,
+  process, and Git services were reused without a new dependency or runtime
+  adapter. Bun/Python state and exit behavior agree on exact, absent, attached,
+  drifted, dirty, hidden-index, verified-origin, tree/license-tampered, Gitlink,
+  and LFS fixtures; the exact materialized result also agrees under Node.
+  Positive transport canaries prove missing promisor objects fail without
+  opening their helper, and index bytes/mtime remain unchanged. Remote
+  acquisition and materialization remain the next custody slices. All 85
+  focused custody tests, exact Effect/TypeScript diagnostics, full Oxlint,
+  Oxfmt, and diff hygiene pass; broad and Nix gates remain deferred while host
+  I/O full pressure remains above 80%.

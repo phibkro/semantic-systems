@@ -1,4 +1,4 @@
-import { Effect, FileSystem, Path } from "effect";
+import { Effect, FileSystem, Option, Path } from "effect";
 import { isValidSourceId } from "./catalog.ts";
 import { AcquisitionError } from "./errors.ts";
 
@@ -48,6 +48,151 @@ const inspectDirectory = (
       return yield* pathError(`${label} ${path} is not a directory`);
     }
     return path;
+  });
+
+const requireSafeRelativePath = (
+  relativePath: string,
+  label: string,
+): Effect.Effect<ReadonlyArray<string>, AcquisitionError> => {
+  const parts = relativePath.split("/");
+  return relativePath.length > 0 &&
+    !relativePath.startsWith("/") &&
+    !relativePath.includes("\\") &&
+    parts.every((part) => part.length > 0 && part !== "." && part !== "..")
+    ? Effect.succeed(parts)
+    : Effect.fail(
+        pathError(`${label} ${JSON.stringify(relativePath)} is not a safe relative path`),
+      );
+};
+
+const ensureNotLink = (
+  path: string,
+  symlinkMessage: string,
+): Effect.Effect<void, AcquisitionError, FileSystem.FileSystem> =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const linked = yield* fs.readLink(path).pipe(
+      Effect.as(true),
+      Effect.catch((cause) => {
+        const code = errnoCode(cause);
+        return code === "EINVAL" || code === "ENOENT"
+          ? Effect.succeed(false)
+          : Effect.fail(pathError(`cannot inspect ${path} without following links`, cause));
+      }),
+    );
+    if (linked) return yield* pathError(symlinkMessage);
+  });
+
+interface WorktreeReadMessages {
+  readonly symlink: string;
+  readonly missing: string;
+  readonly escape: string;
+  readonly notFile: string;
+  readonly unreadable: string;
+}
+
+const inspectWorktreeFile = (
+  worktree: string,
+  relativePath: string,
+  label: string,
+  messages: WorktreeReadMessages,
+): Effect.Effect<string, AcquisitionError, FileSystem.FileSystem | Path.Path> =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const paths = yield* Path.Path;
+    const parts = yield* requireSafeRelativePath(relativePath, label);
+    const root = paths.resolve(worktree);
+    let current = root;
+    for (let index = 0; index < parts.length; index += 1) {
+      current = paths.join(current, parts[index]!);
+      yield* ensureNotLink(current, messages.symlink);
+      const info = yield* fs
+        .stat(current)
+        .pipe(
+          Effect.mapError((cause) =>
+            errnoCode(cause) === "ENOENT"
+              ? pathError(messages.missing, cause)
+              : pathError(`cannot inspect ${label} ${JSON.stringify(relativePath)}`, cause),
+          ),
+        );
+      if (index < parts.length - 1 && info.type !== "Directory") {
+        return yield* pathError(messages.escape);
+      }
+      if (index === parts.length - 1 && info.type !== "File") {
+        return yield* pathError(messages.notFile);
+      }
+    }
+
+    const [realRoot, realFile] = yield* Effect.all([
+      fs.realPath(root),
+      fs.realPath(current),
+    ] as const).pipe(
+      Effect.mapError((cause) =>
+        pathError(`cannot resolve ${label} ${JSON.stringify(relativePath)}`, cause),
+      ),
+    );
+    const relation = paths.relative(realRoot, realFile);
+    if (relation === ".." || relation.startsWith(`..${paths.sep}`) || paths.isAbsolute(relation)) {
+      return yield* pathError(messages.escape);
+    }
+    return current;
+  });
+
+const licenseMessages = (path: string): WorktreeReadMessages => ({
+  symlink: `license path ${JSON.stringify(path)} is a symlink in the checkout`,
+  missing: `license path ${JSON.stringify(path)} is missing from the checkout`,
+  escape: `license path ${JSON.stringify(path)} escapes the checkout directory`,
+  notFile: `license path ${JSON.stringify(path)} is not a regular file in the checkout`,
+  unreadable: `license path ${JSON.stringify(path)} cannot be read`,
+});
+
+const trackedMessages = (path: string): WorktreeReadMessages => ({
+  symlink: `tracked path ${JSON.stringify(path)} is an unexpected symlink`,
+  missing: `tracked path ${JSON.stringify(path)} is missing`,
+  escape: `tracked path ${JSON.stringify(path)} escapes the checkout directory`,
+  notFile: `tracked path ${JSON.stringify(path)} is not a regular file`,
+  unreadable: `tracked path ${JSON.stringify(path)} cannot be opened no-follow`,
+});
+
+/** Read the ordinary checkout bytes for a declared license without following stable links. */
+export const readWorktreeBlobBytes = (
+  worktree: string,
+  relativePath: string,
+): Effect.Effect<Uint8Array, AcquisitionError, FileSystem.FileSystem | Path.Path> =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const messages = licenseMessages(relativePath);
+    const target = yield* inspectWorktreeFile(worktree, relativePath, "license path", messages);
+    return yield* fs
+      .readFile(target)
+      .pipe(Effect.mapError((cause) => pathError(messages.unreadable, cause)));
+  });
+
+/** Read only a bounded prefix of a tracked regular file. */
+export const readWorktreeFilePrefix = (
+  worktree: string,
+  relativePath: string,
+  length: number,
+): Effect.Effect<Uint8Array, AcquisitionError, FileSystem.FileSystem | Path.Path> =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const messages = trackedMessages(relativePath);
+    const target = yield* inspectWorktreeFile(worktree, relativePath, "tracked path", messages);
+    return yield* Effect.scoped(
+      Effect.gen(function* () {
+        const file = yield* fs
+          .open(target, { flag: "r" })
+          .pipe(Effect.mapError((cause) => pathError(messages.unreadable, cause)));
+        const info = yield* file.stat.pipe(
+          Effect.mapError((cause) => pathError(messages.unreadable, cause)),
+        );
+        if (info.type !== "File") return yield* pathError(messages.notFile);
+        const bytes = yield* file
+          .readAlloc(length)
+          .pipe(Effect.mapError((cause) => pathError(messages.unreadable, cause)));
+        return Option.getOrElse(bytes, () => new Uint8Array());
+      }),
+    );
   });
 
 /**
