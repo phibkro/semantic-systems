@@ -21,6 +21,11 @@ import {
   type JsonObject,
 } from "./json.ts";
 import { realizationAssumptions, realizationId, type Realization } from "./realization.ts";
+import {
+  buildResolutionClaim,
+  type ResolutionClaim,
+  type ResolutionClaimCandidate,
+} from "./resolution-claim.ts";
 import type { Theory } from "./theory.ts";
 
 export const REASON_MISSING_EVIDENCE = "missing_evidence";
@@ -417,4 +422,51 @@ export const resolve = (
       catch: (cause) =>
         cause instanceof DocumentError ? cause : new DocumentError({ message: "cannot resolve deployment", cause }),
     });
+  });
+
+/**
+ * The narrow production mapping from a resolved `Resolution` to a
+ * serialized `resolution_claim_v1` (design spec 0003 slice 4). This is the
+ * only place `resolver.ts` reaches into `resolution-claim.ts`: it converts
+ * each `Candidate` into that module's plain `ResolutionClaimCandidate`
+ * input shape and delegates every claim invariant (uniqueness, exclusivity,
+ * eligible/reason-set agreement, selected-subject and assumption-projection
+ * consistency) to `buildResolutionClaim`. The field-mapping shape —
+ * `artifact_kind`/`schema_version` literals, `theory`/`policy`/`selected`
+ * identity pairs, `candidates`, `status`, and `selected_assumptions` — was
+ * evaluated against and adapts the equivalent mapping in the rejected
+ * `a373ae9:src/tracer/resolver.ts` experiment (reverted at `adf7e8d`), most
+ * directly its `policy.content_identity = contentIdentity(policy)` over the
+ * complete raw policy document. That experiment's packet parser, checker,
+ * checker-input, model-binding, and trust semantics are not present here
+ * and are not reused; this module also adds the typed nested contracts,
+ * strict Effect parser, deterministic presentation-only ordering, and
+ * duplicate/exclusivity/coherence rejections the rejected experiment did
+ * not have.
+ */
+export const buildResolutionClaimFromResolution = (
+  theoryId: string,
+  theory: Theory,
+  policy: JsonObject,
+  resolution: Resolution,
+): Effect.Effect<ResolutionClaim, DocumentError, Crypto.Crypto> =>
+  buildResolutionClaim({
+    theoryId,
+    theoryIdentity: theory.identity,
+    requiredObligation: requiredObligation(theory),
+    policy,
+    candidates: resolution.candidates.map(
+      (candidate): ResolutionClaimCandidate => ({
+        realizationId: realizationId(candidate.realization),
+        realizationIdentity: candidate.realization.identity,
+        targetsTheory: candidate.realization.targetsTheory,
+        realizationAssumptions: realizationAssumptions(candidate.realization),
+        evidence: candidate.evidence,
+        producerDiagnostic: candidate.producerDiagnostic,
+        eligible: candidate.eligible,
+        reasonCodes: candidate.reasonCodes,
+      }),
+    ),
+    status: resolution.status,
+    selectedRealizationId: resolution.selectedRealization,
   });

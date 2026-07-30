@@ -5,13 +5,10 @@ import { explanationToJson, type ExplanationNode } from "./explanation.ts";
 import { DocumentError, requireKey, requireString, type JsonObject } from "./json.ts";
 import { loadInventory } from "./loader.ts";
 import { resolveReplay, resolveTransition } from "./operations.ts";
+import { normalizeRealization, operationBinding, realizationId } from "./realization.ts";
+import { resolutionClaimToJson, type ResolutionClaim } from "./resolution-claim.ts";
 import {
-  normalizeRealization,
-  operationBinding,
-  realizationAssumptions,
-  realizationId,
-} from "./realization.ts";
-import {
+  buildResolutionClaimFromResolution,
   candidateExplanation,
   requiredObligation,
   resolutionToJson,
@@ -26,6 +23,7 @@ export interface DemoResult {
   readonly theory: Theory;
   readonly theoryId: string;
   readonly resolution: Resolution;
+  readonly resolutionClaim: ResolutionClaim;
   readonly execution: ExecutionResult | null;
   readonly assumptions: ReadonlyArray<string>;
   readonly explanation: ExplanationNode;
@@ -34,23 +32,11 @@ export interface DemoResult {
 export const demoToJson = (result: DemoResult): JsonObject => ({
   theory: { id: result.theoryId, identity: result.theory.identity },
   resolution: resolutionToJson(result.resolution),
+  resolution_claim: resolutionClaimToJson(result.resolutionClaim),
   execution: result.execution === null ? null : executionToJson(result.execution),
   assumptions: result.assumptions,
   explanation: explanationToJson(result.explanation),
 });
-
-const aggregateAssumptions = (resolution: Resolution): ReadonlyArray<string> => {
-  if (resolution.status !== "selected") return [];
-  const selected = resolution.candidates.find(
-    (candidate) => realizationId(candidate.realization) === resolution.selectedRealization,
-  )!;
-  return [
-    ...new Set([
-      ...realizationAssumptions(selected.realization),
-      ...(selected.evidence?.assumptions ?? []),
-    ]),
-  ];
-};
 
 export const runDemo = (
   root: string,
@@ -81,6 +67,12 @@ export const runDemo = (
       ),
     );
     const resolution = yield* resolve(theory, realizations, evidenceOutcomes, fixture.policy);
+    const resolutionClaim = yield* buildResolutionClaimFromResolution(
+      theoryId,
+      theory,
+      fixture.policy,
+      resolution,
+    );
     return yield* Effect.try({
       try: () => {
         let execution: ExecutionResult | null = null;
@@ -93,7 +85,7 @@ export const runDemo = (
             resolveTransition(operationBinding(selected.realization.document, "transition")),
           );
         }
-        const assumptions = aggregateAssumptions(resolution);
+        const assumptions = resolutionClaim.selectedAssumptions;
         const explanation: ExplanationNode = {
           rule: "resolve_inventory_deployment",
           outcome: resolution.status,
@@ -117,6 +109,7 @@ export const runDemo = (
           theory,
           theoryId,
           resolution,
+          resolutionClaim,
           execution,
           assumptions,
           explanation,

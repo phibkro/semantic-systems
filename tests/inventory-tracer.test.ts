@@ -26,6 +26,14 @@ import { loadInventory } from "../src/tracer/loader.ts";
 import { resolveReplay, resolveTransition } from "../src/tracer/operations.ts";
 import { normalizeRealization, operationBinding, realizationId } from "../src/tracer/realization.ts";
 import {
+  ARTIFACT_KIND_RESOLUTION_CLAIM,
+  RESOLUTION_CLAIM_SCHEMA_VERSION,
+  buildResolutionClaim,
+  parseResolutionClaim,
+  resolutionClaimToJson,
+  type ResolutionClaimCandidate,
+} from "../src/tracer/resolution-claim.ts";
+import {
   candidateExplanation,
   candidateToJson,
   requiredObligation,
@@ -1866,6 +1874,301 @@ describe("evidence-production boundary and resolver packet consumption", () => {
     // alias that the basename check above would miss.
     const combinedSource = [...closure.sources.values()].join("\n");
     for (const symbol of ["runConformance", "produceEvidence"]) {
+      expect(combinedSource).not.toContain(symbol);
+    }
+  });
+
+  // resolution_claim_v1 (design spec 0003 slice 4): serialization,
+  // deterministic presentation-only ordering, internal-coherence
+  // validation, and the forbidden-import closure gate.
+  const provideCrypto = <A, E>(effect: Effect.Effect<A, E, Crypto.Crypto>): Effect.Effect<A, E> =>
+    effect.pipe(Effect.provide([BunCrypto.layer]));
+  const runCrypto = <A, E>(effect: Effect.Effect<A, E, Crypto.Crypto>): Promise<A> =>
+    Effect.runPromise(provideCrypto(effect));
+  const expectClaimFailure = async (document: JsonObject, message: string) => {
+    const exit = await Effect.runPromiseExit(provideCrypto(parseResolutionClaim(document)));
+    expect(Exit.isFailure(exit)).toBeTrue();
+    if (Exit.isFailure(exit)) expect(String(exit.cause)).toContain(message);
+  };
+  const developmentClaimJson = async (): Promise<JsonObject> =>
+    resolutionClaimToJson((await runBun(runDemo(INVENTORY, "development"))).resolutionClaim);
+  const highAssuranceClaimJson = async (): Promise<JsonObject> =>
+    resolutionClaimToJson((await runBun(runDemo(INVENTORY, "high-assurance"))).resolutionClaim);
+  const claimCandidate = (json: JsonObject, id: string): JsonObject =>
+    (json.candidates as ReadonlyArray<JsonObject>).find(
+      (item) => (item.realization as JsonObject).id === id,
+    )!;
+  const withCandidate = (
+    json: JsonObject,
+    id: string,
+    patch: (candidate: JsonObject) => JsonObject,
+  ): JsonObject => ({
+    ...json,
+    candidates: (json.candidates as ReadonlyArray<JsonObject>).map((item) =>
+      (item.realization as JsonObject).id === id ? patch(item) : item,
+    ),
+  });
+
+  test("resolution_claim_v1 round-trips a selected claim losslessly", async () => {
+    const json = await developmentClaimJson();
+    expect(json.artifact_kind).toBe(ARTIFACT_KIND_RESOLUTION_CLAIM);
+    expect(json.schema_version).toBe(RESOLUTION_CLAIM_SCHEMA_VERSION);
+    expect(json.status).toBe("selected");
+    expect((json.selected as JsonObject).id).toBe("realization.inventory.pure");
+    const parsed = await runCrypto(parseResolutionClaim(json));
+    expect(resolutionClaimToJson(parsed)).toEqual(json);
+  });
+
+  test("resolution_claim_v1 round-trips a rejected claim losslessly", async () => {
+    const json = await highAssuranceClaimJson();
+    expect(json.status).toBe("rejected");
+    expect(json.selected).toBeNull();
+    expect(json.selected_assumptions).toEqual([]);
+    const parsed = await runCrypto(parseResolutionClaim(json));
+    expect(resolutionClaimToJson(parsed)).toEqual(json);
+  });
+
+  test("exact policy content identity and selected realization identity are visible and independently recomputable", async () => {
+    const fixture = await runBun(loadInventory(INVENTORY, "development"));
+    const expectedPolicyIdentity = await runBun(contentIdentity(fixture.policy));
+    const json = await developmentClaimJson();
+    const policy = json.policy as JsonObject;
+    expect(policy.id).toBe("policy.inventory.development");
+    expect(policy.content_identity).toBe(expectedPolicyIdentity);
+    const selected = json.selected as JsonObject;
+    expect(selected.id).toBe("realization.inventory.pure");
+    expect(selected.identity).toBe(
+      "sha256:67a6b723fa37eaaa7fffe0890f27174f2d04027e05f3eaf8760d9a430a7201b9",
+    );
+  });
+
+  test("selected assumptions are sorted, unique, and derived from both the realization and the evidence; rejected claims project none", async () => {
+    const json = await developmentClaimJson();
+    expect(json.selected_assumptions).toEqual([
+      "All fixture quantities stay within JavaScript's exact safe-integer range.",
+      "Operation binding names are interpreted by the in-process TypeScript builtin registry.",
+      "The nine authored cases adequately sample the v0 contract for development selection.",
+    ]);
+    const rejectedJson = await highAssuranceClaimJson();
+    expect(rejectedJson.selected_assumptions).toEqual([]);
+  });
+
+  test("reversed candidate and reason presentation order normalizes to identical JSON", async () => {
+    const fixtureEvidence = async (realizationIdentity: string): Promise<EvidenceResult> => {
+      const withoutIdentity: Omit<EvidenceResult, "identity"> = {
+        artifactKind: ARTIFACT_KIND_EVIDENCE_RESULT,
+        schemaVersion: EVIDENCE_RESULT_SCHEMA_VERSION,
+        category: "example_test",
+        producer: { id: "producer.test", version: "0" },
+        recipeIdentity: "sha256:fixture-recipe",
+        theoryIdentity: "sha256:fixture-theory",
+        realizationIdentity,
+        obligation: "obligation.inventory.conformance",
+        assumptions: [],
+        caseResults: [{ caseId: "case-a", passed: true, detail: null }],
+      };
+      const identity = await runBun(contentIdentity(evidenceResultIdentityPayload(withoutIdentity)));
+      return { identity, ...withoutIdentity };
+    };
+    const winner: ResolutionClaimCandidate = {
+      realizationId: "realization.z",
+      realizationIdentity: "sha256:fixture-realization-z",
+      targetsTheory: true,
+      realizationAssumptions: [],
+      evidence: await fixtureEvidence("sha256:fixture-realization-z"),
+      producerDiagnostic: null,
+      eligible: true,
+      reasonCodes: [],
+    };
+    const rejectedForward: ResolutionClaimCandidate = {
+      realizationId: "realization.a",
+      realizationIdentity: "sha256:fixture-realization-a",
+      targetsTheory: true,
+      realizationAssumptions: [],
+      evidence: await fixtureEvidence("sha256:fixture-realization-a"),
+      producerDiagnostic: null,
+      eligible: false,
+      reasonCodes: ["conformance_failed", "assumptions_not_allowed"],
+    };
+    const rejectedReversed: ResolutionClaimCandidate = {
+      ...rejectedForward,
+      reasonCodes: ["assumptions_not_allowed", "conformance_failed"],
+    };
+    const buildInput = {
+      theoryId: "theory.fixture",
+      theoryIdentity: "sha256:fixture-theory",
+      requiredObligation: "obligation.inventory.conformance",
+      policy: { id: "policy.fixture" },
+      status: "selected" as const,
+      selectedRealizationId: "realization.z",
+    };
+    const forward = await runCrypto(
+      buildResolutionClaim({ ...buildInput, candidates: [winner, rejectedForward] }),
+    );
+    const reversed = await runCrypto(
+      buildResolutionClaim({ ...buildInput, candidates: [rejectedReversed, winner] }),
+    );
+    const forwardJson = resolutionClaimToJson(forward);
+    expect(resolutionClaimToJson(reversed)).toEqual(forwardJson);
+    const candidateIds = (forwardJson.candidates as ReadonlyArray<JsonObject>).map(
+      (item) => (item.realization as JsonObject).id,
+    );
+    expect(candidateIds).toEqual(["realization.a", "realization.z"]);
+    expect((forwardJson.candidates as ReadonlyArray<JsonObject>)[0]!.reason_codes).toEqual([
+      "assumptions_not_allowed",
+      "conformance_failed",
+    ]);
+  });
+
+  test("two distinct authored candidate IDs sharing one content identity round-trip without collapse and remain represented by the rejected ambiguity claim", async () => {
+    const inventory = await copyInventory();
+    const pure = (await readJson(join(inventory, "realizations", "pure.json"))) as Record<
+      string,
+      unknown
+    >;
+    pure.id = "realization.inventory.pure-copy";
+    pure.name = "Second lawful pure realization";
+    await writeJson(join(inventory, "realizations", "pure-copy.json"), pure);
+
+    const result = await runBun(runDemo(inventory));
+    expect(result.resolutionClaim.status).toBe("rejected");
+    expect(result.resolutionClaim.selected).toBeNull();
+    expect(result.resolutionClaim.selectedAssumptions).toEqual([]);
+
+    const json = resolutionClaimToJson(result.resolutionClaim);
+    const candidatesJson = json.candidates as ReadonlyArray<JsonObject>;
+    expect(candidatesJson.map((item) => (item.realization as JsonObject).id)).toEqual([
+      "realization.inventory.broken",
+      "realization.inventory.pure",
+      "realization.inventory.pure-copy",
+    ]);
+    const pureEntry = claimCandidate(json, "realization.inventory.pure");
+    const pureCopyEntry = claimCandidate(json, "realization.inventory.pure-copy");
+    expect((pureEntry.realization as JsonObject).identity).toBe(
+      (pureCopyEntry.realization as JsonObject).identity,
+    );
+    expect(pureEntry.eligible).toBeTrue();
+    expect(pureCopyEntry.eligible).toBeTrue();
+
+    const parsed = await runCrypto(parseResolutionClaim(json));
+    expect(resolutionClaimToJson(parsed)).toEqual(json);
+    expect(parsed.candidates.length).toBe(3);
+  });
+
+  test("resolution_claim_v1 parser rejects each required mutation with a stable message", async () => {
+    const base = await developmentClaimJson();
+
+    await expectClaimFailure({ ...base, artifact_kind: "something_else" }, "artifact_kind");
+    await expectClaimFailure({ ...base, schema_version: 2 }, "schema_version");
+    await expectClaimFailure({ ...base, unexpected: true }, "unknown top-level key");
+
+    const winnerId = "realization.inventory.pure";
+    const brokenId = "realization.inventory.broken";
+    const winner = claimCandidate(base, winnerId);
+    const broken = claimCandidate(base, brokenId);
+
+    // unknown candidate field
+    await expectClaimFailure(
+      withCandidate(base, winnerId, (candidate) => ({ ...candidate, unexpected: true })),
+      "unknown key",
+    );
+
+    // empty identifier ("empty binding")
+    await expectClaimFailure(
+      withCandidate(base, winnerId, (candidate) => ({
+        ...candidate,
+        realization: { ...(candidate.realization as JsonObject), id: "" },
+      })),
+      "nonempty string",
+    );
+
+    // duplicate candidate ID
+    await expectClaimFailure({ ...base, candidates: [winner, winner, broken] }, "duplicate");
+
+    // duplicate reason codes within one candidate
+    await expectClaimFailure(
+      withCandidate(base, brokenId, (candidate) => ({
+        ...candidate,
+        reason_codes: ["conformance_failed", "conformance_failed"],
+      })),
+      "duplicate",
+    );
+
+    // evidence-plus-diagnostic (exclusivity)
+    await expectClaimFailure(
+      withCandidate(base, winnerId, (candidate) => ({
+        ...candidate,
+        producer_diagnostic: { kind: "missing_evidence", message: "synthetic" },
+      })),
+      "exactly one is required",
+    );
+
+    // neither payload (exclusivity)
+    await expectClaimFailure(
+      withCandidate(base, winnerId, (candidate) => ({ ...candidate, evidence: null })),
+      "exactly one is required",
+    );
+
+    // malformed embedded evidence
+    await expectClaimFailure(
+      withCandidate(base, winnerId, (candidate) => ({
+        ...candidate,
+        evidence: { ...(candidate.evidence as JsonObject), category: "proof" },
+      })),
+      "category",
+    );
+
+    // eligible/reason inconsistency
+    await expectClaimFailure(
+      withCandidate(base, winnerId, (candidate) => ({
+        ...candidate,
+        reason_codes: ["conformance_failed"],
+      })),
+      "eligible",
+    );
+
+    // status/selected inconsistency
+    await expectClaimFailure({ ...base, status: "rejected" }, "status is 'rejected'");
+
+    // wrong selected subject
+    await expectClaimFailure(
+      { ...base, selected: (broken.realization as JsonObject) },
+      "does not match",
+    );
+
+    // stale selected-assumption projection
+    await expectClaimFailure({ ...base, selected_assumptions: [] }, "stale");
+  });
+
+  test("resolution-claim.ts's transitive relative-import closure never reaches production, execution, or I/O modules", async () => {
+    const entry = join(ROOT, "src", "tracer", "resolution-claim.ts");
+    const closure = await transitiveRelativeImportClosure(entry);
+
+    const forbiddenBasenames = [
+      "resolver.ts",
+      "demo.ts",
+      "evidence.ts",
+      "domain.ts",
+      "operations.ts",
+      "execution.ts",
+      "loader.ts",
+      "cli.ts",
+      "main-bun.ts",
+      "main-node.ts",
+    ];
+    const visitedBasenames = [...closure.files].map((path) => path.split("/").pop()!);
+    for (const basename of forbiddenBasenames) {
+      expect(visitedBasenames).not.toContain(basename);
+    }
+
+    const ALLOWED_BARE_IMPORTS = new Set(["effect"]);
+    const disallowedBareImports = [...closure.bareImports].filter(
+      (specifier) => !ALLOWED_BARE_IMPORTS.has(specifier),
+    );
+    expect(disallowedBareImports).toEqual([]);
+
+    const combinedSource = [...closure.sources.values()].join("\n");
+    for (const symbol of ["runConformance", "produceEvidence", "loadInventory", "executeScenario"]) {
       expect(combinedSource).not.toContain(symbol);
     }
   });

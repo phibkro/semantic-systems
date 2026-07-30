@@ -165,7 +165,7 @@ const toDocumentError = (cause: unknown): DocumentError =>
     ? cause
     : new DocumentError({ message: "cannot parse evidence result", cause });
 
-const requireBoolean = (value: JsonValue, context: string): boolean => {
+export const requireBoolean = (value: JsonValue, context: string): boolean => {
   if (typeof value !== "boolean") {
     throw new DocumentError({ message: `${context} must be a boolean` });
   }
@@ -213,12 +213,55 @@ const RESULT_ALLOWED_KEYS: ReadonlySet<string> = new Set([
 /** `caseResultToJson`'s complete emitted key set for one case result. */
 const CASE_RESULT_ALLOWED_KEYS: ReadonlySet<string> = new Set(["case_id", "passed", "detail"]);
 
-const requireNonEmptyString = (value: JsonValue, context: string): string => {
+export const requireNonEmptyString = (value: JsonValue, context: string): string => {
   const stringValue = requireString(value, context);
   if (stringValue.length === 0) {
     throw new DocumentError({ message: `${context} must be a nonempty string` });
   }
   return stringValue;
+};
+
+/**
+ * The complete `ProducerDiagnosticKind` literal set, kept next to the type
+ * itself so a new kind added to the union above and this runtime set can
+ * never silently diverge from each other (both are reviewed in the same
+ * diff, and `parseProducerDiagnostic` below fails closed on any kind not in
+ * this set rather than accepting an unrecognized string).
+ */
+export const PRODUCER_DIAGNOSTIC_KINDS: ReadonlySet<string> = new Set<ProducerDiagnosticKind>([
+  "not_targeted",
+  "obligation_unsupported",
+  "missing_evidence",
+  "ambiguous_evidence",
+  "stale_evidence_recipe",
+  "evidence_obligation_mismatch",
+  "unbound_operation",
+]);
+
+const PRODUCER_DIAGNOSTIC_ALLOWED_KEYS: ReadonlySet<string> = new Set(["kind", "message"]);
+
+/**
+ * Strict parser for one embedded `{ kind, message }` producer-diagnostic
+ * envelope (`producerDiagnosticToJson`'s complete emitted shape): a closed
+ * key set, a `kind` drawn only from `PRODUCER_DIAGNOSTIC_KINDS`, and a
+ * nonempty `message`. Reused by `resolution-claim.ts` so the claim parser
+ * does not redefine diagnostic validity a second time.
+ */
+export const parseProducerDiagnostic = (value: JsonValue, context: string): ProducerDiagnostic => {
+  const object = requireObject(value, context);
+  for (const key of Object.keys(object)) {
+    if (!PRODUCER_DIAGNOSTIC_ALLOWED_KEYS.has(key)) {
+      throw new DocumentError({ message: `${context} contains an unknown key '${key}'` });
+    }
+  }
+  const kind = requireNonEmptyString(requireKey(object, "kind", context), `${context}.kind`);
+  if (!PRODUCER_DIAGNOSTIC_KINDS.has(kind)) {
+    throw new DocumentError({
+      message: `${context}.kind must be a known producer diagnostic kind, got '${kind}'`,
+    });
+  }
+  const message = requireNonEmptyString(requireKey(object, "message", context), `${context}.message`);
+  return { kind: kind as ProducerDiagnosticKind, message };
 };
 
 const parseEvidenceResultFields = (document: JsonObject): ParsedFields => {
