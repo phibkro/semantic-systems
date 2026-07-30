@@ -1,4 +1,4 @@
-# Independent resolution-checker recut experiment
+# Corrected independent resolution-checker recut experiment
 
 Date: 2026-07-30
 
@@ -6,136 +6,192 @@ Contract: `design-specs/0003-independent-resolution-checker.md`
 
 Uncertainty: `uncertainties/0004-independent-checker-recut.md`
 
-Source inspected read-only:
-`7297321021615b9c30151f1542e529a5a7e1b42e`
+Corrected source inspected read-only:
+`3b65bc76eb8514376df90ea3534f1763c535c37d`
 
-Rejected prior experiment: `a373ae955bae3b986ef028571cc14b79fc19f4ae`
+Rejected prior implementation: `a373ae955bae3b986ef028571cc14b79fc19f4ae`
 
-Revert: `adf7e8d4de5d43a3445ec5fcf06269d91cef9e7b`
+## Correction
 
-## Question
+The first version of this experiment was rejected by exact-head adversarial
+review because it answered a stronger question than frozen design spec 0003
+asks.
 
-Can any of the three recuts prescribed by uncertainty 0004 satisfy the frozen
-checker behavior, mutation corpus, forbidden-capability closure, and honest
-70% checker-to-production adjudication size gate?
+It treated a self-consistent observation rebound as an authenticity challenge
+and silently required independent `ObservationCustody`. Spec 0003 instead fixes
+the authored inputs and canonical project-model bindings, checks consistency
+against those inputs, and explicitly disclaims truth or authenticity of
+producer observations.
 
-The disposable TypeScript experiment compared:
+The first lab also:
 
-1. one shared declarative rule table interpreted by two independently written
-   evaluators;
+- compressed the canonical nine-case result to two cases;
+- omitted the canonical broken-result binding of `7/9` and the
+  `insufficient-stock` and `missing-stock-is-zero` counterexamples;
+- credited stale certificate digests as semantic mutation rejection; and
+- used a tautological arithmetic assertion as its symmetry oracle.
+
+The corrected experiment includes the existing correlated canonical evidence,
+reissues certificates after producer-controlled semantic changes, separates a
+digest-only control, and checks unique non-overlapping regions against named
+frozen responsibilities.
+
+`ObservationCustody` may be a future authority extension. It is not a
+prerequisite for design spec 0003.
+
+## Question and options
+
+Can any of uncertainty 0004's three prescribed recuts satisfy the frozen
+mutation corpus, forbidden-capability closure, checker responsibilities, and
+honest 70% checker-to-production adjudication size gate?
+
+The disposable TypeScript lab compared:
+
+1. a shared declarative rule table with independently written evaluators;
 2. a minimal resolution certificate with exact whole-input binding; and
-3. a recut claim separating structural packet validation from independent
-   semantic eligibility recomputation.
+3. a recut claim separating structural validation from semantic eligibility
+   recomputation.
 
-The pure decision cores used ordinary total TypeScript. Effect was not added
-because the prototypes contained no capability boundary.
+The decision cores are ordinary total TypeScript. Effect was not added because
+the lab contains no capability boundary.
 
-## Exact result
+## Exact corrected result
 
-| Option | Production | Checker | Ratio | Mutations rejected | Strong rebound | 70% gate |
-|---|---:|---:|---:|---:|---|---|
-| Declarative rule table | 81 | 186 | 229.6% | 20/21 | accepted | fail |
-| Minimal certificate | 67 | 77 | 114.9% | 19/21 | accepted | fail |
-| Structural/semantic recut | 72 | 166 | 230.6% | 20/21 | accepted | fail |
+| Option | Production | Checker | Ratio | Semantic mutations | Responsibilities | Rebound | 70% gate |
+|---|---:|---:|---:|---:|---:|---|---|
+| Declarative rule table | 81 | 229 | 282.7% | 21/21 rejected | 7/7 | rejected | fail |
+| Minimal certificate | 67 | 164 | 244.8% | 18/21 rejected | 5/7 | rejected | fail |
+| Structural/semantic recut | 72 | 209 | 290.3% | 21/21 rejected | 7/7 | rejected | fail |
 
-Counts are nonblank, noncomment physical lines inside explicit adjudication
-regions. Production counts include policy decisions, terminal selection, exact
-selected identity, and assumption projection. Checker counts include semantic
-comparison, complete candidate and foreign-packet handling, exact bindings,
-terminal checks, and assumption checks. Shape-only decoding and explanations
-were measured separately. No serializer, reporter, fixture builder, test, or
-measurement code enlarged the production denominator.
+Counts are nonblank, noncomment physical lines inside explicit marked regions.
+Production denominators include policy decisions, terminal selection, exact
+selected identity, and assumption projection. No serializer, reporter, model
+adapter, fixture, test, measurement code, or structural decoder enlarges a
+denominator.
 
-The rule-table option additionally has a 19-line shared semantic contract.
-Counting that contract symmetrically still gives `(186 + 19) / (81 + 19) =
-205%`; it remains a correlated authority and still fails the gate.
+Checker numerators include every implemented checker-side responsibility:
+semantic comparison, exact packet binding, canonical evidence agreement,
+candidate coverage, terminal checks, and selected identity/assumption checks.
+Structural decoding and explanations are reported separately, not hidden in a
+production denominator.
 
-## Strongest rebound
+The rule table has an additional 19-line correlated semantic contract. Even
+counting it symmetrically gives `(229 + 19) / (81 + 19) = 248%`; the size gate
+still fails.
 
-The decisive mutation copied the complete two-case passing observation payload
-from the lawful pure realization to the authored broken realization, updated
-every producer-controlled subject and recipe binding consistently, recomputed
-the packet identity, and then let each producer re-derive its complete claim or
-certificate.
+## Corrected canonical rebound
 
-The preserved and rebound observation digests were identical:
+The strongest rebound copies all nine passing observations from the pure
+packet to the authored broken subject, updates every represented
+producer-controlled binding, recomputes the packet identity, and lets each
+producer re-derive the complete claim or certificate.
+
+Both packets then appear eligible, so every producer consistently derives the
+terminal resolution `rejected: ambiguous_candidates`. Every checker still
+returns invalid because the forged broken packet derives `9/9` with no
+counterexamples while the fixed canonical adapter input binds that exact
+subject to:
 
 ```text
-sha256:ef169a6be9bbbef23ed089d28027e31872c65a7ff686e732827a9a0be1efa8b5
+7/9:insufficient-stock,missing-stock-is-zero
 ```
 
-Both packets therefore appeared eligible, so every producer correctly emitted
-the resolution result `rejected: ambiguous_candidates`. Every checker accepted
-that result as internally consistent. Execution remained blocked by ambiguity,
-but the checker did not classify the rebound artifact as invalid, contrary to
-the frozen mutation requirement.
+The stable violation is `model_evidence_mismatch`.
 
-The independently available authored inputs establish the broken realization
-identity, theory, obligation, recipe, category, policy, assumptions, case IDs,
-and case count. They do not establish which observations the broken
-implementation produced. The canonical graph's historical passed count is
-derived from the same execution boundary, not an independently authenticated
-observation.
+This detects inconsistency with a correlated canonical runtime-validation
+record. It does not establish that either the canonical summary or producer
+observations are true, authentic, independently witnessed, signed, or current.
+That limitation is already explicit in frozen spec 0003.
 
-Recomputing a serialization identity establishes integrity relative to the
-supplied bytes. It does not establish observation authenticity.
+## Mutation classification
 
-## Other mutation evidence
+The corrected 21-case semantic corpus refreshes packet identities and
+certificate bindings after producer-controlled changes. A separate control
+changes only the certificate digest and is classified as
+`digest_only_rejection`; it is excluded from the semantic score.
 
-The recomputing rule-table and recut checkers rejected:
+The recomputing rule-table and recut checkers reject every semantic mutation,
+including:
 
-- recipes supplied as results;
-- evidence-category relabeling;
-- stale case, subject, eligibility, reason, terminal, and assumption fields;
+- recipe/result substitution and category relabeling;
+- changed case truth, subject, eligibility, reasons, terminal fields, and
+  assumptions;
 - candidate omission and duplication;
 - policy and canonical-model drift;
-- foreign outcomes;
-- wrong obligations;
-- unsupported ambiguity;
-- duplicate authored candidates; and
-- a self-consistent producer eligibility lie.
+- foreign packets, wrong obligations, unsupported ambiguity, and duplicate
+  authored candidates;
+- a reissued producer eligibility lie; and
+- the fully re-derived all-passing rebound.
 
-The certificate checker accepted the self-consistent eligibility lie because
-it validates producer consistency rather than independently recomputing the
-eligibility decision. All three accepted the fully rebound observation.
+The certificate accepts three refreshed producer lies:
 
-## Independence and capability evidence
+- a changed reason set;
+- an omitted selected assumption; and
+- a self-consistent eligibility manipulation.
 
-The deterministic closure scanner followed every relative import, including
-type-only imports. None of the three checker closures imported a production
-evaluator, evidence runner, operation registry, domain transition, execution
-module, demo, filesystem, network, subprocess, plugin loader, mutation
-capability, or source-worktree module.
+Its other 18 rejections contain independently recomputed semantic or canonical
+violations, rather than only stale-digest failures. The certificate therefore
+remains disqualified both by trusted acceptance-critical fields and by size.
 
-All three shared a lab-local canonical JSON and SHA-256 helper. That remains an
-explicit correlated-TCB assumption. The measurement program's filesystem reads
-were outside every checker closure.
+## Responsibility and closure checks
+
+Every counted region must have one ordered start/end pair, name at least one
+frozen responsibility, and not overlap another region in the same numerator
+or denominator. The seven responsibilities are:
+
+1. exact artifact bindings;
+2. complete unique candidate coverage;
+3. derived evidence truth and counts;
+4. candidate eligibility and reasons;
+5. terminal result;
+6. selected identity and assumption projection; and
+7. canonical-model agreement.
+
+Rule table and recut cover 7/7. The certificate covers 5/7 because it trusts
+eligibility/reasons and selected assumptions. A hard assertion prevents it
+from being reported responsibility-complete.
+
+The deterministic dependency scanner follows every current relative import,
+including type-only imports. Manual review confirmed that no checker closure
+imports a production evaluator, certificate issuer, evidence runner, operation
+registry, domain transition, execution module, demo, filesystem, network,
+subprocess, plugin loader, mutation capability, or source-worktree module.
+
+All three share a lab-local canonical JSON and SHA-256 helper. That is an
+explicit correlated-TCB assumption. Measurement filesystem reads remain
+outside every checker closure.
 
 ## Conclusion
 
-No option satisfies frozen design spec 0003. The experiment therefore grants
-no evidence to claim CLM-0002 and does not justify integrating any prototype.
+Select no option under frozen design spec 0003.
 
-Option 3 is the smallest honest basis for a revised claim: it can validate
-structural and policy consistency while reporting observation authenticity as
-`not_established`. It cannot be called a solution to the current contract.
+The rule-table and recut options satisfy the corrected mutation,
+responsibility, and capability gates but independently fail the 70% size gate.
+The certificate additionally trusts acceptance-critical producer fields.
+Option 3 is the smallest responsibility-complete checker surface, but it is
+still 290.3% of its production adjudication surface.
 
-The smallest falsifiable next step is to decide explicitly between:
+No result establishes CLM-0002. The next design work must address the honest
+size asymmetry or explicitly recut the checked claim through a reviewed spec
+revision. It must not use observation authenticity as an unapproved reason to
+change the current contract.
 
-1. adding an independently produced `ObservationCustody` input binding recipe,
-   realization, and case-observation digest; or
-2. narrowing the frozen claim so the checker establishes internal consistency,
-   not authenticity, and removing the impossible fully self-consistent rebound
-   requirement.
+## Reuse and evidence limits
 
-With an independent custody record, the next single falsifier is:
+The corrected lab reused its disposable architecture implementations,
+mutation runner, marked-region measurement, closure scanner, and canonical
+identity helper. It adapted, without importing:
 
-- a rebound must fail `observation_commitment_mismatch`;
-- absence of custody must report `subject_authenticity_not_established`; and
-- a genuine broken packet must match its independently acquired commitment.
+- canonical `9/9` and `7/9` evidence summaries from
+  `model/evidence/inventory-tracer.json`;
+- nine case IDs from `examples/inventory/evidence/conformance-v0.json`; and
+- aggregate derivation patterns from `src/tracer/evidence.ts`.
 
-If no independent observation source is acceptable, the contract must not
-claim that a non-executing checker authenticates producer-owned observations.
+No external dependency, generator, schema library, Effect layer, or new
+infrastructure was needed. No network or external code was used.
+
+The focused mutations are example tests. Executing the checkers and matrix is
+bounded runtime validation and source measurement, not proof.
 
 ## Bounded validation
 
@@ -146,6 +202,7 @@ bun test /tmp/semantic-checker-recut-lab
 bun /tmp/semantic-checker-recut-lab/matrix.ts
 ```
 
-Observed: 12 tests passed, 0 failed, 115 assertions; the deterministic matrix
-reproduced the exact counts and mutation results above. No Pagu, network, Nix,
+Observed: 15 tests passed, 0 failed, 150 assertions. The matrix reproduced the
+exact ratios, mutation classifications, responsibility coverage, canonical
+rebound violation, and clean forbidden closures above. No Pagu, network, Nix,
 hydration, broad tests, fuzzing, or model checking was used.

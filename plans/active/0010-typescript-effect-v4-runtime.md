@@ -58,9 +58,10 @@ Other active feature worktrees and their owned files remain forbidden.
    parity and a final pinned Python oracle pass.**
 5. Recut the independent checker against the accepted TypeScript resolver.
    **Blocked on an explicit design-spec 0003 revision after uncertainty 0004's
-   three-way experiment found that no option met the honest size gate or could
-   authenticate a fully self-consistent rebound without an independently
-   custodial observation.**
+   corrected three-way experiment found that every option failed the honest
+   size gate and the certificate also trusted acceptance-critical fields. The
+   next design step must address the size asymmetry or explicitly recut the
+   checked claim; observation authentication is outside the frozen contract.**
 6. Implement reference custody with explicit Git/filesystem/lock services.
    **Catalog/lock/offline-lock/offline-materialize/full-status boundary
    complete**

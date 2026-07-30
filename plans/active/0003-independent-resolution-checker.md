@@ -31,19 +31,22 @@ and kill criteria are frozen in design spec 0003.
   checker-side semantic validation. The honest adjudication comparison was
   already 194 checker lines versus 92 resolver lines before another 92
   checker-input validation lines and 49 semantic-diff lines were included.
-- The same review found foreign outcomes could remain unconsumed, the required
-  self-consistent rebound falsifier lacked an independently custodial
-  realization-specific observation, policy matching diverged, duplicate
-  authored candidates were accepted, and the dependency oracle was not
-  transitive. No evidence from that experiment establishes CLM-0002.
+- The same review found foreign outcomes could remain unconsumed, policy
+  matching diverged, duplicate authored candidates were accepted, and the
+  dependency oracle was not transitive. It also raised an observation-custody
+  concern that the corrected uncertainty experiment later separated from this
+  contract's fixed-input consistency claim. No evidence from that experiment
+  establishes CLM-0002.
 - The uncertainty-0004 resolving experiment is complete. Three disposable
   TypeScript recuts produced honest checker/production adjudication ratios of
-  229.6% (declarative rule table), 114.9% (minimal certificate), and 230.6%
+  282.7% (declarative rule table), 244.8% (minimal certificate), and 290.3%
   (structural/semantic recut). All checker closures avoided forbidden
-  capabilities, but every option accepted a fully re-digested observation
-  rebound; the certificate also accepted a self-consistent eligibility lie.
-  No option is selected and no result establishes CLM-0002. The exact bounded
-  evidence is recorded in
+  capabilities and all options rejected the strongest fully re-derived rebound
+  through the canonical broken-result binding of `7/9` and its two named
+  counterexamples. The certificate nevertheless accepted three refreshed
+  semantic lies. Every option fails the honest size gate, no option is
+  selected, and no result establishes CLM-0002. The exact bounded evidence is
+  recorded in
   `research/independent-checker-recut-experiment.md`.
 
 ## Contract-owned implementation slices
@@ -160,15 +163,22 @@ validity.
   experiment at `adf7e8d`, retained both commits as evidence, and returned the
   frontier to uncertainty 0004 rather than weakening or reinterpreting the
   frozen gate.
-- 2026-07-30: completed uncertainty 0004's three-way disposable TypeScript
-  experiment against a minimal faithful inventory fixture. Twelve focused
-  tests and 115 assertions exercised the positive path, the frozen mutations,
-  transitive forbidden-capability closure, symmetric marked-region size
-  measurement, a re-digested eligibility lie, and the strongest fully
-  self-consistent rebound. No option met the 70% gate or rebound requirement.
-  The frontier now requires an explicit semantic decision: add an independently
-  acquired observation-custody input, or revise the frozen claim to internal
-  consistency without authenticity. No production checker code was integrated.
+- 2026-07-30: the first uncertainty-0004 report was rejected by exact-head
+  adversarial review because it silently strengthened fixed-input consistency
+  into observation authentication, omitted the canonical `7/9` broken-result
+  binding, credited stale certificate digests as semantic rejection, and used
+  a tautological symmetry oracle.
+- 2026-07-30: corrected the disposable experiment against the complete
+  nine-case canonical fixture. Fifteen focused tests and 150 assertions
+  exercised the positive path, refreshed semantic mutations, transitive
+  forbidden-capability closure, unique non-overlapping marked regions, and the
+  strongest fully re-derived rebound. All options reject the rebound through
+  canonical-model disagreement. The two responsibility-complete options still
+  measure 282.7% and 290.3%; the 244.8% certificate covers only 5/7
+  responsibilities and accepts three refreshed semantic lies. No option met
+  the 70% gate, and no production checker code was integrated. The frontier
+  now requires a reviewed design treatment of the size asymmetry or an
+  explicit recut of the checked claim.
 
 ## Decisions and deviations
 

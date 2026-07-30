@@ -2,11 +2,14 @@
 
 ## Current hypothesis
 
-No non-executing checker can authenticate a fully self-consistent rebound of
-producer-owned case observations from the current authored inputs alone.
-Internal structural and policy consistency can still be checked independently,
-but observation authenticity requires an independently acquired custody input.
-The frozen claim must either add that input or explicitly narrow its authority.
+The current authored inputs and canonical project-model binding are sufficient
+for a non-executing checker to reject the strongest fully re-derived rebound as
+a fixed-input inconsistency. They do not authenticate producer observations,
+and frozen design spec 0003 does not require them to do so.
+
+The unresolved obstacle is the honest size asymmetry: all three prescribed
+recuts exceed the 70% checker-to-production adjudication limit. The certificate
+also trusts acceptance-critical producer fields.
 
 ## Supporting evidence
 
@@ -27,10 +30,11 @@ The frozen claim must either add that input or explicitly narrow its authority.
   adjudication lines, before counting another 92 semantic validation lines and
   49 semantic comparison lines excluded from the published ratio. It was
   reverted at `adf7e8d`.
-- A self-consistent packet rebound cannot be distinguished structurally when
-  the packet's case observations contain no independently custodial
-  realization-specific fact. Identity recomputation detects stale
-  serialization, not producer authenticity.
+- Identity recomputation alone detects stale serialization, not semantic
+  inconsistency. The corrected experiment demonstrates that the existing
+  canonical broken-result binding of `7/9` with two named counterexamples
+  distinguishes the strongest `9/9` rebound under the frozen fixed-input
+  contract. That comparison still does not authenticate either observation.
 - Foreign/unconsumed outcomes, unsupported ambiguity policy, wrong-obligation
   matching, and duplicate authored candidates all produced further
   counterexamples in the second experiment.
@@ -38,11 +42,12 @@ The frozen claim must either add that input or explicitly narrow its authority.
   interpreters are separate.
 - A certificate can become a disguised producer assertion unless the checker
   derives every acceptance-critical field from independently available inputs.
-- The bounded TypeScript resolving experiment compared all three prescribed
-  recuts. Honest checker/production adjudication ratios were 229.6% for the
-  declarative table, 114.9% for the certificate, and 230.6% for the
-  structural/semantic recut. All accepted the fully re-digested rebound; the
-  certificate also accepted a self-consistent eligibility lie. See
+- The corrected bounded TypeScript resolving experiment compared all three
+  prescribed recuts. Honest checker/production adjudication ratios were 282.7%
+  for the declarative table, 244.8% for the certificate, and 290.3% for the
+  structural/semantic recut. All rejected the fully re-derived rebound through
+  canonical-model disagreement. The certificate accepted refreshed
+  reason-set, selected-assumption, and eligibility lies. See
   `research/independent-checker-recut-experiment.md`.
 
 ## Dependent work
@@ -69,11 +74,11 @@ Reject any option that passes by enlarging the production denominator,
 excluding semantic checker branches, sharing an adjudication implementation,
 or trusting producer-owned eligibility fields.
 
-No option met the decision criteria. The next resolving experiment is one
-minimal `ObservationCustody` commitment for the broken realization, produced by
-an authority independent of the checked producer. If that authority cannot be
-named without circularity, revise the frozen claim to internal consistency and
-remove the impossible authenticity requirement.
+No option met the decision criteria. The next resolving design work must
+address the honest checker/production size asymmetry or explicitly recut the
+checked claim through a reviewed design-spec revision. Observation custody may
+be explored as a separate future authority extension, but it is not a
+prerequisite or a repair for frozen design spec 0003.
 
 ## Decision criteria
 
@@ -82,4 +87,6 @@ corpus, preserves typed evidence meanings, and meets the frozen 70% gate without
 measurement gaming. Otherwise reopen the semantic claim itself through an
 explicit design-spec revision.
 
-The “otherwise” branch is now active. No implementation option is selected.
+The “otherwise” branch is now active because every complete recut fails the
+size gate and the certificate also fails semantic mutation and responsibility
+coverage. No implementation option is selected.
