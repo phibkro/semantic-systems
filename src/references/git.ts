@@ -329,7 +329,13 @@ export const resolveCommitIfPresent = (
     }),
   );
 
-/** Offline existence probe for one exact commit object. */
+/**
+ * Offline existence probe for one exact commit object.
+ *
+ * Probe the undecorated object ID first: Git reports an absent exact object as
+ * silent exit 1, while `OID^{commit}` turns the same absence into an
+ * indistinguishable fatal parse error. Once present, inspect its actual type.
+ */
 export const commitObjectExists = (
   repository: string,
   commit: string,
@@ -340,25 +346,43 @@ export const commitObjectExists = (
 > =>
   rejectOptionLike("commit", commit).pipe(
     Effect.andThen(
-      runGit(["-C", repository, "cat-file", "-e", `${commit}^{commit}`], {
+      runGit(["-C", repository, "cat-file", "-e", commit], {
         check: false,
       }),
     ),
-    Effect.flatMap((result) => {
-      if (result.exitCode === 0) return Effect.succeed(true);
+    Effect.flatMap((presence) => {
       if (
-        result.exitCode === 1 &&
-        result.stdout.length === 0 &&
-        result.stderr.trim().length === 0
+        presence.exitCode === 1 &&
+        presence.stdout.length === 0 &&
+        presence.stderr.trim().length === 0
       ) {
         return Effect.succeed(false);
       }
-      return Effect.fail(
-        new AcquisitionError({
-          message:
-            `cannot probe exact commit object ${JSON.stringify(commit)} in ` +
-            `${JSON.stringify(repository)} (exit ${result.exitCode}): ${result.stderr.trim()}`,
-        }),
+      if (presence.exitCode !== 0) {
+        return Effect.fail(
+          new AcquisitionError({
+            message:
+              `cannot probe exact commit object ${JSON.stringify(commit)} in ` +
+              `${JSON.stringify(repository)} (exit ${presence.exitCode}): ` +
+              presence.stderr.trim(),
+          }),
+        );
+      }
+      return runGit(["-C", repository, "cat-file", "-t", commit], {
+        check: false,
+      }).pipe(
+        Effect.flatMap((type) =>
+          type.exitCode === 0
+            ? Effect.succeed(text(type).trim() === "commit")
+            : Effect.fail(
+                new AcquisitionError({
+                  message:
+                    `cannot probe exact commit object ${JSON.stringify(commit)} in ` +
+                    `${JSON.stringify(repository)} (exit ${type.exitCode}): ` +
+                    type.stderr.trim(),
+                }),
+              ),
+        ),
       );
     }),
   );
