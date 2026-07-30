@@ -18,3 +18,8 @@ export class AcquisitionError extends Data.TaggedError("AcquisitionError")<{
 export class NotLockableError extends Data.TaggedError("NotLockableError")<{
   readonly message: string;
 }> {}
+
+export class CuratorLockedError extends Data.TaggedError("CuratorLockedError")<{
+  readonly message: string;
+  readonly cause?: unknown;
+}> {}

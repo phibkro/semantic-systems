@@ -11,7 +11,17 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { BunChildProcessSpawner, BunCrypto, BunFileSystem, BunPath } from "@effect/platform-bun";
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import {
+  link,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  stat,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { Effect, Exit, FileSystem, Layer, type Crypto, type Path } from "effect";
@@ -27,12 +37,18 @@ import {
   parseCatalogText,
 } from "../src/references/catalog.ts";
 import {
+  acquireCuratorLock,
+  CuratorProcess,
+  makeCuratorProcess,
+} from "../src/references/curator.ts";
+import {
   GitEnvironment,
   makeGitEnvironment,
   requireAllowedLocation,
   runGit,
 } from "../src/references/git.ts";
 import { loadLock, parseLockText, serializeLock, writeLock } from "../src/references/lockfile.ts";
+import { lockOfflineLocalSiblings } from "../src/references/offline-lock.ts";
 import {
   catalogBindingReasons,
   computeLockOnlyStatus,
@@ -47,14 +63,24 @@ type TestCapabilities =
   | Path.Path
   | Crypto.Crypto
   | ChildProcessSpawner.ChildProcessSpawner
+  | CuratorProcess
   | GitEnvironment
   | TomlParser;
 
 const ROOT = resolve(import.meta.dir, "..");
 const PYTHONPATH = join(ROOT, "src");
 const MAIN_BUN = join(ROOT, "src", "references", "main-bun.ts");
+const MAIN_NODE = join(ROOT, "src", "references", "main-node.ts");
+const NODE_EXECUTABLE =
+  Bun.which("node") ?? "/nix/store/lnfxdsvvm1srsa9kk94s7jqw06yq1h2d-nodejs-24.18.0/bin/node";
 const temporaryRoots: Array<string> = [];
 const GitEnvironmentLayer = Layer.succeed(GitEnvironment, makeGitEnvironment(process.env));
+const CuratorProcessLayer = Layer.succeed(
+  CuratorProcess,
+  makeCuratorProcess(process.env, process.execPath, [
+    join(ROOT, "src", "references", "curator-holder.ts"),
+  ]),
+);
 const BunChildProcessLayer = BunChildProcessSpawner.layer.pipe(
   Layer.provide([BunFileSystem.layer, BunPath.layer]),
 );
@@ -67,7 +93,7 @@ const runBun = <A, E>(effect: Effect.Effect<A, E, TestCapabilities>): Promise<A>
   Effect.runPromise(
     effect.pipe(
       Effect.provide([BunFileSystem.layer, BunPath.layer, BunCrypto.layer, BunTomlParser]),
-      Effect.provide([BunChildProcessLayer, GitEnvironmentLayer]),
+      Effect.provide([BunChildProcessLayer, CuratorProcessLayer, GitEnvironmentLayer]),
     ),
   );
 
@@ -75,7 +101,7 @@ const runBunExit = <A, E>(effect: Effect.Effect<A, E, TestCapabilities>) =>
   Effect.runPromiseExit(
     effect.pipe(
       Effect.provide([BunFileSystem.layer, BunPath.layer, BunCrypto.layer, BunTomlParser]),
-      Effect.provide([BunChildProcessLayer, GitEnvironmentLayer]),
+      Effect.provide([BunChildProcessLayer, CuratorProcessLayer, GitEnvironmentLayer]),
     ),
   );
 
@@ -103,6 +129,20 @@ const runPythonCli = (args: ReadonlyArray<string>): ProcResult => {
 const runTsCli = (args: ReadonlyArray<string>): ProcResult => {
   const result = Bun.spawnSync({
     cmd: ["bun", MAIN_BUN, ...args],
+    cwd: ROOT,
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  return {
+    stdout: result.stdout.toString(),
+    stderr: result.stderr.toString(),
+    exitCode: result.exitCode ?? 1,
+  };
+};
+
+const runNodeCli = (args: ReadonlyArray<string>): ProcResult => {
+  const result = Bun.spawnSync({
+    cmd: [NODE_EXECUTABLE, MAIN_NODE, ...args],
     cwd: ROOT,
     stdout: "pipe",
     stderr: "pipe",
@@ -479,6 +519,167 @@ origin = "https://example.com/unlocked.git"
     const source = catalog.sources.get("unlocked.repo")!;
     expect(isLockable(source)).toBeFalse();
     expect(pythonAcceptsCatalogText(text)).toBeTrue();
+  });
+});
+
+describe("reference custody Effect v4 slice: curator serialization", () => {
+  test("rejects a concurrent curator and releases the kernel lock with scope", async () => {
+    const root = await mkdtemp(join(tmpdir(), "semantic-curator-"));
+    temporaryRoots.push(root);
+    const referencesRoot = join(root, ".references");
+
+    const conflict = await runBun(
+      Effect.scoped(
+        Effect.gen(function* () {
+          yield* acquireCuratorLock(referencesRoot);
+          return yield* Effect.exit(Effect.scoped(acquireCuratorLock(referencesRoot)));
+        }),
+      ),
+    );
+    expect(Exit.isFailure(conflict)).toBeTrue();
+
+    await runBun(Effect.scoped(acquireCuratorLock(referencesRoot)));
+  });
+
+  test("excludes the transitional Python curator through the same kernel lock", async () => {
+    const root = await mkdtemp(join(tmpdir(), "semantic-curator-"));
+    temporaryRoots.push(root);
+    const referencesRoot = join(root, ".references");
+    const code = `
+import sys
+from pathlib import Path
+from semantic_references.curator import curator_lock
+from semantic_references.errors import CuratorLockedError
+try:
+    with curator_lock(Path(sys.argv[1])):
+        print("unexpected acquisition")
+except CuratorLockedError:
+    print("conflict")
+    raise SystemExit(75)
+`;
+
+    const result = await runBun(
+      Effect.scoped(
+        Effect.gen(function* () {
+          yield* acquireCuratorLock(referencesRoot);
+          return yield* Effect.sync(() =>
+            Bun.spawnSync({
+              cmd: ["python3", "-c", code, referencesRoot],
+              cwd: ROOT,
+              env: { ...process.env, PYTHONPATH },
+              stdout: "pipe",
+              stderr: "pipe",
+            }),
+          );
+        }),
+      ),
+    );
+    expect(result.exitCode).toBe(75);
+    expect(result.stdout.toString().trim()).toBe("conflict");
+  });
+
+  test("interoperates with the persistent Python-format lock file without rewriting it", async () => {
+    const root = await mkdtemp(join(tmpdir(), "semantic-curator-"));
+    temporaryRoots.push(root);
+    const referencesRoot = join(root, ".references");
+    const lockPath = join(referencesRoot, ".curator.lock");
+    await mkdir(referencesRoot);
+    await writeFile(lockPath, "legacy-python-pid");
+
+    await runBun(Effect.scoped(acquireCuratorLock(referencesRoot)));
+    expect(await readFile(lockPath, "utf8")).toBe("legacy-python-pid");
+  });
+
+  test("rejects a symlinked lock without changing its target", async () => {
+    const root = await mkdtemp(join(tmpdir(), "semantic-curator-"));
+    temporaryRoots.push(root);
+    const referencesRoot = join(root, ".references");
+    const victim = join(root, "victim");
+    const original = "must remain byte-identical\n";
+    await mkdir(referencesRoot);
+    await writeFile(victim, original);
+    await symlink(victim, join(referencesRoot, ".curator.lock"));
+
+    const exit = await runBunExit(Effect.scoped(acquireCuratorLock(referencesRoot)));
+    expect(Exit.isFailure(exit)).toBeTrue();
+    expect(await readFile(victim, "utf8")).toBe(original);
+  });
+
+  test("rejects a multiply-linked lock inode", async () => {
+    const root = await mkdtemp(join(tmpdir(), "semantic-curator-"));
+    temporaryRoots.push(root);
+    const referencesRoot = join(root, ".references");
+    const first = join(root, "first-link");
+    await mkdir(referencesRoot);
+    await writeFile(first, "shared inode");
+    await link(first, join(referencesRoot, ".curator.lock"));
+
+    const exit = await runBunExit(Effect.scoped(acquireCuratorLock(referencesRoot)));
+    expect(Exit.isFailure(exit)).toBeTrue();
+    expect(await readFile(first, "utf8")).toBe("shared inode");
+  });
+
+  test("publishes all selected local observations or leaves the prior lock byte-identical", async () => {
+    const goodOrigin = "https://example.com/good.git";
+    const badOrigin = "https://example.com/bad.git";
+    const good = await localSiblingFixture(goodOrigin);
+    const bad = await localSiblingFixture(badOrigin);
+    runCommand(
+      ["git", "remote", "set-url", "origin", "https://example.com/mismatch.git"],
+      bad.sibling,
+    );
+
+    const root = await mkdtemp(join(tmpdir(), "semantic-lock-transaction-"));
+    temporaryRoots.push(root);
+    await mkdir(join(root, "references"));
+    await writeFile(
+      join(root, "references", "sources.toml"),
+      `
+schema = 1
+
+[[source]]
+id = "local.good"
+kind = "git"
+origin = ${JSON.stringify(goodOrigin)}
+local_hint = ${JSON.stringify(good.sibling)}
+track = "main"
+license_paths = ["LICENSE"]
+
+[[source]]
+id = "local.bad"
+kind = "git"
+origin = ${JSON.stringify(badOrigin)}
+local_hint = ${JSON.stringify(bad.sibling)}
+track = "main"
+license_paths = ["LICENSE"]
+`,
+    );
+    const lockPath = join(root, "references", "sources.lock.json");
+    const baseline = `{
+  "generator": "baseline",
+  "schema": "reference-lock-v1",
+  "sources": {}
+}
+`;
+    await writeFile(lockPath, baseline);
+
+    const failed = await runBun(
+      lockOfflineLocalSiblings(root, ["local.good", "local.bad"], "semantic-systems/0.0.0"),
+    );
+    expect(failed.committed).toBeFalse();
+    expect([...failed.locked.keys()]).toEqual(["local.good"]);
+    expect(failed.failures.map(({ id }) => id)).toEqual(["local.bad"]);
+    expect(await readFile(lockPath, "utf8")).toBe(baseline);
+
+    runCommand(["git", "remote", "set-url", "origin", badOrigin], bad.sibling);
+    const committed = await runBun(
+      lockOfflineLocalSiblings(root, ["local.good", "local.bad"], "semantic-systems/0.0.0"),
+    );
+    expect(committed.committed).toBeTrue();
+    expect(committed.failures).toEqual([]);
+    const lock = await runBun(loadLock(lockPath));
+    expect(lock.generator).toBe("semantic-systems/0.0.0");
+    expect([...lock.sources.keys()].sort()).toEqual(["local.bad", "local.good"]);
   });
 });
 
@@ -980,6 +1181,36 @@ describe("reference custody Effect v4 slice: lock-only status", () => {
 });
 
 describe("reference custody Effect v4 slice: CLI parity with Python", () => {
+  test("offline local-sibling lock is executable under Bun and byte-stable under Node", async () => {
+    const fixture = await localSiblingFixture();
+    await mkdir(join(fixture.project, "references"));
+    await writeFile(join(fixture.project, "references", "sources.toml"), fixture.sourceText);
+    const expectedCommit = runCommand(["git", "rev-parse", "HEAD"], fixture.sibling);
+    const lockPath = join(fixture.project, "references", "sources.lock.json");
+    const args = ["--root", fixture.project, "lock", "demo.repo", "--offline"];
+
+    const bun = runTsCli(args);
+    expect(bun.exitCode).toBe(0);
+    expect(bun.stderr).toBe("");
+    expect(bun.stdout.trim()).toBe(`demo.repo: locked at ${expectedCommit}`);
+    const firstBytes = await readFile(lockPath);
+    const firstStat = await stat(lockPath);
+
+    const node = runNodeCli(args);
+    if (node.exitCode !== 0) {
+      throw new Error(`Node custody CLI failed (${node.exitCode}): ${node.stderr}`);
+    }
+    expect(node.exitCode).toBe(0);
+    expect(node.stderr).toBe("");
+    expect(node.stdout).toBe(bun.stdout);
+    expect(await readFile(lockPath)).toEqual(firstBytes);
+    expect((await stat(lockPath)).ino).toBe(firstStat.ino);
+
+    const lock = await runBun(loadLock(lockPath));
+    expect(lock.generator).toBe("semantic-systems/0.0.0");
+    expect(lock.sources.get("demo.repo")?.commit).toBe(expectedCommit);
+  });
+
   test("catalog-check on the real repository catalog is byte-identical to Python", () => {
     const ts = runTsCli(["catalog-check"]);
     const py = runPythonCli(["catalog-check"]);

@@ -1,7 +1,11 @@
 import { Console, type Crypto, Effect, type FileSystem, Path } from "effect";
+import type { ChildProcessSpawner } from "effect/unstable/process";
 import { catalogDigest, isLockable, loadCatalog } from "./catalog.ts";
+import type { CuratorProcess } from "./curator.ts";
 import { CatalogError } from "./errors.ts";
+import type { GitEnvironment } from "./git.ts";
 import { loadLock } from "./lockfile.ts";
+import { lockOfflineLocalSiblings } from "./offline-lock.ts";
 import {
   computeLockOnlyStatus,
   isStrictOk,
@@ -23,11 +27,20 @@ interface StatusCommand {
   readonly json: boolean;
 }
 
-type Command = CatalogCheckCommand | StatusCommand;
+interface LockCommand {
+  readonly root: string;
+  readonly name: "lock";
+  readonly id: string | undefined;
+  readonly all: boolean;
+}
+
+type Command = CatalogCheckCommand | LockCommand | StatusCommand;
 
 const usage =
-  "usage: semrefs [--root PATH] {catalog-check,status} [id|--all] --lock-only [--json]\n" +
-  "(this slice implements only the network-free catalog-check and status --lock-only surface)";
+  "usage: semrefs [--root PATH] catalog-check\n" +
+  "       semrefs [--root PATH] lock <id>|--all --offline\n" +
+  "       semrefs [--root PATH] status <id>|--all --lock-only [--json]\n" +
+  "(offline lock currently observes declared local_hint siblings; object-cache fallback remains deferred)";
 
 const parseCommand = (arguments_: ReadonlyArray<string>): Command | undefined => {
   let root = ".";
@@ -42,21 +55,27 @@ const parseCommand = (arguments_: ReadonlyArray<string>): Command | undefined =>
   if (name === "catalog-check") {
     return index === arguments_.length ? { root, name: "catalog-check" } : undefined;
   }
-  if (name !== "status") return undefined;
+  if (name !== "lock" && name !== "status") return undefined;
 
   let id: string | undefined;
   let all = false;
   let lockOnly = false;
   let json = false;
+  let offline = false;
   for (; index < arguments_.length; index += 1) {
     const argument = arguments_[index]!;
     if (argument === "--all") all = true;
     else if (argument === "--lock-only") lockOnly = true;
     else if (argument === "--json") json = true;
+    else if (argument === "--offline") offline = true;
     else if (!argument.startsWith("--") && id === undefined) id = argument;
     else return undefined;
   }
-  if (!lockOnly || (!all && id === undefined)) return undefined;
+  if (all === (id !== undefined)) return undefined;
+  if (name === "lock") {
+    return offline && !lockOnly && !json ? { root, name: "lock", id, all } : undefined;
+  }
+  if (!lockOnly || offline) return undefined;
   return { root, name: "status", id, all, json };
 };
 
@@ -108,7 +127,17 @@ const printReport = (report: StatusReport): Effect.Effect<void> =>
  */
 export const runSemrefs = (
   arguments_: ReadonlyArray<string>,
-): Effect.Effect<number, never, TomlParser | FileSystem.FileSystem | Path.Path | Crypto.Crypto> => {
+): Effect.Effect<
+  number,
+  never,
+  | ChildProcessSpawner.ChildProcessSpawner
+  | Crypto.Crypto
+  | CuratorProcess
+  | FileSystem.FileSystem
+  | GitEnvironment
+  | Path.Path
+  | TomlParser
+> => {
   const command = parseCommand(arguments_);
   if (command === undefined) {
     return Console.error(usage).pipe(Effect.as(2));
@@ -125,6 +154,40 @@ export const runSemrefs = (
         yield* Console.log(`${id}: ${isLockable(source) ? "lockable" : "queued (unlocked)"}`);
       }
       yield* Console.log(`${catalog.sources.size} source(s) validated`);
+      return 0;
+    }
+
+    if (command.name === "lock") {
+      let ids: ReadonlyArray<string>;
+      if (command.all) {
+        ids = [...catalog.sources.keys()].sort();
+      } else if (command.id !== undefined && catalog.sources.has(command.id)) {
+        ids = [command.id];
+      } else {
+        return yield* new CatalogError({
+          message:
+            command.id === undefined
+              ? "an explicit source id or --all is required"
+              : `unknown source id ${JSON.stringify(command.id)}`,
+        });
+      }
+      const result = yield* lockOfflineLocalSiblings(root, ids, "semantic-systems/0.0.0");
+      for (const id of result.skipped) {
+        yield* Console.error(`${id}: skipped (not lockable, missing track/license_paths)`);
+      }
+      for (const { id, error } of result.failures) {
+        yield* Console.error(`${id}: lock failed: ${error.message}`);
+      }
+      if (!result.committed) {
+        for (const [id, entry] of result.locked) {
+          yield* Console.error(`${id}: observed ${entry.commit} but not published`);
+        }
+        yield* Console.error("lock: one or more requested sources failed; writing no lock changes");
+        return 1;
+      }
+      for (const [id, entry] of result.locked) {
+        yield* Console.log(`${id}: locked at ${entry.commit}`);
+      }
       return 0;
     }
 

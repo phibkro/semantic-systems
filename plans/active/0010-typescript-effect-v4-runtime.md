@@ -20,12 +20,13 @@ Owner: main integration agent
   `@effect/tsgo` diagnostics and the local architecture plugin remain
   dependency-gated.
 - Remaining Python surface: reference custody's remote acquisition, local
-  object-cache fallback, materialization, curator lock, checkout verification,
-  and the checkout-inspecting half of status; the `lock`/`materialize` CLI
-  commands and its test module; plus transitional Nix/fast/integration wiring.
-  Catalog/lock parsing, atomic lock writing, offline local-sibling Git
-  observation, and network-free `status --lock-only` are now TypeScript (see
-  item 6 below). Project model, tracer, and governance tests are TypeScript.
+  object-cache fallback, materialization, checkout verification, and the
+  checkout-inspecting half of status; online/general `lock`, `materialize`,
+  and its test module; plus transitional Nix/fast/integration wiring.
+  Catalog/lock parsing, atomic lock writing, the interoperable curator guard,
+  transactional offline local-sibling locking, and network-free
+  `status --lock-only` are now TypeScript (see item 6 below). Project model,
+  tracer, and governance tests are TypeScript.
 - External `.references/` checkouts are excluded from repository-source
   migration.
 
@@ -59,13 +60,15 @@ Other active feature worktrees and their owned files remain forbidden.
    **Catalog/lock/status-lock-only boundary complete** (`src/references/`):
    `sources.toml` parsing/validation, `reference-lock-v1` parsing, canonical
    catalog digests, atomic lock writing, network-free `status --lock-only`,
-   and offline local-sibling Git observation now run on Effect v4/Bun. The
+   offline local-sibling Git observation, an interoperable kernel curator
+   guard, and all-or-nothing local-sibling lock publication now run on Effect
+   v4 under Bun and Node. The
    parsing/status/writer suite remains differential against the Python oracle;
    Git security boundaries use adversarial fixtures and deliberately exceed
    Python where review exposed shared defects. Local object-cache fallback,
-   remote acquisition, materialization, the curator lock, checkout
-   verification, and the `lock`/`materialize` CLI commands remain Python and
-   are the rest of this item.
+   remote acquisition, materialization, checkout verification, and the
+   remaining `lock`/`materialize` CLI surface remain Python and are the rest
+   of this item.
 7. Migrate development-control and policy tests to Bun. **Complete for
    development-control and reuse-first governance; custody tests remain with
    their owning implementation slice.**
@@ -327,3 +330,30 @@ accepted; no new Python implementation is permitted.
   described as Python parity. This slice deliberately does not expose the
   mutating `lock` CLI: publication must remain serialized until the curator
   lock and multi-source transaction are ported.
+- 2026-07-30: ported the curator and local-sibling publication dependency,
+  making the first mutating custody tracer bullet executable as
+  `semrefs lock <id>|--all --offline`. An Effect-scoped holder uses
+  util-linux `flock --no-fork` on the same persistent
+  `.references/.curator.lock` inode as Python; it never truncates or writes
+  that file. A readiness file is created only after `flock` atomically
+  acquires the kernel lock and execs the Bun/Node holder, avoiding
+  stream-readiness and scheduler races. Scope release kills the holder and
+  waits for descriptor closure. Stable root/lock symlinks and multiply-linked
+  lock inodes fail closed. The process command and allowlisted environment are
+  injected capabilities; shell strings are never used. util-linux was chosen
+  over a native Node addon or a stale lock-directory protocol because it is
+  already installed, preserves crash-release semantics, and interoperates
+  during the Python transition; the Nix development shell pins it on Linux.
+  A non-Linux curator layer remains required before claiming the declared
+  Darwin platforms support mutation.
+  The command observes every selected local sibling into memory before one
+  canonical atomic lock write. Any failure leaves prior lock bytes unchanged;
+  this slice has no object-cache mutation to roll back. Oracles cover nested
+  curator conflict/release, live Python-vs-TypeScript exclusion, preservation
+  of the Python-format lock file, symlink and hardlink attacks, failed
+  two-source rollback followed by successful publication, and a real Bun lock
+  followed by a byte/inode-stable Node re-lock. The final bounded gate passed
+  57 focused tests under Bun alongside TypeScript, oxlint, formatting, and
+  diff-hygiene checks. Object-cache fallback and remote/cache publication
+  remain deferred and are stated in CLI usage. Nix and broad integration gates
+  were not run while host I/O full pressure remained above 80%.

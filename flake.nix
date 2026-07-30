@@ -23,22 +23,28 @@
         in
         {
           default = pkgs.mkShell {
-            packages = [
-              python
-              pkgs.bun
-              pkgs.actionlint
-              pkgs.git
-              pkgs.jq
-              pkgs.just
-              # `node`, not just `bun`: the materialized .githooks/* scripts
-              # are byte-identical to Clamor's ConventionalCommits block,
-              # which hardcodes `#!/usr/bin/env node` shebangs for
-              # ./node_modules/.bin/{commitlint,oxfmt,oxlint}.
-              pkgs.nodejs
-              pkgs.pyright
-              pkgs.ruff
-              pkgs.uv
-            ];
+            packages =
+              [
+                python
+                pkgs.bun
+                pkgs.actionlint
+                pkgs.git
+                pkgs.jq
+                pkgs.just
+                # `node`, not just `bun`: the materialized .githooks/* scripts
+                # are byte-identical to Clamor's ConventionalCommits block,
+                # which hardcodes `#!/usr/bin/env node` shebangs for
+                # ./node_modules/.bin/{commitlint,oxfmt,oxlint}.
+                pkgs.nodejs
+                pkgs.pyright
+                pkgs.ruff
+                pkgs.uv
+              ]
+              ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
+                # Kernel advisory locking interoperable with the transitional
+                # Python curator; Bun and Node share the same Effect service.
+                pkgs.util-linux
+              ];
 
             env.PYTHONPATH = "src";
             env.TZ = "UTC";
