@@ -16,6 +16,7 @@ import {
   ident as cssIdentifier,
   lexer as cssLexer,
   parse as parseCss,
+  walk as walkCss,
   type Declaration,
   type DeclarationList,
 } from "css-tree";
@@ -250,7 +251,16 @@ const directStyleHides = (style: string): boolean => {
     if (property !== "display" && property !== "visibility") continue;
     const value = cssIdentifier.decode(generateCss(declaration.value).trim()).toLowerCase();
     const grammar = cssLexer.matchProperty(property, value);
-    const hasDeferredSubstitution = /(?:^|[^a-z0-9_-])(?:attr|env|var)\(/.test(value);
+    let hasDeferredSubstitution = false;
+    walkCss(declaration.value, {
+      visit: "Function",
+      enter(node) {
+        const functionName = cssIdentifier.decode(node.name).toLowerCase();
+        if (functionName === "attr" || functionName === "env" || functionName === "var") {
+          hasDeferredSubstitution = true;
+        }
+      },
+    });
     if (grammar.error !== null && !hasDeferredSubstitution) continue;
     const important = Boolean(declaration.important);
     const previous = cascaded.get(property);

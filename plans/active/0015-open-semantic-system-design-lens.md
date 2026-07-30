@@ -248,6 +248,23 @@ state, and unrelated project-model changes.
   with 338 Bun tests/1,733 expectations, zero Effect diagnostics, and 68
   transitional Python custody checks. Clean-head custody and re-review remain
   pending.
+- 2026-07-31: seventh independent review rejected exact clean head `d9da673`.
+  The property-invalid waiver recognized deferred substitution by searching
+  serialized text, so quoted strings and URLs containing `var(`, `env(`, or
+  `attr(` could incorrectly replace an earlier valid hiding declaration. All
+  inherited matrices, exact acceptance, production-range replay, and full
+  integration passed independently; the four quoted-token counterexamples
+  failed.
+- 2026-07-31: deferred substitution is now identified from CSS Tree `Function`
+  nodes rather than text. Quoted spellings and URL content remain ordinary
+  invalid values, while genuine `var()`, `env()`, and `attr()` functions retain
+  their explicitly unknown static outcome. The focused suite passes with 15
+  tests/87 expectations. Exact acceptance passed with the unchanged 24
+  control-loop tests/250 expectations, typecheck, type-aware lint, formatting,
+  model validation, and eight generated views. Full integration passed with
+  338 Bun tests/1,737 expectations, zero Effect diagnostics, and 68
+  transitional Python custody checks. Clean-head custody and re-review remain
+  pending.
 
 ## Acceptance command
 
