@@ -2,15 +2,19 @@
 
 ## Current hypothesis
 
-The current authored inputs and canonical project-model binding are sufficient
-for a non-executing checker to reject the strongest fully re-derived rebound as
-a fixed-input inconsistency. They do not authenticate producer observations,
-and frozen design spec 0003 does not require them to do so.
+A compact declarative policy contract may remove duplicated eligibility and
+reason branches from independently compiled production and checker evaluators.
+It becomes a visible correlated semantic assumption and cannot replace
+independent parsing, authored-identity recomputation, complete candidate and
+packet coverage, evidence aggregate derivation, terminal recomputation,
+selected-assumption projection, deterministic violations, or capability
+separation.
 
-The unresolved obstacle is a combination of size asymmetry and faithful
-contract coverage. All three current disposable prototypes exceed the 70%
-checker-to-production adjudication limit even under configured lower-bound
-counts. The certificate also trusts acceptance-critical producer fields.
+It remains unknown whether that architecture can satisfy the unchanged
+symmetric 70% checker-to-production adjudication gate. Every current disposable
+prototype already exceeds the gate under conservative configured lower bounds.
+The next experiment must classify the complete validity-affecting executable
+surface rather than optimize an annotation-selected subset.
 
 ## Supporting evidence
 
@@ -31,11 +35,11 @@ counts. The certificate also trusts acceptance-critical producer fields.
   adjudication lines, before counting another 92 semantic validation lines and
   49 semantic comparison lines excluded from the published ratio. It was
   reverted at `adf7e8d`.
-- Identity recomputation alone detects stale serialization, not semantic
-  inconsistency. The corrected experiment demonstrates that the existing
-  canonical broken-result binding of `7/9` with two named counterexamples
-  distinguishes the strongest `9/9` rebound under the frozen fixed-input
-  contract. That comparison still does not authenticate either observation.
+- Identity recomputation detects stale or internally inconsistent
+  serialization, not a fully refreshed self-consistent observation rebound.
+  The canonical broken-result binding of `7/9` with two named counterexamples
+  can report disagreement with the strongest `9/9` rebound only through the
+  separate slice-7 adapter. That comparison authenticates neither observation.
 - Foreign/unconsumed outcomes, unsupported ambiguity policy, wrong-obligation
   matching, and duplicate authored candidates all produced further
   counterexamples in the second experiment.
@@ -68,38 +72,41 @@ counts. The certificate also trusts acceptance-critical producer fields.
 
 ## Resolving experiment
 
-The first disposable prototype screen is complete, but the resolving
-experiment remains open:
+The reviewed authority recut is complete. The remaining resolving experiment is
+one declarative shared-policy contract with two independently compiled or
+generated evaluators:
 
-1. one declarative rule table with two independently implemented evaluators;
-2. one minimal certificate format with a checker that validates only the
-   certificate and exact input bindings;
-3. one recut claim that separates structural packet validation from semantic
-   eligibility recomputation and explicitly limits subject custody to facts
-   available independently of the producer.
+1. represent the frozen policy predicates and reason vocabulary as bounded
+   typed data;
+2. compile or interpret that data independently for production adjudication and
+   checker comparison without sharing an evaluator implementation;
+3. exercise the complete current `resolution_claim_v1` and checker-report
+   fields, presentation-only ordering, complete packet consumption, and a
+   separate canonical-binding adapter;
+4. classify every validity-affecting executable region reachable from both
+   entrypoints under identical inclusion and exclusion rules;
+5. require a negative control proving that an unclassified validity path makes
+   measurement fail; and
+6. stop immediately if the exhaustive symmetric ratio exceeds 70%.
 
-For each, measure adjudication-only nonblank/noncomment lines, mutation score,
-forbidden dependency closure, correlated inputs, and failure explanations.
-Reject any option that passes by enlarging the production denominator,
-excluding semantic checker branches, sharing an adjudication implementation,
-or trusting producer-owned eligibility fields.
+Measure the exact ratio, frozen mutation corpus, forbidden dependency closure,
+correlated inputs, and failure explanations. Reject any result that enlarges
+the production denominator, excludes checker parsing or comparison branches,
+shares an adjudication implementation, trusts producer-owned eligibility, or
+folds recipe custody, canonical binding, execution, or observation
+authentication into the generic checker.
 
-No current prototype met the decision criteria. The next resolving work is
-either a faithful claim/report prototype with a separate canonical adapter,
-positive presentation-order oracles, and exhaustive executable-region
-classification, or an explicit recut of the checked claim through a reviewed
-design-spec revision. Observation custody may be explored as a separate future
-authority extension, but it is not a prerequisite or a repair for frozen
-design spec 0003.
+Observation custody remains a separate future authority extension. It is not a
+prerequisite or repair for design spec 0003.
 
 ## Decision criteria
 
-Select an option only if it satisfies the original behavioral and mutation
-corpus, preserves typed evidence meanings, and meets the frozen 70% gate without
-measurement gaming. Otherwise reopen the semantic claim itself through an
-explicit design-spec revision.
+Select the declarative architecture only if it satisfies the full behavioral
+and mutation corpus, preserves typed evidence meanings and separated
+authorities, and meets the frozen 70% gate without measurement gaming.
+Otherwise stop the checker implementation frontier and reopen the size/trust
+claim through another explicit reviewed design-spec revision.
 
-The “otherwise” branch is not yet justified as a claim recut: the current
-prototypes are incomplete. They are nevertheless rejected because even their
-configured lower-bound surfaces fail the size gate and their behavioral gaps
-fail the frozen contract. No implementation option is selected.
+The current prototypes remain rejected because even their configured
+lower-bound surfaces fail the size gate and their behavioral gaps fail the
+frozen contract. No implementation option is selected.

@@ -3,14 +3,10 @@
     {
       "id": "question.resolution-checker-recut",
       "kind": "question",
-      "name": "How can resolution be checked independently within the size bound?",
-      "summary": "Compare generated rule evaluators, certificate validation, and a narrower claim after the first implementation exceeded the frozen checker-size gate.",
+      "name": "Can a shared policy contract preserve independent checking within the size bound?",
+      "summary": "Test a declarative shared-policy contract with independently compiled evaluators after all three prior checker prototypes exceeded the frozen size gate.",
       "status": "open",
-      "tags": [
-        "resolution",
-        "evidence",
-        "independence"
-      ],
+      "tags": ["resolution", "evidence", "independence"],
       "attributes": {
         "record": "uncertainties/0004-independent-checker-recut.md",
         "failed_experiment": "b9cea28"
@@ -20,21 +16,19 @@
       "id": "work.resolution-checker-recut",
       "kind": "work_item",
       "name": "Recut the independent resolution checker",
-      "summary": "Prototype and measure compact independently observable checker boundaries without weakening the frozen claim or size gate.",
+      "summary": "Prototype and exhaustively measure a faithful declarative shared-policy boundary without weakening authority separation or the size gate.",
       "status": "ready",
-      "tags": [
-        "resolution",
-        "evidence",
-        "experiment"
-      ],
+      "tags": ["resolution", "evidence", "experiment"],
       "attributes": {
         "phase": "design",
         "effort": 5,
         "acceptance": [
-          "Behavior and mutation corpus remains unchanged",
-          "Checker imports no production adjudicator or execution machinery",
-          "Adjudication decision core is at most 70% of production",
-          "Shared inputs and correlated defects remain explicit",
+          "Complete v1 claim, report, mutation, and presentation-order corpus passes",
+          "Generic checker, recipe custody, canonical binding, execution, and observation authority remain separate",
+          "Exhaustive symmetric classification catches an unclassified validity path",
+          "Checker imports no production adjudicator, model adapter, or execution machinery",
+          "Adjudication decision core is at most 70% of production under identical accounting",
+          "The shared policy contract and correlated defects remain explicit",
           "Failed experiment b9cea28 remains rejected"
         ],
         "delegation": {

@@ -200,6 +200,129 @@ Deliver:
 - checks not run and all deviations;
 - remaining assumptions and uncertainties.
 
+## Next delegated resolving experiment: declarative shared policy
+
+This experiment is frozen against revised design spec 0003 and uncertainty 0004. Autonomy is A3: produce a committed, reviewable experiment result in one
+isolated worktree based on the exact integration head containing this freeze.
+It is not authorized to change production resolution or implement slice 5.
+
+Owned writes:
+
+- `research/experiments/independent-checker-policy/**`;
+- `research/independent-checker-shared-policy-experiment.md`.
+
+Forbidden writes:
+
+- all `src/`, `tests/`, `scripts/`, `examples/`, `model/`, `generated/`,
+  `claims/`, `decisions/`, `design-specs/`, `plans/`, `uncertainties/`, Nix,
+  package, hook, CI, and toolchain files;
+- production resolver, claim, evidence, recipe, execution, CLI, canonical-model
+  adapter, or runtime semantics;
+- evidence categories, reason meanings, policy semantics, identity v0, theory
+  normalization, or the 70% threshold.
+
+Required experiment architecture:
+
+1. Define one bounded typed declarative contract containing the current policy
+   predicates and reason vocabulary as data, with no evaluator functions.
+2. Compile or interpret that contract through two independently authored
+   implementations: one production adjudicator and one checker comparator.
+   They may share only the declarative contract, neutral data types, and
+   canonical JSON/identity assumptions. They must not import each other or a
+   shared evaluator.
+3. Exercise a faithful `resolution_claim_v1`/checker-report shape containing
+   every frozen field. Candidate, reason, and violation order are
+   presentation-only. The generic checker consumes every evidence packet
+   exactly once and has no recipe-source, canonical-model, execution, or
+   observation-authentication authority.
+4. Keep a thin inventory canonical-binding adapter outside the generic checker.
+   It may report disagreement with the custodied `7/9` broken record but must
+   not label either observation authentic or forged.
+5. Build an AST-based exhaustive surface classifier from explicit production
+   and checker entrypoints. Every reachable validity-affecting executable
+   region must be counted or receive one identical named exclusion. Annotation
+   or filename allowlists may seed expectations but are not discovery
+   authority.
+6. Add a negative control in which an otherwise reachable, unclassified
+   validity branch makes measurement fail. Marker-only or arithmetic-only
+   controls do not satisfy this requirement.
+
+Symmetric measurement:
+
+- compare complete validity-affecting canonical source surfaces;
+- count the shared declarative semantic contract on both sides;
+- for generated evaluators, count the contract plus the respective canonical
+  compiler/generator source, not both that source and its generated projection;
+- for runtime interpreters, count the contract plus each independent
+  interpreter;
+- include structural parsing, authored identity recomputation, complete
+  candidate/packet coverage, evidence aggregate derivation, policy
+  adjudication/comparison, terminal selection, and selected-assumption
+  projection wherever each side owns them;
+- exclude only identical nonsemantic presentation, capability composition, and
+  shared canonical JSON/hash runtime regions under the same named rule;
+- report raw counts and the exact cross-multiplied result. Pass only when
+  `checker * 10 <= production * 7`.
+
+Required executable oracles:
+
+- exact positive selected and rejected full-v1 fixtures;
+- reversed candidate, reason, and violation presentation order remains valid
+  and normalizes identically;
+- missing, duplicate, foreign, malformed, or unconsumed evidence packets reject;
+- stale theory, realization, obligation, policy, recipe-identity propagation,
+  aggregate, claim, selected subject, and selected-assumption fields reject;
+- changed reason sets or eligibility reject after all producer-owned identities
+  are refreshed;
+- two distinct authored IDs sharing one content identity remain distinct and
+  produce ambiguity;
+- `__proto__` and `constructor` obligation IDs use own-property policy lookup,
+  never inherited properties;
+- a fully refreshed self-consistent rebound is not reported as generically
+  detectable forgery; the separate canonical adapter reports only disagreement;
+- forbidden dependency/capability closure rejects production resolver,
+  producer, execution, model, filesystem, network, process, runtime-runner, and
+  non-`effect` bare imports in the generic checker;
+- the unclassified-validity-path negative measurement control fails.
+
+Focused acceptance:
+
+```bash
+bun test research/experiments/independent-checker-policy
+bunx tsc -p research/experiments/independent-checker-policy/tsconfig.json --noEmit
+bunx oxlint --deny-warnings --report-unused-disable-directives \
+  research/experiments/independent-checker-policy
+bunx oxfmt --check research/experiments/independent-checker-policy \
+  research/independent-checker-shared-policy-experiment.md
+bun research/experiments/independent-checker-policy/measure.ts
+git diff --check
+```
+
+The measurement command exits successfully when it produces a complete,
+internally consistent result; its structured output separately records
+`selected` or `rejected`. A ratio above 70% must produce `rejected`, and the
+tests must assert that rejection without making the repository gate itself
+spuriously red.
+
+Stop rule:
+
+- Stop after the first exhaustive symmetric measurement.
+- If the ratio exceeds 70% or any frozen oracle fails, do not optimize, weaken,
+  expand the denominator, or begin production implementation. Commit the
+  bounded counterevidence and report the exact failed criterion.
+- If every oracle passes at or below 70%, commit the candidate experiment for
+  main-agent review; it still grants no production authority.
+
+Deliver:
+
+- one focused experiment commit and exact head;
+- structured raw measurement and pass/reject decision;
+- full oracle and forbidden-closure results;
+- exhaustive region-classification artifact and negative control;
+- evaluated/reused prior art with license/provenance;
+- semantic-diff and correlated-TCB note;
+- checks not run, deviations, assumptions, and remaining uncertainty.
+
 ## Main-agent integration
 
 The main agent reviews committed content, reconciles terminology, updates the
