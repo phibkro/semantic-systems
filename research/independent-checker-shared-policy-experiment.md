@@ -26,11 +26,49 @@ exhaustive measurement and made no attempt to optimize, weaken the oracle,
 expand the production denominator, or begin production implementation.
 
 This does not establish CLM-0002. No production checker code was
-integrated. The declarative shared-policy architecture, faithfully
-implemented against the full frozen artifact/report shape, still fails the
-70% checker-to-production size gate — consistent with every prior
-experiment against this contract (`b9cea28`, `a373ae9`, and the three
-uncertainty-0004 prototype screens all exceeded 70% as well).
+integrated. The declarative shared-policy architecture, implemented against
+the intended frozen artifact/report shape but with the independently
+reviewed coverage limitations below, still fails the 70%
+checker-to-production size gate — consistent with every prior experiment
+against this contract (`b9cea28`, `a373ae9`, and the three uncertainty-0004
+prototype screens all exceeded 70% as well).
+
+## Independent exact-head review limitations
+
+A fresh read-only Fable 5 adversarial review at exact head `72a5106`
+reproduced all 46 tests, the type/lint/format/diff gates, and the published
+`764/489 = 156.2%` measurement. It independently confirmed the two measured
+closures and zero bare imports. It accepted this commit only as rejected
+counterevidence, with these material limitations:
+
+- the checker recomputes `passed`, `total_cases`, and `passed_cases` but not
+  the derived `counterexamples` aggregate. A claim can therefore substitute
+  counterexample IDs while remaining generically valid. Because the
+  canonical-binding adapter consumes that unverified aggregate, a
+  deliberately matching lie can also turn its `disagree` result into
+  `agree`;
+- the checker enforces evidence/diagnostic exclusivity but does not bind the
+  candidate payload kind to the corresponding outcome envelope or compare a
+  claimed diagnostic's kind and message with the packet. Evidence-to-
+  diagnostic substitution and diagnostic-content lies remain accepted;
+- the committed mutation suite contains no end-to-end diagnostic-outcome
+  fixture, so the producer-diagnostic arm is structurally present but not
+  behaviorally covered;
+- `production.ts`'s `evidenceToJson` derives aggregate fields while its
+  complete region is excluded as nonsemantic presentation. Conservatively
+  moving all 41 lines into the production denominator yields
+  `764/530 = 144.2%`, which remains far above the 70% gate; and
+- pathological obligation lookup is exercised on production but not through
+  the independent checker. The construction is visibly `Map`-based, but the
+  report must not cite that test as symmetric coverage.
+
+The first three gaps mean the experiment's checker numerator is an
+undercount of a faithful frozen-contract checker. The fourth means 156.2%
+is not a defensible uniquely exact frozen-rule ratio, but the conservative
+144.2% correction still rejects the architecture by a wide margin. These
+findings strengthen the negative architecture decision while weakening the
+claimed mutation coverage. The generic checker plus canonical adapter at
+this head must not be cited as an execution-authorizing composite gate.
 
 ## Structured raw measurement
 
