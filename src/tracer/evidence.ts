@@ -88,34 +88,156 @@ const runCase = (testCase: JsonObject, transition: Transition, replay: Replay): 
   return { caseId, passed: false, detail };
 };
 
+const CONFORMANCE_SUITE_KIND = "conformance_suite";
+const CONFORMANCE_SUITE_SCHEMA_VERSION = 1;
+const RECIPE_ALLOWED_KEYS: ReadonlySet<string> = new Set([
+  "kind",
+  "schema_version",
+  "id",
+  "name",
+  "theory",
+  "theory_identity",
+  "obligation",
+  "category",
+  "producer",
+  "assumptions",
+  "cases",
+]);
+
+interface RecipeEnvelope {
+  readonly obligation: string;
+  readonly producer: JsonObject;
+  readonly assumptions: ReadonlyArray<string>;
+  readonly cases: ReadonlyArray<JsonObject>;
+  readonly recipePayload: JsonObject;
+}
+
 /**
- * The exact recipe identity (design spec 0003 slice 2/frozen requirement 3):
- * a SHA-256 content identity over the source recipe's semantic payload —
- * `kind`, `schema_version`, `id`, `theory`, `theory_identity`, `obligation`,
- * `category`, `producer`, `assumptions`, and complete `cases`. Only the
- * recipe's own `name` is excluded, as presentation metadata, consistent
- * with the theory/realization normalization posture in `theory.ts` and
- * `realization.ts`. This deliberately hashes the complete authored `cases`
- * array, never an ad hoc reduced list of case IDs.
+ * The smallest pure recipe-envelope validator shared by `produceEvidence`
+ * (before adapter resolution) and `runConformance` (before case execution),
+ * so neither can select or execute a malformed recipe. It rejects every
+ * unknown top-level key — the allowed set is exactly `kind`,
+ * `schema_version`, `id`, `name`, `theory`, `theory_identity`, `obligation`,
+ * `category`, `producer`, `assumptions`, `cases` — a non-literal `kind` or
+ * `schema_version`, a `producer` without nonempty string `id`/`version`, an
+ * empty or duplicate-ID case list, and any case with an empty `id`. This is
+ * independent of `loader.ts`'s schema: both exported functions can be
+ * called directly with an arbitrary `JsonObject`, so the boundary re-checks
+ * everything itself rather than trusting the loader to have run first.
+ *
+ * It also derives the exact recipe identity payload (design spec 0003 slice
+ * 2/frozen requirement 3): a SHA-256 content identity over the source
+ * recipe's semantic payload — `kind`, `schema_version`, `id`, `theory`,
+ * `theory_identity`, `obligation`, `category`, `producer`, `assumptions`,
+ * and complete `cases`. Only the recipe's own `name` is excluded, as
+ * presentation metadata, consistent with the theory/realization
+ * normalization posture in `theory.ts` and `realization.ts`. This
+ * deliberately hashes the complete authored `cases` array, never an ad hoc
+ * reduced list of case IDs.
  */
-const recipeIdentityPayload = (suite: JsonObject): JsonObject => ({
-  kind: requireString(requireKey(suite, "kind", "conformance_suite"), "suite.kind"),
-  schema_version: requireInteger(
+const validateRecipeEnvelope = (suite: JsonObject): RecipeEnvelope => {
+  for (const key of Object.keys(suite)) {
+    if (!RECIPE_ALLOWED_KEYS.has(key)) {
+      throw new DocumentError({
+        message: `conformance_suite contains an unknown top-level key '${key}'`,
+      });
+    }
+  }
+  const kind = requireString(requireKey(suite, "kind", "conformance_suite"), "suite.kind");
+  if (kind !== CONFORMANCE_SUITE_KIND) {
+    throw new DocumentError({
+      message: `conformance_suite requires kind '${CONFORMANCE_SUITE_KIND}', got '${kind}'`,
+    });
+  }
+  const schemaVersion = requireInteger(
     requireKey(suite, "schema_version", "conformance_suite"),
     "suite.schema_version",
-  ),
-  id: requireString(requireKey(suite, "id", "conformance_suite"), "suite.id"),
-  theory: requireString(requireKey(suite, "theory", "conformance_suite"), "suite.theory"),
-  theory_identity: requireString(
+  );
+  if (schemaVersion !== CONFORMANCE_SUITE_SCHEMA_VERSION) {
+    throw new DocumentError({
+      message: `conformance_suite requires schema_version ${CONFORMANCE_SUITE_SCHEMA_VERSION}, got ${JSON.stringify(schemaVersion)}`,
+    });
+  }
+  const id = requireString(requireKey(suite, "id", "conformance_suite"), "suite.id");
+  const theoryField = requireString(
+    requireKey(suite, "theory", "conformance_suite"),
+    "suite.theory",
+  );
+  const theoryIdentity = requireString(
     requireKey(suite, "theory_identity", "conformance_suite"),
     "suite.theory_identity",
-  ),
-  obligation: requireString(requireKey(suite, "obligation", "conformance_suite"), "suite.obligation"),
-  category: requireString(requireKey(suite, "category", "conformance_suite"), "suite.category"),
-  producer: requireObject(requireKey(suite, "producer", "conformance_suite"), "suite.producer"),
-  assumptions: requireStringList(suite.assumptions ?? [], "suite.assumptions"),
-  cases: requireObjectList(requireKey(suite, "cases", "conformance_suite"), "suite.cases"),
-});
+  );
+  const obligation = requireString(
+    requireKey(suite, "obligation", "conformance_suite"),
+    "suite.obligation",
+  );
+  const category = requireString(requireKey(suite, "category", "conformance_suite"), "suite.category");
+  if (category !== EVIDENCE_CATEGORY) {
+    throw new DocumentError({
+      message: `the conformance runner produces example_test evidence; the recipe cannot relabel it as '${category}'`,
+    });
+  }
+  const producer = requireObject(requireKey(suite, "producer", "conformance_suite"), "suite.producer");
+  const producerId = requireString(
+    requireKey(producer, "id", "suite.producer"),
+    "suite.producer.id",
+  );
+  if (producerId.length === 0) {
+    throw new DocumentError({ message: "suite.producer.id must be a nonempty string" });
+  }
+  const producerVersion = requireString(
+    requireKey(producer, "version", "suite.producer"),
+    "suite.producer.version",
+  );
+  if (producerVersion.length === 0) {
+    throw new DocumentError({ message: "suite.producer.version must be a nonempty string" });
+  }
+  const assumptions = requireStringList(suite.assumptions ?? [], "suite.assumptions");
+  const cases = requireObjectList(requireKey(suite, "cases", "conformance_suite"), "suite.cases");
+  if (cases.length === 0) {
+    throw new DocumentError({ message: "conformance_suite.cases must not be empty" });
+  }
+  const caseIds = cases.map((testCase, index) =>
+    requireString(requireKey(testCase, "id", `suite.cases[${index}]`), `suite.cases[${index}].id`),
+  );
+  caseIds.forEach((caseId, index) => {
+    if (caseId.length === 0) {
+      throw new DocumentError({ message: `suite.cases[${index}].id must be a nonempty string` });
+    }
+  });
+  const seenCaseIds = new Set<string>();
+  for (const caseId of caseIds) {
+    if (seenCaseIds.has(caseId)) {
+      throw new DocumentError({
+        message: `conformance_suite.cases contains duplicate case ID '${caseId}'`,
+      });
+    }
+    seenCaseIds.add(caseId);
+  }
+  return {
+    obligation,
+    producer,
+    assumptions,
+    cases,
+    recipePayload: {
+      kind,
+      schema_version: schemaVersion,
+      id,
+      theory: theoryField,
+      theory_identity: theoryIdentity,
+      obligation,
+      category,
+      producer,
+      assumptions,
+      cases,
+    },
+  };
+};
+
+const toDocumentError = (cause: unknown): DocumentError =>
+  cause instanceof DocumentError
+    ? cause
+    : new DocumentError({ message: "cannot validate conformance recipe", cause });
 
 export const runConformance = (
   theory: Theory,
@@ -125,55 +247,29 @@ export const runConformance = (
   replay: Replay,
 ): Effect.Effect<EvidenceResult, DocumentError, Crypto.Crypto> =>
   Effect.gen(function* () {
-    const parsed = yield* Effect.try({
-      try: () => {
-        const category = requireString(
-          requireKey(suite, "category", "conformance_suite"),
-          "suite.category",
-        );
-        if (category !== EVIDENCE_CATEGORY) {
-          throw new DocumentError({
-            message: `the conformance runner produces example_test evidence; the recipe cannot relabel it as '${category}'`,
-          });
-        }
-        const obligation = requireString(
-          requireKey(suite, "obligation", "conformance_suite"),
-          "suite.obligation",
-        );
-        const producer = requireObject(
-          requireKey(suite, "producer", "conformance_suite"),
-          "suite.producer",
-        );
-        const assumptions = requireStringList(suite.assumptions ?? [], "suite.assumptions");
-        const cases = requireObjectList(
-          requireKey(suite, "cases", "conformance_suite"),
-          "suite.cases",
-        );
-        return {
-          obligation,
-          producer,
-          assumptions,
-          caseResults: cases.map((testCase) => runCase(testCase, transition, replay)),
-          recipePayload: recipeIdentityPayload(suite),
-        };
-      },
+    const envelope = yield* Effect.try({
+      try: () => validateRecipeEnvelope(suite),
+      catch: toDocumentError,
+    });
+    const caseResults = yield* Effect.try({
+      try: () => envelope.cases.map((testCase) => runCase(testCase, transition, replay)),
       catch: (cause) =>
         cause instanceof DocumentError
           ? cause
           : new DocumentError({ message: "cannot run conformance evidence", cause }),
     });
-    const recipeIdentity = yield* contentIdentity(parsed.recipePayload);
+    const recipeIdentity = yield* contentIdentity(envelope.recipePayload);
     const withoutIdentity: Omit<EvidenceResult, "identity"> = {
       artifactKind: ARTIFACT_KIND_EVIDENCE_RESULT,
       schemaVersion: EVIDENCE_RESULT_SCHEMA_VERSION,
       category: EVIDENCE_CATEGORY,
-      producer: parsed.producer,
+      producer: envelope.producer,
       recipeIdentity,
       theoryIdentity: theory.identity,
       realizationIdentity: realization.identity,
-      obligation: parsed.obligation,
-      assumptions: parsed.assumptions,
-      caseResults: parsed.caseResults,
+      obligation: envelope.obligation,
+      assumptions: envelope.assumptions,
+      caseResults,
     };
     const identity = yield* contentIdentity(evidenceResultIdentityPayload(withoutIdentity));
     return { identity, ...withoutIdentity };
@@ -248,6 +344,33 @@ export const produceEvidence = (
         `the suite declares obligation '${String(suite.obligation)}' but the theory requires '${requiredObligation}'`,
       );
     }
+    // Validate the recipe envelope before ever resolving an adapter (shared
+    // with `runConformance`'s pre-case-execution validation). A malformed
+    // recipe (wrong kind/schema_version, invalid producer identity, an
+    // unknown top-level key, or an empty/duplicate/empty-ID case list)
+    // fails this Effect outright, consistent with the existing
+    // wrong-category hard failure below — it is not a `ProducerDiagnostic`.
+    yield* Effect.try({
+      try: () => validateRecipeEnvelope(suite),
+      catch: toDocumentError,
+    });
+    // Extracting the operation-binding keys from the realization document is
+    // a document-shape concern, independent of whether the resolved adapter
+    // itself recognizes those keys. A binding-decoding `DocumentError` (a
+    // malformed/missing `realization.operations.*` entry) must fail this
+    // Effect directly; only a `DocumentError` thrown by the adapters
+    // themselves, once given a well-formed key, may become the
+    // `unbound_operation` diagnostic below.
+    const bindings = yield* Effect.try({
+      try: () => ({
+        transitionKey: operationBinding(realization.document, "transition"),
+        replayKey: operationBinding(realization.document, "replay"),
+      }),
+      catch: (cause) =>
+        cause instanceof DocumentError
+          ? cause
+          : new DocumentError({ message: "cannot resolve realization operation bindings", cause }),
+    });
     // The single-arg form of `Effect.try` maps a thrown value into
     // `Cause.UnknownError`, preserving the original thrown value unchanged
     // in `.cause`. `Effect.catchIf` then recovers ONLY when that original
@@ -259,8 +382,8 @@ export const produceEvidence = (
     // becoming an `unbound_operation` diagnostic.
     const operations = yield* Effect.try(() => ({
       kind: "resolved" as const,
-      transition: adapters.resolveTransition(operationBinding(realization.document, "transition")),
-      replay: adapters.resolveReplay(operationBinding(realization.document, "replay")),
+      transition: adapters.resolveTransition(bindings.transitionKey),
+      replay: adapters.resolveReplay(bindings.replayKey),
     })).pipe(
       Effect.catchIf(
         (error) => error.cause instanceof DocumentError,

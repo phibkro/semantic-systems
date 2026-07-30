@@ -4,10 +4,10 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { BunCrypto, BunFileSystem, BunPath } from "@effect/platform-bun";
 import { NodeCrypto, NodeFileSystem, NodePath } from "@effect/platform-node";
-import { Effect, Exit, type Crypto, type FileSystem, type Path } from "effect";
+import { Effect, Exit, Result, type Crypto, type FileSystem, type Path } from "effect";
 import * as tsAst from "typescript/unstable/ast";
 import { demoToJson, runDemo } from "../src/tracer/demo.ts";
-import { produceEvidence, type EvidenceAdapters } from "../src/tracer/evidence.ts";
+import { produceEvidence, runConformance, type EvidenceAdapters } from "../src/tracer/evidence.ts";
 import {
   ARTIFACT_KIND_EVIDENCE_RESULT,
   EVIDENCE_RESULT_SCHEMA_VERSION,
@@ -24,7 +24,7 @@ import { contentIdentity } from "../src/tracer/canonical.ts";
 import { DocumentError, type JsonObject } from "../src/tracer/json.ts";
 import { loadInventory } from "../src/tracer/loader.ts";
 import { resolveReplay, resolveTransition } from "../src/tracer/operations.ts";
-import { normalizeRealization, realizationId } from "../src/tracer/realization.ts";
+import { normalizeRealization, operationBinding, realizationId } from "../src/tracer/realization.ts";
 import {
   candidateExplanation,
   candidateToJson,
@@ -1135,6 +1135,71 @@ describe("evidence-production boundary and resolver packet consumption", () => {
     }
   });
 
+  test("an adapter throwing an arbitrary non-DocumentError object fails produceEvidence with a reference-preserving DocumentError", async () => {
+    const { fixture, theory, pure } = await loadPureAndBroken();
+    const obligation = requiredObligation(theory);
+    const thrown = { marker: "arbitrary-adapter-defect" };
+    const adapters: EvidenceAdapters = {
+      resolveTransition: () => {
+        throw thrown;
+      },
+      resolveReplay,
+    };
+    const effect = produceEvidence(
+      theory,
+      THEORY_ID,
+      obligation,
+      pure,
+      fixture.evidenceSuites,
+      adapters,
+    );
+    const result = await runBun(effect.pipe(Effect.result));
+    expect(Result.isFailure(result)).toBeTrue();
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(DocumentError);
+      expect(result.failure.message).toBe("cannot resolve realization operations");
+      // Reference equality (not a deep/structural clone): the exact thrown
+      // object must survive unchanged as `.cause`.
+      expect(result.failure.cause).toBe(thrown);
+    }
+  });
+
+  test("a realization missing the transition operation binding fails produceEvidence before any adapter call", async () => {
+    const { fixture, theory, pure } = await loadPureAndBroken();
+    const obligation = requiredObligation(theory);
+    const operations = pure.document.operations as JsonObject;
+    const missingBindingDocument: JsonObject = {
+      ...pure.document,
+      operations: Object.fromEntries(
+        Object.entries(operations).filter(([key]) => key !== "transition"),
+      ),
+    };
+    const missingBindingRealization = await runBun(
+      normalizeRealization(missingBindingDocument, theory, THEORY_ID),
+    );
+    const spy = spyEvidenceAdapters();
+    const effect = produceEvidence(
+      theory,
+      THEORY_ID,
+      obligation,
+      missingBindingRealization,
+      fixture.evidenceSuites,
+      spy.adapters,
+    );
+    const exit = await Effect.runPromiseExit(provideBun(effect));
+    expect(Exit.isSuccess(exit)).toBeFalse();
+    expect(Exit.isFailure(exit)).toBeTrue();
+    if (Exit.isFailure(exit)) {
+      const rendered = String(exit.cause);
+      expect(rendered).toContain("realization.operations");
+      expect(rendered).toContain("transition");
+    }
+    // A binding-decoding failure must never reach the adapters at all —
+    // it fails before `resolveTransition`/`resolveReplay` are ever called,
+    // distinct from an adapter itself rejecting a well-formed key.
+    expect(spy.calls).toEqual([]);
+  });
+
   test("the real pure and broken evidence artifacts round-trip losslessly through evidenceToJson/parseEvidenceResult", async () => {
     const { fixture, theory, pure, broken } = await loadPureAndBroken();
     const obligation = requiredObligation(theory);
@@ -1268,6 +1333,126 @@ describe("evidence-production boundary and resolver packet consumption", () => {
       parseEvidenceResult(mutate({ case_results: [...rawCases, rawCases[0]!] })),
       "duplicate case ID",
     );
+    const emptyIdCases = rawCases.map((item, index) => (index === 0 ? { ...item, case_id: "" } : item));
+    await expectFailure(
+      parseEvidenceResult(mutate({ case_results: emptyIdCases })),
+      "nonempty",
+    );
+  });
+
+  test("produceEvidence and runConformance reject a malformed recipe envelope with a stable message before adapter resolution or case execution", async () => {
+    const { fixture, theory, pure } = await loadPureAndBroken();
+    const obligation = requiredObligation(theory);
+    const baseSuite = fixture.evidenceSuites[0]!;
+
+    const expectEnvelopeRejection = async (mutatedSuite: JsonObject, message: string) => {
+      const spy = spyEvidenceAdapters();
+      await expectFailure(
+        produceEvidence(theory, THEORY_ID, obligation, pure, [mutatedSuite], spy.adapters),
+        message,
+      );
+      // Every envelope violation must be caught before any adapter is
+      // resolved, matching the six zero-adapter-call preflight scenarios
+      // already covered for theory/obligation/staleness mismatches.
+      expect(spy.calls).toEqual([]);
+    };
+
+    await expectEnvelopeRejection({ ...baseSuite, kind: "resolution_claim" }, "kind");
+    await expectEnvelopeRejection({ ...baseSuite, schema_version: 2 }, "schema_version");
+    await expectEnvelopeRejection(
+      { ...baseSuite, producer: { id: "", version: "0" } },
+      "producer.id",
+    );
+    await expectEnvelopeRejection(
+      { ...baseSuite, producer: { id: "producer.test", version: "" } },
+      "producer.version",
+    );
+    await expectEnvelopeRejection(
+      { ...baseSuite, execution_seed: 42 },
+      "unknown top-level key",
+    );
+    await expectEnvelopeRejection({ ...baseSuite, cases: [] }, "cases must not be empty");
+
+    const rawCases = baseSuite.cases as ReadonlyArray<JsonObject>;
+    const duplicatedCases = [...rawCases];
+    duplicatedCases[1] = { ...duplicatedCases[0]! };
+    await expectEnvelopeRejection({ ...baseSuite, cases: duplicatedCases }, "duplicate case ID");
+
+    const emptyIdCases = rawCases.map((item, index) => (index === 0 ? { ...item, id: "" } : item));
+    await expectEnvelopeRejection({ ...baseSuite, cases: emptyIdCases }, "nonempty");
+
+    // runConformance shares the same validator, so calling it directly with
+    // a malformed recipe (bypassing produceEvidence entirely) must also
+    // reject before any case executes.
+    await expectFailure(
+      runConformance(
+        theory,
+        pure,
+        { ...baseSuite, execution_seed: "unauthorized" },
+        resolveTransition(operationBinding(pure.document, "transition")),
+        resolveReplay(operationBinding(pure.document, "replay")),
+      ),
+      "unknown top-level key",
+    );
+  });
+
+  test("evidence-result parser rejects a failed case with null detail even when identity and aggregates are fully refreshed", async () => {
+    const withoutIdentity: Omit<EvidenceResult, "identity"> = {
+      artifactKind: ARTIFACT_KIND_EVIDENCE_RESULT,
+      schemaVersion: EVIDENCE_RESULT_SCHEMA_VERSION,
+      category: "example_test",
+      producer: { id: "producer.test", version: "0" },
+      recipeIdentity: "sha256:fixture-recipe-for-shape-rule",
+      theoryIdentity: "sha256:fixture-theory-for-shape-rule",
+      realizationIdentity: "sha256:fixture-realization-for-shape-rule",
+      obligation: "obligation.inventory.conformance",
+      assumptions: [],
+      caseResults: [
+        { caseId: "case-pass", passed: true, detail: null },
+        { caseId: "case-fail-with-null-detail", passed: false, detail: null },
+      ],
+    };
+    const identity = await runBun(contentIdentity(evidenceResultIdentityPayload(withoutIdentity)));
+    const evidence: EvidenceResult = { identity, ...withoutIdentity };
+    const json = evidenceToJson(evidence);
+    // Sanity: identity and every derived aggregate are already fully
+    // refreshed/self-consistent with this exact (malformed) case payload —
+    // the shape rule below must be what rejects this document, never a
+    // stale hash or a stale aggregate.
+    expect(json.identity).toBe(identity);
+    expect(json.passed).toBeFalse();
+    expect(json.passed_cases).toBe(1);
+    expect(json.total_cases).toBe(2);
+    expect(json.counterexamples).toEqual([
+      { case_id: "case-fail-with-null-detail", passed: false, detail: null },
+    ]);
+
+    await expectFailure(parseEvidenceResult(json), "detail");
+  });
+
+  test("evidence-result parser rejects a passed case with a non-null detail even when identity and aggregates are fully refreshed", async () => {
+    const withoutIdentity: Omit<EvidenceResult, "identity"> = {
+      artifactKind: ARTIFACT_KIND_EVIDENCE_RESULT,
+      schemaVersion: EVIDENCE_RESULT_SCHEMA_VERSION,
+      category: "example_test",
+      producer: { id: "producer.test", version: "0" },
+      recipeIdentity: "sha256:fixture-recipe-for-shape-rule-2",
+      theoryIdentity: "sha256:fixture-theory-for-shape-rule-2",
+      realizationIdentity: "sha256:fixture-realization-for-shape-rule-2",
+      obligation: "obligation.inventory.conformance",
+      assumptions: [],
+      caseResults: [
+        { caseId: "case-pass-with-detail", passed: true, detail: { unexpected: "detail" } },
+      ],
+    };
+    const identity = await runBun(contentIdentity(evidenceResultIdentityPayload(withoutIdentity)));
+    const evidence: EvidenceResult = { identity, ...withoutIdentity };
+    const json = evidenceToJson(evidence);
+    expect(json.identity).toBe(identity);
+    expect(json.passed).toBeTrue();
+    expect(json.counterexamples).toEqual([]);
+
+    await expectFailure(parseEvidenceResult(json), "detail");
   });
 
   test("scanImportSpecifiers recognizes every import form and discovers nested bare fs dependencies", async () => {

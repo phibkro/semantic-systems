@@ -252,8 +252,21 @@ const parseEvidenceResultFields = (document: JsonObject): ParsedFields => {
   const caseResults = rawCases.map((raw, index) => {
     const context = `evidence_result.case_results[${index}]`;
     const caseId = requireString(requireKey(raw, "case_id", context), `${context}.case_id`);
+    if (caseId.length === 0) {
+      throw new DocumentError({ message: `${context}.case_id must be a nonempty string` });
+    }
     const passed = requireBoolean(requireKey(raw, "passed", context), `${context}.passed`);
     const detail = requireDetail(requireKey(raw, "detail", context), `${context}.detail`);
+    if (passed && detail !== null) {
+      throw new DocumentError({
+        message: `${context}.detail must be null when passed is true`,
+      });
+    }
+    if (!passed && detail === null) {
+      throw new DocumentError({
+        message: `${context}.detail must be a non-null object when passed is false`,
+      });
+    }
     return { caseId, passed, detail };
   });
   const seenCaseIds = new Set<string>();
