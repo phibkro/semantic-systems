@@ -1,0 +1,272 @@
+# Design spec 0012: minimal actor runtime
+
+Status: frozen for the first actor tracer
+
+Date: 2026-07-30
+
+Problem owner: main research and integration agent
+
+Semantic frontier: isolated state ownership, typed actor messaging, mailbox
+ordering, and inventory-realization equivalence
+
+## User journey
+
+A developer runs one bounded inventory scenario through a single actor under
+both Bun and Node. The output identifies the actor realization, records the
+accepted mailbox order, returns one typed delivery receipt and domain event per
+message, reconstructs the final inventory state by replaying those events, and
+compares the observation with the accepted pure inventory oracle.
+
+The actor reference exposes messaging and lifecycle operations, but never the
+actor's mutable state. Closing the actor rejects later sends with a typed error.
+
+## Falsifiable semantic claim
+
+For one scoped actor, every message accepted into its mailbox receives a stable
+monotonic sequence number and is processed at most once in that acceptance
+order. Exactly one transition runs at a time over actor-private state. A
+successful transition commits its next state and returns its domain event in
+one delivery receipt. The inventory actor produces the same domain-event
+sequence and replayed final state as the pure reference realization for the
+same initial state, messages, and deterministic fresh-identifier inputs.
+
+This first tracer does not claim durable delivery, crash recovery, fairness,
+distributed ordering, exactly-once external effects, or formal proof of
+ownership.
+
+## Values
+
+- The actor runtime realizes an existing semantic program; it does not redefine
+  inventory rules.
+- Mutable state has one owner and does not cross the actor boundary.
+- Messages and events remain ordinary typed values.
+- Mailbox and lifecycle guarantees are stated narrowly and observed directly.
+- Runtime failures remain distinct from domain rejection events.
+- Bun and Node are live-layer choices around one portable actor core.
+- An execution trace is runtime validation, not proof of actor laws.
+
+## Frozen deep-module contract
+
+### Portable actor vocabulary
+
+The first tracer exposes a small portable module:
+
+- `ActorDefinition<Message, State, Event, Requirements>` — initial state plus
+  a transition from one message and private state to an Effect producing the
+  next state and one event;
+- `ActorRef<Message, Event>` — an opaque capability supporting `send` and
+  graceful `close`, with no state getter, state reference, or unsafe escape;
+- `DeliveryReceipt<Event>` — actor identity, mailbox sequence, and emitted
+  event;
+- `ActorRuntime` — a scoped capability that spawns actors and supervises their
+  mailbox workers;
+- typed `ActorClosed`, `ActorTransitionFailed`, and invalid-definition errors;
+  and
+- a machine-readable trace vocabulary for accepted, started, committed,
+  rejected, and closed lifecycle observations.
+
+TypeScript structural typing is not treated as a formal uniqueness proof.
+State confinement is established for this implementation by the public API,
+module closure, adversarial tests, and review.
+
+### Mailbox semantics
+
+`send` has two distinct moments:
+
+1. acceptance assigns the next receiver-local sequence and enqueues one
+   envelope; and
+2. completion resolves only after the transition commits and its event is
+   available in the receipt.
+
+The actor processes accepted envelopes in ascending sequence order. Sequential
+call order therefore produces receiver FIFO. Concurrent callers are ordered by
+the runtime's atomic mailbox-acceptance operation; the tracer records that
+chosen order and makes no stronger global or per-sender scheduling claim.
+
+Backpressure is explicit. The first tracer uses a declared bounded mailbox.
+When capacity is unavailable, `send` suspends interruptibly rather than
+dropping or duplicating a message. Interruption before acceptance produces no
+sequence or transition. Interruption after acceptance does not cancel the
+actor-owned envelope; the actor still processes it, while the caller may stop
+observing the receipt.
+
+### Transition and commit boundary
+
+Only the mailbox worker may hold or replace actor state. For each accepted
+envelope it:
+
+1. reads the current private state;
+2. interprets the typed transition Effect once;
+3. obtains one candidate next state and one domain event;
+4. commits the state and event together in actor memory;
+5. appends a committed trace observation; and
+6. completes the delivery receipt.
+
+Domain rejection is an ordinary inventory event and still commits the
+unchanged state. A typed transition failure is not a domain rejection: it
+records failure, stops that actor, fails the current receipt, and rejects
+future sends. Already accepted but unprocessed envelopes fail visibly; they
+are never reported as processed.
+
+External publication is outside this commit boundary. The first tracer returns
+events as values and reconstructs state through the accepted replay function.
+It does not claim transactional delivery to a database, broker, log, or other
+actor.
+
+### Lifecycle and scope
+
+Actors are resources owned by an Effect scope. Graceful `close` stops accepting
+new messages, drains envelopes already accepted, records one close observation,
+and waits for worker termination. Repeated close is idempotent. Scope release
+performs the same bounded cleanup. A post-close send fails with `ActorClosed`;
+it cannot hang or enter history.
+
+The runtime may use Effect's portable queue, deferred, fiber, scope, and
+ref primitives. Direct Bun, Node, filesystem, process, clock, random, network,
+or environment authority is forbidden from the portable actor modules.
+
+### Inventory actor adapter
+
+The adapter reuses the accepted inventory `Message`, `State`, `Event`,
+`referenceTransition`, and `replay` contracts.
+
+Fresh reservation identifiers are supplied through a replaceable
+`FreshIdentifier` Effect capability. An identifier is requested only after the
+inventory guards establish that a reservation could otherwise succeed, matching
+the frozen inventory rule that invalid quantities do not request freshness.
+The bounded scenario supplies a deterministic identifier sequence.
+
+The adapter must not copy the inventory transition rules into the actor
+runtime. A small refactor may expose the existing transition's
+fresh-identifier request seam, but the pure realization and all existing
+oracles must remain byte-equivalent.
+
+### Observable result
+
+The tracer emits canonical JSON containing:
+
+- schema and observation version;
+- actor-runtime realization identity;
+- exact inventory theory and pure-reference realization identities;
+- declared mailbox capacity and guarantee labels;
+- accepted and completed sequence order;
+- delivery receipts and domain events;
+- replayed final state;
+- pure-reference events and final state;
+- equality booleans for events and final state;
+- Bun or Node live-layer identity;
+- runtime-validation evidence limits; and
+- explicit unsupported guarantees.
+
+Runtime identity is presentation metadata and does not change the bounded
+semantic result. After normalizing that field, Bun and Node observations must
+be byte-equivalent.
+
+## Oracle-first counterexamples
+
+Before implementation, executable tests must observe red for:
+
+1. two sends completing without a real mailbox worker;
+2. reversed, duplicated, or skipped accepted sequence numbers;
+3. a public state getter or returned mutable state alias;
+4. post-close send acceptance or nontermination;
+5. close discarding an already accepted envelope;
+6. transition failure being rendered as a domain rejection;
+7. a caller interruption after acceptance cancelling actor-owned work;
+8. requesting a fresh identifier for an invalid reservation;
+9. actor events or replayed state diverging from the pure oracle;
+10. runtime-specific authority imported by the portable actor closure; and
+11. Bun and Node producing different normalized observations.
+
+Each oracle must fail for its intended semantic reason before the conforming
+implementation is accepted.
+
+## Acceptance
+
+The first actor tracer is accepted only when:
+
+1. the public actor reference exposes no actor-state value or mutable alias;
+2. one scoped worker is the only state transition owner;
+3. sequential sends are accepted and completed in receiver-FIFO order;
+4. every successful accepted message has exactly one sequence, transition,
+   event, and receipt;
+5. bounded-mailbox backpressure suspends without drop or duplication;
+6. interruption before acceptance leaves no trace, while interruption after
+   acceptance cannot cancel actor-owned work;
+7. graceful close drains accepted work, is idempotent, and rejects later sends;
+8. typed transition failure stops only the failing actor and remains distinct
+   from domain rejection;
+9. invalid inventory reservations do not consume a fresh identifier;
+10. the inventory actor event sequence equals the pure reference sequence;
+11. replay of actor events equals both actor and pure final observations;
+12. the trace states only the frozen ordering, delivery, and lifecycle
+    guarantees;
+13. Bun and Node live layers produce byte-equivalent normalized bounded
+    observations;
+14. the portable actor core's transitive imports contain no concrete runtime
+    or ambient platform authority;
+15. existing inventory resolution, evidence, execution, and generated-view
+    oracles remain green; and
+16. no output upgrades tests, runtime validation, static analysis, or review
+    into proof.
+
+## Executable acceptance commands
+
+```bash
+bun test tests/actor-runtime.test.ts
+bun run typecheck
+bun run lint
+bunx oxfmt --check src/actor tests/actor-runtime.test.ts scripts/accept/0012-minimal-actor-runtime.ts
+bun scripts/accept/0012-minimal-actor-runtime.ts
+node src/actor/main-node.ts examples/inventory/scenarios/demo.json
+git diff --check
+```
+
+The feature acceptance program owns the full bounded journey, portable-import
+closure, Bun/Node comparison, existing inventory regression, and
+counterexample manifest. A missing required runtime or tool fails.
+
+## Evidence claim and limits
+
+Focused tests are `test`; lint, type checking, and import-closure inspection
+are `static_analysis`; the Bun/Node scenario is `runtime_validation`;
+independent review is `assertion`. Together they establish that one exact
+implementation head produced the recorded bounded observations.
+
+They do not prove affine ownership, race freedom, fairness, scheduler
+correctness, crash recovery, durable delivery, or operational suitability.
+Those remain explicit assumptions or future proof/model-checking/stress
+frontiers.
+
+## Falsifiers and kill criteria
+
+- State is reachable from `ActorRef` without sending a typed protocol message.
+- More than one worker can transition one actor's state.
+- An accepted envelope can disappear without a typed failure observation.
+- Actor and pure inventory traces diverge under identical declared inputs.
+- A runtime adapter changes actor semantics rather than interpreting the same
+  portable capability.
+- The implementation claims stronger delivery or ordering than the trace
+  establishes.
+- Actor mechanics require changing the inventory theory identity.
+
+## Non-goals
+
+- Durable or distributed actors.
+- Location transparency, remoting, clustering, or actor discovery.
+- Supervision trees, restart strategies, persistence, snapshots, or replay
+  recovery.
+- Priority mailboxes, selective receive, timers, or dead-letter queues.
+- Exactly-once external effects.
+- STM, CRDT, saga, escrow, or consensus realization.
+- Parallel throughput, fairness, latency, or benchmark claims.
+- Formal proof or model checking of the actor runtime.
+
+## Semantic diff
+
+This feature adds one executable single-owner actor realization of the accepted
+inventory semantics. It changes no inventory rule, theory identity, evidence
+category, resolver policy, platform trust, or deployment claim. It introduces
+receiver-local mailbox order, scoped actor lifecycle, and actor-private state
+as explicit runtime contracts with bounded test and runtime-validation
+evidence.

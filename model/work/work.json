@@ -36,10 +36,7 @@
       "name": "Derive parallel semantic frontiers from dependencies",
       "summary": "Independent semantic hypotheses run concurrently; true dependencies and shared boundaries serialize.",
       "status": "accepted",
-      "tags": [
-        "work",
-        "delegation"
-      ],
+      "tags": ["work", "delegation"],
       "attributes": {
         "record": "decisions/0004-dependency-aware-parallel-frontiers.md"
       }
@@ -50,11 +47,7 @@
       "name": "Freeze semantic contracts as deep-module boundaries",
       "summary": "Compact semantic interfaces hide implementation depth and expose composable behavior and evidence obligations.",
       "status": "accepted",
-      "tags": [
-        "contracts",
-        "architecture",
-        "delegation"
-      ],
+      "tags": ["contracts", "architecture", "delegation"],
       "attributes": {
         "record": "decisions/0005-frozen-contracts-as-deep-modules.md"
       }
@@ -65,9 +58,7 @@
       "name": "Specify minimal kernel calculus",
       "summary": "Write syntax, typing, usage, effects, and operational rules.",
       "status": "ready",
-      "tags": [
-        "kernel"
-      ],
+      "tags": ["kernel"],
       "attributes": {
         "phase": "research",
         "effort": 8,
@@ -93,9 +84,7 @@
       "name": "Implement core checker",
       "summary": "Build typed AST, usage checking, and erasure validation.",
       "status": "planned",
-      "tags": [
-        "kernel"
-      ],
+      "tags": ["kernel"],
       "attributes": {
         "phase": "implementation",
         "effort": 13,
@@ -121,9 +110,7 @@
       "name": "Define normalized theory identity",
       "summary": "Specify content hashing and compatibility.",
       "status": "in_progress",
-      "tags": [
-        "packages"
-      ],
+      "tags": ["packages"],
       "attributes": {
         "phase": "design",
         "effort": 8,
@@ -149,9 +136,7 @@
       "name": "Implement package and evidence resolver",
       "summary": "Resolve realizations against target and trust policy.",
       "status": "in_progress",
-      "tags": [
-        "packages"
-      ],
+      "tags": ["packages"],
       "attributes": {
         "phase": "implementation",
         "effort": 13,
@@ -177,9 +162,7 @@
       "name": "Complete inventory domain contract",
       "summary": "Finalize messages, events, transitions, and invariant.",
       "status": "complete",
-      "tags": [
-        "inventory"
-      ],
+      "tags": ["inventory"],
       "attributes": {
         "phase": "design",
         "effort": 5,
@@ -205,9 +188,7 @@
       "name": "Implement pure inventory realization",
       "summary": "Implement deterministic update and replay.",
       "status": "complete",
-      "tags": [
-        "inventory"
-      ],
+      "tags": ["inventory"],
       "attributes": {
         "phase": "implementation",
         "effort": 5,
@@ -232,13 +213,12 @@
       "kind": "work_item",
       "name": "Implement minimal actor runtime",
       "summary": "Typed mailbox loop with unique actor-owned state.",
-      "status": "planned",
-      "tags": [
-        "actors"
-      ],
+      "status": "in_progress",
+      "tags": ["actors"],
       "attributes": {
         "phase": "implementation",
         "effort": 8,
+        "design_spec": "design-specs/0012-minimal-actor-runtime.md",
         "acceptance": [
           "Simulation has deterministic mailbox ordering",
           "Actor state cannot be directly shared",
@@ -261,10 +241,7 @@
       "name": "Implement inventory actor realization",
       "summary": "Wrap the domain machine in a typed actor protocol.",
       "status": "planned",
-      "tags": [
-        "inventory",
-        "actors"
-      ],
+      "tags": ["inventory", "actors"],
       "attributes": {
         "phase": "implementation",
         "effort": 5,
@@ -290,9 +267,7 @@
       "name": "Specify STM effect and handler laws",
       "summary": "Define retry, rollback, commit actions, and serializability.",
       "status": "planned",
-      "tags": [
-        "stm"
-      ],
+      "tags": ["stm"],
       "attributes": {
         "phase": "research",
         "effort": 8,
@@ -318,9 +293,7 @@
       "name": "Implement minimal STM runtime",
       "summary": "Versioned TVars, logs, validation, retry, and commit.",
       "status": "planned",
-      "tags": [
-        "stm"
-      ],
+      "tags": ["stm"],
       "attributes": {
         "phase": "implementation",
         "effort": 13,
@@ -346,10 +319,7 @@
       "name": "Implement inventory STM realization",
       "summary": "Compose domain transitions over a transactional store.",
       "status": "planned",
-      "tags": [
-        "inventory",
-        "stm"
-      ],
+      "tags": ["inventory", "stm"],
       "attributes": {
         "phase": "implementation",
         "effort": 5,
@@ -375,10 +345,7 @@
       "name": "Prove inventory invariant",
       "summary": "Produce proof evidence for every transition.",
       "status": "planned",
-      "tags": [
-        "inventory",
-        "proof"
-      ],
+      "tags": ["inventory", "proof"],
       "attributes": {
         "phase": "validation",
         "effort": 8,
@@ -404,10 +371,7 @@
       "name": "Model-check STM interleavings",
       "summary": "Explore bounded commit, abort, retry, and wake-up schedules.",
       "status": "planned",
-      "tags": [
-        "stm",
-        "validation"
-      ],
+      "tags": ["stm", "validation"],
       "attributes": {
         "phase": "validation",
         "effort": 8,
