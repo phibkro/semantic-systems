@@ -11,6 +11,8 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import { fromMarkdown } from "mdast-util-from-markdown";
+import type { Heading, Nodes, RootContent } from "mdast";
 
 const FEATURE_ID = /^[0-9]{4}-[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const SHA = /^[0-9a-f]{40}$/;
@@ -162,78 +164,6 @@ const visibleSectionContent = (content: string): string =>
     .replace(/^```[^\n]*$/gm, "")
     .trim();
 
-const designStructuralText = (content: string): string => {
-  // This is deliberately a bounded structural scanner, not a Markdown renderer:
-  // only fenced blocks and HTML comments can hide contract markers. Follow the
-  // CommonMark fence constraints that matter here so prose samples cannot
-  // accidentally create or consume a design-lens boundary.
-  const visible: Array<string> = [];
-  let fence:
-    | {
-        readonly marker: "`" | "~";
-        readonly length: number;
-      }
-    | undefined;
-  let inHtmlComment = false;
-
-  for (const rawLine of content.split("\n")) {
-    const line = rawLine.endsWith("\r") ? rawLine.slice(0, -1) : rawLine;
-
-    if (fence !== undefined) {
-      const closing = new RegExp(`^ {0,3}\\${fence.marker}{${fence.length},}[\\t ]*$`);
-      if (closing.test(line)) {
-        fence = undefined;
-      }
-      visible.push("");
-      continue;
-    }
-
-    if (!inHtmlComment) {
-      const opening = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
-      if (opening !== null) {
-        const run = opening[1]!;
-        const rest = opening[2]!;
-        if (run[0] === "~" || !rest.includes("`")) {
-          fence = {
-            marker: run[0] as "`" | "~",
-            length: run.length,
-          };
-          visible.push("");
-          continue;
-        }
-      }
-    }
-
-    let remainder = line;
-    let structural = "";
-    while (remainder.length > 0) {
-      if (inHtmlComment) {
-        const end = remainder.indexOf("-->");
-        if (end === -1) {
-          remainder = "";
-          break;
-        }
-        inHtmlComment = false;
-        remainder = remainder.slice(end + 3);
-        continue;
-      }
-
-      const start = remainder.indexOf("<!--");
-      if (start === -1) {
-        structural += remainder;
-        remainder = "";
-        break;
-      }
-      structural += remainder.slice(0, start);
-      inHtmlComment = true;
-      remainder = remainder.slice(start + 4);
-    }
-    visible.push(structural);
-  }
-
-  return visible.join("\n");
-};
-
 const PLACEHOLDER_WORDS = new Set([
   "todo",
   "tbd",
@@ -250,12 +180,10 @@ const PLACEHOLDER_WORDS = new Set([
   "n/a",
 ]);
 
-const visibleDesignContent = (content: string): string => designStructuralText(content).trim();
-
-const isPlaceholderOnly = (content: string): boolean => {
-  const visible = visibleDesignContent(content);
-  if (visible.length === 0) return true;
-  const words = visible
+const isPlaceholderOnly = (visible: string): boolean => {
+  const normalized = visible.trim();
+  if (normalized.length === 0) return true;
+  const words = normalized
     .toLowerCase()
     .replace(/^#{1,6}\s+/gm, "")
     .replace(/^[\s>*+-]+/gm, "")
@@ -264,28 +192,62 @@ const isPlaceholderOnly = (content: string): boolean => {
   return words.every((word) => PLACEHOLDER_WORDS.has(word) || /^[0-9]+$/.test(word));
 };
 
+const sourceForNode = (content: string, node: Nodes): string => {
+  const start = node.position?.start.offset;
+  const end = node.position?.end.offset;
+  return start === undefined || end === undefined ? "" : content.slice(start, end);
+};
+
+const atxHeadingTitle = (content: string, heading: Heading): string | undefined => {
+  const source = sourceForNode(content, heading);
+  const match = /^ {0,3}(#{1,6})(?:[ \t]+(.*)|[ \t]*)$/.exec(source);
+  if (match === null || match[1]!.length !== heading.depth) return undefined;
+  return (match[2] ?? "").replace(/[ \t]+#+[ \t]*$/, "").trim();
+};
+
+const visibleDesignContent = (node: Nodes): string => {
+  if (node.type === "code" || node.type === "html") return "";
+  if ("value" in node && typeof node.value === "string") return node.value;
+  if ((node.type === "image" || node.type === "imageReference") && typeof node.alt === "string") {
+    return node.alt;
+  }
+  if ("children" in node) {
+    return node.children.map((child) => visibleDesignContent(child)).join("\n");
+  }
+  return "";
+};
+
+const markerValues = (content: string, children: readonly RootContent[]): string[] =>
+  children.flatMap((node) => {
+    if (node.type !== "paragraph") return [];
+    return sourceForNode(content, node)
+      .split(/\r?\n/)
+      .flatMap((line) => {
+        const match = /^Design-Lens-Version:[ \t]*(.*?)[ \t]*$/.exec(line);
+        return match === null ? [] : [match[1] ?? ""];
+      });
+  });
+
 type StructuralHeading = {
   readonly level: number;
   readonly title: string;
-  readonly line: number;
+  readonly childIndex: number;
 };
 
-const structuralHeadings = (lines: readonly string[]): StructuralHeading[] =>
-  lines.flatMap((line, index) => {
-    const match = /^ {0,3}(#{1,6})(?:[ \t]+(.*)|[ \t]*)$/.exec(line);
-    if (match === null) return [];
-    const rawTitle = match[2] ?? "";
-    const title = rawTitle.replace(/[ \t]+#+[ \t]*$/, "").trim();
-    return [{ level: match[1]!.length, title, line: index }];
+const structuralHeadings = (
+  content: string,
+  children: readonly RootContent[],
+): StructuralHeading[] =>
+  children.flatMap((node, childIndex) => {
+    if (node.type !== "heading") return [];
+    const title = atxHeadingTitle(content, node);
+    return title === undefined ? [] : [{ level: node.depth, title, childIndex }];
   });
 
 export const validateDesignLensText = (content: string, path: string): void => {
-  const structure = designStructuralText(content);
-  const lines = structure.split("\n");
-  const markers = lines.flatMap((line) => {
-    const match = /^Design-Lens-Version:[ \t]*(.*?)[ \t]*$/.exec(line);
-    return match === null ? [] : [match[1] ?? ""];
-  });
+  const document = fromMarkdown(content);
+  const children = document.children;
+  const markers = markerValues(content, children);
   if (markers.length !== 1) {
     throw new Error(
       `${path} design-lens shape requires exactly one Design-Lens-Version marker; found ${markers.length}`,
@@ -297,7 +259,7 @@ export const validateDesignLensText = (content: string, path: string): void => {
     );
   }
 
-  const headings = structuralHeadings(lines);
+  const headings = structuralHeadings(content, children);
   const levelTwo = headings.filter((heading) => heading.level === 2);
   const lensHeadings = levelTwo.filter(
     (heading) => heading.title === "Open semantic system design lens",
@@ -308,13 +270,13 @@ export const validateDesignLensText = (content: string, path: string): void => {
     );
   }
   const lensHeading = lensHeadings[0]!;
-  const start = lensHeading.line + 1;
+  const start = lensHeading.childIndex + 1;
   const nextSectionBoundary = headings.find(
-    (candidate) => candidate.line > lensHeading.line && candidate.level <= 2,
+    (candidate) => candidate.childIndex > lensHeading.childIndex && candidate.level <= 2,
   );
-  const end = nextSectionBoundary?.line ?? lines.length;
+  const end = nextSectionBoundary?.childIndex ?? children.length;
   const levelThree = headings.filter(
-    (heading) => heading.level === 3 && heading.line >= start && heading.line < end,
+    (heading) => heading.level === 3 && heading.childIndex >= start && heading.childIndex < end,
   );
 
   for (const required of DESIGN_LENS_HEADINGS) {
@@ -325,10 +287,14 @@ export const validateDesignLensText = (content: string, path: string): void => {
       );
     }
     const heading = matches[0]!;
-    const sectionStart = heading.line + 1;
-    const next = levelThree.find((candidate) => candidate.line > heading.line);
-    const sectionEnd = next?.line ?? end;
-    if (isPlaceholderOnly(lines.slice(sectionStart, sectionEnd).join("\n"))) {
+    const sectionStart = heading.childIndex + 1;
+    const next = levelThree.find((candidate) => candidate.childIndex > heading.childIndex);
+    const sectionEnd = next?.childIndex ?? end;
+    const visible = children
+      .slice(sectionStart, sectionEnd)
+      .map((node) => visibleDesignContent(node))
+      .join("\n");
+    if (isPlaceholderOnly(visible)) {
       throw new Error(`${path} design-lens subsection "${required}" is empty or placeholder-only`);
     }
   }

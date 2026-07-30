@@ -4,8 +4,8 @@ Canonical frozen contract:
 [`design-specs/0015-open-semantic-system-design-lens.md`](../../design-specs/0015-open-semantic-system-design-lens.md).
 This mutable execution record cannot redefine that contract.
 
-Status: independent-review counterexamples corrected; exact-head re-review
-pending
+Status: second independent-review counterexamples under correction; exact-head
+re-review pending
 
 Owner: primary Semantic Systems lead
 
@@ -134,6 +134,38 @@ state, and unrelated project-model changes.
   head and independent re-review. Full integration replay also passed with 335
   Bun tests/1,693 expectations, zero Effect diagnostics, and 68 transitional
   Python custody checks.
+- 2026-07-30: independent re-review rejected exact clean head `077e70a`.
+  Visible inline code containing literal `<!--` falsely entered comment state;
+  a CommonMark fenced example nested in a list leaked its indented headings;
+  and production range replay showed that selected 0015 plus migrated 0005 did
+  not themselves contain structural lens instances. All ten counterexamples
+  from the preceding rejection were independently confirmed fixed.
+- 2026-07-30: the bounded repository-owned Markdown scanner reached its redesign
+  criterion. Added exact `mdast-util-from-markdown@2.0.2` (MIT,
+  `syntax-tree/mdast-util-from-markdown`) and now delegates CommonMark block and
+  inline structure to its AST. Repository policy still requires exact top-level
+  ATX headings, same-line markers, and bounded placeholder classification; it
+  does not treat parser acceptance as semantic correctness.
+- 2026-07-30: compared the parser choice against Bun's built-in Markdown API,
+  TanStack Markdown, and Sätteri 0.9.5 rather than accepting mdast by default.
+  Bun's API is unstable and exposes render callbacks without a source-positioned
+  AST. TanStack documents deliberately incomplete CommonMark compatibility.
+  An isolated Sätteri install correctly classified the inline-comment and
+  list-contained-fence review falsifiers and exposed exact source ranges, but
+  its pre-1.0 native/WASI distribution adds platform and trusted-tooling
+  surface without a material benefit for this low-volume gate. The mature,
+  pure-JavaScript mdast/micromark path remains the smallest portable fit;
+  Sätteri remains a strong candidate for high-throughput rendering.
+- 2026-07-30: revised frozen 0015 and migrated 0005 with explicit worksheet
+  accounts and semantic-diff/invalidation records. A focused oracle now
+  validates both real contracts, visible inline comment syntax, and
+  list-contained fenced examples. Targeted evidence is 14 lens tests/47
+  expectations plus green typecheck and type-aware lint. Exact acceptance
+  passed with the unchanged 24 control-loop tests/250 expectations, model
+  validation, and eight generated views. Full integration passed with 337 Bun
+  tests/1,697 expectations, zero Effect diagnostics, and 68 transitional Python
+  custody checks. Production range replay and independent review remain
+  invalid until a new clean commit exists.
 
 ## Acceptance command
 

@@ -7,6 +7,8 @@ Problem owner: operator and main research/integration agent
 Semantic frontier: development governance, verification, merge authority, and
 operator feedback
 
+Design-Lens-Version: open-semantic-system-v1
+
 ## User journey
 
 The operator delegates an outcome and can observe its contract and progress
@@ -32,6 +34,67 @@ Every nontrivial feature merged under this loop has:
 The claim is falsified by a merged feature with stale or missing checks,
 self-issued semantic validity, an unrecorded contract change, absent completion
 feedback, or leaked finished execution state.
+
+## Open semantic system design lens
+
+### Boundary and warranted state
+
+The declared system is the repository development-control loop from frozen
+contract through exact-head integration, operator feedback, and cleanup. It
+owns checked-in workflow policy and recorded execution state. GitHub, Herdr,
+agent harnesses, reviewers, credentials, and operator decisions remain
+environmental.
+
+### Semantic inputs
+
+Commands request implementation, review, merge, publication, or cleanup.
+Observations include Git diffs and identities, check results, review findings,
+preview probes, external deployment state, and session topology. A green check
+observes one bounded gate at one commit; it does not establish semantic
+correctness or future behavior. Queries derive readiness, blockers, and
+completion reports from maintained records.
+
+### Semantic outputs
+
+Domain events record admitted workflow transitions such as contract freeze,
+review acceptance, merge, and cleanup. Plans, reports, previews, Pulse updates,
+and generated project views are artifacts. Tool calls, CI dispatch, merge,
+deployment, notifications, and session cleanup are effect requests whose
+worldly outcomes require later observations.
+
+### Effect protocols and uncertainty
+
+Every external action distinguishes requested, accepted, rejected, interrupted,
+timed out, unknown, and later reconciled outcomes as applicable. Exact commit
+and idempotency identities bind retries. Unknown merge, deployment, message, or
+cleanup outcomes are inspected before retry; timeout never means the action was
+not performed. Operator-owned effects remain gated.
+
+### Components and orthogonal structures
+
+Contract ownership, work delegation, Git history, CI execution, independent
+review, deployment, human approval, notifications, and Herdr lifecycle are
+separate components joined by typed records. A repository observation becomes
+a gate verdict or work transition only through explicit validation. The
+feature loop terminates in completion, rejection/rework, explicit wait, or
+operator handoff; persistent project leadership is an intentional outer
+process rather than a hidden cycle.
+
+### Bounded autonomy and resources
+
+Each feature has one frozen contract, one active plan, one acceptance program,
+bounded writer concurrency, isolated worktrees, explicit ownership, and finite
+gate runs. Retry, review depth, agent lifetime, and cleanup are bounded by plan
+policy and operator gates. Repository size, hosted-runner capacity, network
+availability, and model resources remain environmental.
+
+### Evidence, assumptions, and unsupported claims
+
+Types, lint, tests, model checks, runtime probes, independent review, and human
+approval retain their declared categories. Exact-head binding and branch policy
+are assumptions until observed on the relevant host. The loop does not prove
+semantic validity, complete sensor coverage, reviewer independence, successful
+external effects, or absence of correlated defects.
 
 ## Frozen deep-module contract
 
@@ -324,3 +387,9 @@ the PR range must contain exactly one
 non-placeholder worksheet sections. Unchanged legacy contracts remain valid.
 This makes system boundaries and claims reviewable; it does not establish
 semantic correctness, change merge authority, or change evidence meanings.
+
+Revision 4, 2026-07-30: the migrated contract now contains the worksheet shape
+that revision 3 requires. This exposes existing development-loop boundaries,
+messages, effects, bounds, and evidence limits without changing workflow
+authority. Earlier acceptance is invalidated pending real-range replay and
+renewed independent review.

@@ -30,6 +30,15 @@ const rejection = (text: string): string => {
 };
 
 describe("open semantic system design-lens shape", () => {
+  test("the selected and migrated production contracts satisfy their own lens", () => {
+    for (const path of [
+      "design-specs/0015-open-semantic-system-design-lens.md",
+      "design-specs/0005-autonomous-development-control-loop.md",
+    ]) {
+      expect(() => validateDesignLensText(readFileSync(path, "utf8"), path)).not.toThrow();
+    }
+  });
+
   test("surfaces semantic layers, terminating slices, and explicit cycle progress", () => {
     const lens = readFileSync("docs/open-semantic-system-design.md", "utf8");
     const template = readFileSync("design-specs/TEMPLATE.md", "utf8");
@@ -245,6 +254,29 @@ ${DESIGN_LENS_HEADINGS.map((heading) => `### ${heading}\n\nHidden account.`).joi
     expect(() =>
       validateDesignLensText(indentedClosingHashHeadings, "design-specs/9999-fixture.md"),
     ).not.toThrow();
+  });
+
+  test("keeps inline code visible and list-contained fenced examples structural inert", () => {
+    const inlineCommentToken = completeLens((heading) =>
+      heading === DESIGN_LENS_HEADINGS[0]
+        ? "The literal token `<!--` is visible inline code."
+        : `Account for ${heading}.`,
+    );
+    expect(() =>
+      validateDesignLensText(inlineCommentToken, "design-specs/9999-fixture.md"),
+    ).not.toThrow();
+
+    const hiddenInListFence = `# Design
+
+Design-Lens-Version: ${DESIGN_LENS_VERSION}
+
+- \`\`\`markdown
+  ## Open semantic system design lens
+
+${DESIGN_LENS_HEADINGS.map((heading) => `  ### ${heading}\n\n  Hidden account.`).join("\n\n")}
+  \`\`\`
+`;
+    expect(rejection(hiddenInListFence)).toContain('"Open semantic system design lens" section');
   });
 
   test("reports static design-lens shape, never semantic correctness", () => {

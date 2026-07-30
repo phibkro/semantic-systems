@@ -6,6 +6,8 @@ Date: 2026-07-30
 
 Migrates-Feature-IDs: 0005-autonomous-development-control-loop
 
+Design-Lens-Version: open-semantic-system-v1
+
 ## Problem
 
 Semantic Systems already says that components are recursive open systems,
@@ -54,6 +56,65 @@ An agent working outside this repository can consume the same concise doctrine
 through a future Reef scaffold and an Agent Skill. Those carriers must be
 generated or conformance-checked against this canonical vocabulary rather than
 forking its meanings.
+
+## Open semantic system design lens
+
+### Boundary and warranted state
+
+The declared system is the repository's design-contract authoring and
+shape-validation boundary. It owns the canonical worksheet vocabulary, the
+template, and deterministic acceptance or rejection of observable Markdown
+structure. It does not own a feature's domain state and does not warrant that
+accepted prose is semantically correct.
+
+### Semantic inputs
+
+Inputs are an exact Git comparison range, the selected feature identity,
+explicit migration identities, and the corresponding checked-in Markdown
+bytes. Git change records are observations of repository history; CommonMark
+syntax trees are parser observations of document structure. Neither establishes
+the truth, completeness, or feasibility of authored claims.
+
+### Semantic outputs
+
+The canonical output is a typed feature selection or a diagnostic rejection.
+The template, doctrine, and agent guidance are authored source artifacts.
+Generated reports and future Reef or Skill carriers are derived projections and
+must not redefine the vocabulary.
+
+### Effect protocols and uncertainty
+
+The checker reads repository files and invokes Git through bounded child
+processes. Missing files, ambiguous markers, parser-visible structural drift,
+and command failure reject explicitly. It performs no repair, retry, network
+publication, or natural-language inference. A parser acceptance establishes
+only the recognized CommonMark structure.
+
+### Components and orthogonal structures
+
+Git range inventory, feature/migration selection, CommonMark parsing,
+design-lens shape validation, acceptance dispatch, and independent semantic
+review remain separate components. File bytes become syntax nodes within one
+representation layer; a shape verdict changes evidential vocabulary and never
+becomes a semantic-validity verdict. The finite validation slice terminates in
+selection or rejection and contains no message cycle.
+
+### Bounded autonomy and resources
+
+One invocation observes a finite changed-path set and finite design documents,
+launches bounded synchronous Git commands, parses each changed contract once,
+and returns one result. Time, document size, process memory, and repository
+integrity remain host assumptions; CI and the pinned environment own their
+operational limits.
+
+### Evidence, assumptions, and unsupported claims
+
+Mutation tests, real-range replay, type/lint checks, exact acceptance, and
+independent counterexample review retain their distinct evidence categories.
+The implementation assumes the pinned CommonMark parser observes the intended
+syntax and Git reports the requested exact range. Semantic correctness,
+reviewer independence, completeness of placeholder detection, and future
+parser equivalence remain unsupported.
 
 ## Canonical thesis
 
@@ -268,3 +329,12 @@ It is design input, not semantic authority or independently checked evidence.
 The implementation evaluates and cites primary prior art where useful, copies
 no conversation prose as an external authority, and keeps the repository's
 constitution authoritative.
+
+## Semantic diff
+
+The correction after rejected head `077e70a` makes this owning contract itself
+conform to the worksheet it introduces and replaces repository-owned Markdown
+block recognition with an attributed CommonMark parser. It changes no domain,
+evidence-category, or merge-authority semantics. Prior acceptance evidence is
+invalidated until real selected-and-migrated range replay, exact acceptance,
+and renewed independent review pass.
