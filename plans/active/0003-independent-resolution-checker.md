@@ -129,6 +129,28 @@ validity.
 - 2026-07-29: Opened uncertainty 0004 to compare a declarative generated rule
   contract, certificate validation, and a narrower claim boundary without
   weakening independent observation.
+- 2026-07-30: Recut the checker against the accepted TypeScript + Effect v4
+  tracer. Evidence production now returns lossless `evidence_result_v1`
+  packets before adjudication; the resolver consumes those packets and imports
+  no producer, domain, operation, or execution module. The independent checker
+  recomputes authored recipe custody, packet aggregates and identities,
+  candidate coverage, policy reasons, terminal selection, exact selection
+  identity, and assumptions. A separate inventory adapter gates execution on
+  canonical theory, realization, recipe, evidence-result, policy, lock, and
+  case-count bindings.
+- 2026-07-30: The frozen size measurement counts nonblank, noncomment lines in
+  `src/tracer/checker.ts` as the checker decision core and
+  `src/tracer/resolver.ts` as the production adjudication surface. It excludes
+  input decoding/normalization, serialization/reporting, the inventory-only
+  model adapter, evidence production, and execution from both sides. The
+  measured result is 194 / 285 = 68.07%, below the required 70% ceiling.
+- 2026-07-30: `scripts/accept/0003-independent-resolution-checker.ts` passed
+  32 focused tests, TypeScript checking, the visible checker-gated scenario,
+  canonical-model validation, and generated-view equality. The scenario
+  reported exact theory, policy, recipe, evidence-result, and selected
+  realization identities; `Checker: valid`; `Model binding: valid`; and only
+  then executed the oracle. Full repository and Nix gates remain unrun while
+  host I/O PSI is elevated, and independent review remains pending.
 
 ## Decisions and deviations
 
@@ -140,6 +162,11 @@ validity.
 - Do not reinterpret the size metric, expand the resolver denominator, or
   merge a known-red acceptance gate. The next slice is a fresh design
   experiment, not incremental patching of `b9cea28`.
+- Design spec 0010 migrated the visible runtime command from the frozen Python
+  spelling to
+  `bun run semantic-tracer -- verify-resolution examples/inventory`. This is a
+  runtime/tooling migration only; the semantic inputs, outputs, rejection
+  conditions, and execution gate from design spec 0003 are unchanged.
 
 ## Completion state
 

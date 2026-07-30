@@ -5,7 +5,7 @@
 | Kind | Count |
 |---|---:|
 | agent | 2 |
-| artifact | 6 |
+| artifact | 7 |
 | assumption | 4 |
 | claim | 5 |
 | component | 20 |
@@ -13,7 +13,7 @@
 | deployment | 3 |
 | domain_machine | 1 |
 | effect | 1 |
-| evidence | 6 |
+| evidence | 7 |
 | handler | 1 |
 | human | 1 |
 | invariant | 1 |

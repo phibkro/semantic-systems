@@ -4,6 +4,7 @@
 
 ```mermaid
 flowchart TD
+    artifact_inventory_resolution_claim_v1["Inventory resolution claim v1"]
     artifact_normalized_core["Normalized semantic core artifact"]
     assumption_inventory_fixture_coverage["Development fixture adequacy"]
     assumption_inventory_integer_arithmetic["Fixture integer arithmetic"]
@@ -18,6 +19,7 @@ flowchart TD
     evidence_inventory_broken_conformance_v0["Broken inventory conformance result v0"]
     evidence_inventory_proof["Inventory preservation proof"]
     evidence_inventory_pure_conformance_v0["Pure inventory conformance result v0"]
+    evidence_inventory_resolution_check_v1["Independent inventory resolution check v1"]
     evidence_inventory_tests["Inventory property tests"]
     evidence_model_tests["Project model tests"]
     evidence_stm_model["Bounded STM model check"]
@@ -36,6 +38,8 @@ flowchart TD
     claim_stm_serializable -->|assumes| assumption_memory_model
     claim_inventory_invariant -->|validates| invariant_inventory_nonnegative
     claim_stm_serializable -->|validates| realization_inventory_stm
+    evidence_inventory_resolution_check_v1 -->|validates| artifact_inventory_resolution_claim_v1
+    evidence_inventory_resolution_check_v1 -->|supports| claim_inventory_resolution
     evidence_inventory_pure_conformance_v0 -->|supports| claim_inventory_resolution
     evidence_inventory_broken_conformance_v0 -->|supports| claim_inventory_resolution
     evidence_inventory_pure_conformance_v0 -->|supports| claim_inventory_invariant

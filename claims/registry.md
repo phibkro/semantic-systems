@@ -63,10 +63,20 @@ Consequence if falsified: execution and publication remain blocked; split the
 decision rules into a declarative generated table or recut the checker boundary
 rather than weakening independence.
 
-Observed result (2026-07-29): experiment `b9cea28` passed the behavioral,
-mutation, forbidden-import, lint, format, and type gates but failed the frozen
-checker-size gate. It is rejected for integration and does not establish this
-claim. Uncertainty 0004 records the recut alternatives.
+Observed result (2026-07-30, pre-completion): the TypeScript + Effect v4 recut
+passed the focused feature acceptance: 32 behavioral and mutation tests,
+forbidden-import checks, type checking, the visible checker-gated scenario,
+canonical-model validation, and generated-view equality. The checker decision
+core measures 194 nonblank, noncomment lines against the resolver's 285
+(68.07%). The visible scenario reports exact recipe, evidence-result, policy,
+and selected identities, then executes only after `Checker: valid` and
+`Model binding: valid`.
+
+This is `example_test` plus `runtime_check` evidence, not proof. Independent
+review, full repository validation, and the resource-gated Nix check remain
+pending, so CLM-0002 is not yet a completed project claim. The rejected
+experiment remains preserved at `b9cea28`; uncertainty 0004 records why it was
+recut.
 
 Invalidation: any change to the evidence-result schema, resolution-claim
 schema, policy rules, identity algorithm, checker algorithm, or canonical
