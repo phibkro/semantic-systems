@@ -119,9 +119,16 @@ unsupported authority claims fail the gate.
   strict typecheck and lint, plus a genuine Node test observing the same frozen
   normalized journey bytes as Bun.
 - 2026-07-30: exact feature acceptance passed. It includes 17 focused
-  semantic-system tests / 89 expectations, genuine Node portability, inventory
+  semantic-system tests / 93 expectations, genuine Node portability, inventory
   0001 regression tests, actor 0012 and 0013 exact acceptance, typecheck,
   strict lint, formatting, model validation, and generated-view drift checks.
   These are runtime validation and regression evidence, not proof, language
   soundness, OTP semantics, external exactly-once behavior, or observation
   truth.
+- 2026-07-30: pre-review self-audit corrected two contract gaps: the public
+  interpreter boundary now snapshots and exactly validates the complete effect
+  request envelope before invoking a handler, and the derived graph now
+  includes explicit reaction/query handler nodes, `realizes` edges, and
+  unsupported-claim disclosures. The empty actor-normalization case is
+  excluded by a nonempty tuple rather than an ambient throw. Exact acceptance
+  remained green after the correction.

@@ -19,13 +19,22 @@ export interface SemanticGraphNode {
     | "domain_event"
     | "artifact"
     | "effect_request"
+    | "handler"
     | "interpreter";
 }
 
 export interface SemanticGraphEdge {
   readonly source: string;
   readonly target: string;
-  readonly kind: "owns" | "consumes" | "emits" | "derives" | "requests" | "interprets" | "observes";
+  readonly kind:
+    | "owns"
+    | "consumes"
+    | "emits"
+    | "derives"
+    | "requests"
+    | "interprets"
+    | "observes"
+    | "realizes";
   readonly progress?: "bounded" | "persistent";
 }
 
@@ -33,6 +42,7 @@ export interface SemanticComponentGraph {
   readonly componentId: string;
   readonly nodes: ReadonlyArray<SemanticGraphNode>;
   readonly edges: ReadonlyArray<SemanticGraphEdge>;
+  readonly unsupportedClaims: ReadonlyArray<string>;
 }
 
 const nodeId = (componentId: string, kind: string, tag: string): string =>
@@ -64,36 +74,44 @@ export const deriveComponentGraph = <
     yield* requireInterpreterRegistry(registry);
     const componentNode = `component:${component.id}`;
     const stateNode = `state:${component.id}:${spec.state.schemaId}`;
+    const reactionHandler = nodeId(component.id, "handler", "react");
+    const queryHandler = nodeId(component.id, "handler", "answer");
     const nodes: Array<SemanticGraphNode> = [
       { id: componentNode, kind: "component" },
       { id: stateNode, kind: "state" },
+      { id: reactionHandler, kind: "handler" },
+      { id: queryHandler, kind: "handler" },
     ];
     const edges: Array<SemanticGraphEdge> = [
       { source: componentNode, target: stateNode, kind: "owns" },
+      { source: componentNode, target: reactionHandler, kind: "realizes" },
+      { source: componentNode, target: queryHandler, kind: "realizes" },
     ];
 
     const addFamily = (
       kind: "command" | "observation" | "query" | "domain_event" | "artifact" | "effect_request",
       tags: ReadonlyArray<string>,
       edge: "consumes" | "emits" | "derives" | "requests",
+      handler: string,
     ) => {
       for (const tag of tags) {
         const id = nodeId(component.id, kind, tag);
-        nodes.push({ id, kind });
+        if (!nodes.some((node) => node.id === id)) nodes.push({ id, kind });
         edges.push(
           edge === "consumes"
-            ? { source: id, target: componentNode, kind: edge }
-            : { source: componentNode, target: id, kind: edge },
+            ? { source: id, target: handler, kind: edge }
+            : { source: handler, target: id, kind: edge },
         );
       }
     };
 
-    addFamily("command", spec.commands.tags, "consumes");
-    addFamily("observation", spec.observations.tags, "consumes");
-    addFamily("query", spec.queries.tags, "consumes");
-    addFamily("domain_event", spec.events.tags, "emits");
-    addFamily("artifact", spec.artifacts.tags, "derives");
-    addFamily("effect_request", spec.effects.tags, "requests");
+    addFamily("command", spec.commands.tags, "consumes", reactionHandler);
+    addFamily("observation", spec.observations.tags, "consumes", reactionHandler);
+    addFamily("query", spec.queries.tags, "consumes", queryHandler);
+    addFamily("domain_event", spec.events.tags, "emits", reactionHandler);
+    addFamily("artifact", spec.artifacts.tags, "derives", reactionHandler);
+    addFamily("artifact", spec.artifacts.tags, "derives", queryHandler);
+    addFamily("effect_request", spec.effects.tags, "requests", reactionHandler);
 
     for (const requestTag of registry.requestTags) {
       const interpreter = nodeId(component.id, "interpreter", requestTag);
@@ -120,6 +138,13 @@ export const deriveComponentGraph = <
             `${right.source}:${right.kind}:${right.target}`,
           ),
         ),
+        unsupportedClaims: [
+          "external exactly-once effects",
+          "formal semantic correctness",
+          "observation truth",
+          "OTP supervision",
+          "termination of arbitrary authored handlers",
+        ],
       },
       "semantic component graph",
     );

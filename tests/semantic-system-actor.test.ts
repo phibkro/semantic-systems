@@ -73,14 +73,25 @@ describe("semantic component actor realization", () => {
           yield* actor.close;
           return {
             direct,
-            actor: normalizeActorReactions([firstOutput.value, secondOutput.value] as ReadonlyArray<
+            actor: normalizeActorReactions([
+              firstOutput.value,
+              secondOutput.value,
+            ] as unknown as readonly [
               Reaction<
                 typeof secondOutput.value.state,
                 (typeof secondOutput.value.events)[number]["payload"],
                 (typeof secondOutput.value.artifacts)[number]["payload"],
                 (typeof secondOutput.value.effects)[number]["payload"]
-              >
-            >),
+              >,
+              ...ReadonlyArray<
+                Reaction<
+                  typeof secondOutput.value.state,
+                  (typeof secondOutput.value.events)[number]["payload"],
+                  (typeof secondOutput.value.artifacts)[number]["payload"],
+                  (typeof secondOutput.value.effects)[number]["payload"]
+                >
+              >,
+            ]),
           };
         }),
       ),

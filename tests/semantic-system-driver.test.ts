@@ -5,7 +5,9 @@ import {
   defineInterpreterRegistry,
   defineSemanticComponent,
   deriveComponentGraph,
+  interpretEffectRequest,
   InterpreterAttemptFailed,
+  react,
   runDirect,
   type InterpreterEntry,
   type InterpreterRegistry,
@@ -166,6 +168,15 @@ describe("bounded direct semantic-system driver", () => {
 
     const graph = await run(deriveComponentGraph(component, registry));
     expect(graph.nodes.some((node) => node.id.endsWith("effect_request:Persist"))).toBeTrue();
+    expect(graph.nodes.filter((node) => node.kind === "handler")).toHaveLength(2);
+    expect(
+      graph.edges.some(
+        (edge) =>
+          edge.kind === "consumes" &&
+          edge.source.endsWith("command:Start") &&
+          edge.target.endsWith("handler:react"),
+      ),
+    ).toBeTrue();
     expect(
       graph.edges.some(
         (edge) =>
@@ -176,6 +187,7 @@ describe("bounded direct semantic-system driver", () => {
       ),
     ).toBeTrue();
     expect(graph.nodes.some((node) => node.id.includes("StartedButGuessed"))).toBeFalse();
+    expect(graph.unsupportedClaims).toContain("observation truth");
     expect(Object.isFrozen(graph.edges)).toBeTrue();
   });
 
@@ -198,6 +210,17 @@ describe("bounded direct semantic-system driver", () => {
     await expect(
       run(runDirect(component, lookalike, { value: 0, confirmed: false }, [start], bounds)),
     ).rejects.toThrow("not constructed by defineInterpreterRegistry");
+
+    const registry = await run(defineInterpreterRegistry(component, [successEntry]));
+    const reaction = await run(react(component, { value: 0, confirmed: false }, start));
+    await expect(
+      run(
+        interpretEffectRequest(component, registry, {
+          ...reaction.effects[0]!,
+          schemaId: "forged.schema",
+        }),
+      ),
+    ).rejects.toThrow("does not match the component protocol");
   });
 
   test("suspends unknown attempts without replay and exposes remaining work", async () => {

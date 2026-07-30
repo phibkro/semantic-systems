@@ -141,12 +141,12 @@ export const normalizeActorReactions = <
   Artifact extends Tagged,
   Request extends Tagged,
 >(
-  reactions: ReadonlyArray<Reaction<State, Event, Artifact, Request>>,
+  reactions: readonly [
+    Reaction<State, Event, Artifact, Request>,
+    ...ReadonlyArray<Reaction<State, Event, Artifact, Request>>,
+  ],
 ): NormalizedActorJourney<State, Event, Artifact> => {
-  const last = reactions.at(-1);
-  if (last === undefined) {
-    throw new TypeError("at least one actor reaction is required");
-  }
+  const last = reactions[reactions.length - 1]!;
   return {
     state: last.state,
     events: reactions.flatMap((reaction) => reaction.events.map((event) => event.payload)),

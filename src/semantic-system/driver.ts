@@ -1,4 +1,4 @@
-import { Data, Effect, Result } from "effect";
+import { Data, Effect, Result, Schema } from "effect";
 import { snapshotSemanticValue, type SemanticValueRejected } from "./custody.ts";
 import { requireComponent, type InvalidSemanticComponent } from "./definition.ts";
 import { observation, react, validateState, type SemanticKernelFailure } from "./kernel.ts";
@@ -320,23 +320,90 @@ export const interpretEffectRequest = <
 > =>
   Effect.gen(function* () {
     const { spec } = yield* requireComponent(component);
-    if (registry.componentId !== component.id || request.componentId !== component.id) {
+    const ownedRequest = yield* snapshotSemanticValue(request, "interpreter effect request");
+    const rawCandidate = ownedRequest as unknown;
+    if (typeof rawCandidate !== "object" || rawCandidate === null || Array.isArray(rawCandidate)) {
+      return yield* new InvalidInterpreterRegistry({
+        reason: "effect request envelope must be a record",
+      });
+    }
+    const fields = rawCandidate as Record<string, unknown>;
+    const allowedKeys = new Set([
+      "actionId",
+      "category",
+      "causationId",
+      "componentId",
+      "correlationId",
+      "messageId",
+      "payload",
+      "schemaId",
+    ]);
+    if (Object.keys(fields).some((key) => !allowedKeys.has(key))) {
+      return yield* new InvalidInterpreterRegistry({
+        reason: "effect request envelope contains undeclared fields",
+      });
+    }
+    if (registry.componentId !== component.id || fields["componentId"] !== component.id) {
       return yield* new InvalidInterpreterRegistry({
         reason: "interpreter registry or request belongs to a different component",
       });
     }
+    if (
+      fields["category"] !== "effect_request" ||
+      fields["schemaId"] !== spec.effects.schemaId ||
+      typeof fields["messageId"] !== "string" ||
+      fields["messageId"].trim().length === 0 ||
+      typeof fields["correlationId"] !== "string" ||
+      fields["correlationId"].trim().length === 0 ||
+      typeof fields["actionId"] !== "string" ||
+      fields["actionId"].trim().length === 0 ||
+      (fields["causationId"] !== undefined &&
+        (typeof fields["causationId"] !== "string" || fields["causationId"].trim().length === 0))
+    ) {
+      return yield* new InvalidInterpreterRegistry({
+        reason: "effect request envelope does not match the component protocol",
+      });
+    }
+    const decodedPayload = yield* Schema.decodeUnknownEffect(spec.effects.schema, {
+      onExcessProperty: "error",
+    })(fields["payload"]).pipe(
+      Effect.mapError(
+        (cause) =>
+          new InvalidInterpreterRegistry({
+            reason: `effect request payload failed its declared schema: ${cause.message}`,
+          }),
+      ),
+    );
+    if (!spec.effects.tags.includes(decodedPayload["_tag"])) {
+      return yield* new InvalidInterpreterRegistry({
+        reason: "effect request payload has an undeclared protocol tag",
+      });
+    }
+    const guardedRequest = yield* snapshotSemanticValue(
+      {
+        category: "effect_request" as const,
+        componentId: component.id,
+        schemaId: spec.effects.schemaId,
+        messageId: fields["messageId"],
+        correlationId: fields["correlationId"],
+        ...(fields["causationId"] === undefined ? {} : { causationId: fields["causationId"] }),
+        actionId: fields["actionId"],
+        payload: decodedPayload,
+      },
+      "validated interpreter effect request",
+    );
     const { handlers } = yield* requireInterpreterRegistry(registry);
-    const handler = handlers.get(request.payload["_tag"]);
+    const handler = handlers.get(guardedRequest.payload["_tag"]);
     if (handler === undefined) {
       return yield* new InvalidInterpreterRegistry({
-        reason: `no interpreter for request ${request.payload["_tag"]}`,
+        reason: `no interpreter for request ${guardedRequest.payload["_tag"]}`,
       });
     }
     const draft = yield* Effect.try({
-      try: () => handler(request),
+      try: () => handler(guardedRequest),
       catch: (cause) =>
         new InterpreterAttemptFailed({
-          actionId: request.actionId,
+          actionId: guardedRequest.actionId,
           outcome: "unknown",
           reason:
             cause instanceof Error
@@ -346,20 +413,20 @@ export const interpretEffectRequest = <
     }).pipe(Effect.flatMap((program) => program));
     const ownedDraft = yield* snapshotSemanticValue(draft, "interpreter observation draft");
     const protocol = spec.protocols.find(
-      (candidate) => candidate.requestTag === request.payload["_tag"],
+      (candidate) => candidate.requestTag === guardedRequest.payload["_tag"],
     );
     if (protocol === undefined || !protocol.observationTags.includes(ownedDraft.payload["_tag"])) {
       return yield* new InvalidInterpreterRegistry({
-        reason: `request ${request.payload["_tag"]} returned unrelated observation ${ownedDraft.payload["_tag"]}`,
+        reason: `request ${guardedRequest.payload["_tag"]} returned unrelated observation ${ownedDraft.payload["_tag"]}`,
       });
     }
     return yield* observation(
       component,
       {
         messageId: ownedDraft.messageId,
-        correlationId: request.correlationId,
-        causationId: request.messageId,
-        actionId: request.actionId,
+        correlationId: guardedRequest.correlationId,
+        causationId: guardedRequest.messageId,
+        actionId: guardedRequest.actionId,
         provenance: ownedDraft.provenance,
       },
       ownedDraft.payload,
