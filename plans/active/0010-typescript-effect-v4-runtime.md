@@ -303,12 +303,18 @@ accepted; no new Python implementation is permitted.
   helpers, SSH/scp spellings, and every offline transport scheme are denied.
   Replacement refs are disabled so a local repository cannot substitute a
   different tree or license blob while the lock records the original commit
-  ID.
+  ID. Ref advertisement runs from a scoped neutral directory below
+  `GIT_CEILING_DIRECTORIES`, preventing repository-local
+  `url.*.insteadOf` configuration in the invoking checkout from rewriting a
+  local path into another local repository or an online transport.
   The lock is derived exclusively from the selected commit/tree and regular
   committed license blobs; dirty working-tree bytes are irrelevant, and a
   byte-identical observation retains the prior custody timestamp. Four new
   adversarial tests cover environment poisoning, transport syntax, committed
   object custody/stable reuse, remote-origin mismatch, and replacement-ref
-  substitution, raising the focused suite to 45 passing tests. This slice deliberately does not expose the
-  mutating `lock` CLI: publication must remain serialized until the curator
-  lock and multi-source transaction are ported.
+  substitution. A local-to-local `insteadOf` attack demonstrates the rewrite
+  without opening network and proves the discovery ceiling selects the
+  requested repository, raising the focused suite to 46 passing tests. This
+  slice deliberately does not expose the mutating `lock` CLI: publication must
+  remain serialized until the curator lock and multi-source transaction are
+  ported.

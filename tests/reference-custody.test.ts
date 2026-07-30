@@ -30,6 +30,7 @@ import {
   GitEnvironment,
   makeGitEnvironment,
   requireAllowedLocation,
+  runGit,
 } from "../src/references/git.ts";
 import { loadLock, parseLockText, serializeLock, writeLock } from "../src/references/lockfile.ts";
 import {
@@ -605,6 +606,53 @@ describe("reference custody Effect v4 slice: offline Git observation", () => {
     expect(entry.commit).toBe(originalCommit);
     expect(entry.tree).toBe(originalTree);
     expect(entry.licenses.get("LICENSE")?.sha256).toBe(originalLicenseHash);
+  });
+
+  test("a repository-local insteadOf rule cannot rewrite a ref observation", async () => {
+    const target = await localSiblingFixture();
+    const redirected = await localSiblingFixture("https://example.com/redirected.git");
+    await writeFile(join(redirected.sibling, "LICENSE"), "different redirect target\n");
+    runCommand(["git", "add", "LICENSE"], redirected.sibling);
+    runCommand(
+      [
+        "git",
+        "-c",
+        "user.name=Semantic Custody Test",
+        "-c",
+        "user.email=custody@example.invalid",
+        "commit",
+        "-m",
+        "test: distinguish redirect target",
+      ],
+      redirected.sibling,
+    );
+    const targetCommit = runCommand(["git", "rev-parse", "HEAD"], target.sibling);
+    const redirectedCommit = runCommand(["git", "rev-parse", "HEAD"], redirected.sibling);
+    expect(redirectedCommit).not.toBe(targetCommit);
+
+    const hostileRoot = await mkdtemp(join(tmpdir(), "semantic-git-config-"));
+    temporaryRoots.push(hostileRoot);
+    runCommand(["git", "init"], hostileRoot);
+    runCommand(
+      ["git", "config", `url.${redirected.sibling}.insteadOf`, target.sibling],
+      hostileRoot,
+    );
+    const hostileCwd = join(hostileRoot, "nested");
+    await mkdir(hostileCwd);
+
+    const inherited = await runBun(
+      runGit(["ls-remote", target.sibling, "main"], { cwd: hostileCwd }),
+    );
+    expect(new TextDecoder().decode(inherited.stdout)).toContain(redirectedCommit);
+
+    const sealed = await runBun(
+      runGit(["ls-remote", target.sibling, "main"], {
+        cwd: hostileCwd,
+        repositoryCeiling: hostileRoot,
+      }),
+    );
+    expect(new TextDecoder().decode(sealed.stdout)).toContain(targetCommit);
+    expect(new TextDecoder().decode(sealed.stdout)).not.toContain(redirectedCommit);
   });
 });
 

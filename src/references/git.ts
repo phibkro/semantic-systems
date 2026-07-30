@@ -1,4 +1,4 @@
-import { Context, Crypto, Effect, Stream } from "effect";
+import { Context, Crypto, Effect, FileSystem, Path, Stream } from "effect";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 import { isConcreteGitRef } from "./catalog.ts";
 import { AcquisitionError } from "./errors.ts";
@@ -58,7 +58,10 @@ const HARDENING_ARGUMENTS = [
 ] as const;
 
 export interface GitEnvironmentShape {
-  readonly forMode: (allowTransport: boolean) => Readonly<Record<string, string>>;
+  readonly forMode: (
+    allowTransport: boolean,
+    repositoryCeiling?: string,
+  ) => Readonly<Record<string, string>>;
 }
 
 export class GitEnvironment extends Context.Service<GitEnvironment, GitEnvironmentShape>()(
@@ -69,7 +72,7 @@ export class GitEnvironment extends Context.Service<GitEnvironment, GitEnvironme
 export const makeGitEnvironment = (
   ambient: Readonly<Record<string, string | undefined>>,
 ): GitEnvironmentShape => ({
-  forMode: (allowTransport) => {
+  forMode: (allowTransport, repositoryCeiling) => {
     const names = allowTransport
       ? [...ENVIRONMENT_PASSTHROUGH, ...TRANSPORT_ENVIRONMENT_PASSTHROUGH]
       : ENVIRONMENT_PASSTHROUGH;
@@ -80,6 +83,9 @@ export const makeGitEnvironment = (
     }
     Object.assign(environment, FIXED_ENVIRONMENT);
     if (!allowTransport) environment.GIT_NO_LAZY_FETCH = "1";
+    if (repositoryCeiling !== undefined) {
+      environment.GIT_CEILING_DIRECTORIES = repositoryCeiling;
+    }
     return environment;
   },
 });
@@ -154,10 +160,11 @@ export interface GitResult {
   readonly stderr: string;
 }
 
-interface RunGitOptions {
+export interface RunGitOptions {
   readonly check?: boolean;
   readonly allowTransport?: boolean;
   readonly cwd?: string;
+  readonly repositoryCeiling?: string;
 }
 
 export const runGit = (
@@ -174,7 +181,7 @@ export const runGit = (
     const allowTransport = options.allowTransport ?? false;
     const command = ChildProcess.make("git", [...HARDENING_ARGUMENTS, ...arguments_], {
       cwd: options.cwd,
-      env: environments.forMode(allowTransport),
+      env: environments.forMode(allowTransport, options.repositoryCeiling),
       extendEnv: false,
       shell: false,
       detached: false,
@@ -349,12 +356,39 @@ const lsRemoteRefs = (
 ): Effect.Effect<
   RemoteRefs,
   AcquisitionError,
-  ChildProcessSpawner.ChildProcessSpawner | GitEnvironment
+  ChildProcessSpawner.ChildProcessSpawner | FileSystem.FileSystem | GitEnvironment | Path.Path
 > =>
-  requireAllowedLocation(location, false).pipe(
-    Effect.andThen(rejectOptionLike("ref", pattern)),
-    Effect.andThen(runGit(["ls-remote", "--symref", location, pattern])),
-    Effect.map((result) => {
+  Effect.scoped(
+    Effect.gen(function* () {
+      yield* requireAllowedLocation(location, false);
+      yield* rejectOptionLike("ref", pattern);
+      const fs = yield* FileSystem.FileSystem;
+      const paths = yield* Path.Path;
+      const scratch = yield* fs
+        .makeTempDirectoryScoped({ prefix: "semantic-git-observation-" })
+        .pipe(
+          Effect.mapError(
+            (cause) =>
+              new AcquisitionError({
+                message: "cannot create a neutral Git observation directory",
+                cause,
+              }),
+          ),
+        );
+      const cwd = paths.join(scratch, "cwd");
+      yield* fs.makeDirectory(cwd).pipe(
+        Effect.mapError(
+          (cause) =>
+            new AcquisitionError({
+              message: "cannot initialize a neutral Git observation directory",
+              cause,
+            }),
+        ),
+      );
+      const result = yield* runGit(["ls-remote", "--symref", location, pattern], {
+        cwd,
+        repositoryCeiling: scratch,
+      });
       const symrefs: Array<readonly [string, string]> = [];
       const refs: Array<readonly [string, string]> = [];
       for (const line of text(result).split(/\r?\n/)) {
@@ -378,7 +412,7 @@ export const observeConcreteRef = (
 ): Effect.Effect<
   string,
   AcquisitionError,
-  ChildProcessSpawner.ChildProcessSpawner | GitEnvironment
+  ChildProcessSpawner.ChildProcessSpawner | FileSystem.FileSystem | GitEnvironment | Path.Path
 > =>
   Effect.gen(function* () {
     const observed = yield* lsRemoteRefs(location, track);
