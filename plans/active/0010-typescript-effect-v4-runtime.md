@@ -354,11 +354,12 @@ accepted; no new Python implementation is permitted.
   curator conflict/release, live Python-vs-TypeScript exclusion, preservation
   of the Python-format lock file, symlink and hardlink attacks, failed
   two-source rollback followed by successful publication, forced loss of a
-  ready holder, and a real Node lock followed by a byte/inode-stable Bun
-  re-lock. The initial bounded gate passed 57 focused tests under Bun alongside
-  TypeScript, oxlint, formatting, and diff-hygiene checks. Exact-head review
-  then exposed the holder-supervision gap and the Node no-op oracle; their
-  corrections now pass the same static gates and 58 focused tests. Object-cache
-  fallback and remote/cache publication remain deferred and are stated in CLI
-  usage. Nix and broad integration gates were not run while host I/O full
-  pressure remained above 80%.
+  ready holder during a real lock transaction with byte-identical rollback,
+  and a real Node lock followed by a byte/inode-stable Bun re-lock. The initial
+  bounded gate passed 57 focused tests under Bun alongside TypeScript, oxlint,
+  formatting, and diff-hygiene checks. Exact-head review then exposed the
+  holder-supervision gap, the Node no-op oracle, and a false-pass path in the
+  first holder-loss oracle; their corrections pass the same static gates and
+  59 focused tests. Object-cache fallback and remote/cache publication remain
+  deferred and are stated in CLI usage. Nix and broad integration gates were
+  not run while host I/O full pressure remained above 80%.

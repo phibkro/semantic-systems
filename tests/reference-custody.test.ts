@@ -24,7 +24,7 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { Effect, Exit, FileSystem, Layer, type Crypto, type Path } from "effect";
+import { Cause, Effect, Exit, FileSystem, Layer, Option, type Crypto, type Path } from "effect";
 import type { ChildProcessSpawner } from "effect/unstable/process";
 import { lockFromLocalSibling } from "../src/references/acquire.ts";
 import {
@@ -42,6 +42,7 @@ import {
   makeCuratorProcess,
   superviseCurator,
 } from "../src/references/curator.ts";
+import { CuratorLockedError } from "../src/references/errors.ts";
 import {
   GitEnvironment,
   makeGitEnvironment,
@@ -566,7 +567,78 @@ describe("reference custody Effect v4 slice: curator serialization", () => {
       ),
     );
     expect(Exit.isFailure(exit)).toBeTrue();
+    if (!Exit.isFailure(exit)) throw new Error("expected supervised curator failure");
+    const failure = Cause.findErrorOption(exit.cause);
+    expect(Option.isSome(failure)).toBeTrue();
+    if (!Option.isSome(failure)) throw new Error("expected typed curator failure");
+    expect(failure.value).toBeInstanceOf(CuratorLockedError);
     expect(completed).toBeFalse();
+  });
+
+  test("holder loss during a real lock transaction preserves prior lock bytes", async () => {
+    const fixture = await localSiblingFixture();
+    const licensePaths = [
+      "LICENSE",
+      ...Array.from({ length: 20 }, (_, index) => `NOTICE-${index}`),
+    ];
+    for (const path of licensePaths.slice(1)) {
+      await writeFile(join(fixture.sibling, path), `notice bytes for ${path}\n`);
+    }
+    runCommand(["git", "add", "."], fixture.sibling);
+    runCommand(
+      [
+        "git",
+        "-c",
+        "user.name=Semantic Custody Test",
+        "-c",
+        "user.email=custody@example.invalid",
+        "commit",
+        "-m",
+        "test: add slow observation surface",
+      ],
+      fixture.sibling,
+    );
+    await mkdir(join(fixture.project, "references"));
+    await writeFile(
+      join(fixture.project, "references", "sources.toml"),
+      fixture.sourceText.replace(
+        'license_paths = ["LICENSE"]',
+        `license_paths = ${JSON.stringify(licensePaths)}`,
+      ),
+    );
+    const lockPath = join(fixture.project, "references", "sources.lock.json");
+    const baseline = `{
+  "generator": "baseline",
+  "schema": "reference-lock-v1",
+  "sources": {}
+}
+`;
+    await writeFile(lockPath, baseline);
+    const exitingHolder = [
+      'const { writeFileSync } = require("node:fs");',
+      'writeFileSync(process.argv[1], "semantic-curator-ready", { flag: "wx", mode: 0o600 });',
+      "setTimeout(() => process.exit(23), 25);",
+      "setInterval(() => {}, 1_000);",
+    ].join("");
+    const ExitingCuratorLayer = Layer.succeed(
+      CuratorProcess,
+      makeCuratorProcess(process.env, NODE_EXECUTABLE, ["-e", exitingHolder]),
+    );
+
+    const exit = await Effect.runPromiseExit(
+      lockOfflineLocalSiblings(fixture.project, ["demo.repo"], "semantic-systems/0.0.0").pipe(
+        Effect.provide([BunFileSystem.layer, BunPath.layer, BunCrypto.layer, BunTomlParser]),
+        Effect.provide([BunChildProcessLayer, ExitingCuratorLayer, GitEnvironmentLayer]),
+      ),
+    );
+    expect(Exit.isFailure(exit)).toBeTrue();
+    if (!Exit.isFailure(exit)) throw new Error("expected holder-loss transaction failure");
+    const failure = Cause.findErrorOption(exit.cause);
+    expect(Option.isSome(failure)).toBeTrue();
+    if (!Option.isSome(failure)) throw new Error("expected typed holder-loss transaction failure");
+    expect(failure.value).toBeInstanceOf(CuratorLockedError);
+    expect(failure.value.message).toContain("exited unexpectedly");
+    expect(await readFile(lockPath, "utf8")).toBe(baseline);
   });
 
   test("excludes the transitional Python curator through the same kernel lock", async () => {
