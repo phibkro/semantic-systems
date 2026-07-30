@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0014-stm-effect-handler-laws.md`](../../design-specs/0014-stm-effect-handler-laws.md).
 This mutable execution record cannot redefine that contract.
 
-Status: second independent-review correction implemented; exact-head acceptance and full integration green; re-review pending
+Status: third independent-review correction implemented; exact-head acceptance and full integration green; re-review pending
 
 Owner: main research and integration agent
 
@@ -212,5 +212,45 @@ decision.stm-library`; generated readiness must derive from that source edge.
   eight semantic-lint tests, genuine Bun/Node report parity, portable-closure
   inspection, typecheck, lint, formatting, model validation, and generated
   views. The full integration loop passed with 348 Bun tests/1,809 assertions,
+  68 transitional custody checks, zero Effect diagnostics, commit-policy
+  conformance, and every repository gate green.
+- 2026-07-30: third exact-head review rejected `cfd3f17` because several typed
+  token entrypoints still dereferenced a Proxy wrapper before checking private
+  custody: `read`/`write`, `nested`/`orElse`/`when`, invalid-transaction error
+  projection in `beginAttempt`, and dependency reads in
+  `changedDependencies`.
+- 2026-07-30: the third correction audits Domain, TVar, Expression, Txn, Store,
+  Attempt, and Suspension arguments at every public boundary. Private WeakSet
+  predicates now run before any token property read. Invalid transaction
+  rendering uses the custody-independent identifier `unknown`, and all
+  suspensions receive permanent known custody separately from the affine live
+  wake right.
+- 2026-07-30: exact hostile throwing-Proxy falsifiers cover `read`, `write`,
+  `makeStore`, `inspectCell`, expression combinators, `sequence`, `nested`,
+  both `orElse` sides, both `when` branches and its condition,
+  `beginAttempt`, Store projection/history/dependency paths, attempt
+  settle/discard/rerun, and suspension query/wake. Every typed-token boundary
+  rejects with a zero trap counter. The canonical L2/L8 evidence records both
+  rejection and the exact `"0"` counter.
+- 2026-07-30: typed-token Proxy custody is distinct from arbitrary raw user
+  data. Handler-issued tokens have private identity and are rejected
+  trap-free; raw object literals still require descriptor inspection, so the
+  previously disclosed hostile raw-data Proxy limitation remains unsupported
+  rather than being mislabeled fixed.
+- 2026-07-30: removed runtime-ambiguous `JsonValue | Expression` parameters.
+  `succeed`, `write`, and `sequence` are data-only; explicit
+  `writeExpression` and `sequenceExpression` authenticate expression custody
+  before composition. This prevents an unauthenticated Expression wrapper from
+  falling through into the raw-data inspector while preserving AST-shaped JSON
+  as ordinary data.
+- 2026-07-30: third-correction mutation checks dereferenced a TVar before
+  authentication, restored invalid-Txn ID rendering, and bypassed known
+  Suspension custody. Each mutation executed the hostile Proxy trap and failed
+  the zero-trap oracle at the named boundary. All mutations were reverted.
+- 2026-07-30: third-correction exact-head acceptance passed with 27 STM
+  tests/221 assertions, 82 neighboring actor/inventory tests/483 assertions,
+  eight semantic-lint tests, genuine Bun/Node report parity, portable-closure
+  inspection, typecheck, lint, formatting, model validation, and generated
+  views. The full integration loop passed with 349 Bun tests/1,848 assertions,
   68 transitional custody checks, zero Effect diagnostics, commit-policy
   conformance, and every repository gate green.

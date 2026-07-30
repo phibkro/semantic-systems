@@ -21,6 +21,7 @@ import {
   rerunAttempt,
   retry,
   sequence,
+  sequenceExpression,
   serialOrderingsFor,
   settleAttempt,
   succeed,
@@ -28,6 +29,7 @@ import {
   wakeAndRerun,
   when,
   write,
+  writeExpression,
   type Attempt,
   type BeginResult,
   type CommitRecord,
@@ -75,13 +77,13 @@ const referenceScenario = (): ReferenceScenario => {
   const y = tvar(owner, "y", 0);
   const unrelated = tvar(owner, "unrelated", 0);
   const initial = makeStore(owner, [x, y, unrelated]);
-  const transaction = sequence(
+  const transaction = sequenceExpression(
     owner,
     "increment-both",
     [
       read(x, "observed-x"),
-      write(x, add(binding("observed-x"), literal(1))),
-      write(y, add(binding("observed-x"), literal(1))),
+      writeExpression(x, add(binding("observed-x"), literal(1))),
+      writeExpression(y, add(binding("observed-x"), literal(1))),
       afterCommit(owner, { kind: "published", transaction: "increment-both" }),
     ],
     binding("observed-x"),
@@ -113,7 +115,7 @@ const retryScenario = (
   readonly relevantStore: Store<string>;
   readonly wakeAttempt: Attempt;
 } => {
-  const retrying = sequence(
+  const retrying = sequenceExpression(
     base.initial.domain,
     "wait-for-x",
     [
@@ -262,13 +264,13 @@ const histories = (
     const descriptions = [
       sequence(owner, "scheduler-a", [
         read(x, "scheduler-a-x"),
-        write(x, add(binding("scheduler-a-x"), literal(1))),
+        writeExpression(x, add(binding("scheduler-a-x"), literal(1))),
         write(y, 1),
         afterCommit(owner, { transaction: "scheduler-a" }),
       ]),
       sequence(owner, "scheduler-b", [
         read(x, "scheduler-b-x"),
-        write(x, add(binding("scheduler-b-x"), literal(2))),
+        writeExpression(x, add(binding("scheduler-b-x"), literal(2))),
         write(y, 2),
         afterCommit(owner, { transaction: "scheduler-b" }),
       ]),
@@ -470,6 +472,67 @@ const inertCaptureRejectsUserCode = (): {
   });
 };
 
+const returnsTypeError = (operation: () => unknown): boolean => {
+  try {
+    operation();
+    return false;
+  } catch (cause) {
+    return cause instanceof TypeError;
+  }
+};
+
+const typedTokensRejectProxyWrappersWithoutTraps = (
+  base: ReferenceScenario,
+  retryResult: ReturnType<typeof retryScenario>,
+): {
+  readonly boundariesRejected: boolean;
+  readonly proxyTraps: bigint;
+} => {
+  let proxyTraps = 0n;
+  const fail = () => {
+    proxyTraps += 1n;
+    throw new Error("typed-token Proxy trap executed");
+  };
+  const handler: ProxyHandler<object> = {
+    get: fail,
+    getOwnPropertyDescriptor: fail,
+    getPrototypeOf: fail,
+    has: fail,
+    ownKeys: fail,
+  };
+  const proxy = <A extends object>(target: A): A => new Proxy(target, handler as ProxyHandler<A>);
+
+  const transaction = succeed(base.initial.domain, "token-report-value", 1);
+  const expression = literal(1);
+  const attempt = requireAttempt(beginAttempt(base.initial, transaction));
+  const proxiedTVar = proxy(base.x);
+  const proxiedTransaction = proxy(transaction);
+  const proxiedStore = proxy(base.initial);
+  const proxiedAttempt = proxy(attempt);
+  const proxiedSuspension = proxy(retryResult.suspended.suspension);
+  const proxiedExpression = proxy(expression);
+  const boundariesRejected = [
+    returnsTypeError(() => read(proxiedTVar, "token-report-read")),
+    returnsTypeError(() => write(proxiedTVar, 1)),
+    returnsTypeError(() => nested(base.initial.domain, proxiedTransaction)),
+    returnsTypeError(() => orElse(proxiedTransaction, transaction)),
+    returnsTypeError(() =>
+      when(base.initial.domain, literal(true), proxiedTransaction, transaction),
+    ),
+    beginAttempt(base.initial, proxiedTransaction).kind === "description_rejected",
+    beginAttempt(proxiedStore, transaction).kind === "store_rejected",
+    settleAttempt(base.initial, proxiedAttempt).kind === "invalid_attempt",
+    returnsTypeError(() => changedDependencies(proxiedSuspension, base.initial)),
+    wakeAndRerun(proxiedSuspension, base.initial) === undefined,
+    returnsTypeError(() => add(proxiedExpression, expression)),
+    returnsTypeError(() => writeExpression(base.x, proxiedExpression)),
+    returnsTypeError(() =>
+      sequenceExpression(base.initial.domain, "token-report-expression", [], proxiedExpression),
+    ),
+  ].every(Boolean);
+  return Object.freeze({ boundariesRejected, proxyTraps });
+};
+
 const descriptionIsDeeplyFrozen = (attempt: Attempt): boolean =>
   Object.isFrozen(attempt.description) &&
   Object.isFrozen(attempt.description.instructions) &&
@@ -516,6 +579,7 @@ export const buildStmLawReport = (runtimeLayer: RuntimeLayer): JsonObject => {
   const nestingAtomic = nestingIsAtomic(base);
   const portableActions = isPortableData({ kind: "inert-action" }) && !isPortableData(() => null);
   const inertCapture = inertCaptureRejectsUserCode();
+  const typedTokenCustody = typedTokensRejectProxyWrappersWithoutTraps(base, retryResult);
   const repeatedSettlement = settleAttempt(base.committed.store, base.rerun);
   const allBoundedSchedulesSerializable = historyResult.boundedSchedules.every(
     (schedule) => schedule.serially_equivalent === true,
@@ -600,6 +664,10 @@ export const buildStmLawReport = (runtimeLayer: RuntimeLayer): JsonObject => {
       "inert-capture-rejects-user-code",
       inertCapture.gettersNotRun && inertCapture.proxyRejected,
     ),
+    observation(
+      "typed-token-proxy-custody",
+      typedTokenCustody.boundariesRejected && typedTokenCustody.proxyTraps === 0n,
+    ),
     observation("description-deep-freeze", descriptionIsDeeplyFrozen(base.firstAttempt)),
     observation("or-else-values", alternativeValuesArePreserved(base)),
   ];
@@ -627,6 +695,8 @@ export const buildStmLawReport = (runtimeLayer: RuntimeLayer): JsonObject => {
         stale: Object.freeze([...base.conflict.stale]),
         forged_attempt_rejected: forgedAttemptIsRejected(base),
         copied_store_rejected: copiedStoreIsRejected(base),
+        typed_token_wrappers_rejected: typedTokenCustody.boundariesRejected,
+        typed_token_proxy_traps: typedTokenCustody.proxyTraps.toString(10),
       }),
     }),
     Object.freeze({
@@ -703,6 +773,8 @@ export const buildStmLawReport = (runtimeLayer: RuntimeLayer): JsonObject => {
         expression_shaped_data_preserved: expressionShapedDataIsPreserved(base),
         getters_not_run: inertCapture.gettersNotRun,
         proxy_rejected: inertCapture.proxyRejected,
+        typed_token_wrappers_rejected: typedTokenCustody.boundariesRejected,
+        typed_token_proxy_traps: typedTokenCustody.proxyTraps.toString(10),
       }),
     }),
     Object.freeze({

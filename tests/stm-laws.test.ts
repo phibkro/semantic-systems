@@ -22,6 +22,7 @@ import {
   rerunAttempt,
   retry,
   sequence,
+  sequenceExpression,
   serialOrderingsFor,
   settleAttempt,
   succeed,
@@ -29,6 +30,7 @@ import {
   wakeAndRerun,
   when,
   write,
+  writeExpression,
   type Attempt,
   type BeginResult,
   type CommitRecord,
@@ -36,6 +38,7 @@ import {
   type Expression,
   type Settlement,
   type Store,
+  type Suspension,
   type TVar,
   type Txn,
 } from "../src/stm/model.ts";
@@ -76,7 +79,7 @@ const fixture = () => {
 };
 
 const retryUntilPositive = (owner: Domain<"law-domain">, x: TVar<"law-domain", number>) =>
-  sequence(
+  sequenceExpression(
     owner,
     "retry-until-positive",
     [
@@ -91,6 +94,24 @@ const retryUntilPositive = (owner: Domain<"law-domain">, x: TVar<"law-domain", n
     ],
     binding("decision"),
   );
+
+const hostileTokenProxy = <A extends object>(target: A) => {
+  let trapCount = 0;
+  const fail = () => {
+    trapCount += 1;
+    throw new Error("typed-token Proxy trap executed");
+  };
+  return {
+    proxy: new Proxy(target, {
+      get: fail,
+      getOwnPropertyDescriptor: fail,
+      getPrototypeOf: fail,
+      has: fail,
+      ownKeys: fail,
+    }),
+    trapCount: () => trapCount,
+  };
+};
 
 describe("STM law boundary 0014", () => {
   test("[L1 positive / CE01] an attempt cannot expose either write before atomic publication", () => {
@@ -158,7 +179,7 @@ describe("STM law boundary 0014", () => {
 
     const successful = sequence(owner, "action-conflict", [
       read(x, "conflict-x"),
-      write(x, add(binding("conflict-x"), literal(1))),
+      writeExpression(x, add(binding("conflict-x"), literal(1))),
       afterCommit(owner, { forbidden: "conflict" }),
     ]);
     const stale = requireAttempt(beginAttempt(store, successful));
@@ -173,7 +194,7 @@ describe("STM law boundary 0014", () => {
     const { owner, store, x } = fixture();
     const description = sequence(owner, "rerun-actions", [
       read(x, "action-x"),
-      write(x, add(binding("action-x"), literal(1))),
+      writeExpression(x, add(binding("action-x"), literal(1))),
       afterCommit(owner, { order: 1 }),
       afterCommit(owner, { order: 2 }),
     ]);
@@ -201,7 +222,7 @@ describe("STM law boundary 0014", () => {
     const { owner, store, x } = fixture();
     const description = sequence(owner, "custodied-attempt", [
       read(x, "custody-x"),
-      write(x, add(binding("custody-x"), literal(1))),
+      writeExpression(x, add(binding("custody-x"), literal(1))),
       afterCommit(owner, { legitimate: true }),
     ]);
     const legitimate = requireAttempt(beginAttempt(store, description));
@@ -231,7 +252,7 @@ describe("STM law boundary 0014", () => {
     const { owner, store, x } = fixture();
     const description = sequence(owner, "store-custody", [
       read(x, "store-custody-x"),
-      write(x, add(binding("store-custody-x"), literal(1))),
+      writeExpression(x, add(binding("store-custody-x"), literal(1))),
     ]);
     const attempt = requireAttempt(beginAttempt(store, description));
     const current = commit(store, write(x, 10)).store;
@@ -272,7 +293,7 @@ describe("STM law boundary 0014", () => {
     expect(inspectCell(written.store, slot).value).toEqual(addShaped);
     const readBack = commit(
       written.store,
-      sequence(
+      sequenceExpression(
         owner,
         "read-data-shaped-value",
         [read(slot, "stored-value")],
@@ -316,6 +337,139 @@ describe("STM law boundary 0014", () => {
     expect(() => add(inherited, genuine)).toThrow("expression is not handler-custodied");
     expect(() => add(proxied, genuine)).toThrow("expression is not handler-custodied");
     expect(proxyTrapCount).toBe(0);
+  });
+
+  test("[typed-token custody] every public boundary authenticates before dereferencing", () => {
+    const { owner, store, x } = fixture();
+    const transaction = succeed(owner, "token-transaction", 1);
+    const attempt = requireAttempt(beginAttempt(store, transaction));
+    const suspension = requireSettlement(
+      settleAttempt(
+        store,
+        requireAttempt(
+          beginAttempt(
+            store,
+            sequence(owner, "token-suspension", [
+              read(x, "token-suspension-x"),
+              retry(owner, "token-suspension-retry"),
+            ]),
+          ),
+        ),
+      ),
+      "suspended",
+    ).suspension;
+
+    const hostileDomain = hostileTokenProxy(owner);
+    expect(() => tvar(hostileDomain.proxy, "hostile-domain-ref", 0)).toThrow(
+      "domain is not handler-custodied",
+    );
+    expect(() => succeed(hostileDomain.proxy, "hostile-domain-txn", null)).toThrow(
+      "domain is not handler-custodied",
+    );
+    expect(hostileDomain.trapCount()).toBe(0);
+
+    const hostileTVar = hostileTokenProxy(x);
+    expect(() => read(hostileTVar.proxy, "hostile-read")).toThrow(
+      "read TVar is not handler-custodied",
+    );
+    expect(() => write(hostileTVar.proxy, 1)).toThrow("write TVar is not handler-custodied");
+    expect(() => makeStore(owner, [hostileTVar.proxy])).toThrow("TVar is not handler-custodied");
+    expect(() => inspectCell(store, hostileTVar.proxy)).toThrow("TVar is not handler-custodied");
+    expect(hostileTVar.trapCount()).toBe(0);
+
+    const hostileExpression = hostileTokenProxy(literal(true));
+    expect(() => add(hostileExpression.proxy, literal(1))).toThrow(
+      "expression is not handler-custodied",
+    );
+    expect(() => writeExpression(x, hostileExpression.proxy)).toThrow(
+      "expression is not handler-custodied",
+    );
+    expect(() => sequenceExpression(owner, "hostile-result", [], hostileExpression.proxy)).toThrow(
+      "expression is not handler-custodied",
+    );
+    expect(() =>
+      when(
+        owner,
+        hostileExpression.proxy,
+        succeed(owner, "hostile-condition-true", true),
+        succeed(owner, "hostile-condition-false", false),
+      ),
+    ).toThrow("expression is not handler-custodied");
+    expect(hostileExpression.trapCount()).toBe(0);
+
+    const hostileTxn = hostileTokenProxy(transaction);
+    expect(() => nested(owner, hostileTxn.proxy)).toThrow(
+      "nested transaction description is not handler-custodied",
+    );
+    expect(() => orElse(hostileTxn.proxy, transaction)).toThrow(
+      "nested transaction description is not handler-custodied",
+    );
+    expect(() => orElse(transaction, hostileTxn.proxy)).toThrow(
+      "nested transaction description is not handler-custodied",
+    );
+    expect(() => when(owner, literal(true), hostileTxn.proxy, transaction)).toThrow(
+      "nested transaction description is not handler-custodied",
+    );
+    expect(() => when(owner, literal(true), transaction, hostileTxn.proxy)).toThrow(
+      "nested transaction description is not handler-custodied",
+    );
+    expect(() => sequence(owner, "hostile-part", [hostileTxn.proxy])).toThrow(
+      "nested transaction description is not handler-custodied",
+    );
+    expect(beginAttempt(store, hostileTxn.proxy)).toEqual({
+      kind: "description_rejected",
+      transactionId: "unknown",
+      reason: "not_handler_custodied",
+      attemptStarted: false,
+    });
+    expect(hostileTxn.trapCount()).toBe(0);
+
+    const hostileStore = hostileTokenProxy(store);
+    expect(beginAttempt(hostileStore.proxy, transaction)).toEqual({
+      kind: "store_rejected",
+      reason: "not_handler_custodied",
+      attemptStarted: false,
+    });
+    expect(settleAttempt(hostileStore.proxy, attempt)).toMatchObject({
+      kind: "invalid_attempt",
+      reason: "store_not_handler_custodied",
+    });
+    expect(() => inspectCell(hostileStore.proxy, x)).toThrow("store is not handler-custodied");
+    expect(() => projectStore(hostileStore.proxy)).toThrow("store is not handler-custodied");
+    expect(() => serialOrderingsFor(hostileStore.proxy, [])).toThrow(
+      "store is not handler-custodied",
+    );
+    expect(() => changedDependencies(suspension, hostileStore.proxy)).toThrow(
+      "store is not handler-custodied",
+    );
+    expect(wakeAndRerun(suspension, hostileStore.proxy)).toEqual({
+      kind: "store_rejected",
+      reason: "not_handler_custodied",
+      attemptStarted: false,
+    });
+    expect(hostileStore.trapCount()).toBe(0);
+
+    const hostileAttempt = hostileTokenProxy(attempt);
+    expect(settleAttempt(store, hostileAttempt.proxy)).toMatchObject({
+      kind: "invalid_attempt",
+      reason: "not_handler_custodied",
+    });
+    expect(discardAttempt(store, hostileAttempt.proxy, "defect")).toMatchObject({
+      kind: "invalid_attempt",
+      reason: "not_handler_custodied",
+    });
+    expect(rerunAttempt(store, hostileAttempt.proxy)).toMatchObject({
+      kind: "invalid_attempt",
+      reason: "not_handler_custodied",
+    });
+    expect(hostileAttempt.trapCount()).toBe(0);
+
+    const hostileSuspension = hostileTokenProxy(suspension as Suspension);
+    expect(() => changedDependencies(hostileSuspension.proxy, store)).toThrow(
+      "suspension is not handler-custodied",
+    );
+    expect(wakeAndRerun(hostileSuspension.proxy, store)).toBeUndefined();
+    expect(hostileSuspension.trapCount()).toBe(0);
   });
 
   test("[L8 inert data] accessors and hostile object shapes fail without executing getters", () => {
@@ -396,7 +550,7 @@ describe("STM law boundary 0014", () => {
     const callerAction = { kind: "notify", payload: { amount: 1 } };
     const description = sequence(owner, "frozen-rerun", [
       read(x, "frozen-x"),
-      write(x, add(binding("frozen-x"), literal(1))),
+      writeExpression(x, add(binding("frozen-x"), literal(1))),
       afterCommit(owner, callerAction),
     ]);
     callerAction.payload.amount = 999;
@@ -451,7 +605,7 @@ describe("STM law boundary 0014", () => {
 
   test("[L2 positive and negative oracle / CE05] validation rejects a stale read-only observation", () => {
     const { owner, store, x } = fixture();
-    const observer = sequence(owner, "read-only", [read(x, "value")], binding("value"));
+    const observer = sequenceExpression(owner, "read-only", [read(x, "value")], binding("value"));
     const attempt = requireAttempt(beginAttempt(store, observer));
     const concurrent = commit(store, write(x, 1));
     const result = requireSettlement(settleAttempt(concurrent.store, attempt), "conflict");

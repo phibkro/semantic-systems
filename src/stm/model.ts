@@ -20,6 +20,7 @@ const descriptionCustody = new WeakSet<object>();
 const knownAttemptCustody = new WeakSet<object>();
 const liveAttemptCustody = new WeakSet<object>();
 const rerunnableAttemptCustody = new WeakSet<object>();
+const knownSuspensionCustody = new WeakSet<object>();
 const liveSuspensionCustody = new WeakSet<object>();
 const expressionCustody = new WeakSet<object>();
 const storeCustody = new WeakSet<object>();
@@ -409,12 +410,39 @@ const requireExpression = (expression: Expression): Expression => {
   return expression;
 };
 
-const requireCustodiedDescription = (
-  transaction: Txn<string, JsonValue, JsonValue, JsonValue, JsonValue>,
-): void => {
+const requireDomain = <D extends string>(owner: Domain<D>): Domain<D> => {
+  if (!domainCustody.has(owner)) throw new TypeError("domain is not handler-custodied");
+  return owner;
+};
+
+const requireTVar = <D extends string, A extends JsonValue>(
+  ref: TVar<D, A>,
+  label = "TVar",
+): TVar<D, A> => {
+  if (!tvarCustody.has(ref)) throw new TypeError(`${label} is not handler-custodied`);
+  return ref;
+};
+
+const requireCustodiedDescription = <
+  D extends string,
+  E extends JsonValue,
+  A extends JsonValue,
+  C extends JsonValue,
+  X extends JsonValue,
+>(
+  transaction: Txn<D, E, A, C, X>,
+): Txn<D, E, A, C, X> => {
   if (!descriptionCustody.has(transaction)) {
     throw new TypeError("nested transaction description is not handler-custodied");
   }
+  return transaction;
+};
+
+const requireKnownSuspension = (suspension: Suspension): Suspension => {
+  if (!knownSuspensionCustody.has(suspension)) {
+    throw new TypeError("suspension is not handler-custodied");
+  }
+  return suspension;
 };
 
 const freezeInstruction = (instruction: Instruction): Instruction => {
@@ -493,9 +521,7 @@ const makeTxn = <
   instructions: ReadonlyArray<Instruction>,
   result: Expression,
 ): Txn<D, E, A, C, X> => {
-  if (!domainCustody.has(domain)) {
-    throw new TypeError("transaction domain is not handler-custodied");
-  }
+  requireDomain(domain);
   const transaction = Object.freeze({
     [TxnTypeId]: Object.freeze({
       domain: domain.name,
@@ -527,7 +553,7 @@ export const tvar = <D extends string, A extends JsonValue>(
   id: string,
   initialValue: A,
 ): TVar<D, A> => {
-  if (!domainCustody.has(owner)) throw new TypeError("TVar domain is not handler-custodied");
+  requireDomain(owner);
   const ref = Object.freeze({
     [TVarTypeId]: true as const,
     domain: owner,
@@ -570,37 +596,66 @@ export const add = (left: Expression, right: Expression): Expression =>
 export const succeed = <D extends string, A extends JsonValue>(
   owner: Domain<D>,
   id: string,
-  value: A | Expression,
-): Txn<D, never, A, never, never> =>
-  makeTxn(owner, id, [], isExpression(value) ? value : literal(value));
+  value: A,
+): Txn<D, never, A, never, never> => makeTxn(owner, id, [], literal(value));
 
 export const read = <D extends string, A extends JsonValue>(
   ref: TVar<D, A>,
   bind: string,
-): Txn<D, never, A, never, never> =>
-  makeTxn(
-    ref.domain,
-    `read-${ref.id}`,
-    [{ kind: "read", ref: ref as TVar<string, JsonValue>, bind: requireId(bind, "binding") }],
+): Txn<D, never, A, never, never> => {
+  const authenticated = requireTVar(ref, "read TVar");
+  return makeTxn(
+    authenticated.domain,
+    `read-${authenticated.id}`,
+    [
+      {
+        kind: "read",
+        ref: authenticated as TVar<string, JsonValue>,
+        bind: requireId(bind, "binding"),
+      },
+    ],
     binding(bind),
   );
+};
 
 export const write = <D extends string, A extends JsonValue>(
   ref: TVar<D, A>,
-  value: Expression | A,
-): Txn<D, never, null, never, never> =>
-  makeTxn(
-    ref.domain,
-    `write-${ref.id}`,
+  value: A,
+): Txn<D, never, null, never, never> => {
+  const authenticated = requireTVar(ref, "write TVar");
+  return makeTxn(
+    authenticated.domain,
+    `write-${authenticated.id}`,
     [
       {
         kind: "write",
-        ref: ref as TVar<string, JsonValue>,
-        value: isExpression(value) ? value : literal(value),
+        ref: authenticated as TVar<string, JsonValue>,
+        value: literal(value),
       },
     ],
     literal(null),
   );
+};
+
+export const writeExpression = <D extends string, A extends JsonValue>(
+  ref: TVar<D, A>,
+  value: Expression,
+): Txn<D, never, null, never, never> => {
+  const authenticatedRef = requireTVar(ref, "write TVar");
+  const authenticatedValue = requireExpression(value);
+  return makeTxn(
+    authenticatedRef.domain,
+    `write-${authenticatedRef.id}`,
+    [
+      {
+        kind: "write",
+        ref: authenticatedRef as TVar<string, JsonValue>,
+        value: authenticatedValue,
+      },
+    ],
+    literal(null),
+  );
+};
 
 export const retry = <D extends string>(
   owner: Domain<D>,
@@ -643,14 +698,38 @@ export const sequence = <
   owner: Domain<D>,
   id: string,
   parts: ReadonlyArray<Txn<D, E, JsonValue, C, X>>,
-  result: Expression | A = null as A,
+  result: A = null as A,
 ): Txn<D, E, A, C, X> => {
+  requireDomain(owner);
   for (const part of parts) requireCustodiedDescription(part);
   return makeTxn(
     owner,
     id,
     parts.flatMap((part) => part.instructions),
-    isExpression(result) ? result : literal(result),
+    literal(result),
+  );
+};
+
+export const sequenceExpression = <
+  D extends string,
+  E extends JsonValue,
+  A extends JsonValue,
+  C extends JsonValue,
+  X extends JsonValue,
+>(
+  owner: Domain<D>,
+  id: string,
+  parts: ReadonlyArray<Txn<D, E, JsonValue, C, X>>,
+  result: Expression,
+): Txn<D, E, A, C, X> => {
+  requireDomain(owner);
+  for (const part of parts) requireCustodiedDescription(part);
+  const authenticatedResult = requireExpression(result);
+  return makeTxn(
+    owner,
+    id,
+    parts.flatMap((part) => part.instructions),
+    authenticatedResult,
   );
 };
 
@@ -664,19 +743,22 @@ export const nested = <
   owner: Domain<D>,
   transaction: Txn<string, E, A, C, X>,
   bind?: string,
-): Txn<D, E, A, C, X> =>
-  makeTxn(
+): Txn<D, E, A, C, X> => {
+  requireDomain(owner);
+  const authenticated = requireCustodiedDescription(transaction);
+  return makeTxn(
     owner,
-    `nested-${transaction.id}`,
+    `nested-${authenticated.id}`,
     [
       {
         kind: "nested",
-        transaction: transaction as Txn<string, JsonValue, JsonValue, JsonValue, JsonValue>,
+        transaction: authenticated as Txn<string, JsonValue, JsonValue, JsonValue, JsonValue>,
         ...(bind === undefined ? {} : { bind: requireId(bind, "binding") }),
       },
     ],
-    bind === undefined ? transaction.result : binding(bind),
+    bind === undefined ? authenticated.result : binding(bind),
   );
+};
 
 export const orElse = <
   D extends string,
@@ -688,15 +770,17 @@ export const orElse = <
   left: Txn<D, E, A, C, X>,
   right: Txn<D, E, A, C, X>,
 ): Txn<D, E, A, C, X> => {
-  const resultBinding = `or-else-value-${left.id}-${right.id}`;
+  const authenticatedLeft = requireCustodiedDescription(left);
+  const authenticatedRight = requireCustodiedDescription(right);
+  const resultBinding = `or-else-value-${authenticatedLeft.id}-${authenticatedRight.id}`;
   return makeTxn(
-    left.domain,
-    `or-else-${left.id}-${right.id}`,
+    authenticatedLeft.domain,
+    `or-else-${authenticatedLeft.id}-${authenticatedRight.id}`,
     [
       {
         kind: "or_else",
-        left: left as Txn<string, JsonValue, JsonValue, JsonValue, JsonValue>,
-        right: right as Txn<string, JsonValue, JsonValue, JsonValue, JsonValue>,
+        left: authenticatedLeft as Txn<string, JsonValue, JsonValue, JsonValue, JsonValue>,
+        right: authenticatedRight as Txn<string, JsonValue, JsonValue, JsonValue, JsonValue>,
         bind: resultBinding,
       },
     ],
@@ -716,36 +800,38 @@ export const when = <
   ifTrue: Txn<D, E, A, C, X>,
   ifFalse: Txn<D, E, A, C, X>,
   bind?: string,
-): Txn<D, E, A, C, X> =>
-  makeTxn(
+): Txn<D, E, A, C, X> => {
+  requireDomain(owner);
+  const authenticatedCondition = requireExpression(condition);
+  const authenticatedTrue = requireCustodiedDescription(ifTrue);
+  const authenticatedFalse = requireCustodiedDescription(ifFalse);
+  return makeTxn(
     owner,
-    `when-${ifTrue.id}-${ifFalse.id}`,
+    `when-${authenticatedTrue.id}-${authenticatedFalse.id}`,
     [
       {
         kind: "when",
-        condition,
-        ifTrue: ifTrue as Txn<string, JsonValue, JsonValue, JsonValue, JsonValue>,
-        ifFalse: ifFalse as Txn<string, JsonValue, JsonValue, JsonValue, JsonValue>,
+        condition: authenticatedCondition,
+        ifTrue: authenticatedTrue as Txn<string, JsonValue, JsonValue, JsonValue, JsonValue>,
+        ifFalse: authenticatedFalse as Txn<string, JsonValue, JsonValue, JsonValue, JsonValue>,
         ...(bind === undefined ? {} : { bind: requireId(bind, "binding") }),
       },
     ],
     bind === undefined ? literal(null) : binding(bind),
   );
-
-const isExpression = (value: JsonValue | Expression): value is Expression =>
-  typeof value === "object" && value !== null && expressionCustody.has(value);
+};
 
 export const makeStore = <D extends string>(
   owner: Domain<D>,
   refs: ReadonlyArray<TVar<D, JsonValue>>,
   initialVersion = 0n,
 ): Store<D> => {
-  if (!domainCustody.has(owner)) throw new TypeError("store domain is not handler-custodied");
+  requireDomain(owner);
   if (initialVersion < 0n) throw new RangeError("initial store version must be non-negative");
   const ids = new Set<string>();
   const cells = refs
     .map((ref) => {
-      if (!tvarCustody.has(ref)) throw new TypeError("TVar is not handler-custodied");
+      requireTVar(ref);
       if (ref.domain !== owner) throw new TypeError(`TVar ${ref.id} belongs to another domain`);
       if (ids.has(ref.id)) throw new TypeError(`duplicate TVar id ${ref.id}`);
       ids.add(ref.id);
@@ -1027,7 +1113,7 @@ export const beginAttempt = <
   if (!descriptionCustody.has(erased)) {
     return Object.freeze({
       kind: "description_rejected",
-      transactionId: typeof erased.id === "string" ? erased.id : "unknown",
+      transactionId: "unknown",
       reason: "not_handler_custodied",
       attemptStarted: false,
     });
@@ -1101,6 +1187,7 @@ export const settleAttempt = (currentStore: Store<string>, attempt: Attempt): Se
       attemptOrdinal: attempt.ordinal,
       dependencies: Object.freeze(dependencies),
     });
+    knownSuspensionCustody.add(suspension);
     liveSuspensionCustody.add(suspension);
     return Object.freeze({
       kind: "suspended",
@@ -1216,8 +1303,9 @@ export const changedDependencies = (
   store: Store<string>,
 ): ReadonlyArray<string> => {
   if (!storeCustody.has(store)) throw new TypeError("store is not handler-custodied");
+  const authenticated = requireKnownSuspension(suspension);
   return Object.freeze(
-    suspension.dependencies
+    authenticated.dependencies
       .filter((dependency) => cellOf(store, dependency.id).version !== dependency.observedVersion)
       .map((dependency) => dependency.id)
       .sort(),
