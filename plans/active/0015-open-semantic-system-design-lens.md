@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0015-open-semantic-system-design-lens.md`](../../design-specs/0015-open-semantic-system-design-lens.md).
 This mutable execution record cannot redefine that contract.
 
-Status: eleventh independent-review counterexamples corrected; exact-head
+Status: twelfth independent-review counterexamples corrected; exact-head
 acceptance and full integration pass; clean-head custody and re-review pending
 
 Owner: primary Semantic Systems lead
@@ -333,6 +333,18 @@ state, and unrelated project-model changes.
   with 338 Bun tests/1,765 expectations, zero Effect diagnostics, and 68
   transitional Python custody checks. Clean-head custody and re-review remain
   pending.
+- 2026-07-31: twelfth independent review rejected exact clean head `f3f2a8b`.
+  The corrected fallback and popover subsets remained safe, but an 83-case
+  Chromium matrix found that direct SVG character data plus `desc` and
+  `metadata` text could satisfy prose without producing browser text or client
+  rectangles.
+- 2026-07-31: SVG subtrees are now conservatively excluded from acceptance
+  prose rather than approximating SVG rendering semantics. This can reject
+  visible SVG `text`, but cannot fabricate rendered prose from non-rendered SVG
+  metadata or invalid direct character data. Exact acceptance passes with 15
+  tests/118 expectations and the full integration gate passes with 338 Bun
+  tests/1,768 expectations, zero Effect diagnostics, and 68 transitional
+  Python custody checks. Clean-head custody and re-review remain pending.
 
 ## Acceptance command
 

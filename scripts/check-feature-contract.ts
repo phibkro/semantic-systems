@@ -231,6 +231,7 @@ const NONVISIBLE_HTML_ELEMENTS = new Set([
   "rp",
   "script",
   "style",
+  "svg",
   "template",
   "title",
   "video",

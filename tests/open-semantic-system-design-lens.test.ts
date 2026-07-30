@@ -364,6 +364,9 @@ ${DESIGN_LENS_HEADINGS.map((heading) => `  ### ${heading}\n\n  Hidden account.`)
       '<progress value="0.5">Concrete account.</progress>',
       '<meter value="0.5">Concrete account.</meter>',
       "<ruby><rp>Concrete account.</rp></ruby>",
+      "<svg>Concrete account.</svg>",
+      "<svg><desc>Concrete account.</desc></svg>",
+      "<svg><metadata>Concrete account.</metadata></svg>",
     ]) {
       const lens = completeLens((heading) =>
         heading === DESIGN_LENS_HEADINGS[0] ? hiddenHtml : `Account for ${heading}.`,
