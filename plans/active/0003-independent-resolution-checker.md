@@ -14,9 +14,14 @@ and kill criteria are frozen in design spec 0003.
 - Inventory tracer 0001 already normalizes exact theory and realization
   identities, produces typed finite test results, resolves policy, executes one
   selected realization, and emits structured explanations.
-- The current resolver imports the evidence runner and operation bindings, so
-  the evidence producer and eligibility authority are not independent.
-- `EvidenceResult.to_dict()` omits full case results and counterexample details.
+- Evidence production now runs before resolution. The resolver consumes typed
+  producer outcomes from the neutral `evidence-result.ts` contract; its
+  transitive import closure reaches neither the evidence runner, realization
+  operations, execution, nor I/O.
+- Evidence JSON now preserves every case result and detail while deriving
+  counts and counterexamples. The frozen `evidence_result_v1` artifact kind,
+  schema version, and exact recipe identity remain deferred with slices 4-5;
+  this partial data contract is not yet the complete frozen artifact.
 - Canonical model identities and case counts agree today, but the agreement is
   hand-copied and guarded only by tests.
 - Independent adversarial review identified these seams before this contract
@@ -56,8 +61,12 @@ and kill criteria are frozen in design spec 0003.
 ## Contract-owned implementation slices
 
 1. Oracle and mutation corpus.
-2. Lossless evidence result and evidence-production packet.
+2. Lossless evidence result and evidence-production packet. **Partially
+   complete:** case results, exact theory/realization/obligation bindings, and
+   producer diagnostics are implemented; artifact kind, schema version, and
+   exact recipe identity remain open.
 3. Production resolver consumes packets rather than executing recipes.
+   **Complete for the current tracer.**
 4. Serialized resolution claim.
 5. Independent checker and forbidden-import gate.
 6. Execution gate and visible CLI.
@@ -192,6 +201,24 @@ validity.
   responsibility scores as partial example tests. No production checker code
   was integrated. The next experiment must faithfully implement the frozen
   artifacts and adapter boundary or explicitly revise the design spec.
+- 2026-07-30: integrated the independently reviewed producer/resolver
+  separation as `cc5047e`, `b4dffe4`, `4df14b5`, and `591e6e8`. Evidence
+  production now emits typed success or diagnostic outcomes before resolution;
+  successful outcomes bind the authored realization ID, exact realization
+  content identity, theory identity, and governed obligation. Missing,
+  duplicate, foreign, or ambiguous outcomes, stale inner bindings, and
+  misbound diagnostics fail visibly; invalid preflights do not resolve or
+  execute realization operations. Evidence serialization is lossless over all
+  nine case results. A fully refreshed forged result remains explicitly
+  deferred.
+- 2026-07-30: exact-head independent review of the four-commit slice returned
+  `RESOLVED` after reproducing 33 focused tests with 145 assertions, TypeScript,
+  and diff hygiene. It independently enumerated the resolver closure as
+  `resolver.ts`, `evidence-result.ts`, `explanation.ts`, `json.ts`,
+  `realization.ts`, `theory.ts`, and `canonical.ts`; `effect` is its only bare
+  import. The TypeScript-lexer oracle covers static, side-effect, re-export,
+  type-only, multiline, no-semicolon, dynamic-string, import-equals, and nested
+  imports and permits only the bare module `effect`.
 
 ## Decisions and deviations
 
@@ -200,6 +227,15 @@ validity.
   research.
 - The production resolver may retain producer diagnostics in explanations, but
   absence of a valid result—not the diagnostic alone—causes ineligibility.
+- The closure oracle intentionally fails loud on unsupported relative path
+  resolution. Exotic dynamic forms such as no-substitution template imports,
+  an extra parenthesized specifier, and bare CommonJS `require` remain a known
+  low-severity oracle surface; they must be closed before treating the
+  forbidden-import gate as complete slice-5 evidence.
+- A fully refreshed forged result can still be rebound to the broken
+  realization if all current identity fields are recomputed. The current test
+  records this accepting behavior as deferred; only the checker and canonical
+  adapter slices may close it.
 - Do not reinterpret the size metric, expand the resolver denominator, or
   merge a known-red acceptance gate. The next slice is a fresh design
   experiment, not incremental patching of `b9cea28`.

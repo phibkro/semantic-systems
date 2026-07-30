@@ -57,9 +57,14 @@ Other active feature worktrees and their owned files remain forbidden.
    Python package and test suite were removed after exact result differential
    parity and a final pinned Python oracle pass.**
 5. Recut the independent checker against the accepted TypeScript resolver.
-   **Blocked on a faithful design-spec 0003 prototype or explicit reviewed
-   revision. Uncertainty 0004's partial three-way screen found that every
-   current prototype failed even its configured lower-bound size gate, while
+   **A bounded producer/resolver increment across slices 2-3 is integrated and
+   independently reviewed: evidence production precedes resolution, lossless
+   typed outcomes carry exact subject bindings and visible diagnostics, and
+   the resolver's transitive closure cannot reach the producer, execution, or
+   I/O. The complete `evidence_result_v1` artifact and checker remain blocked
+   on a faithful design-spec 0003 prototype or explicit reviewed revision.
+   Uncertainty 0004's partial three-way screen found that every current
+   prototype failed even its configured lower-bound size gate, while
    exact-head review found incomplete frozen artifacts, presentation-order
    defects, and a misplaced canonical adapter. Observation authentication is
    outside the frozen contract.**
