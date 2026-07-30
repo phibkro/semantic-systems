@@ -5,6 +5,7 @@ import { dirname, join, resolve } from "node:path";
 import { BunCrypto, BunFileSystem, BunPath } from "@effect/platform-bun";
 import { NodeCrypto, NodeFileSystem, NodePath } from "@effect/platform-node";
 import { Effect, Exit, type Crypto, type FileSystem, type Path } from "effect";
+import * as tsAst from "typescript/unstable/ast";
 import { demoToJson, runDemo } from "../src/tracer/demo.ts";
 import { produceEvidence, type EvidenceAdapters } from "../src/tracer/evidence.ts";
 import {
@@ -30,6 +31,113 @@ import { normalizeTheory } from "../src/tracer/theory.ts";
 const ROOT = resolve(import.meta.dir, "..");
 const INVENTORY = join(ROOT, "examples", "inventory");
 const temporaryRoots: Array<string> = [];
+
+/**
+ * Import-closure test oracle (design spec 0003 review): a source regex is
+ * not a reliable authority for "does this file import that module" — it
+ * cannot distinguish a string/comment/template that merely contains the
+ * text "from" or "import(" from a real import, and it misses side-effect
+ * imports, dynamic imports, and import-equals. This reuses the installed
+ * TypeScript scanner (the real lexer, not a regex) to tokenize source, then
+ * pattern-matches the resulting token stream for every import/export-from
+ * form. `tokenizeBounded` caps total tokens at `source.length + 1` and
+ * throws if end-of-file is not reached within that bound, so a pathological
+ * or truncated input fails closed instead of looping or under-reporting.
+ */
+const SK = tsAst.SyntaxKind;
+
+interface ScannedToken {
+  readonly kind: number;
+  readonly text: string;
+}
+
+const tokenizeBounded = (source: string): ReadonlyArray<ScannedToken> => {
+  const scanner = tsAst.createScanner(true, tsAst.LanguageVariant.Standard, source);
+  const tokens: Array<ScannedToken> = [];
+  const cap = source.length + 1;
+  for (let i = 0; i <= cap; i++) {
+    const kind = scanner.scan();
+    if (kind === SK.EndOfFile) return tokens;
+    tokens.push({
+      kind,
+      text: kind === SK.StringLiteral ? scanner.getTokenValue() : scanner.getTokenText(),
+    });
+  }
+  throw new Error(`tokenizer did not reach end of file within ${cap} tokens; refusing to continue`);
+};
+
+interface ImportScanResult {
+  readonly relativeSpecifiers: ReadonlyArray<string>;
+  readonly bareSpecifiers: ReadonlyArray<string>;
+}
+
+/**
+ * Recognizes, over the real token stream (never raw source text):
+ * - side-effect imports: `import "./x.ts"`;
+ * - dynamic imports with a literal specifier: `import("./x.ts")`;
+ * - static/type/namespace/default/named imports and re-exports, by
+ *   scanning forward from `import`/`export` for a `from STRING` pair
+ *   (this single pattern covers `import { a } from`, `import type { a }
+ *   from`, `import * as a from`, `export * from`, `export { a } from`,
+ *   `export type { a } from`, and `export * as a from`, since none of
+ *   those clause shapes affect where the trailing `from STRING` lands);
+ * - import-equals / external module reference: `import x = require("./x.ts")`.
+ * The forward scan for the `from`/`require` forms is bounded to the
+ * current statement: it stops at a semicolon or the next `import`/`export`
+ * keyword without a match, so it can never run past its own declaration
+ * into unrelated code (no-semicolon/ASI declarations are unaffected, since
+ * the match is found before any boundary token is reached).
+ */
+const scanImportSpecifiers = (source: string): ImportScanResult => {
+  const tokens = tokenizeBounded(source);
+  const relative: Array<string> = [];
+  const bare: Array<string> = [];
+  const record = (specifier: string): void => {
+    if (specifier.startsWith("./") || specifier.startsWith("../")) relative.push(specifier);
+    else bare.push(specifier);
+  };
+  const isStatementBoundary = (kind: number): boolean =>
+    kind === SK.SemicolonToken || kind === SK.ImportKeyword || kind === SK.ExportKeyword;
+
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i]!;
+    if (token.kind !== SK.ImportKeyword && token.kind !== SK.ExportKeyword) continue;
+
+    if (token.kind === SK.ImportKeyword && tokens[i + 1]?.kind === SK.StringLiteral) {
+      record(tokens[i + 1]!.text); // import "./x.ts";
+      continue;
+    }
+    if (
+      token.kind === SK.ImportKeyword &&
+      tokens[i + 1]?.kind === SK.OpenParenToken &&
+      tokens[i + 2]?.kind === SK.StringLiteral
+    ) {
+      record(tokens[i + 2]!.text); // import("./x.ts")
+      continue;
+    }
+
+    for (let j = i + 1; j < tokens.length; j++) {
+      const candidate = tokens[j]!;
+      if (candidate.kind === SK.FromKeyword && tokens[j + 1]?.kind === SK.StringLiteral) {
+        record(tokens[j + 1]!.text); // ... from "./x.ts"
+        break;
+      }
+      if (
+        token.kind === SK.ImportKeyword &&
+        candidate.text === "=" &&
+        tokens[j + 1]?.text === "require" &&
+        tokens[j + 2]?.kind === SK.OpenParenToken &&
+        tokens[j + 3]?.kind === SK.StringLiteral
+      ) {
+        record(tokens[j + 3]!.text); // import x = require("./x.ts")
+        break;
+      }
+      if (isStatementBoundary(candidate.kind)) break;
+    }
+  }
+
+  return { relativeSpecifiers: relative, bareSpecifiers: bare };
+};
 
 afterEach(async () => {
   await Promise.all(temporaryRoots.splice(0).map((path) => rm(path, { recursive: true })));
@@ -423,7 +531,9 @@ describe("evidence-production boundary and resolver packet consumption", () => {
    * walk, not a bundler resolution or a runtime module graph: it exists to
    * catch an INDIRECT reintroduction (resolver.ts imports a module that
    * later grows an import into evidence.ts/domain.ts/etc.), which a
-   * substring check against resolver.ts's own text alone cannot see.
+   * substring check against resolver.ts's own text alone cannot see. The
+   * specifier extraction itself is `scanImportSpecifiers` (module scope
+   * above), driven by the real TypeScript scanner rather than a regex.
    */
   const transitiveRelativeImportClosure = async (
     entryPath: string,
@@ -432,7 +542,6 @@ describe("evidence-production boundary and resolver packet consumption", () => {
     readonly bareImports: ReadonlySet<string>;
     readonly sources: ReadonlyMap<string, string>;
   }> => {
-    const importSpecifierPattern = /\bfrom\s+["']([^"']+)["']/g;
     const files = new Set<string>();
     const bareImports = new Set<string>();
     const sources = new Map<string, string>();
@@ -443,14 +552,9 @@ describe("evidence-production boundary and resolver packet consumption", () => {
       files.add(path);
       const source = await Bun.file(path).text();
       sources.set(path, source);
-      for (const match of source.matchAll(importSpecifierPattern)) {
-        const specifier = match[1]!;
-        if (specifier.startsWith("./") || specifier.startsWith("../")) {
-          queue.push(resolve(dirname(path), specifier));
-        } else {
-          bareImports.add(specifier);
-        }
-      }
+      const { relativeSpecifiers, bareSpecifiers } = scanImportSpecifiers(source);
+      for (const specifier of relativeSpecifiers) queue.push(resolve(dirname(path), specifier));
+      for (const specifier of bareSpecifiers) bareImports.add(specifier);
     }
     return { files, bareImports, sources };
   };
@@ -922,6 +1026,94 @@ describe("evidence-production boundary and resolver packet consumption", () => {
     }
   });
 
+  test("scanImportSpecifiers recognizes every import form and discovers nested bare fs dependencies", async () => {
+    const root = await mkdtemp(join(tmpdir(), "semantic-import-scan-"));
+    temporaryRoots.push(root);
+    const write = async (name: string, content: string): Promise<string> => {
+      const path = join(root, name);
+      await Bun.write(path, content);
+      return path;
+    };
+
+    await write("named.ts", "export const a = 1;\n");
+    await write("side-effect.ts", "export const sideEffect = true;\n");
+    await write("reexport-star.ts", "export const x = 1;\n");
+    await write("reexport-named.ts", "export const b = 2;\n");
+    await write("type-only.ts", "export interface T { readonly id: string }\n");
+    await write("import-equals-target.ts", "export const ok = true;\n");
+    await write("no-semicolon.ts", "export const e = 5;\n");
+    await write("multiline.ts", "export const c = 1;\nexport const d = 2;\n");
+    // The bare fs dependencies live two hops from entry.ts (only reachable
+    // through the dynamic import below), proving the closure walk finds
+    // bare imports nested past the entry file, not only ones it declares
+    // directly.
+    await write(
+      "dynamic.ts",
+      [
+        'import { readFile } from "node:fs";',
+        'import fs from "fs";',
+        'import { readFile as readFileP } from "fs/promises";',
+        "export const dynamicMarker = { readFile, fs, readFileP };",
+      ].join("\n") + "\n",
+    );
+
+    const entryPath = await write(
+      "entry.ts",
+      [
+        'import { a } from "./named.ts";',
+        'import "./side-effect.ts";', // side-effect import
+        'export * from "./reexport-star.ts";', // star re-export
+        'export { b } from "./reexport-named.ts";', // named re-export
+        'import type { T } from "./type-only.ts";', // type-only import
+        'import eq = require("./import-equals-target.ts");', // import-equals
+        'import { e } from "./no-semicolon.ts"', // ASI, no trailing semicolon
+        "export const afterNoSemicolon = e;",
+        '/* decoy comment: import "./comment-decoy.ts" */',
+        '// decoy line comment: import "./line-comment-decoy.ts"',
+        'const stringDecoy = "import x from \\"./string-decoy.ts\\"";',
+        'const templateDecoy = `export * from "./template-decoy.ts"`;',
+        "import {", // multiline import
+        "  c,",
+        "  d,",
+        '} from "./multiline.ts";',
+        'export const loadDynamic = () => import("./dynamic.ts");', // nested dynamic import
+      ].join("\n") + "\n",
+    );
+
+    const closure = await transitiveRelativeImportClosure(entryPath);
+    const visitedBasenames = [...closure.files].map((path) => path.split("/").pop()!);
+
+    for (const expectedFile of [
+      "entry.ts",
+      "named.ts",
+      "side-effect.ts",
+      "reexport-star.ts",
+      "reexport-named.ts",
+      "type-only.ts",
+      "import-equals-target.ts",
+      "no-semicolon.ts",
+      "multiline.ts",
+      "dynamic.ts",
+    ]) {
+      expect(visitedBasenames).toContain(expectedFile);
+    }
+    // The decoy files are never written to disk; if the scanner had
+    // false-positively captured any decoy specifier, resolving and reading
+    // that nonexistent file would have thrown before reaching this point.
+    for (const decoyFile of [
+      "comment-decoy.ts",
+      "line-comment-decoy.ts",
+      "string-decoy.ts",
+      "template-decoy.ts",
+    ]) {
+      expect(visitedBasenames).not.toContain(decoyFile);
+    }
+
+    expect([...closure.bareImports]).toContain("node:fs");
+    expect([...closure.bareImports]).toContain("fs");
+    expect([...closure.bareImports]).toContain("fs/promises");
+  });
+
   test("resolver.ts's transitive relative-import closure never reaches evidence production, execution, or I/O", async () => {
     const entry = join(ROOT, "src", "tracer", "resolver.ts");
     const closure = await transitiveRelativeImportClosure(entry);
@@ -941,23 +1133,15 @@ describe("evidence-production boundary and resolver packet consumption", () => {
       expect(visitedBasenames).not.toContain(basename);
     }
 
-    // Bare/`node:` specifiers reachable anywhere in the closure must never
-    // be filesystem, network, or subprocess capable.
-    const forbiddenBareImports = [
-      "node:fs",
-      "node:fs/promises",
-      "node:net",
-      "node:http",
-      "node:https",
-      "node:dns",
-      "node:child_process",
-      "bun",
-      "@effect/platform-bun",
-      "@effect/platform-node",
-    ];
-    for (const bare of forbiddenBareImports) {
-      expect(closure.bareImports).not.toContain(bare);
-    }
+    // Exact allowlist, not a denylist: any bare/`node:` specifier reachable
+    // anywhere in the closure other than "effect" itself is disallowed,
+    // including ones a denylist could omit by name (e.g. "fs", plain
+    // "fs/promises" without the "node:" prefix).
+    const ALLOWED_BARE_IMPORTS = new Set(["effect"]);
+    const disallowedBareImports = [...closure.bareImports].filter(
+      (specifier) => !ALLOWED_BARE_IMPORTS.has(specifier),
+    );
+    expect(disallowedBareImports).toEqual([]);
 
     // Belt-and-suspenders: the producer runner symbols must not appear
     // anywhere in the closure's combined source, even under a re-export
