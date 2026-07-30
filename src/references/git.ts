@@ -478,18 +478,29 @@ export const commitObjectExists = (
       return runGit(["-C", repository, "cat-file", "-t", commit], {
         check: false,
       }).pipe(
-        Effect.flatMap((type) =>
-          type.exitCode === 0
-            ? Effect.succeed(text(type).trim() === "commit")
+        Effect.flatMap((type) => {
+          if (type.exitCode !== 0) {
+            return Effect.fail(
+              new AcquisitionError({
+                message:
+                  `cannot probe exact commit object ${JSON.stringify(commit)} in ` +
+                  `${JSON.stringify(repository)} (exit ${type.exitCode}): ` +
+                  type.stderr.trim(),
+              }),
+            );
+          }
+          const actualType = text(type).trim();
+          return actualType === "commit"
+            ? Effect.succeed(true)
             : Effect.fail(
                 new AcquisitionError({
                   message:
-                    `cannot probe exact commit object ${JSON.stringify(commit)} in ` +
-                    `${JSON.stringify(repository)} (exit ${type.exitCode}): ` +
-                    type.stderr.trim(),
+                    `exact commit object ${JSON.stringify(commit)} in ` +
+                    `${JSON.stringify(repository)} has Git type ` +
+                    `${JSON.stringify(actualType)}, expected "commit"`,
                 }),
-              ),
-        ),
+              );
+        }),
       );
     }),
   );
@@ -731,6 +742,13 @@ export const repositoryProgramReasons = (
           ) {
             reasons.push(
               `checkout config declares unsupported path redirection ${JSON.stringify(key)}`,
+            );
+          }
+          if (normalized === "extensions.refstorage") {
+            reasons.push(
+              `checkout config declares unsupported alternative reference storage ${JSON.stringify(
+                key,
+              )}`,
             );
           }
         }

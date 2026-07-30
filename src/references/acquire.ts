@@ -77,6 +77,14 @@ export const resolveLocalSibling = (
       });
     }
     yield* inspectCheckoutAdministration(sibling);
+    const programReasons = yield* repositoryProgramReasons(sibling);
+    if (programReasons.length > 0) {
+      return yield* new AcquisitionError({
+        message:
+          `source ${JSON.stringify(source.id)}: local sibling is not self-contained: ` +
+          programReasons.join("; "),
+      });
+    }
 
     const observed = yield* rawLocalRemoteUrl(sibling);
     const accepted = new Set([source.origin, ...source.originAliases]);

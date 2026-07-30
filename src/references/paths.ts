@@ -229,6 +229,35 @@ const requireObjectStorageAdministration = (
     }
   });
 
+/**
+ * Keep loose reference authority inside the repository administration root.
+ * Reference files are administration, not object history, so the complete
+ * (normally shallow) tree is inspected. Alternative ref storage is rejected
+ * until its administration format has an explicit custody implementation.
+ */
+const requireReferenceStorageAdministration = (
+  gitDirectory: string,
+  label: string,
+): Effect.Effect<void, AcquisitionError, FileSystem.FileSystem | Path.Path> =>
+  Effect.gen(function* () {
+    const paths = yield* Path.Path;
+    const refs = paths.join(gitDirectory, "refs");
+    if (yield* entryExistsNoFollow(refs)) {
+      const inspected = yield* inspectDirectory(refs, `${label} loose references`);
+      if (inspected === null) {
+        return yield* pathError(`${label} loose references ${refs} disappeared`);
+      }
+      yield* requireNoLinksInDirectoryTree(inspected, `${label} loose references`);
+    }
+
+    const reftable = paths.join(gitDirectory, "reftable");
+    if (yield* entryExistsNoFollow(reftable)) {
+      return yield* pathError(
+        `${label} declares unsupported alternative reference storage ${reftable}`,
+      );
+    }
+  });
+
 interface WorktreeReadMessages {
   readonly symlink: string;
   readonly missing: string;
@@ -528,6 +557,7 @@ export const inspectCheckoutAdministration = (
     }
 
     yield* requireObjectStorageAdministration(objects, "checkout Git object storage");
+    yield* requireReferenceStorageAdministration(gitDirectory, "checkout Git administration");
   });
 
 /** Validate the tool-owned bare/no-checkout repository used as an object cache. */
@@ -584,4 +614,8 @@ export const inspectObjectCacheAdministration = (
       }
     }
     yield* requireObjectStorageAdministration(objects, "managed object-cache storage");
+    yield* requireReferenceStorageAdministration(
+      gitDirectory,
+      "managed object-cache administration",
+    );
   });

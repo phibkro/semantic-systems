@@ -528,3 +528,27 @@ accepted; no new Python implementation is permitted.
   gitlink non-initialization. The custody corpus now contains 117 tests; the
   new controls and affected prior controls pass targeted under severe I/O
   pressure.
+- 2026-07-30: the independent exact-`abbe0eb` closure-custody review returned
+  `NEEDS_CHANGES`. It verified selected commit/tree/blob recomputation, bounded
+  unrelated-history behavior, promisor denial, no-hardlink cloning, atomic
+  GNU `mv` publication, cleanup, visible gitlink/LFS assumptions, and the
+  widened Effect/Oxlint boundary. It found two remaining escapes: a valid
+  wrong-type Git object stored under the locked commit OID was treated as
+  ordinary cache absence, and loose-reference administration could redirect
+  through `.git/refs` symlinks. Integration self-audit also found that managed
+  caches rejected repository-local programs and path redirections while local
+  siblings did not.
+- 2026-07-30: corrected all three findings. Silent exit 1 from the undecorated
+  object probe is now the only cache-absence result; any present non-commit
+  object is typed corruption. Checkout, sibling, and cache loose-reference
+  trees are inspected without following links, while reftable and
+  `extensions.refStorage` remain explicitly unsupported until their custody
+  format is implemented. Local siblings now reject the same executable
+  filters, external includes, and path redirections as managed caches before
+  selector observation. Five new red/green controls prove wrong-type
+  corruption, cache and nested sibling reference redirection, sibling external
+  configuration rejection, and materialized-checkout reference redirection.
+  They pass with 15 affected prior controls; TypeScript, Oxlint, Oxfmt, and
+  diff hygiene pass. The custody corpus is now 122 tests. Broad and Nix gates
+  remain deferred under severe host I/O PSI despite a nearly idle direct NVMe
+  sample and zero Btrfs device errors.

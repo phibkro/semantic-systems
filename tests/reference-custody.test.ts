@@ -1322,6 +1322,23 @@ describe("reference custody Effect v4 slice: offline Git observation", () => {
     expect(Exit.isFailure(exit)).toBeTrue();
   });
 
+  test("a local sibling with external repository configuration is rejected", async () => {
+    const fixture = await localSiblingFixture();
+    const externalConfig = join(fixture.project, "external.gitconfig");
+    await writeFile(externalConfig, "[core]\nworktree = /tmp\n");
+    runCommand(["git", "config", "include.path", externalConfig], fixture.sibling);
+    expect(runCommand(["git", "config", "--local", "--get", "include.path"], fixture.sibling)).toBe(
+      externalConfig,
+    );
+    await mkdir(join(fixture.project, "references"));
+    await writeFile(join(fixture.project, "references", "sources.toml"), fixture.sourceText);
+
+    const result = runTsCli(["--root", fixture.project, "lock", "demo.repo", "--offline"]);
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("local sibling is not self-contained");
+    expect(result.stderr).toContain("external include");
+  });
+
   test("replacement refs cannot substitute another tree for the recorded commit", async () => {
     const fixture = await localSiblingFixture();
     const originalCommit = runCommand(["git", "rev-parse", "HEAD"], fixture.sibling);
@@ -1914,6 +1931,54 @@ describe("reference custody Effect v4 slice: offline materialization", () => {
     ).toBeFalse();
   });
 
+  test("a wrong-type object at the locked cache commit OID does not fall back", async () => {
+    const { fixture } = await lockedFixture(false);
+    const cache = await installObjectCache(fixture.project, fixture.sibling);
+    const lock = await runBun(loadLock(join(fixture.project, "references", "sources.lock.json")));
+    const commit = lock.sources.get("demo.repo")?.commit;
+    if (commit === undefined) throw new Error("expected a locked commit");
+
+    const replacement = join(fixture.project, "replacement-blob");
+    await writeFile(replacement, "valid blob object with the wrong Git type\n");
+    const blob = runCommand(
+      ["git", "-C", cache, "hash-object", "-w", replacement],
+      fixture.project,
+    );
+    const objects = join(cache, "objects");
+    const commitPath = join(objects, commit.slice(0, 2), commit.slice(2));
+    const blobPath = join(objects, blob.slice(0, 2), blob.slice(2));
+    const blobBytes = await readFile(blobPath);
+    await rm(commitPath);
+    await writeFile(commitPath, blobBytes);
+    expect(runCommand(["git", "-C", cache, "cat-file", "-t", commit], fixture.project)).toBe(
+      "blob",
+    );
+
+    const result = runTsCli(["--root", fixture.project, "materialize", "demo.repo", "--offline"]);
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain('has Git type "blob", expected "commit"');
+    expect(
+      await Bun.file(join(fixture.project, ".references", "demo.repo", "checkout")).exists(),
+    ).toBeFalse();
+  });
+
+  test("a cache reference-storage symlink is rejected before local cloning", async () => {
+    const { fixture } = await lockedFixture(false);
+    const cache = await installObjectCache(fixture.project, fixture.sibling);
+    const refs = join(cache, "refs");
+    const external = join(resolve(cache, "..", "..", ".."), "external-cache-refs");
+    await rename(refs, external);
+    await symlink(external, refs);
+    expect(runCommand(["git", "-C", cache, "rev-parse", "HEAD"], fixture.project)).not.toBe("");
+
+    const result = runTsCli(["--root", fixture.project, "materialize", "demo.repo", "--offline"]);
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("unsafe symlink");
+    expect(
+      await Bun.file(join(fixture.project, ".references", "demo.repo", "checkout")).exists(),
+    ).toBeFalse();
+  });
+
   test("a nested object-cache symlink is rejected before local cloning", async () => {
     const fixture = await localSiblingFixture();
     const sourceText = fixture.sourceText.replace('local_hint = "../sibling"\n', "");
@@ -2033,6 +2098,24 @@ describe("reference custody Effect v4 slice: offline materialization", () => {
     await rename(siblingGit, external);
     await symlink(external, siblingGit);
     expect(runCommand(["git", "rev-parse", "HEAD"], fixture.sibling)).not.toBe("");
+    const before = await directoryByteSnapshot(external);
+
+    const result = runTsCli(["--root", fixture.project, "materialize", "demo.repo", "--offline"]);
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("unsafe symlink");
+    expect(await directoryByteSnapshot(external)).toBe(before);
+    expect(
+      await Bun.file(join(fixture.project, ".references", "demo.repo", "checkout")).exists(),
+    ).toBeFalse();
+  });
+
+  test("a nested sibling reference-storage symlink is rejected before object acquisition", async () => {
+    const { fixture } = await lockedFixture(false);
+    const heads = join(fixture.sibling, ".git", "refs", "heads");
+    const external = join(resolve(fixture.sibling, ".."), "external-sibling-heads");
+    await rename(heads, external);
+    await symlink(external, heads);
+    expect(runCommand(["git", "rev-parse", "main"], fixture.sibling)).not.toBe("");
     const before = await directoryByteSnapshot(external);
 
     const result = runTsCli(["--root", fixture.project, "materialize", "demo.repo", "--offline"]);
@@ -2575,6 +2658,7 @@ describe("reference custody Effect v4 slice: full checkout status", () => {
     "gitfile",
     "git-directory-symlink",
     "objects-symlink",
+    "refs-symlink",
     "commondir",
     "config-worktree",
     "alternates",
@@ -2598,6 +2682,11 @@ describe("reference custody Effect v4 slice: full checkout status", () => {
         const external = join(fixtureRoot, "external-objects");
         await rename(objects, external);
         await symlink(external, objects);
+      } else if (administrationEscape === "refs-symlink") {
+        const refs = join(gitDirectory, "refs");
+        const external = join(fixtureRoot, "external-refs");
+        await rename(refs, external);
+        await symlink(external, refs);
       } else if (administrationEscape === "commondir") {
         await writeFile(join(gitDirectory, "commondir"), "../external-common\n");
       } else if (administrationEscape === "config-worktree") {
