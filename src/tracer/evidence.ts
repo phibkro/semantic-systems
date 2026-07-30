@@ -10,7 +10,7 @@ import {
   type JsonObject,
   type JsonValue,
 } from "./json.ts";
-import type { Realization } from "./realization.ts";
+import { operationBinding, realizationId, type Realization } from "./realization.ts";
 import type { Theory } from "./theory.ts";
 
 export const EVIDENCE_CATEGORY = "example_test";
@@ -55,6 +55,7 @@ export const evidenceToJson = (evidence: EvidenceResult): JsonObject => ({
   passed: evidencePassed(evidence),
   total_cases: evidenceTotalCases(evidence),
   passed_cases: evidencePassedCases(evidence),
+  case_results: evidence.caseResults.map(caseResultToJson),
 });
 
 const invariantViolations = (state: JsonObject): ReadonlyArray<string> => {
@@ -149,5 +150,117 @@ export const runConformance = (
     realizationIdentity: realization.identity,
     assumptions,
     caseResults: cases.map((testCase) => runCase(testCase, transition, replay)),
+  };
+};
+
+/**
+ * Evidence-production boundary (contract slices 2-3): the producer is the
+ * only place that selects a conformance recipe, resolves execution adapters,
+ * and runs `runConformance`. It returns one lossless `EvidenceResult` or a
+ * typed diagnostic and no result; it never adjudicates policy or
+ * eligibility.
+ *
+ * Every non-executing preflight (theory targeting, obligation shape, recipe
+ * matching, staleness, and obligation binding) is rejected before an adapter
+ * is resolved or conformance runs, so a wrong-theory realization or a
+ * wrong-obligation/stale/ambiguous/missing suite never triggers execution.
+ * `requiredObligation` is threaded in (rather than recomputed here) so this
+ * module stays the single definition of the theory's obligation shape; see
+ * `resolver.ts`.
+ */
+export type ProducerDiagnosticKind =
+  | "not_targeted"
+  | "obligation_unsupported"
+  | "missing_evidence"
+  | "ambiguous_evidence"
+  | "stale_evidence_recipe"
+  | "evidence_obligation_mismatch"
+  | "unbound_operation";
+
+export interface ProducerDiagnostic {
+  readonly kind: ProducerDiagnosticKind;
+  readonly message: string;
+}
+
+/**
+ * Every outcome self-declares the realization it is bound to by declared ID
+ * (not array position), so a resolver consuming a list of outcomes can
+ * reject reordering, omission, duplication, or rebinding deterministically
+ * instead of trusting positional alignment.
+ */
+export type ProducerOutcome =
+  | { readonly ok: true; readonly realizationId: string; readonly result: EvidenceResult }
+  | {
+      readonly ok: false;
+      readonly realizationId: string;
+      readonly diagnostic: ProducerDiagnostic;
+    };
+
+export interface EvidenceAdapters {
+  readonly resolveTransition: (key: string) => Transition;
+  readonly resolveReplay: (key: string) => Replay;
+}
+
+export const producerDiagnosticToJson = (diagnostic: ProducerDiagnostic): JsonObject => ({
+  kind: diagnostic.kind,
+  message: diagnostic.message,
+});
+
+export const produceEvidence = (
+  theory: Theory,
+  theoryId: string,
+  requiredObligation: string | null,
+  realization: Realization,
+  suites: ReadonlyArray<JsonObject>,
+  adapters: EvidenceAdapters,
+): ProducerOutcome => {
+  const subject = realizationId(realization);
+  const reject = (kind: ProducerDiagnosticKind, message: string): ProducerOutcome => ({
+    ok: false,
+    realizationId: subject,
+    diagnostic: { kind, message },
+  });
+  if (!realization.targetsTheory) {
+    return reject("not_targeted", `realization does not target theory '${theoryId}'`);
+  }
+  if (requiredObligation === null) {
+    return reject(
+      "obligation_unsupported",
+      "the theory does not declare exactly one required obligation",
+    );
+  }
+  const matching = suites.filter((suite) => suite.theory === theoryId);
+  if (matching.length === 0) {
+    return reject("missing_evidence", `no conformance suite declares theory '${theoryId}'`);
+  }
+  if (matching.length > 1) {
+    return reject("ambiguous_evidence", `multiple conformance suites declare theory '${theoryId}'`);
+  }
+  const suite = matching[0]!;
+  if (suite.theory_identity !== theory.identity) {
+    return reject(
+      "stale_evidence_recipe",
+      "the conformance suite targets a stale theory identity",
+    );
+  }
+  if (suite.obligation !== requiredObligation) {
+    return reject(
+      "evidence_obligation_mismatch",
+      `the suite declares obligation '${String(suite.obligation)}' but the theory requires '${requiredObligation}'`,
+    );
+  }
+  let transition: Transition;
+  let replay: Replay;
+  try {
+    transition = adapters.resolveTransition(operationBinding(realization.document, "transition"));
+    replay = adapters.resolveReplay(operationBinding(realization.document, "replay"));
+  } catch (error) {
+    if (error instanceof DocumentError) return reject("unbound_operation", error.message);
+    throw error;
+  }
+  return {
+    ok: true,
+    realizationId: subject,
+    result: runConformance(theory, realization, suite, transition, replay),
   };
 };

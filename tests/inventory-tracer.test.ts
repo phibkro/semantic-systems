@@ -6,7 +6,26 @@ import { BunCrypto, BunFileSystem, BunPath } from "@effect/platform-bun";
 import { NodeCrypto, NodeFileSystem, NodePath } from "@effect/platform-node";
 import { Effect, Exit, type Crypto, type FileSystem, type Path } from "effect";
 import { demoToJson, runDemo } from "../src/tracer/demo.ts";
+import {
+  caseResultToJson,
+  evidenceToJson,
+  produceEvidence,
+  producerDiagnosticToJson,
+  type EvidenceAdapters,
+  type EvidenceResult,
+  type ProducerDiagnostic,
+  type ProducerOutcome,
+} from "../src/tracer/evidence.ts";
 import type { JsonObject } from "../src/tracer/json.ts";
+import { loadInventory } from "../src/tracer/loader.ts";
+import { resolveReplay, resolveTransition } from "../src/tracer/operations.ts";
+import { normalizeRealization, realizationId } from "../src/tracer/realization.ts";
+import {
+  candidateExplanation,
+  candidateToJson,
+  requiredObligation,
+  resolve as resolveDeployment,
+} from "../src/tracer/resolver.ts";
 import { normalizeTheory } from "../src/tracer/theory.ts";
 
 const ROOT = resolve(import.meta.dir, "..");
@@ -346,5 +365,334 @@ describe("inventory tracer Effect v4 slice", () => {
       theory_identity: theoryIdentity,
       realization_identity: pure.realization_identity,
     });
+  });
+});
+
+// Contract slices 2-3 (design spec 0003): conformance execution moved before
+// resolution, and the resolver now consumes already-produced evidence
+// packets plus typed producer diagnostics instead of executing recipes
+// itself.
+describe("evidence-production boundary and resolver packet consumption", () => {
+  const THEORY_ID = "theory.inventory";
+
+  const loadPureRealization = async () => {
+    const fixture = await runBun(loadInventory(INVENTORY, "development"));
+    const theory = await runBun(normalizeTheory(fixture.theory));
+    const document = fixture.realizations.find(
+      (candidate) => candidate.id === "realization.inventory.pure",
+    )!;
+    const realization = await runBun(normalizeRealization(document, theory, THEORY_ID));
+    return { fixture, theory, realization };
+  };
+
+  const loadPureAndBroken = async () => {
+    const fixture = await runBun(loadInventory(INVENTORY, "development"));
+    const theory = await runBun(normalizeTheory(fixture.theory));
+    const pureDocument = fixture.realizations.find(
+      (candidate) => candidate.id === "realization.inventory.pure",
+    )!;
+    const brokenDocument = fixture.realizations.find(
+      (candidate) => candidate.id === "realization.inventory.broken",
+    )!;
+    const pure = await runBun(normalizeRealization(pureDocument, theory, THEORY_ID));
+    const broken = await runBun(normalizeRealization(brokenDocument, theory, THEORY_ID));
+    return { fixture, theory, pure, broken };
+  };
+
+  const spyEvidenceAdapters = (): { adapters: EvidenceAdapters; calls: Array<string> } => {
+    const calls: Array<string> = [];
+    return {
+      calls,
+      adapters: {
+        resolveTransition: (key) => {
+          calls.push(`transition:${key}`);
+          return resolveTransition(key);
+        },
+        resolveReplay: (key) => {
+          calls.push(`replay:${key}`);
+          return resolveReplay(key);
+        },
+      },
+    };
+  };
+
+  test("lossless case details survive evidenceToJson", () => {
+    const evidence: EvidenceResult = {
+      category: "example_test",
+      obligation: "obligation.inventory.conformance",
+      producer: { id: "producer.test", version: "0" },
+      theoryIdentity: "sha256:fixture-theory",
+      realizationIdentity: "sha256:fixture-realization",
+      assumptions: [],
+      caseResults: [
+        { caseId: "case-pass", passed: true, detail: null },
+        {
+          caseId: "case-fail",
+          passed: false,
+          detail: {
+            expected_events: [{ kind: "Reserved" }],
+            actual_events: [{ kind: "ReservationRejected", reason: "insufficient_stock" }],
+          },
+        },
+      ],
+    };
+    const json = evidenceToJson(evidence);
+    expect(json.case_results).toEqual(evidence.caseResults.map(caseResultToJson));
+    expect(json.case_results).toEqual([
+      { case_id: "case-pass", passed: true, detail: null },
+      {
+        case_id: "case-fail",
+        passed: false,
+        detail: {
+          expected_events: [{ kind: "Reserved" }],
+          actual_events: [{ kind: "ReservationRejected", reason: "insufficient_stock" }],
+        },
+      },
+    ]);
+    expect(json.total_cases).toBe(2);
+    expect(json.passed_cases).toBe(1);
+    expect(json.passed).toBeFalse();
+  });
+
+  test("resolver eligibility works from an injected precomputed result without executing a realization", async () => {
+    const { fixture, theory, realization } = await loadPureRealization();
+    const injected: EvidenceResult = {
+      category: "example_test",
+      obligation: "obligation.inventory.conformance",
+      producer: { id: "producer.injected", version: "0" },
+      theoryIdentity: theory.identity,
+      realizationIdentity: realization.identity,
+      assumptions: [],
+      caseResults: [{ caseId: "injected-case", passed: true, detail: null }],
+    };
+    const outcome: ProducerOutcome = {
+      ok: true,
+      realizationId: realizationId(realization),
+      result: injected,
+    };
+    const resolution = resolveDeployment(theory, [realization], [outcome], fixture.policy);
+    expect(resolution.status).toBe("selected");
+    const candidate = resolution.candidates[0]!;
+    expect(candidate.eligible).toBeTrue();
+    expect(candidate.evidence).toEqual(injected);
+    expect(candidate.producerDiagnostic).toBeNull();
+  });
+
+  test("an injected producer diagnostic remains visible and blocks that candidate", async () => {
+    const { fixture, theory, realization } = await loadPureRealization();
+    const diagnostic: ProducerDiagnostic = {
+      kind: "unbound_operation",
+      message: "unbound transition operation 'inventory.unavailable.v0'",
+    };
+    const outcome: ProducerOutcome = {
+      ok: false,
+      realizationId: realizationId(realization),
+      diagnostic,
+    };
+    const resolution = resolveDeployment(theory, [realization], [outcome], fixture.policy);
+    expect(resolution.status).toBe("rejected");
+    const candidate = resolution.candidates[0]!;
+    expect(candidate.eligible).toBeFalse();
+    expect(candidate.reasonCodes).toEqual(["unbound_operation"]);
+    expect(candidate.evidence).toBeNull();
+    expect(candidate.producerDiagnostic).toEqual(diagnostic);
+
+    const json = candidateToJson(candidate);
+    expect(json.evidence).toBeNull();
+    expect(json.producer_diagnostic).toEqual(producerDiagnosticToJson(diagnostic));
+
+    const explanation = candidateExplanation(candidate);
+    expect(
+      explanation.children.some((child) => child.rule === "produce_conformance_evidence"),
+    ).toBeTrue();
+  });
+
+  test("resolver binds outcomes by realization identity, not array order", async () => {
+    const { fixture, theory, pure, broken } = await loadPureAndBroken();
+    const obligation = requiredObligation(theory);
+    const adapters: EvidenceAdapters = { resolveTransition, resolveReplay };
+    const pureOutcome = produceEvidence(
+      theory,
+      THEORY_ID,
+      obligation,
+      pure,
+      fixture.evidenceSuites,
+      adapters,
+    );
+    const brokenOutcome = produceEvidence(
+      theory,
+      THEORY_ID,
+      obligation,
+      broken,
+      fixture.evidenceSuites,
+      adapters,
+    );
+    // Realizations and outcomes are each passed in reversed, mismatched
+    // order; correct binding must come from identity, not position.
+    const resolution = resolveDeployment(
+      theory,
+      [broken, pure],
+      [pureOutcome, brokenOutcome],
+      fixture.policy,
+    );
+    expect(resolution.status).toBe("selected");
+    expect(resolution.selectedRealization).toBe("realization.inventory.pure");
+    const pureCandidate = resolution.candidates.find((item) => item.realization === pure)!;
+    const brokenCandidate = resolution.candidates.find((item) => item.realization === broken)!;
+    expect(pureCandidate.eligible).toBeTrue();
+    expect(brokenCandidate.eligible).toBeFalse();
+    expect(brokenCandidate.reasonCodes).toContain("conformance_failed");
+  });
+
+  test("a passing result rebound to the broken realization identity is rejected deterministically", async () => {
+    const { fixture, theory, pure, broken } = await loadPureAndBroken();
+    const obligation = requiredObligation(theory);
+    const adapters: EvidenceAdapters = { resolveTransition, resolveReplay };
+    const pureOutcome = produceEvidence(
+      theory,
+      THEORY_ID,
+      obligation,
+      pure,
+      fixture.evidenceSuites,
+      adapters,
+    );
+    if (!pureOutcome.ok) throw new Error("expected the pure realization to produce evidence");
+    // The pure realization's passing evidence is copied and rebound to the
+    // broken realization's declared ID, retaining its passing case payload
+    // (the canonical adversarial rebind case).
+    const reboundOutcome: ProducerOutcome = {
+      ok: true,
+      realizationId: realizationId(broken),
+      result: pureOutcome.result,
+    };
+    expect(() =>
+      resolveDeployment(theory, [pure, broken], [pureOutcome, reboundOutcome], fixture.policy),
+    ).toThrow("mismatched realization identity");
+  });
+
+  test("resolver rejects a missing evidence-production outcome instead of defaulting", async () => {
+    const { fixture, theory, pure, broken } = await loadPureAndBroken();
+    const obligation = requiredObligation(theory);
+    const adapters: EvidenceAdapters = { resolveTransition, resolveReplay };
+    const pureOutcome = produceEvidence(
+      theory,
+      THEORY_ID,
+      obligation,
+      pure,
+      fixture.evidenceSuites,
+      adapters,
+    );
+    expect(() =>
+      resolveDeployment(theory, [pure, broken], [pureOutcome], fixture.policy),
+    ).toThrow("missing evidence-production outcome");
+  });
+
+  test("resolver rejects two outcomes bound to the same realization identity", async () => {
+    const { fixture, theory, pure } = await loadPureAndBroken();
+    const obligation = requiredObligation(theory);
+    const adapters: EvidenceAdapters = { resolveTransition, resolveReplay };
+    const pureOutcome = produceEvidence(
+      theory,
+      THEORY_ID,
+      obligation,
+      pure,
+      fixture.evidenceSuites,
+      adapters,
+    );
+    expect(() =>
+      resolveDeployment(theory, [pure], [pureOutcome, pureOutcome], fixture.policy),
+    ).toThrow("duplicate evidence-production outcome");
+  });
+
+  test("resolver rejects an outcome bound to a realization outside the current set", async () => {
+    const { fixture, theory, pure, broken } = await loadPureAndBroken();
+    const obligation = requiredObligation(theory);
+    const adapters: EvidenceAdapters = { resolveTransition, resolveReplay };
+    const pureOutcome = produceEvidence(
+      theory,
+      THEORY_ID,
+      obligation,
+      pure,
+      fixture.evidenceSuites,
+      adapters,
+    );
+    const brokenOutcome = produceEvidence(
+      theory,
+      THEORY_ID,
+      obligation,
+      broken,
+      fixture.evidenceSuites,
+      adapters,
+    );
+    expect(() =>
+      resolveDeployment(theory, [pure], [pureOutcome, brokenOutcome], fixture.policy),
+    ).toThrow("unknown realization");
+  });
+
+  test("invalid preflights never resolve execution adapters or run conformance", async () => {
+    const { fixture, theory, pure } = await loadPureAndBroken();
+    const obligation = requiredObligation(theory);
+    expect(obligation).not.toBeNull();
+
+    const wrongTheoryDocument: JsonObject = {
+      ...pure.document,
+      theory: "theory.some-other-contract",
+    };
+    const wrongTheoryRealization = await runBun(
+      normalizeRealization(wrongTheoryDocument, theory, THEORY_ID),
+    );
+
+    const baseSuite = fixture.evidenceSuites[0]!;
+    const staleSuite: JsonObject = { ...baseSuite, theory_identity: "sha256:stale-suite" };
+    const wrongObligationSuite: JsonObject = {
+      ...baseSuite,
+      obligation: "obligation.inventory.unrelated",
+    };
+
+    const scenarios = [
+      { label: "wrong theory", realization: wrongTheoryRealization, obligation, suites: fixture.evidenceSuites },
+      { label: "obligation unsupported", realization: pure, obligation: null, suites: fixture.evidenceSuites },
+      { label: "missing suite", realization: pure, obligation, suites: [] },
+      { label: "ambiguous suite", realization: pure, obligation, suites: [baseSuite, baseSuite] },
+      { label: "stale suite", realization: pure, obligation, suites: [staleSuite] },
+      { label: "wrong-obligation suite", realization: pure, obligation, suites: [wrongObligationSuite] },
+    ] as const;
+
+    for (const scenario of scenarios) {
+      const spy = spyEvidenceAdapters();
+      const outcome = produceEvidence(
+        theory,
+        THEORY_ID,
+        scenario.obligation,
+        scenario.realization,
+        scenario.suites,
+        spy.adapters,
+      );
+      expect(outcome.ok).toBeFalse();
+      expect(spy.calls).toEqual([]);
+    }
+  });
+
+  test("resolver.ts imports no evidence-production, operations, domain, execution, demo, or I/O code", async () => {
+    const source = await Bun.file(join(ROOT, "src", "tracer", "resolver.ts")).text();
+    const forbidden = [
+      "runConformance",
+      "produceEvidence",
+      'from "./operations.ts"',
+      'from "./domain.ts"',
+      'from "./execution.ts"',
+      'from "./demo.ts"',
+      'from "./loader.ts"',
+      "node:fs",
+      "node:net",
+      "node:http",
+      "node:https",
+      "node:dns",
+      "node:child_process",
+      '"bun"',
+    ];
+    for (const needle of forbidden) {
+      expect(source).not.toContain(needle);
+    }
   });
 });

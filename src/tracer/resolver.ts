@@ -4,8 +4,11 @@ import {
   evidencePassedCases,
   evidenceToJson,
   evidenceTotalCases,
-  runConformance,
+  producerDiagnosticToJson,
   type EvidenceResult,
+  type ProducerDiagnostic,
+  type ProducerDiagnosticKind,
+  type ProducerOutcome,
 } from "./evidence.ts";
 import type { ExplanationNode } from "./explanation.ts";
 import {
@@ -15,13 +18,7 @@ import {
   requireString,
   type JsonObject,
 } from "./json.ts";
-import { resolveReplay, resolveTransition } from "./operations.ts";
-import {
-  operationBinding,
-  realizationAssumptions,
-  realizationId,
-  type Realization,
-} from "./realization.ts";
+import { realizationAssumptions, realizationId, type Realization } from "./realization.ts";
 import type { Theory } from "./theory.ts";
 
 export const REASON_MISSING_EVIDENCE = "missing_evidence";
@@ -58,6 +55,7 @@ export interface Candidate {
   readonly eligible: boolean;
   readonly reasonCodes: ReadonlyArray<string>;
   readonly evidence: EvidenceResult | null;
+  readonly producerDiagnostic: ProducerDiagnostic | null;
 }
 
 export interface Resolution {
@@ -75,6 +73,10 @@ export const candidateToJson = (candidate: Candidate): JsonObject => ({
   reason_codes: candidate.reasonCodes,
   evidence: candidate.evidence === null ? null : evidenceToJson(candidate.evidence),
   counterexamples: candidate.evidence === null ? [] : evidenceCounterexamples(candidate.evidence),
+  producer_diagnostic:
+    candidate.producerDiagnostic === null
+      ? null
+      : producerDiagnosticToJson(candidate.producerDiagnostic),
 });
 
 export const candidateExplanation = (candidate: Candidate): ExplanationNode => {
@@ -91,6 +93,17 @@ export const candidateExplanation = (candidate: Candidate): ExplanationNode => {
         total_cases: evidenceTotalCases(evidence),
         assumptions: evidence.assumptions,
         counterexamples: evidenceCounterexamples(evidence),
+      },
+      children: [],
+    });
+  } else if (candidate.producerDiagnostic !== null) {
+    children.push({
+      rule: "produce_conformance_evidence",
+      outcome: "diagnostic",
+      subject: realizationId(candidate.realization),
+      details: {
+        kind: candidate.producerDiagnostic.kind,
+        message: candidate.producerDiagnostic.message,
       },
       children: [],
     });
@@ -118,7 +131,7 @@ export const resolutionToJson = (resolution: Resolution): JsonObject => ({
   candidates: resolution.candidates.map(candidateToJson),
 });
 
-const requiredObligation = (theory: Theory): string | null => {
+export const requiredObligation = (theory: Theory): string | null => {
   const raw = theory.payload.obligations;
   if (!Array.isArray(raw) || raw.length !== 1) return null;
   const first = raw[0];
@@ -126,40 +139,52 @@ const requiredObligation = (theory: Theory): string | null => {
   return typeof first.id === "string" ? first.id : null;
 };
 
+// Exhaustive over ProducerDiagnosticKind so a new producer diagnostic fails
+// the typecheck here instead of falling through unmapped. `not_targeted` and
+// `obligation_unsupported` are unreachable in practice: resolver's own
+// targetsTheory/requiredObligation gates below always short-circuit before a
+// producer outcome carrying either kind is consulted; the entries exist for
+// defense in depth if a caller ever hand-builds an outcome.
+const DIAGNOSTIC_REASON: Readonly<Record<ProducerDiagnosticKind, string>> = {
+  not_targeted: REASON_THEORY_MISMATCH,
+  obligation_unsupported: REASON_OBLIGATION_SET_UNSUPPORTED,
+  missing_evidence: REASON_MISSING_EVIDENCE,
+  ambiguous_evidence: REASON_EVIDENCE_AMBIGUOUS,
+  stale_evidence_recipe: REASON_EVIDENCE_STALE,
+  evidence_obligation_mismatch: REASON_EVIDENCE_OBLIGATION_MISMATCH,
+  unbound_operation: REASON_OPERATION_UNBOUND,
+};
+
+/**
+ * Consumes an already-produced evidence packet (or typed producer
+ * diagnostic); it never selects a recipe, resolves an execution adapter, or
+ * runs conformance itself. See the evidence-production boundary in
+ * `evidence.ts`.
+ */
 const evaluateCandidate = (
   theory: Theory,
-  theoryId: string,
   realization: Realization,
-  suites: ReadonlyArray<JsonObject>,
+  producerOutcome: ProducerOutcome,
   policy: JsonObject,
 ): Candidate => {
-  const reject = (reason: string): Candidate => ({
+  const reject = (reason: string, producerDiagnostic: ProducerDiagnostic | null = null): Candidate => ({
     realization,
     eligible: false,
     reasonCodes: [reason],
     evidence: null,
+    producerDiagnostic,
   });
   if (!realization.targetsTheory) return reject(REASON_THEORY_MISMATCH);
   const obligation = requiredObligation(theory);
   if (obligation === null) return reject(REASON_OBLIGATION_SET_UNSUPPORTED);
 
-  const matching = suites.filter((suite) => suite.theory === theoryId);
-  if (matching.length === 0) return reject(REASON_MISSING_EVIDENCE);
-  if (matching.length > 1) return reject(REASON_EVIDENCE_AMBIGUOUS);
-  const suite = matching[0]!;
-  if (suite.theory_identity !== theory.identity) return reject(REASON_EVIDENCE_STALE);
-  if (suite.obligation !== obligation) return reject(REASON_EVIDENCE_OBLIGATION_MISMATCH);
-
-  let transition: ReturnType<typeof resolveTransition>;
-  let replay: ReturnType<typeof resolveReplay>;
-  try {
-    transition = resolveTransition(operationBinding(realization.document, "transition"));
-    replay = resolveReplay(operationBinding(realization.document, "replay"));
-  } catch (error) {
-    if (error instanceof DocumentError) return reject(REASON_OPERATION_UNBOUND);
-    throw error;
+  if (!producerOutcome.ok) {
+    return reject(DIAGNOSTIC_REASON[producerOutcome.diagnostic.kind], producerOutcome.diagnostic);
   }
-  const evidence: EvidenceResult = runConformance(theory, realization, suite, transition, replay);
+  // The producer only returns `ok: true` after matching this exact
+  // obligation (see evidence.ts), so evidence.obligation === obligation is
+  // guaranteed here rather than re-checked.
+  const evidence = producerOutcome.result;
 
   const reasons: Array<string> = [];
   const requirements = requireObject(
@@ -187,22 +212,72 @@ const evaluateCandidate = (
     eligible: reasons.length === 0,
     reasonCodes: reasons,
     evidence,
+    producerDiagnostic: null,
   };
+};
+
+/**
+ * Binds each producer outcome to its realization by declared ID
+ * (`outcome.realizationId`), never by array position: `evidenceOutcomes` may
+ * arrive in any order relative to `realizations`. Coverage must be exact —
+ * one outcome per realization, no omission, no duplicate binding, no
+ * outcome bound to an unknown realization — and every accepted evidence
+ * result must carry the exact realization content identity it claims,
+ * otherwise resolution throws instead of silently misattributing evidence
+ * (a rebound pure result must never make a different, broken realization
+ * eligible).
+ */
+const bindOutcomes = (
+  realizations: ReadonlyArray<Realization>,
+  evidenceOutcomes: ReadonlyArray<ProducerOutcome>,
+): ReadonlyMap<string, ProducerOutcome> => {
+  const outcomeById = new Map<string, ProducerOutcome>();
+  for (const outcome of evidenceOutcomes) {
+    if (outcomeById.has(outcome.realizationId)) {
+      throw new DocumentError({
+        message: `duplicate evidence-production outcome bound to realization '${outcome.realizationId}'`,
+      });
+    }
+    outcomeById.set(outcome.realizationId, outcome);
+  }
+  const knownIds = new Set(realizations.map((realization) => realizationId(realization)));
+  for (const id of outcomeById.keys()) {
+    if (!knownIds.has(id)) {
+      throw new DocumentError({
+        message: `evidence-production outcome bound to unknown realization '${id}'`,
+      });
+    }
+  }
+  for (const realization of realizations) {
+    const id = realizationId(realization);
+    const outcome = outcomeById.get(id);
+    if (outcome === undefined) {
+      throw new DocumentError({
+        message: `missing evidence-production outcome for realization '${id}'`,
+      });
+    }
+    if (outcome.ok && outcome.result.realizationIdentity !== realization.identity) {
+      throw new DocumentError({
+        message: `evidence-production outcome for realization '${id}' carries a mismatched realization identity`,
+      });
+    }
+  }
+  return outcomeById;
 };
 
 export const resolve = (
   theory: Theory,
-  theoryId: string,
   realizations: ReadonlyArray<Realization>,
-  suites: ReadonlyArray<JsonObject>,
+  evidenceOutcomes: ReadonlyArray<ProducerOutcome>,
   policy: JsonObject,
 ): Resolution => {
   const ambiguity = requireString(requireKey(policy, "ambiguity", "policy"), "policy.ambiguity");
   if (ambiguity !== "reject") {
     throw new DocumentError({ message: `unsupported ambiguity policy '${ambiguity}'` });
   }
+  const outcomeById = bindOutcomes(realizations, evidenceOutcomes);
   const candidates = realizations.map((realization) =>
-    evaluateCandidate(theory, theoryId, realization, suites, policy),
+    evaluateCandidate(theory, realization, outcomeById.get(realizationId(realization))!, policy),
   );
   const eligible = candidates.filter((candidate) => candidate.eligible);
   if (eligible.length === 1) {

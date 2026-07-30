@@ -1,17 +1,26 @@
 import { Effect, type Crypto, type FileSystem, type Path } from "effect";
+import { produceEvidence, type EvidenceAdapters, type ProducerOutcome } from "./evidence.ts";
 import { executeScenario, executionToJson, type ExecutionResult } from "./execution.ts";
 import { explanationToJson, type ExplanationNode } from "./explanation.ts";
 import { DocumentError, requireKey, requireString, type JsonObject } from "./json.ts";
 import { loadInventory } from "./loader.ts";
-import { resolveTransition } from "./operations.ts";
+import { resolveReplay, resolveTransition } from "./operations.ts";
 import {
   normalizeRealization,
   operationBinding,
   realizationAssumptions,
   realizationId,
 } from "./realization.ts";
-import { candidateExplanation, resolutionToJson, resolve, type Resolution } from "./resolver.ts";
+import {
+  candidateExplanation,
+  requiredObligation,
+  resolutionToJson,
+  resolve,
+  type Resolution,
+} from "./resolver.ts";
 import { normalizeTheory, type Theory } from "./theory.ts";
+
+const EVIDENCE_ADAPTERS: EvidenceAdapters = { resolveTransition, resolveReplay };
 
 export interface DemoResult {
   readonly theory: Theory;
@@ -62,13 +71,18 @@ export const runDemo = (
     );
     return yield* Effect.try({
       try: () => {
-        const resolution = resolve(
-          theory,
-          theoryId,
-          realizations,
-          fixture.evidenceSuites,
-          fixture.policy,
+        const obligation = requiredObligation(theory);
+        const evidenceOutcomes: ReadonlyArray<ProducerOutcome> = realizations.map((realization) =>
+          produceEvidence(
+            theory,
+            theoryId,
+            obligation,
+            realization,
+            fixture.evidenceSuites,
+            EVIDENCE_ADAPTERS,
+          ),
         );
+        const resolution = resolve(theory, realizations, evidenceOutcomes, fixture.policy);
         let execution: ExecutionResult | null = null;
         if (resolution.status === "selected") {
           const selected = resolution.candidates.find(
