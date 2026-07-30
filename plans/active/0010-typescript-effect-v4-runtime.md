@@ -59,11 +59,13 @@ Other active feature worktrees and their owned files remain forbidden.
    **Catalog/lock/status-lock-only boundary complete** (`src/references/`):
    `sources.toml` parsing/validation, `reference-lock-v1` parsing, canonical
    catalog digests, atomic lock writing, network-free `status --lock-only`,
-   and offline local-sibling Git observation now run on Effect v4/Bun with a
-   differential/adversarial Bun suite against the Python oracle. Local
-   object-cache fallback, remote acquisition, materialization, the curator
-   lock, checkout verification, and the `lock`/`materialize` CLI commands
-   remain Python and are the rest of this item.
+   and offline local-sibling Git observation now run on Effect v4/Bun. The
+   parsing/status/writer suite remains differential against the Python oracle;
+   Git security boundaries use adversarial fixtures and deliberately exceed
+   Python where review exposed shared defects. Local object-cache fallback,
+   remote acquisition, materialization, the curator lock, checkout
+   verification, and the `lock`/`materialize` CLI commands remain Python and
+   are the rest of this item.
 7. Migrate development-control and policy tests to Bun. **Complete for
    development-control and reuse-first governance; custody tests remain with
    their owning implementation slice.**
@@ -306,15 +308,22 @@ accepted; no new Python implementation is permitted.
   ID. Ref advertisement runs from a scoped neutral directory below
   `GIT_CEILING_DIRECTORIES`, preventing repository-local
   `url.*.insteadOf` configuration in the invoking checkout from rewriting a
-  local path into another local repository or an online transport.
+  local path into another local repository or an online transport. HTTPS is
+  independently disabled in Git itself for every offline invocation. Local
+  origin identity is read as exactly one raw `remote.origin.url` from the
+  repository config, with URL rewrites and included config disabled.
   The lock is derived exclusively from the selected commit/tree and regular
   committed license blobs; dirty working-tree bytes are irrelevant, and a
   byte-identical observation retains the prior custody timestamp. Four new
   adversarial tests cover environment poisoning, transport syntax, committed
   object custody/stable reuse, remote-origin mismatch, and replacement-ref
-  substitution. A local-to-local `insteadOf` attack demonstrates the rewrite
-  without opening network and proves the discovery ceiling selects the
-  requested repository, raising the focused suite to 46 passing tests. This
-  slice deliberately does not expose the mutating `lock` CLI: publication must
-  remain serialized until the curator lock and multi-source transaction are
-  ported.
+  substitution. Local-to-local `insteadOf` attacks demonstrate both ref and
+  origin-identity rewrites without opening network; a protocol canary proves
+  Git rejects HTTPS before transport; multiple raw origins fail closed; and
+  NUL-delimited tree parsing preserves non-ASCII/control-bearing paths
+  independently of `core.quotePath`. These counterexamples raise the focused
+  suite to 50 passing tests. The Python implementation shares several of the
+  exposed defects, so the new Git security oracles are intentionally not
+  described as Python parity. This slice deliberately does not expose the
+  mutating `lock` CLI: publication must remain serialized until the curator
+  lock and multi-source transaction are ported.

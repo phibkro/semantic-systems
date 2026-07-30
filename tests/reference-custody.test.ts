@@ -534,6 +534,14 @@ describe("reference custody Effect v4 slice: offline Git observation", () => {
     ).toBeTrue();
   });
 
+  test("Git itself denies HTTPS when transport is not explicitly enabled", async () => {
+    const result = await runBun(
+      runGit(["ls-remote", "https://127.0.0.1:9/must-not-open.git"], { check: false }),
+    );
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toContain("transport 'https' not allowed");
+  });
+
   test("locks only committed objects from an origin-matched local sibling", async () => {
     const fixture = await localSiblingFixture();
     const catalog = await runBun(parseCatalogText(fixture.sourceText));
@@ -567,6 +575,32 @@ describe("reference custody Effect v4 slice: offline Git observation", () => {
     const fixture = await localSiblingFixture();
     runCommand(
       ["git", "remote", "set-url", "origin", "https://example.com/untrusted.git"],
+      fixture.sibling,
+    );
+    const catalog = await runBun(parseCatalogText(fixture.sourceText));
+    const source = catalog.sources.get("demo.repo")!;
+    const exit = await runBunExit(lockFromLocalSibling(source, fixture.project, null));
+    expect(Exit.isFailure(exit)).toBeTrue();
+  });
+
+  test("origin identity reads the raw URL rather than an insteadOf rewrite", async () => {
+    const fixture = await localSiblingFixture();
+    const declared = "https://example.com/demo.git";
+    const untrusted = "https://example.com/untrusted.git";
+    runCommand(["git", "remote", "set-url", "origin", untrusted], fixture.sibling);
+    runCommand(["git", "config", `url.${declared}.insteadOf`, untrusted], fixture.sibling);
+    expect(runCommand(["git", "remote", "get-url", "origin"], fixture.sibling)).toBe(declared);
+
+    const catalog = await runBun(parseCatalogText(fixture.sourceText));
+    const source = catalog.sources.get("demo.repo")!;
+    const exit = await runBunExit(lockFromLocalSibling(source, fixture.project, null));
+    expect(Exit.isFailure(exit)).toBeTrue();
+  });
+
+  test("origin identity rejects ambiguous multiple raw URLs", async () => {
+    const fixture = await localSiblingFixture();
+    runCommand(
+      ["git", "config", "--add", "remote.origin.url", "https://example.com/demo.git"],
       fixture.sibling,
     );
     const catalog = await runBun(parseCatalogText(fixture.sourceText));
@@ -653,6 +687,37 @@ describe("reference custody Effect v4 slice: offline Git observation", () => {
     );
     expect(new TextDecoder().decode(sealed.stdout)).toContain(targetCommit);
     expect(new TextDecoder().decode(sealed.stdout)).not.toContain(redirectedCommit);
+  });
+
+  test("NUL-delimited tree observation preserves quoted and control-bearing paths", async () => {
+    const fixture = await localSiblingFixture();
+    const unusualPath = "licenses/Licensé\ncontinued";
+    await mkdir(join(fixture.sibling, "licenses"));
+    runCommand(["git", "mv", "--", "LICENSE", unusualPath], fixture.sibling);
+    runCommand(
+      [
+        "git",
+        "-c",
+        "user.name=Semantic Custody Test",
+        "-c",
+        "user.email=custody@example.invalid",
+        "commit",
+        "-m",
+        "test: unusual license path",
+      ],
+      fixture.sibling,
+    );
+    runCommand(["git", "config", "core.quotePath", "true"], fixture.sibling);
+    const sourceText = fixture.sourceText.replace(
+      'license_paths = ["LICENSE"]',
+      `license_paths = [${JSON.stringify(unusualPath)}]`,
+    );
+    const catalog = await runBun(parseCatalogText(sourceText));
+    const source = catalog.sources.get("demo.repo")!;
+    const entry = await runBun(lockFromLocalSibling(source, fixture.project, null));
+    expect(entry.licenses.get(unusualPath)?.sha256).toBe(
+      createHash("sha256").update(fixture.license).digest("hex"),
+    );
   });
 });
 

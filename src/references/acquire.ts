@@ -8,7 +8,7 @@ import {
   lsTreeEntry,
   objectFormat,
   observeConcreteRef,
-  remoteUrl,
+  rawLocalRemoteUrl,
   requireFullObjectId,
   resolveCommit,
   treeOfCommit,
@@ -66,7 +66,7 @@ const resolveLocalSibling = (
       });
     }
 
-    const observed = yield* remoteUrl(sibling);
+    const observed = yield* rawLocalRemoteUrl(sibling);
     const accepted = new Set([source.origin, ...source.originAliases]);
     if (observed === null || !accepted.has(observed)) {
       return yield* new AcquisitionError({

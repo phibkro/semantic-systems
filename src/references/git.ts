@@ -46,8 +46,6 @@ const HARDENING_ARGUMENTS = [
   "-c",
   "protocol.file.allow=always",
   "-c",
-  "protocol.https.allow=always",
-  "-c",
   "protocol.ext.allow=never",
   "-c",
   "gc.auto=0",
@@ -179,14 +177,23 @@ export const runGit = (
     const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
     const environments = yield* GitEnvironment;
     const allowTransport = options.allowTransport ?? false;
-    const command = ChildProcess.make("git", [...HARDENING_ARGUMENTS, ...arguments_], {
-      cwd: options.cwd,
-      env: environments.forMode(allowTransport, options.repositoryCeiling),
-      extendEnv: false,
-      shell: false,
-      detached: false,
-      stdin: "ignore",
-    });
+    const command = ChildProcess.make(
+      "git",
+      [
+        ...HARDENING_ARGUMENTS,
+        "-c",
+        `protocol.https.allow=${allowTransport ? "always" : "never"}`,
+        ...arguments_,
+      ],
+      {
+        cwd: options.cwd,
+        env: environments.forMode(allowTransport, options.repositoryCeiling),
+        extendEnv: false,
+        shell: false,
+        detached: false,
+        stdin: "ignore",
+      },
+    );
     const result = yield* Effect.scoped(
       Effect.gen(function* () {
         const handle = yield* spawner.spawn(command);
@@ -286,7 +293,9 @@ export const lsTreeEntry = (
   AcquisitionError,
   ChildProcessSpawner.ChildProcessSpawner | GitEnvironment
 > =>
-  runGit(["-C", repository, "ls-tree", "-l", commit, "--", path], { check: false }).pipe(
+  runGit(["-C", repository, "ls-tree", "-l", "-z", commit, "--", path], {
+    check: false,
+  }).pipe(
     Effect.flatMap((result) => {
       if (result.exitCode !== 0) {
         return Effect.fail(
@@ -295,8 +304,24 @@ export const lsTreeEntry = (
           }),
         );
       }
-      const line = text(result).trim();
-      if (line.length === 0) return Effect.succeed(null);
+      const output = text(result);
+      if (output.length === 0) return Effect.succeed(null);
+      if (!output.endsWith("\0")) {
+        return Effect.fail(
+          new AcquisitionError({
+            message: `unexpected non-NUL-terminated ls-tree output for ${JSON.stringify(path)}`,
+          }),
+        );
+      }
+      const records = output.slice(0, -1).split("\0");
+      if (records.length !== 1) {
+        return Effect.fail(
+          new AcquisitionError({
+            message: `unexpected multiple ls-tree records for ${JSON.stringify(path)}`,
+          }),
+        );
+      }
+      const line = records[0]!;
       const tab = line.indexOf("\t");
       if (tab < 0 || line.slice(tab + 1) !== path) return Effect.succeed(null);
       const fields = line.slice(0, tab).split(/\s+/);
@@ -453,13 +478,51 @@ export const observeConcreteRef = (
     return concrete;
   });
 
-export const remoteUrl = (
+export const rawLocalRemoteUrl = (
   repository: string,
 ): Effect.Effect<
   string | null,
   AcquisitionError,
   ChildProcessSpawner.ChildProcessSpawner | GitEnvironment
 > =>
-  runGit(["-C", repository, "remote", "get-url", "origin"], { check: false }).pipe(
-    Effect.map((result) => (result.exitCode === 0 ? text(result).trim() : null)),
+  runGit(
+    [
+      "-C",
+      repository,
+      "config",
+      "--local",
+      "--no-includes",
+      "--null",
+      "--get-all",
+      "remote.origin.url",
+    ],
+    { check: false },
+  ).pipe(
+    Effect.flatMap((result) => {
+      if (result.exitCode === 1 && result.stdout.length === 0) return Effect.succeed(null);
+      if (result.exitCode !== 0) {
+        return Effect.fail(
+          new AcquisitionError({
+            message: `cannot read raw local remote.origin.url: ${result.stderr.trim()}`,
+          }),
+        );
+      }
+      const output = text(result);
+      if (!output.endsWith("\0")) {
+        return Effect.fail(
+          new AcquisitionError({
+            message: "raw local remote.origin.url output is not NUL-terminated",
+          }),
+        );
+      }
+      const values = output.slice(0, -1).split("\0");
+      if (values.length !== 1 || values[0]!.length === 0) {
+        return Effect.fail(
+          new AcquisitionError({
+            message: `expected exactly one raw local remote.origin.url, observed ${values.length}`,
+          }),
+        );
+      }
+      return Effect.succeed(values[0]!);
+    }),
   );
