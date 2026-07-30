@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0014-stm-effect-handler-laws.md`](../../design-specs/0014-stm-effect-handler-laws.md).
 This mutable execution record cannot redefine that contract.
 
-Status: contract frozen; dedicated oracle and reference model pending
+Status: tracer implemented; exact acceptance green; full integration gate and independent review pending
 
 Owner: main research and integration agent
 
@@ -87,4 +87,50 @@ generated-view checks. Missing required tools or artifacts fail.
   upstream code was copied.
 - 2026-07-30: corrected the canonical dependency from
   `work.stm-laws requires decision.stm-library` to `work.stm-laws informs
-  decision.stm-library`; generated readiness must derive from that source edge.
+decision.stm-library`; generated readiness must derive from that source edge.
+- 2026-07-30: inspected the pinned
+  `effect@4.0.0-beta.102` sources at `node_modules/effect/src/Effect.ts` and
+  `node_modules/effect/src/TxRef.ts` under the package's MIT license. Adapted
+  the abstract journal/validate/rerun and same-journal nesting techniques; no
+  upstream source was copied. Rejected Effect's transaction surface as theory
+  authority because retryable bodies admit arbitrary Effect operations and its
+  realization uses ordinary JavaScript number versions.
+- 2026-07-30: evaluated Harris, Marlow, Peyton Jones, and Herlihy,
+  “Composable Memory Transactions,” PPoPP 2005,
+  DOI `10.1145/1065944.1065952`, for compositional transaction and alternative
+  semantics. This publication supplied conceptual prior art only; no text or
+  code was copied.
+- 2026-07-30: evaluated Haskell `stm`'s `retry`, `orElse`, and typed exception
+  distinction through `Control.Monad.STM` (Hackage `stm-2.5.3.1`,
+  BSD-3-Clause). Adapted the dependency-union and retry-only alternative
+  concepts into the frozen contract's closed data AST; no Haskell source was
+  copied.
+- 2026-07-30: evaluated the transactional outbox pattern documented at
+  `microservices.io/patterns/data/transactional-outbox.html`. Retained only the
+  separation between committed state and later action interpretation. Durable
+  delivery was rejected from this tracer as an explicit non-goal.
+- 2026-07-30: reused the repository's portable Bun/Node entrypoint split,
+  canonical JSON projection, exact decimal-string counter convention, and
+  oracle-first test naming. Rejected a generic scheduler/model-checker scaffold
+  as an unbounded side quest; the model enumerates only the declared two-record
+  serial orderings.
+- 2026-07-30: implemented a closed pure transaction-description AST, immutable
+  store snapshots, exact bigint versions, handler-owned journals, retry
+  registration/wake-up, branch isolation, inert commit/abort values,
+  same-domain nesting, pre-attempt cross-domain rejection, and bounded serial
+  history checking in `src/stm/`.
+- 2026-07-30: added 17 dedicated law tests with all 15 named counterexamples,
+  101 assertions, empty-dependency suspension, and exact-version rollover.
+  `nix develop --command bun scripts/accept/0014-stm-effect-handler-laws.ts`
+  passed, including genuine Bun/Node canonical report parity, typecheck, lint,
+  format, portable closure, 82 neighboring inventory/actor tests, seven
+  semantic-rule tests, model validation, and generated-view checking.
+- 2026-07-30: mutation-negative checks disabled all stale-version detection;
+  CE05 and CE06 both failed by observing an invalid commit. A separate mutation
+  retained the left `orElse` branch journal; CE09 failed by observing value 99
+  instead of the right branch's value 2. Both mutations were reverted, and the
+  three focused tests passed again with 17 assertions.
+- 2026-07-30: `nix develop --command bun scripts/check.ts` passed the full
+  integration loop: 338 Bun tests with 1,727 assertions, 68 transitional Python
+  custody checks, commit-policy conformance, formatting, lint, TypeScript plus
+  Effect diagnostics, Bun/Node probes, model validation, and generated views.
