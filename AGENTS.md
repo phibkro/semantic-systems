@@ -19,6 +19,10 @@ platform, evidence, and trust policies.
 - Treat generated views as projections of canonical sources.
 - Require an executable tracer bullet for every important abstraction.
 - Expose unsupported claims and explain automated decisions.
+- Before freezing a software-system design, apply the
+  [open semantic system design lens](docs/open-semantic-system-design.md):
+  declare warranted state, typed inputs, artifacts versus effect requests,
+  returned observations, orthogonal component graphs, and bounded autonomy.
 - Advance independent semantic frontiers concurrently when their contracts,
   files, and acceptance gates do not overlap. Serialize only true dependency
   edges, shared semantic-boundary decisions, and final integration.
@@ -32,6 +36,8 @@ platform, evidence, and trust policies.
 - `model/` — canonical project graph
 - `src/project-model/` — Bun/Effect v4 project graph tooling
 - `design-specs/` — frozen problem contracts
+- `design-specs/TEMPLATE.md` — required open-system worksheet for new or
+  changed contracts
 - `plans/active/` — mutable execution state linked to one design spec
 - `examples/` — executable tracer bullets and fixtures
 - `generated/` — deterministic projections; never edit by hand

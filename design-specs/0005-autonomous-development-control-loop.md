@@ -106,20 +106,20 @@ merge.
 
 Checks attach to the transition they can observe:
 
-| Event | Required observation | Authority |
-|---|---|---|
-| Spec frozen | unique ID, falsifiers, ownership, dependencies, acceptance | implementation may start |
-| File save/watch | focused parse, type, format, and red/green oracle | advisory |
-| Commit message | checked-in Conventional Commits policy | bypassable local guard |
-| Pre-commit | fast read-only checks and targeted tests | bypassable local guard |
-| Pre-push | pinned integration suite and architecture boundaries | bypassable local guard |
-| PR open/synchronize/reopen | exact-head integration and feature acceptance | required server gate |
-| Review/finding resolution | independent counterexample and assumption audit | required semantic gate |
-| Merge queue `merge_group` | prospective merged-tree acceptance | publication gate |
-| Push to `main` | accepted scenario replay and projection consistency | post-merge drift signal |
-| Release tag | reproducibility and claim-specific deep assurance | release authority |
-| Schedule/dependency update | drift, fuzzing, model checking, benchmark trend | opens work only |
-| Agent done | committed-artifact gate, harvest, and safe cleanup | cleanup authority only |
+| Event                      | Required observation                                       | Authority                |
+| -------------------------- | ---------------------------------------------------------- | ------------------------ |
+| Spec frozen                | unique ID, falsifiers, ownership, dependencies, acceptance | implementation may start |
+| File save/watch            | focused parse, type, format, and red/green oracle          | advisory                 |
+| Commit message             | checked-in Conventional Commits policy                     | bypassable local guard   |
+| Pre-commit                 | fast read-only checks and targeted tests                   | bypassable local guard   |
+| Pre-push                   | pinned integration suite and architecture boundaries       | bypassable local guard   |
+| PR open/synchronize/reopen | exact-head integration and feature acceptance              | required server gate     |
+| Review/finding resolution  | independent counterexample and assumption audit            | required semantic gate   |
+| Merge queue `merge_group`  | prospective merged-tree acceptance                         | publication gate         |
+| Push to `main`             | accepted scenario replay and projection consistency        | post-merge drift signal  |
+| Release tag                | reproducibility and claim-specific deep assurance          | release authority        |
+| Schedule/dependency update | drift, fuzzing, model checking, benchmark trend            | opens work only          |
+| Agent done                 | committed-artifact gate, harvest, and safe cleanup         | cleanup authority only   |
 
 Client hooks improve latency but never authorize merge because they are
 bypassable. Server gates verify without modifying: they do not format, repair,
@@ -134,6 +134,10 @@ gate.
 
 Specialized triggers include:
 
+- a new or changed design contract requires the
+  `open-semantic-system-v1` shape: declared boundary/warranted state, semantic
+  inputs and outputs, effect uncertainty, orthogonal component structures,
+  bounded autonomy, and evidence limits;
 - contract changes invalidate bound implementations and evidence;
 - canonical model changes require generated-view equality;
 - generated changes without their canonical source edge are rejected;
@@ -312,3 +316,11 @@ tests, contributor commands, and all existing acceptance programs are
 invalidated until they agree on that extension and runtime. This changes the
 execution carrier, not the feature identity, merge-authority boundary, or
 evidence meanings.
+
+Revision 3, 2026-07-30: design spec 0015 adds a shape-only observation to the
+PR contract gate. Any selected or explicitly migrated design spec changed in
+the PR range must contain exactly one
+`Design-Lens-Version: open-semantic-system-v1` marker and the required
+non-placeholder worksheet sections. Unchanged legacy contracts remain valid.
+This makes system boundaries and claims reviewable; it does not establish
+semantic correctness, change merge authority, or change evidence meanings.

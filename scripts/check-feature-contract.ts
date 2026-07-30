@@ -14,6 +14,16 @@ import { spawnSync } from "node:child_process";
 
 const FEATURE_ID = /^[0-9]{4}-[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const SHA = /^[0-9a-f]{40}$/;
+export const DESIGN_LENS_VERSION = "open-semantic-system-v1";
+export const DESIGN_LENS_HEADINGS = [
+  "Boundary and warranted state",
+  "Semantic inputs",
+  "Semantic outputs",
+  "Effect protocols and uncertainty",
+  "Components and orthogonal structures",
+  "Bounded autonomy and resources",
+  "Evidence, assumptions, and unsupported claims",
+] as const;
 const REQUIRED_SECTIONS = [
   "Design spec and semantic claim",
   "User-visible preview",
@@ -151,6 +161,63 @@ const visibleSectionContent = (content: string): string =>
     .replace(/<!--[\s\S]*?-->/g, "")
     .replace(/^```[^\n]*$/gm, "")
     .trim();
+
+const designStructuralText = (content: string): string =>
+  content
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/```[\s\S]*?```/g, "")
+    .replace(/~~~[\s\S]*?~~~/g, "");
+
+const visibleDesignContent = (content: string): string => designStructuralText(content).trim();
+
+export const validateDesignLensText = (content: string, path: string): void => {
+  const structure = designStructuralText(content);
+  const markers = [...structure.matchAll(/^Design-Lens-Version:\s*(.*?)\s*$/gm)].map(
+    (match) => match[1] ?? "",
+  );
+  if (markers.length !== 1) {
+    throw new Error(
+      `${path} design-lens shape requires exactly one Design-Lens-Version marker; found ${markers.length}`,
+    );
+  }
+  if (markers[0] !== DESIGN_LENS_VERSION) {
+    throw new Error(
+      `${path} design-lens version must be ${DESIGN_LENS_VERSION}; received ${JSON.stringify(markers[0])}`,
+    );
+  }
+
+  const levelTwo = [...structure.matchAll(/^##\s+(.+?)\s*$/gm)];
+  const lensHeadings = levelTwo.filter(
+    (heading) => heading[1] === "Open semantic system design lens",
+  );
+  if (lensHeadings.length !== 1) {
+    throw new Error(
+      `${path} design-lens shape requires exactly one "Open semantic system design lens" section; found ${lensHeadings.length}`,
+    );
+  }
+  const lensHeading = lensHeadings[0]!;
+  const start = (lensHeading.index ?? 0) + lensHeading[0].length;
+  const nextLevelTwo = levelTwo.find((candidate) => (candidate.index ?? 0) > start);
+  const end = nextLevelTwo?.index ?? structure.length;
+  const lens = structure.slice(start, end);
+  const levelThree = [...lens.matchAll(/^###\s+(.+?)\s*$/gm)];
+
+  for (const required of DESIGN_LENS_HEADINGS) {
+    const matches = levelThree.filter((heading) => heading[1] === required);
+    if (matches.length !== 1) {
+      throw new Error(
+        `${path} design-lens subsection "${required}" must appear exactly once; found ${matches.length}`,
+      );
+    }
+    const heading = matches[0]!;
+    const sectionStart = (heading.index ?? 0) + heading[0].length;
+    const next = levelThree.find((candidate) => (candidate.index ?? 0) > sectionStart);
+    const sectionEnd = next?.index ?? lens.length;
+    if (visibleDesignContent(lens.slice(sectionStart, sectionEnd)).length === 0) {
+      throw new Error(`${path} design-lens subsection "${required}" is empty or placeholder-only`);
+    }
+  }
+};
 
 const validateRequiredSections = (body: string): void => {
   const headings = [...body.matchAll(/^##\s+(.+?)\s*$/gm)];
@@ -303,6 +370,15 @@ export const validatePullRequestEvent = (root: string, eventPath: string): Featu
     throw new Error(
       `feature ${featureId} declares unchanged contract migrations: ${unchangedDeclarations.join(", ")}`,
     );
+  }
+  for (const changedFeatureId of [featureId, ...contractMigrations]) {
+    const changedDesignPath = `design-specs/${changedFeatureId}.md`;
+    if (!changedPaths.includes(changedDesignPath)) continue;
+    const absoluteDesignPath = resolve(root, changedDesignPath);
+    if (!existsSync(absoluteDesignPath)) {
+      throw new Error(`changed design contract is missing at ${changedDesignPath}`);
+    }
+    validateDesignLensText(readFileSync(absoluteDesignPath, "utf8"), changedDesignPath);
   }
   if (!changedPaths.includes(artifacts.planPath)) {
     throw new Error(

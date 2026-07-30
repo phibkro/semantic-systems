@@ -4,7 +4,8 @@ Canonical frozen contract:
 [`design-specs/0015-open-semantic-system-design-lens.md`](../../design-specs/0015-open-semantic-system-design-lens.md).
 This mutable execution record cannot redefine that contract.
 
-Status: contract drafted; red shape gate pending
+Status: implementation and exact acceptance green; full integration
+revalidation and independent review pending
 
 Owner: primary Semantic Systems lead
 
@@ -82,6 +83,29 @@ state, and unrelated project-model changes.
 - 2026-07-30: public web retrieval exposed only the title
   `CQRS and System Architectures`; rendered browser text supplied the actual
   design input.
+- 2026-07-30: initial acceptance failed for the intended missing-doctrine
+  reason before implementation.
+- 2026-07-30: reused the feature-contract parser, exact PR-range change
+  inventory, migration vocabulary, and visible-content strategy. The new
+  validator remains a pure shape check and does not attempt natural-language
+  semantic inference.
+- 2026-07-30: reviewed Martin Fowler's CQRS account, the official Elm commands
+  and subscriptions guide, current Erlang/OTP design principles and
+  `gen_statem` documentation, and Plotkin/Pretnar's algebraic-handler work as
+  prior art. No upstream code or prose was copied.
+- 2026-07-30: exact acceptance passed: 6 dedicated lens tests/13 expectations,
+  24 control-loop tests/250 expectations, typecheck, type-aware lint,
+  formatting, project-model validation, and generated-view drift.
+- 2026-07-30: operator refinement made semantic layers message-boundary
+  claims, distinguished representation-preserving from semantic
+  transformations, traced vertical slices to declared outcomes, and required
+  explicit progress or persistence semantics for cycles. Exact acceptance
+  passed with 7 dedicated lens tests/18 expectations and the same 24
+  control-loop tests/250 expectations.
+- 2026-07-30: full integration revalidation passed after that refinement:
+  330 Bun tests/1,668 expectations, zero Effect diagnostics, and 68
+  transitional Python custody checks. This is exact implementation evidence,
+  not independent review.
 
 ## Acceptance command
 
