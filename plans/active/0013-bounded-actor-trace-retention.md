@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0013-bounded-actor-trace-retention.md`](../../design-specs/0013-bounded-actor-trace-retention.md).
 This mutable plan records execution state and cannot redefine that contract.
 
-Status: contract frozen; oracle and implementation pending
+Status: implementation complete at exact head `3db9ce0`; independent review pending
 
 Owner: main research and integration agent
 
@@ -101,3 +101,12 @@ git diff --check
   expectations), Effect diagnostics with zero findings, and 68 Python
   compatibility tests. The compatibility suite is retained migration
   evidence, not new Python source or authority.
+- 2026-07-30: exact head `3db9ce0cbacc3f73c377c6db0221f9609f0d21b3`
+  derives complete journey acceptance order from bounded receipts rather than
+  the intentionally partial retained trace. On that exact head, the repository
+  integration loop again passed 320 Bun tests (1,618 expectations), Effect
+  diagnostics with zero findings, and 68 compatibility tests; exact 0013
+  acceptance then passed 23 actor tests (182 expectations), two genuine-Node
+  ownership tests, exact 0012 acceptance, inventory and semantic lint
+  regressions, model validation, generated-view drift, and Bun/Node journey
+  parity. Independent review remains the only completion gate.
