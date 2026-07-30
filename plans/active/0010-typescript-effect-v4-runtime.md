@@ -19,9 +19,13 @@ Owner: main integration agent
   selected TypeScript, Unicorn, Import, and Promise rules. Effect-aware
   `@effect/tsgo` diagnostics and the local architecture plugin remain
   dependency-gated.
-- Remaining Python surface: reference custody and its test module, plus
-  transitional Nix/fast/integration wiring. Project model, tracer, and
-  governance tests are TypeScript.
+- Remaining Python surface: reference custody's Git-touching half (`acquire`,
+  `materialize`, `curator`, `gitutil`, `verify`, and the checkout-inspecting
+  half of `status`), the `lock`/`materialize` CLI commands, and its test
+  module, plus transitional Nix/fast/integration wiring. The catalog/lock
+  parsing boundary and network-free `status --lock-only` are now TypeScript
+  (see item 6 below). Project model, tracer, and governance tests are
+  TypeScript.
 - External `.references/` checkouts are excluded from repository-source
   migration.
 
@@ -52,6 +56,13 @@ Other active feature worktrees and their owned files remain forbidden.
    parity and a final pinned Python oracle pass.**
 5. Recut the independent checker against the accepted TypeScript resolver.
 6. Implement reference custody with explicit Git/filesystem/lock services.
+   **Catalog/lock/status-lock-only boundary complete** (`src/references/`):
+   `sources.toml` parsing/validation, `reference-lock-v1` parsing, canonical
+   catalog digests, and network-free `status --lock-only` now run on Effect
+   v4/Bun with a differential/adversarial Bun suite against the Python
+   oracle. Git acquisition, materialization, the curator lock, checkout
+   verification, and the `lock`/`materialize` CLI commands remain Python and
+   are the rest of this item.
 7. Migrate development-control and policy tests to Bun. **Complete for
    development-control and reuse-first governance; custody tests remain with
    their owning implementation slice.**
@@ -224,3 +235,42 @@ accepted; no new Python implementation is permitted.
   TSGO Effect/capability diagnostics and Schema-over-JSON rule now cover the
   tracer as well as the project model. Focused rule and tracer suites pass
   20/20, and typecheck, full lint, formatting, and diff hygiene are green.
+- 2026-07-30: implemented the first frozen reference-custody vertical slice
+  (`src/references/`): `sources.toml` parsing/validation (path-safe IDs,
+  normalized/unique license paths, git-safe origin/track/aliases, paired
+  track+license_paths), `reference-lock-v1` parsing (duplicate-key rejection,
+  exact full object IDs, safe paths/modes, unknown-schema failure), and
+  network-free `status --lock-only` (`queued_unlocked`/`drifted`/
+  `locked_unmaterialized`). TOML decoding is a portable `TomlParser` Effect
+  service with Bun (`Bun.TOML.parse`) and Node (`toml` package) live layers
+  confined to `toml-bun.ts`/`toml-node.ts`, composed only in `main-bun.ts`/
+  `main-node.ts`; JSON's silent last-value-wins on duplicate keys has no
+  standard-library escape hatch, so `strict-json.ts` is a small hand-written
+  duplicate-key-rejecting parser (the TOML hand-roll ban did not apply — a
+  license-compatible pure-JS TOML parser was reused instead, see below).
+  Canonical catalog digests replicate Python's
+  `json.dumps(sort_keys=True, separators=(",",":"), ensure_ascii=True)`
+  byte-for-byte, verified against all 23 real `references/sources.toml`
+  entries plus an astral-Unicode regression that requires Python-compatible
+  UTF-16 surrogate-pair escapes. Reuse: `toml@4.3.0` (MIT, TOML v1.1.0 compliant) was already an
+  installed transitive dependency of `effect` itself; promoted to an exact
+  direct pin rather than adding a new package. `tests/reference-custody.test.ts`
+  (36 tests) differentially oracles every accept/reject and status decision
+  against the still-installed Python `semantic_references` package via
+  subprocess (real repo catalog+lock byte/JSON parity, constructed-fixture
+  drift scenarios, and adversarial duplicate-JSON-key/duplicate-TOML-key/
+  abbreviated-object-id/unsafe-path cases), plus pure unit coverage of every
+  validation predicate. `bun test`, `bun run typecheck`, and `bun run lint`
+  are green; `oxfmt` formatted only the owned files. The exact pinned Node
+  24.18.0 runtime independently executed `main-node.ts catalog-check` against
+  the real repository catalog and reported the same 23 validated sources;
+  automated Bun/Node parity remains part of the later full runtime gate. Out
+  of scope for this slice, still Python:
+  Git acquisition/materialization, the curator lock, checkout verification,
+  and the `lock`/`materialize` CLI commands (and the checkout-inspecting half
+  of `status`) — `catalog.py`, `lockfile.py`, and the lock-only path of
+  `status.py` were left in place rather than deleted, since Python's CLI is
+  still the only implementation of the commands that exercise them
+  end-to-end (`lock`, `materialize`, non-`--lock-only` `status`) and design
+  spec 0010 requires deleting a superseded module only after its slice's own
+  parity gate passes, not merely after one path through it is reproduced.
