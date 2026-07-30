@@ -7,8 +7,15 @@ import {
   type ActorDefinition,
   type ActorTrace,
 } from "../src/actor/runtime.ts";
+import {
+  actorExactCounter,
+  appendActorTrace,
+  snapshotActorTrace,
+  type ActorTraceState,
+} from "../src/actor/trace-retention-internal.ts";
 
 const run = <A, E>(effect: Effect.Effect<A, E>): Promise<A> => Effect.runPromise(effect);
+const exact = actorExactCounter;
 
 const counterDefinition = (
   id: string,
@@ -43,11 +50,11 @@ describe("bounded actor trace retention", () => {
         { kind: "accepted", actorId: "bounded-trace", sequence: 100 },
         { kind: "started", actorId: "bounded-trace", sequence: 100 },
         { kind: "committed", actorId: "bounded-trace", sequence: 100 },
-        { kind: "closed", actorId: "bounded-trace", acceptedCount: 100 },
+        { kind: "closed", actorId: "bounded-trace", acceptedCount: exact(100n) },
       ],
-      totalObserved: 301,
-      evicted: 296,
-      acceptedCount: 100,
+      totalObserved: exact(301n),
+      evicted: exact(296n),
+      acceptedCount: exact(100n),
       completeHistory: false,
     });
   });
@@ -64,11 +71,53 @@ describe("bounded actor trace retention", () => {
     );
 
     expect(snapshot.entries).toEqual([
-      { kind: "closed", actorId: "single-trace", acceptedCount: 1 },
+      { kind: "closed", actorId: "single-trace", acceptedCount: exact(1n) },
     ]);
-    expect(snapshot.totalObserved).toBe(4);
-    expect(snapshot.evicted).toBe(3);
+    expect(snapshot.totalObserved).toBe(exact(4n));
+    expect(snapshot.evicted).toBe(exact(3n));
     expect(snapshot.completeHistory).toBe(false);
+  });
+
+  test("keeps counters exact across the Number.MAX_SAFE_INTEGER boundary", () => {
+    const maximumSafe = BigInt(Number.MAX_SAFE_INTEGER);
+    const injected: ActorTraceState = {
+      entries: [
+        {
+          kind: "committed",
+          actorId: "exact-boundary",
+          sequence: Number.MAX_SAFE_INTEGER,
+        },
+      ],
+      totalObserved: maximumSafe,
+    };
+    const atBoundaryPlusOne = appendActorTrace(injected, 1, {
+      kind: "committed",
+      actorId: "exact-boundary",
+      sequence: Number.MAX_SAFE_INTEGER,
+    });
+    const afterBoundary = appendActorTrace(atBoundaryPlusOne, 1, {
+      kind: "closed",
+      actorId: "exact-boundary",
+      acceptedCount: actorExactCounter(maximumSafe + 2n),
+    });
+    const snapshot = snapshotActorTrace(afterBoundary, 1, maximumSafe + 2n);
+
+    expect(snapshot).toEqual({
+      capacity: 1,
+      entries: [
+        {
+          kind: "closed",
+          actorId: "exact-boundary",
+          acceptedCount: exact(9_007_199_254_740_993n),
+        },
+      ],
+      totalObserved: exact(9_007_199_254_740_993n),
+      evicted: exact(9_007_199_254_740_992n),
+      acceptedCount: exact(9_007_199_254_740_993n),
+      completeHistory: false,
+    });
+    expect(JSON.parse(JSON.stringify(snapshot))).toEqual(snapshot);
+    expect(() => actorExactCounter(-1n)).toThrow("actor exact counters must be non-negative");
   });
 
   test("rejects missing and invalid trace capacities before creating an actor", async () => {
@@ -148,8 +197,8 @@ describe("bounded actor trace retention", () => {
       "transition_failed",
       "closed",
     ]);
-    expect(result.snapshot.totalObserved).toBe(4);
-    expect(result.snapshot.evicted).toBe(1);
+    expect(result.snapshot.totalObserved).toBe(exact(4n));
+    expect(result.snapshot.evicted).toBe(exact(1n));
     expect(result.snapshot.entries.length).toBeLessThanOrEqual(result.snapshot.capacity);
   });
 });

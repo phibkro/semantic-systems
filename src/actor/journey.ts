@@ -75,7 +75,7 @@ export const actorRuntimeRealizationContract = {
   definition_custody: "snapshot_fields_at_spawn.v1",
   transfer_failures: "typed_with_total_cause_rendering.v1",
   failure_stop: "linearized_before_current_receipt.v1",
-  trace_retention: "declared_bounded_window_with_exact_eviction_counters.v1",
+  trace_retention: "declared_bounded_window_with_exact_eviction_counters.v2",
 } as const;
 
 export interface ActorScenarioInputs {

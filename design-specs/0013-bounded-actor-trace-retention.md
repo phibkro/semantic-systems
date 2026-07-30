@@ -1,6 +1,6 @@
 # Design spec 0013: bounded actor trace retention
 
-Status: frozen for implementation
+Status: frozen for corrected implementation (revision 2)
 
 Date: 2026-07-30
 
@@ -10,6 +10,16 @@ Revision 1: the actor journey schema version advances from 1 to 2 because the
 trace field changes from a lifetime array to a bounded snapshot object. Keeping
 version 1 would make an externally observable incompatible shape change
 indistinguishable from the accepted 0012 document.
+
+Revision 2: exact lifetime counters are represented in actor-private state as
+native `bigint` and projected at the public snapshot boundary as canonical
+non-negative base-10 strings. The initial implementation used JavaScript
+`number`, which contradicts this contract's unbounded-lifetime exactness claim
+after `Number.MAX_SAFE_INTEGER`. This corrects the still-unaccepted version-2
+journey rather than allocating another schema version: schema version 1 is the
+accepted 0012 append-only shape, while version 2 is the bounded shape defined
+by this feature. The realization identity revision advances from `v1` to `v2`
+because the counter representation is externally observable.
 
 Supersedes one representation choice in design spec 0012: actor lifecycle
 observations are retained in a declared bounded window rather than an
@@ -78,18 +88,34 @@ array:
 
 - `capacity` — the validated declared trace capacity;
 - `entries` — retained lifecycle entries, oldest to newest;
-- `totalObserved` — number of lifecycle observations ever appended;
-- `evicted` — exact count removed from the retained window;
-- `acceptedCount` — number of accepted envelopes; and
+- `totalObserved` — canonical non-negative base-10 string containing the exact
+  number of lifecycle observations ever appended;
+- `evicted` — canonical non-negative base-10 string containing the exact count
+  removed from the retained window;
+- `acceptedCount` — canonical non-negative base-10 string containing the exact
+  number of accepted envelopes; and
 - `completeHistory` — true exactly when `evicted === 0`.
 
 The invariant is:
 
 ```text
-entries.length = min(capacity, totalObserved)
-evicted = totalObserved - entries.length
-completeHistory = (evicted = 0)
+entries.length = min(capacity, integer(totalObserved))
+integer(evicted) = integer(totalObserved) - entries.length
+completeHistory = (integer(evicted) = 0)
 ```
+
+`integer` above denotes exact mathematical interpretation of the canonical
+decimal string, not conversion through JavaScript `number`. The `closed`
+trace entry uses the same canonical string representation for its
+`acceptedCount`. Native `bigint` does not cross the public boundary because
+ordinary `JSON.stringify` rejects it; a JSON number does not cross the boundary
+because it would silently round at sufficiently long lifetimes.
+
+The public TypeScript counter type is opaque and only actor-owned construction
+can produce it; plain authored strings, including negative strings, are not
+assignable. This is API custody rather than a cryptographic or runtime proof:
+untyped consumers observe ordinary JSON strings and must validate external
+documents at their own boundary.
 
 The final `closed` observation participates in the same retention policy and
 is the newest retained entry. Capacity one therefore returns only `closed`,
@@ -134,6 +160,13 @@ Existing bounded journeys configure a capacity large enough to retain their
 complete expected trace. Tests that need full history must assert
 `completeHistory`; they may not assume it from the absence of an error.
 
+Message and receipt `sequence` remains the JavaScript safe-integer-limited
+representation accepted in design spec 0012. It is distinct from the exact
+lifetime counters corrected here. This feature neither claims that a single
+actor can process more than `Number.MAX_SAFE_INTEGER` messages while preserving
+0012 sequence uniqueness nor silently upgrades that separate representation;
+the counter boundary oracle injects state rather than fabricating such a run.
+
 ### Identity and evidence
 
 The actor realization identity changes because retention, close result shape,
@@ -142,7 +175,7 @@ Its identity input gains:
 
 ```json
 {
-  "trace_retention": "declared_bounded_window_with_exact_eviction_counters.v1"
+  "trace_retention": "declared_bounded_window_with_exact_eviction_counters.v2"
 }
 ```
 
@@ -174,7 +207,10 @@ Before implementation, retain executable red observations for:
 10. a bounded-retention change altering delivery receipts, domain events,
     replayed state, or mailbox sequence;
 11. a lifetime-sized operation remaining on the post-warm-up append path; and
-12. Bun and Node producing different normalized snapshots.
+12. Bun and Node producing different normalized snapshots;
+13. exact counters silently rounding when incremented across
+    `Number.MAX_SAFE_INTEGER`; and
+14. a public snapshot requiring nonstandard JSON handling for native `bigint`.
 
 ## Acceptance
 
@@ -196,7 +232,9 @@ The feature is accepted only when:
 11. Bun and genuine Node produce byte-equivalent normalized bounded journeys;
 12. the portable actor import closure remains free of concrete runtime and
     ambient platform authority; and
-13. reports distinguish test, static analysis, runtime validation, analyzer
+13. a bounded injected-state oracle crosses the safe-integer boundary through
+    the same pure counter transition used by the runtime and remains exact; and
+14. reports distinguish test, static analysis, runtime validation, analyzer
     output, review, and assumption.
 
 ## Executable acceptance commands
@@ -233,6 +271,8 @@ Missing required tooling fails.
 - Global trace aggregation across actors.
 - Compression, sampling, telemetry backends, or OpenTelemetry integration.
 - Benchmark, big-O proof, heap profiling, fuzzing, or model checking.
+- Revising the design-spec 0012 numeric message/receipt sequence
+  representation.
 
 ## Semantic diff
 

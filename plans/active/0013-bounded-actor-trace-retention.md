@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0013-bounded-actor-trace-retention.md`](../../design-specs/0013-bounded-actor-trace-retention.md).
 This mutable plan records execution state and cannot redefine that contract.
 
-Status: implementation complete at exact head `3db9ce0`; independent review pending
+Status: exact-counter correction complete; independent exact-head re-review pending
 
 Owner: main research and integration agent
 
@@ -110,3 +110,31 @@ git diff --check
   ownership tests, exact 0012 acceptance, inventory and semantic lint
   regressions, model validation, generated-view drift, and Bun/Node journey
   parity. Independent review remains the only completion gate.
+- 2026-07-30: independent review rejected JavaScript `number` for
+  `totalObserved`, `evicted`, and `acceptedCount`: it rounds after the
+  safe-integer boundary and therefore contradicted the frozen exact-lifetime
+  claim. Evaluated native `bigint`, a JSON number/string union, and the existing
+  repository's arbitrary-integer custody patterns. Native `bigint` is the
+  smallest exact private representation, while one canonical opaque decimal
+  string is the smallest stable ordinary-JSON projection; a union would make
+  representation depend on magnitude. No upstream code was copied. Effect
+  collection abstractions do not add value to primitive exact arithmetic.
+- 2026-07-30: revision 2 keeps the pure retention transition in an internal
+  non-entrypoint module so a bounded oracle can inject
+  `Number.MAX_SAFE_INTEGER` state and execute the same transition as the live
+  runtime. It does not expose a counter-state mutation capability through
+  `ActorRuntime`. The inherited numeric message sequence limit remains explicit
+  and out of scope.
+- 2026-07-30: corrected exact 0013 acceptance passed 24 focused Bun tests (187
+  expectations), two genuine-Node ownership tests, exact 0012 regression
+  acceptance, 64 inventory tests (429 expectations), seven semantic Effect
+  lint-rule tests, type checking, strict lint, formatting, model validation,
+  generated-view drift, portable import inspection, and normalized Bun/Node
+  version-2 journey parity.
+- 2026-07-30: the corrected repository integration loop passed 321 Bun tests
+  (1,623 expectations), Effect diagnostics with zero findings, and 68
+  compatibility tests. The boundary oracle performs two increments from
+  `Number.MAX_SAFE_INTEGER` through the live pure retention transition and
+  observes exact `9007199254740993` counters plus an ordinary-JSON round trip.
+  This is bounded test/runtime-validation evidence, not proof of an unbounded
+  actor execution.

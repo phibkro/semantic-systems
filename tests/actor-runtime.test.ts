@@ -71,7 +71,7 @@ describe("minimal actor runtime", () => {
       definition_custody: "snapshot_fields_at_spawn.v1",
       transfer_failures: "typed_with_total_cause_rendering.v1",
       failure_stop: "linearized_before_current_receipt.v1",
-      trace_retention: "declared_bounded_window_with_exact_eviction_counters.v1",
+      trace_retention: "declared_bounded_window_with_exact_eviction_counters.v2",
     });
   });
 
@@ -350,9 +350,16 @@ describe("minimal actor runtime", () => {
 
     expect(result.failure).toBeInstanceOf(ActorMessageNotTransferable);
     expect(result.postClose).toBeInstanceOf(ActorClosed);
-    expect(result.trace.entries).toEqual([
-      { kind: "closed", actorId: "message-transfer", acceptedCount: 0 },
-    ]);
+    expect(result.trace.entries).toHaveLength(1);
+    expect(result.trace.entries[0]).toMatchObject({
+      kind: "closed",
+      actorId: "message-transfer",
+    });
+    expect(
+      result.trace.entries[0]?.kind === "closed"
+        ? result.trace.entries[0].acceptedCount
+        : undefined,
+    ).toBe(result.trace.acceptedCount);
   });
 
   test("non-transferable initial state is an invalid actor definition", async () => {
