@@ -90,8 +90,8 @@ Other active feature worktrees and their owned files remain forbidden.
 12. Install compatible exact `@effect/tsgo` and `effect-oxlint` releases,
     enable type-aware Effect diagnostics, and add tested local rules for
     portable-core imports, runtime execution boundaries, Schema decoding, and
-    ambient nondeterminism. **Complete for the project-model and inventory
-    tracer slices.**
+    ambient nondeterminism. **Complete for the project-model, inventory tracer,
+    and reference-custody portable slices.**
 
 ## First-slice gates
 
@@ -488,3 +488,13 @@ accepted; no new Python implementation is permitted.
   counterexamples pass, bringing the suite to 110 tests. TypeScript, Oxlint,
   Oxfmt, and diff hygiene pass. Broad and Nix gates remain deferred while host
   I/O pressure is elevated.
+- 2026-07-30: widened the tested Effect/Oxlint portability boundary to the
+  TypeScript reference-custody core now that it is substantive, excluding only
+  its explicit Bun/Node entrypoints, TOML live-layer adapters, and the
+  runtime-neutral curator-holder bootstrap. The red oracle first showed that a
+  runtime import, Effect execution, raw JSON parsing, and ambient UUID call in
+  `src/references/` escaped the rules. Widening then exposed an overbroad
+  nondeterminism diagnostic: zero-argument `new Date()` captures ambient time,
+  but `new Date(milliseconds)` deterministically interprets an already
+  captured value. The rule now distinguishes those forms without a
+  suppression. All six rule tests, full Oxlint, TypeScript, and Oxfmt pass.

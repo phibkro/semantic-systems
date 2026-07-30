@@ -12,6 +12,10 @@ const portable = { filename: "/repo/src/project-model/loader.ts" };
 const bunMain = { filename: "/repo/src/project-model/main-bun.ts" };
 const portableTracer = { filename: "/repo/src/tracer/loader.ts" };
 const tracerBunMain = { filename: "/repo/src/tracer/main-bun.ts" };
+const portableReferences = { filename: "/repo/src/references/verify.ts" };
+const referencesBunMain = { filename: "/repo/src/references/main-bun.ts" };
+const referencesBunToml = { filename: "/repo/src/references/toml-bun.ts" };
+const referencesCuratorHolder = { filename: "/repo/src/references/curator-holder.ts" };
 
 describe("Semantic Systems Effect Oxlint rules", () => {
   test("runtime imports are forbidden in portable semantic programs", () => {
@@ -69,6 +73,74 @@ describe("Semantic Systems Effect Oxlint rules", () => {
       [
         {
           message: "Portable semantic code must not use runtime globals directly",
+        },
+      ],
+    );
+  });
+
+  test("reference custody is portable except for explicit runtime adapters", () => {
+    Testing.expectDiagnostics(
+      Testing.runRule(
+        portableRuntimeImports,
+        "ImportDeclaration",
+        Testing.importDecl("node:fs/promises"),
+        portableReferences,
+      ),
+      [
+        {
+          message:
+            "Portable semantic code must request Effect services; provide Bun or Node layers only in main entrypoints",
+        },
+      ],
+    );
+    for (const runtimeFile of [referencesBunMain, referencesBunToml, referencesCuratorHolder]) {
+      Testing.expectNoDiagnostics(
+        Testing.runRule(
+          portableRuntimeImports,
+          "ImportDeclaration",
+          Testing.importDecl("node:fs/promises"),
+          runtimeFile,
+        ),
+      );
+    }
+    Testing.expectDiagnostics(
+      Testing.runRule(
+        effectRuntimeBoundary,
+        "CallExpression",
+        Testing.callOfMember("Effect", "runPromise"),
+        portableReferences,
+      ),
+      [
+        {
+          message:
+            "Keep Effect programs composable; execute them only in main-bun.ts or main-node.ts",
+        },
+      ],
+    );
+    Testing.expectDiagnostics(
+      Testing.runRule(
+        schemaJsonBoundary,
+        "CallExpression",
+        Testing.callOfMember("JSON", "parse"),
+        portableReferences,
+      ),
+      [
+        {
+          message:
+            "Use Schema.fromJsonString or Schema.UnknownFromJsonString at external JSON boundaries",
+        },
+      ],
+    );
+    Testing.expectDiagnostics(
+      Testing.runRule(
+        ambientNondeterminism,
+        "CallExpression",
+        Testing.callOfMember("crypto", "randomUUID"),
+        portableReferences,
+      ),
+      [
+        {
+          message: "Use Effect Clock, Random, or Crypto services instead of ambient nondeterminism",
         },
       ],
     );
@@ -154,5 +226,13 @@ describe("Semantic Systems Effect Oxlint rules", () => {
       portable,
     );
     expect(diagnostics).toHaveLength(6);
+    Testing.expectNoDiagnostics(
+      Testing.runRule(
+        ambientNondeterminism,
+        "NewExpression",
+        { ...Testing.newExpr("Date"), arguments: [Testing.numLiteral(0)] },
+        portableReferences,
+      ),
+    );
   });
 });

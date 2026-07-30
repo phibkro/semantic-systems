@@ -7,14 +7,19 @@ const portableSemanticProgram = (filename: string): boolean => {
   const inPortableProgram = [
     "/src/project-model/",
     "/src/tracer/",
+    "/src/references/",
     "src/project-model/",
     "src/tracer/",
+    "src/references/",
   ].some((fragment) => normalized.includes(fragment) || normalized.startsWith(fragment));
-  return (
-    inPortableProgram &&
-    !normalized.endsWith("/main-bun.ts") &&
-    !normalized.endsWith("/main-node.ts")
-  );
+  const runtimeAdapter = [
+    "/main-bun.ts",
+    "/main-node.ts",
+    "/references/toml-bun.ts",
+    "/references/toml-node.ts",
+    "/references/curator-holder.ts",
+  ].some((suffix) => normalized.endsWith(suffix));
+  return inPortableProgram && !runtimeAdapter;
 };
 
 // Project-model has completed the total-function slice. Tracer still contains
@@ -216,7 +221,9 @@ export const ambientNondeterminism = Rule.define({
           return Effect.void;
         }),
         Visitor.on("NewExpression", (node) =>
-          node.callee.type === "Identifier" && node.callee.name === "Date"
+          node.callee.type === "Identifier" &&
+          node.callee.name === "Date" &&
+          node.arguments.length === 0
             ? report(ctx, node, "Use Effect Clock instead of constructing the ambient current time")
             : Effect.void,
         ),
