@@ -545,7 +545,7 @@ accepted; no new Python implementation is permitted.
   `extensions.refStorage` remain explicitly unsupported until their custody
   format is implemented. Local siblings now reject the same executable
   filters, external includes, and path redirections as managed caches before
-  selector observation. Five new red/green controls prove wrong-type
+  selector observation. Five new red/green controls exercise wrong-type
   corruption, cache and nested sibling reference redirection, sibling external
   configuration rejection, and materialized-checkout reference redirection.
   They pass with 15 affected prior controls; TypeScript, Oxlint, Oxfmt, and
