@@ -5,6 +5,7 @@ import {
   blobSha256,
   headCommit,
   hiddenIndexReasons,
+  inspectLocalBlobs,
   isCleanWorktree,
   isDetachedHead,
   lsTreeEntry,
@@ -14,10 +15,18 @@ import {
   type GitEnvironment,
 } from "./git.ts";
 import type { LicenseObservation, LockEntry } from "./lockfile.ts";
-import { readWorktreeBlobBytes, readWorktreeFilePrefix } from "./paths.ts";
+import {
+  inspectCheckoutAdministration,
+  readWorktreeBlobBytes,
+  readWorktreeFilePrefix,
+} from "./paths.ts";
 
 const REGULAR_BLOB_MODES: ReadonlySet<string> = new Set(["100644", "100755"]);
-const LFS_POINTER_PREFIX = new TextEncoder().encode("version https://git-lfs.github.com/spec");
+const LFS_POINTER_MAX_BYTES = 1024;
+const LFS_VERSION_LINE = "version https://git-lfs.github.com/spec/v1";
+const LFS_OID_LINE = /^oid sha256:[0-9a-f]{64}$/;
+const LFS_SIZE_LINE = /^size (?:0|[1-9][0-9]*)$/;
+const LFS_EXTENSION_LINE = /^ext-[0-9]+-[A-Za-z0-9][A-Za-z0-9.-]* .+$/;
 
 export interface CheckoutVerification {
   readonly headMismatch: string | null;
@@ -31,8 +40,32 @@ type VerificationCapabilities =
   | GitEnvironment
   | Path.Path;
 
-const bytesStartWith = (content: Uint8Array, prefix: Uint8Array): boolean =>
-  content.length >= prefix.length && prefix.every((byte, index) => content[index] === byte);
+/**
+ * Recognize only a complete Git LFS v1 pointer. A shared textual prefix is not
+ * evidence of an indirection, and arbitrary binary or oversized content is
+ * ordinary payload.
+ */
+const isGitLfsPointer = (content: Uint8Array): boolean => {
+  if (content.length === 0 || content.length > LFS_POINTER_MAX_BYTES) return false;
+  let text: string;
+  try {
+    text = new TextDecoder("utf-8", { fatal: true }).decode(content);
+  } catch {
+    return false;
+  }
+  const lines = text.split(/\r?\n/);
+  if (lines.at(-1) === "") lines.pop();
+  if (lines.some((line) => line.includes("\r"))) return false;
+  if (lines[0] !== LFS_VERSION_LINE) return false;
+
+  let index = 1;
+  while (index < lines.length && LFS_EXTENSION_LINE.test(lines[index]!)) index += 1;
+  return (
+    index + 2 === lines.length &&
+    LFS_OID_LINE.test(lines[index] ?? "") &&
+    LFS_SIZE_LINE.test(lines[index + 1] ?? "")
+  );
+};
 
 const digestSha256 = (
   content: Uint8Array,
@@ -83,7 +116,7 @@ const licenseReasons = (
       reasons.push(worktreeBytes.error.message);
       return reasons;
     }
-    if (bytesStartWith(worktreeBytes.bytes, LFS_POINTER_PREFIX)) {
+    if (isGitLfsPointer(worktreeBytes.bytes)) {
       reasons.push(`license path ${JSON.stringify(path)} is a Git LFS pointer, not real content`);
       return reasons;
     }
@@ -104,6 +137,13 @@ const completeTreeReasons = (
 ): Effect.Effect<ReadonlyArray<string>, AcquisitionError, VerificationCapabilities> =>
   Effect.gen(function* () {
     const treeEntries = yield* lsTreeRecursive(worktree, head);
+    const local = yield* inspectLocalBlobs(
+      worktree,
+      treeEntries
+        .filter((entry) => entry.objectType === "blob")
+        .map(({ oid, path, size }) => ({ oid, path, size })),
+      LFS_POINTER_MAX_BYTES,
+    );
 
     const reasons: Array<string> = [];
     for (const entry of treeEntries) {
@@ -113,18 +153,23 @@ const completeTreeReasons = (
         );
         continue;
       }
+      const committed = local.smallContents.get(entry.oid);
+      const committedPointer = committed !== undefined && isGitLfsPointer(committed);
+      if (committedPointer) {
+        reasons.push(`tracked path ${JSON.stringify(entry.path)} is a committed Git LFS pointer`);
+      }
       if (!REGULAR_BLOB_MODES.has(entry.mode)) continue;
       const prefix = yield* readWorktreeFilePrefix(
         worktree,
         entry.path,
-        LFS_POINTER_PREFIX.length,
+        LFS_POINTER_MAX_BYTES + 1,
       ).pipe(
         Effect.map((bytes) => ({ kind: "success" as const, bytes })),
         Effect.catch((error) => Effect.succeed({ kind: "failure" as const, error })),
       );
       if (prefix.kind === "failure") {
         reasons.push(prefix.error.message);
-      } else if (bytesStartWith(prefix.bytes, LFS_POINTER_PREFIX)) {
+      } else if (!committedPointer && isGitLfsPointer(prefix.bytes)) {
         reasons.push(
           `tracked path ${JSON.stringify(entry.path)} is a Git LFS pointer, not hydrated content`,
         );
@@ -138,6 +183,9 @@ const verifyCheckoutEffect = (
   entry: LockEntry,
 ): Effect.Effect<CheckoutVerification, AcquisitionError, VerificationCapabilities> =>
   Effect.gen(function* () {
+    yield* inspectCheckoutAdministration(worktree);
+    const programReasons = yield* repositoryProgramReasons(worktree);
+    if (programReasons.length > 0) return { headMismatch: null, reasons: programReasons };
     if (!(yield* isDetachedHead(worktree))) {
       return { headMismatch: null, reasons: ["checkout HEAD is not detached"] };
     }
@@ -148,8 +196,6 @@ const verifyCheckoutEffect = (
         reasons: [`checkout is at ${head}, locked commit is ${entry.commit}`],
       };
     }
-    const programReasons = yield* repositoryProgramReasons(worktree);
-    if (programReasons.length > 0) return { headMismatch: null, reasons: programReasons };
     const hiddenReasons = yield* hiddenIndexReasons(worktree);
     if (hiddenReasons.length > 0) return { headMismatch: null, reasons: hiddenReasons };
     if (!(yield* isCleanWorktree(worktree))) {

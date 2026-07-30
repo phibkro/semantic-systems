@@ -238,6 +238,16 @@ export interface TreePathEntry extends TreeEntry {
   readonly path: string;
 }
 
+export interface LocalBlobRequest {
+  readonly oid: string;
+  readonly path: string;
+  readonly size: bigint;
+}
+
+export interface LocalBlobInspection {
+  readonly smallContents: ReadonlyMap<string, Uint8Array>;
+}
+
 export const objectFormat = (repository: string) =>
   runGit(["-C", repository, "rev-parse", "--show-object-format"]).pipe(
     Effect.flatMap((result) => {
@@ -451,9 +461,9 @@ export const hiddenIndexReasons = (
   });
 
 /**
- * Reject repository-local filter commands before any worktree comparison can
- * cause Git to execute them. Includes are disabled so merely inspecting this
- * boundary cannot widen the repository's configuration authority.
+ * Reject repository-local executable filters and external configuration
+ * redirections before any worktree comparison can cause Git to consume them.
+ * Includes stay disabled while the raw local declarations are inspected.
  */
 export const repositoryProgramReasons = (
   worktree: string,
@@ -463,21 +473,10 @@ export const repositoryProgramReasons = (
   ChildProcessSpawner.ChildProcessSpawner | GitEnvironment
 > =>
   runGit(
-    [
-      "-C",
-      worktree,
-      "config",
-      "--local",
-      "--no-includes",
-      "--null",
-      "--name-only",
-      "--get-regexp",
-      String.raw`^filter\..*\.(clean|smudge|process)$`,
-    ],
+    ["-C", worktree, "config", "--local", "--no-includes", "--null", "--name-only", "--list"],
     { check: false },
   ).pipe(
     Effect.flatMap((result) => {
-      if (result.exitCode === 1 && result.stdout.length === 0) return Effect.succeed([]);
       if (result.exitCode !== 0) {
         return Effect.fail(
           new AcquisitionError({
@@ -494,13 +493,35 @@ export const repositoryProgramReasons = (
           }),
         );
       }
-      return Effect.forEach(splitNulRecords(result.stdout), (record) =>
-        decodePath(record, "repository-configured Git filter").pipe(
-          Effect.map(
-            (key) => `checkout config declares executable Git filter ${JSON.stringify(key)}`,
-          ),
-        ),
-      );
+      return Effect.gen(function* () {
+        const reasons: Array<string> = [];
+        for (const record of splitNulRecords(result.stdout)) {
+          if (record.length === 0) continue;
+          const key = yield* decodePath(record, "repository-configured Git key");
+          const normalized = key.toLowerCase();
+          if (/^filter\..*\.(clean|smudge|process)$/.test(normalized)) {
+            reasons.push(`checkout config declares executable Git filter ${JSON.stringify(key)}`);
+          }
+          if (
+            normalized === "include.path" ||
+            (normalized.startsWith("includeif.") && normalized.endsWith(".path"))
+          ) {
+            reasons.push(
+              `checkout config declares unsupported external include ${JSON.stringify(key)}`,
+            );
+          }
+          if (
+            normalized === "core.worktree" ||
+            normalized === "core.attributesfile" ||
+            normalized === "core.excludesfile"
+          ) {
+            reasons.push(
+              `checkout config declares unsupported path redirection ${JSON.stringify(key)}`,
+            );
+          }
+        }
+        return reasons;
+      });
     }),
   );
 
@@ -619,10 +640,12 @@ export const lsTreeRecursive = (
           const [mode, objectType, oid, rawSize] = fields as [string, string, string, string];
           const path = yield* decodePath(record.slice(tab + 1), "recursive ls-tree output");
           const size = yield* Effect.try({
-            try: () => (rawSize === "-" ? -1n : BigInt(rawSize)),
+            try: () => (rawSize === "-" || rawSize === "BAD" ? -1n : BigInt(rawSize)),
             catch: (cause) =>
               new AcquisitionError({
-                message: `invalid recursive ls-tree size for ${JSON.stringify(path)}`,
+                message:
+                  `invalid recursive ls-tree size ${JSON.stringify(rawSize)} for ` +
+                  JSON.stringify(path),
                 cause,
               }),
           });
@@ -632,6 +655,114 @@ export const lsTreeRecursive = (
       }),
     ),
   );
+
+/**
+ * Prove every committed blob is present in the local object database without
+ * opening a promisor transport. Small blobs are also returned so callers can
+ * parse bounded indirection formats from committed bytes.
+ */
+export const inspectLocalBlobs = (
+  repository: string,
+  requests: ReadonlyArray<LocalBlobRequest>,
+  smallBlobLimit: number,
+): Effect.Effect<
+  LocalBlobInspection,
+  AcquisitionError,
+  ChildProcessSpawner.ChildProcessSpawner | GitEnvironment
+> =>
+  Effect.gen(function* () {
+    const unique = new Map<string, LocalBlobRequest>();
+    for (const request of requests) {
+      if (!unique.has(request.oid)) unique.set(request.oid, request);
+    }
+    if (unique.size === 0) return { smallContents: new Map() };
+    const ordered = [...unique.values()];
+    const checked = yield* runGit(
+      [
+        "-C",
+        repository,
+        "cat-file",
+        "--batch-check=%(objectname) %(objecttype) %(objectsize)",
+        "--batch-all-objects",
+        "--unordered",
+      ],
+      { check: false },
+    );
+    if (checked.exitCode !== 0) {
+      return yield* new AcquisitionError({
+        message: `cannot inspect committed blobs offline: ${checked.stderr.trim()}`,
+      });
+    }
+
+    const localObjects = new Map<string, { readonly objectType: string; readonly size: bigint }>();
+    for (const line of text(checked).split("\n")) {
+      if (line.length === 0) continue;
+      const fields = line.split(" ");
+      if (fields.length !== 3) {
+        return yield* new AcquisitionError({
+          message: `unexpected cat-file inventory record ${JSON.stringify(line)}`,
+        });
+      }
+      const [oid, objectType, rawSize] = fields as [string, string, string];
+      const size = yield* Effect.try({
+        try: () => BigInt(rawSize),
+        catch: (cause) =>
+          new AcquisitionError({
+            message: `invalid local object size ${JSON.stringify(rawSize)}`,
+            cause,
+          }),
+      });
+      localObjects.set(oid, { objectType, size });
+    }
+
+    const small: Array<LocalBlobRequest> = [];
+    for (const request of ordered) {
+      const local = localObjects.get(request.oid);
+      if (local === undefined) {
+        return yield* new AcquisitionError({
+          message:
+            `tracked path ${JSON.stringify(request.path)} committed blob ${request.oid} ` +
+            "is unavailable offline",
+        });
+      }
+      if (local.objectType !== "blob" || (request.size >= 0n && local.size !== request.size)) {
+        return yield* new AcquisitionError({
+          message:
+            `tracked path ${JSON.stringify(request.path)} committed blob metadata changed: ` +
+            `${JSON.stringify({
+              oid: request.oid,
+              objectType: local.objectType,
+              size: local.size.toString(),
+            })}`,
+        });
+      }
+      if (local.size <= BigInt(smallBlobLimit)) {
+        small.push({ ...request, size: local.size });
+      }
+    }
+
+    if (small.length === 0) return { smallContents: new Map() };
+    const pairs = yield* Effect.forEach(
+      small,
+      (request) =>
+        runGit(["-C", repository, "cat-file", "blob", request.oid]).pipe(
+          Effect.flatMap((result) =>
+            BigInt(result.stdout.length) === request.size
+              ? Effect.succeed([request.oid, result.stdout] as const)
+              : Effect.fail(
+                  new AcquisitionError({
+                    message:
+                      `tracked path ${JSON.stringify(request.path)} committed blob ` +
+                      `${request.oid} changed size while being read`,
+                  }),
+                ),
+          ),
+        ),
+      { concurrency: 8 },
+    );
+    const smallContents = new Map<string, Uint8Array>(pairs);
+    return { smallContents };
+  });
 
 export const blobSha256 = (
   repository: string,

@@ -420,3 +420,29 @@ accepted; no new Python implementation is permitted.
   focused custody tests, exact Effect/TypeScript diagnostics, full Oxlint,
   Oxfmt, and diff hygiene pass; broad and Nix gates remain deferred while host
   I/O full pressure remains above 80%.
+- 2026-07-30: resolved the exact-head review of full checkout status. The
+  reviewer demonstrated four custody gaps: a raw local `include.path` could
+  restore an executable clean filter after the preflight; only declared
+  license blobs were forced to prove local availability; checkout `.git`
+  administration could redirect repository authority through a gitfile,
+  symlinked object directory, worktree/common administration, or alternates;
+  and a prefix-only LFS test rejected ordinary prose such as
+  `.../specification`. Verification now establishes a contained ordinary
+  `.git` directory before invoking Git, rejects external local-config path
+  authority with includes disabled, inventories the transport-disabled local
+  object database and requires every committed blob to be present, and parses
+  only a complete bounded Git LFS v1 pointer from committed and working-tree
+  bytes. Small committed blobs are read with bounded concurrency. Effect
+  v4 beta.102's Bun child-process stdin/pipeline path was evaluated for a
+  selected-object batch but delivered an empty stream under the real Bun CLI;
+  Git's no-stdin `--batch-all-objects` inventory was used instead, preserving
+  the swappable Bun/Node runtime boundary without a custom adapter.
+  Positive controls prove both direct and included filters execute under raw
+  Git before the hardened verifier blocks them, and that a missing
+  non-license promisor blob can execute its transport helper without offline
+  denial. Counterexamples cover gitfiles, `.git` and object-directory
+  symlinks, `commondir`, `config.worktree`, alternates, and LFS-like
+  non-pointers. The exact checkout index is checked at nanosecond precision.
+  All 94 focused custody tests, TypeScript, full Oxlint, Oxfmt, and diff
+  hygiene pass. Broad and Nix gates remain deferred while host I/O pressure is
+  elevated.

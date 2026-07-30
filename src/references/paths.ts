@@ -83,6 +83,93 @@ const ensureNotLink = (
     if (linked) return yield* pathError(symlinkMessage);
   });
 
+const entryExistsNoFollow = (
+  path: string,
+): Effect.Effect<boolean, AcquisitionError, FileSystem.FileSystem> =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const link = yield* fs.readLink(path).pipe(
+      Effect.map(() => true),
+      Effect.catch((cause) => {
+        const code = errnoCode(cause);
+        return code === "EINVAL"
+          ? Effect.succeed(false)
+          : code === "ENOENT"
+            ? Effect.succeed(null)
+            : Effect.fail(pathError(`cannot inspect ${path} without following links`, cause));
+      }),
+    );
+    if (link !== false) return link !== null;
+    return yield* fs
+      .exists(path)
+      .pipe(Effect.mapError((cause) => pathError(`cannot inspect ${path}`, cause)));
+  });
+
+const requireRegularFile = (
+  path: string,
+  label: string,
+): Effect.Effect<void, AcquisitionError, FileSystem.FileSystem> =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    yield* ensureNotLink(path, `${label} ${path} is an unsafe symlink`);
+    const info = yield* fs
+      .stat(path)
+      .pipe(
+        Effect.mapError((cause) =>
+          errnoCode(cause) === "ENOENT"
+            ? pathError(`${label} ${path} is missing`, cause)
+            : pathError(`cannot inspect ${label} ${path}`, cause),
+        ),
+      );
+    if (info.type !== "File") return yield* pathError(`${label} ${path} is not a regular file`);
+  });
+
+const requireOptionalRegularFile = (
+  path: string,
+  label: string,
+): Effect.Effect<void, AcquisitionError, FileSystem.FileSystem> =>
+  Effect.gen(function* () {
+    if (!(yield* entryExistsNoFollow(path))) return;
+    yield* requireRegularFile(path, label);
+  });
+
+const requireOptionalDirectory = (
+  path: string,
+  label: string,
+): Effect.Effect<void, AcquisitionError, FileSystem.FileSystem> =>
+  Effect.gen(function* () {
+    if (!(yield* entryExistsNoFollow(path))) return;
+    const inspected = yield* inspectDirectory(path, label);
+    if (inspected === null) return yield* pathError(`${label} ${path} disappeared`);
+  });
+
+const requireContained = (
+  root: string,
+  child: string,
+  label: string,
+): Effect.Effect<void, AcquisitionError, FileSystem.FileSystem | Path.Path> =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const paths = yield* Path.Path;
+    const [realRoot, realChild] = yield* Effect.all([
+      fs.realPath(root),
+      fs.realPath(child),
+    ] as const).pipe(
+      Effect.mapError((cause) =>
+        pathError(`cannot resolve ${label} containment under ${root}`, cause),
+      ),
+    );
+    const relation = paths.relative(realRoot, realChild);
+    if (
+      relation === "" ||
+      relation === ".." ||
+      relation.startsWith(`..${paths.sep}`) ||
+      paths.isAbsolute(relation)
+    ) {
+      return yield* pathError(`${label} ${child} is not contained by ${root}`);
+    }
+  });
+
 interface WorktreeReadMessages {
   readonly symlink: string;
   readonly missing: string;
@@ -238,3 +325,60 @@ export const inspectManagedDirectory = (
 
 export const inspectObjectCache = (referencesRoot: string, sourceId: string) =>
   inspectManagedDirectory(referencesRoot, sourceId, ".git-cache");
+
+/**
+ * Establish a self-contained ordinary checkout administration boundary before
+ * invoking Git. Linked worktrees, gitfiles, alternates, and worktree-specific
+ * config all redirect repository authority beyond the managed checkout.
+ */
+export const inspectCheckoutAdministration = (
+  worktree: string,
+): Effect.Effect<void, AcquisitionError, FileSystem.FileSystem | Path.Path> =>
+  Effect.gen(function* () {
+    const paths = yield* Path.Path;
+    const root = paths.resolve(worktree);
+    const gitDirectory = paths.join(root, ".git");
+    const objects = paths.join(gitDirectory, "objects");
+
+    if ((yield* inspectDirectory(gitDirectory, "checkout Git administration directory")) === null) {
+      return yield* pathError(`checkout Git administration directory ${gitDirectory} is missing`);
+    }
+    yield* requireContained(root, gitDirectory, "checkout Git administration directory");
+    if ((yield* inspectDirectory(objects, "checkout Git object directory")) === null) {
+      return yield* pathError(`checkout Git object directory ${objects} is missing`);
+    }
+    yield* requireContained(gitDirectory, objects, "checkout Git object directory");
+
+    for (const name of ["HEAD", "config", "index"]) {
+      yield* requireRegularFile(
+        paths.join(gitDirectory, name),
+        `checkout Git administration file ${JSON.stringify(name)}`,
+      );
+    }
+    for (const name of ["packed-refs", "shallow"]) {
+      yield* requireOptionalRegularFile(
+        paths.join(gitDirectory, name),
+        `checkout Git administration file ${JSON.stringify(name)}`,
+      );
+    }
+    for (const name of ["info", "pack"]) {
+      yield* requireOptionalDirectory(
+        paths.join(objects, name),
+        `checkout Git object directory ${JSON.stringify(name)}`,
+      );
+    }
+
+    const forbidden = [
+      paths.join(gitDirectory, "commondir"),
+      paths.join(gitDirectory, "config.worktree"),
+      paths.join(objects, "info", "alternates"),
+      paths.join(objects, "info", "http-alternates"),
+    ];
+    for (const redirected of forbidden) {
+      if (yield* entryExistsNoFollow(redirected)) {
+        return yield* pathError(
+          `checkout Git administration declares unsupported redirection ${redirected}`,
+        );
+      }
+    }
+  });
