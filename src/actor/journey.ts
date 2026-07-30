@@ -225,9 +225,7 @@ export const runInventoryActorJourney = (
         delivery: "at_most_once_in_process",
         backpressure: "suspend_interruptibly_before_acceptance",
       },
-      accepted_order: actorResult.trace.entries
-        .filter((entry) => entry.kind === "accepted")
-        .map((entry) => entry.sequence),
+      accepted_order: actorResult.receipts.map((receipt) => receipt.sequence),
       completed_order: actorResult.receipts.map((receipt) => receipt.sequence),
       receipts: actorResult.receipts,
       trace: actorResult.trace,
