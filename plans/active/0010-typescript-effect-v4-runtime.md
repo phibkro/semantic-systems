@@ -57,6 +57,10 @@ Other active feature worktrees and their owned files remain forbidden.
    Python package and test suite were removed after exact result differential
    parity and a final pinned Python oracle pass.**
 5. Recut the independent checker against the accepted TypeScript resolver.
+   **Blocked on an explicit design-spec 0003 revision after uncertainty 0004's
+   three-way experiment found that no option met the honest size gate or could
+   authenticate a fully self-consistent rebound without an independently
+   custodial observation.**
 6. Implement reference custody with explicit Git/filesystem/lock services.
    **Catalog/lock/offline-lock/offline-materialize/full-status boundary
    complete**
@@ -85,7 +89,7 @@ Other active feature worktrees and their owned files remain forbidden.
     and integration gates.
 11. Replace direct Bun/Node capability use in semantic programs with portable
     Effect platform services; compose official Bun and Node live layers at
-    entrypoints and prove equivalent bounded observations. **Complete for the
+    entrypoints and compare equivalent bounded observations. **Complete for the
     project-model and inventory-tracer slices; reference custody remains.**
 12. Install compatible exact `@effect/tsgo` and `effect-oxlint` releases,
     enable type-aware Effect diagnostics, and add tested local rules for
@@ -324,7 +328,7 @@ accepted; no new Python implementation is permitted.
   tests cover environment poisoning, transport syntax, committed object
   custody/stable reuse, remote-origin mismatch, and replacement-ref
   substitution. Local-to-local `insteadOf` attacks demonstrate both ref and
-  origin-identity rewrites without opening network; a protocol canary proves
+  origin-identity rewrites without opening network; a protocol canary shows
   Git rejects HTTPS before transport; multiple raw origins fail closed; and
   NUL-delimited tree parsing preserves non-ASCII/control-bearing paths
   independently of `core.quotePath`. These counterexamples raise the focused
@@ -384,14 +388,14 @@ accepted; no new Python implementation is permitted.
   Oracles cover cache-only custody, cache preference over a newer sibling,
   selector fallback, source/cache symlink escape, a non-directory cache, and a
   real partial-promisor cache whose missing license blob must fail without
-  invoking its executable transport canary; a positive control first proves
+  invoking its executable transport canary; a positive control first shows
   the blob is absent and that the same read can reach and execute that helper
   when offline denial is absent. The rejected production read preserves a
   recursive cache byte/mode snapshot. Additional oracles reject cache-origin
   mismatch, distinguish selector absence from operational failure, and inject
   a no-follow inspection failure. A fresh cache-backed mutation runs under
   Node; the Bun re-lock preserves a distinctive historical timestamp plus the
-  exact bytes and inode, proving content reuse rather than same-second
+  exact bytes and inode, distinguishing content reuse from same-second
   coincidence. Initial exact-head review of `defdf08` exposed the cache
   identity, fallback, no-follow, and evidence gaps; the corrections pass
   TypeScript, oxlint, formatting, diff hygiene, and all 70 focused custody
@@ -417,7 +421,7 @@ accepted; no new Python implementation is permitted.
   adapter. Bun/Python state and exit behavior agree on exact, absent, attached,
   drifted, dirty, hidden-index, verified-origin, tree/license-tampered, Gitlink,
   and LFS fixtures; the exact materialized result also agrees under Node.
-  Positive transport canaries prove missing promisor objects fail without
+  Positive transport canaries show missing promisor objects fail without
   opening their helper, and index bytes/mtime remain unchanged. Remote
   acquisition and materialization remain the next custody slices. All 85
   focused custody tests, exact Effect/TypeScript diagnostics, full Oxlint,
@@ -426,7 +430,7 @@ accepted; no new Python implementation is permitted.
 - 2026-07-30: resolved the exact-head review of full checkout status. The
   reviewer demonstrated four custody gaps: a raw local `include.path` could
   restore an executable clean filter after the preflight; only declared
-  license blobs were forced to prove local availability; checkout `.git`
+  license blobs were forced to establish local availability; checkout `.git`
   administration could redirect repository authority through a gitfile,
   symlinked object directory, worktree/common administration, or alternates;
   and a prefix-only LFS test rejected ordinary prose such as
@@ -440,8 +444,8 @@ accepted; no new Python implementation is permitted.
   selected-object batch but delivered an empty stream under the real Bun CLI;
   Git's no-stdin `--batch-all-objects` inventory was used instead, preserving
   the swappable Bun/Node runtime boundary without a custom adapter.
-  Positive controls prove both direct and included filters execute under raw
-  Git before the hardened verifier blocks them, and that a missing
+  Positive controls demonstrate both direct and included filters execute under
+  raw Git before the hardened verifier blocks them, and that a missing
   non-license promisor blob can execute its transport helper without offline
   denial. Counterexamples cover gitfiles, `.git` and object-directory
   symlinks, `commondir`, `config.worktree`, alternates, and LFS-like
@@ -457,8 +461,8 @@ accepted; no new Python implementation is permitted.
   checkout and managed-cache object storage plus split-index administration,
   scopes object verification to the committed tree, and recomputes selected
   object integrity with bounded 64-OID `git fsck` batches. Only small blobs are
-  then read for bounded LFS parsing. Raw-Git positive controls prove loose
-  objects, pack files, and shared indexes remain usable through the injected
+  then read for bounded LFS parsing. Raw-Git positive controls demonstrate
+  loose objects, pack files, and shared indexes remain usable through the injected
   symlinks before hardened status rejects them. A same-size valid replacement
   blob remains readable under the expected object path but fails the
   recomputed-OID integrity gate.

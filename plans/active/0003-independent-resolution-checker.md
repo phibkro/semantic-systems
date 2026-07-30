@@ -36,6 +36,15 @@ and kill criteria are frozen in design spec 0003.
   realization-specific observation, policy matching diverged, duplicate
   authored candidates were accepted, and the dependency oracle was not
   transitive. No evidence from that experiment establishes CLM-0002.
+- The uncertainty-0004 resolving experiment is complete. Three disposable
+  TypeScript recuts produced honest checker/production adjudication ratios of
+  229.6% (declarative rule table), 114.9% (minimal certificate), and 230.6%
+  (structural/semantic recut). All checker closures avoided forbidden
+  capabilities, but every option accepted a fully re-digested observation
+  rebound; the certificate also accepted a self-consistent eligibility lie.
+  No option is selected and no result establishes CLM-0002. The exact bounded
+  evidence is recorded in
+  `research/independent-checker-recut-experiment.md`.
 
 ## Contract-owned implementation slices
 
@@ -151,6 +160,15 @@ validity.
   experiment at `adf7e8d`, retained both commits as evidence, and returned the
   frontier to uncertainty 0004 rather than weakening or reinterpreting the
   frozen gate.
+- 2026-07-30: completed uncertainty 0004's three-way disposable TypeScript
+  experiment against a minimal faithful inventory fixture. Twelve focused
+  tests and 115 assertions exercised the positive path, the frozen mutations,
+  transitive forbidden-capability closure, symmetric marked-region size
+  measurement, a re-digested eligibility lie, and the strongest fully
+  self-consistent rebound. No option met the 70% gate or rebound requirement.
+  The frontier now requires an explicit semantic decision: add an independently
+  acquired observation-custody input, or revise the frozen claim to internal
+  consistency without authenticity. No production checker code was integrated.
 
 ## Decisions and deviations
 

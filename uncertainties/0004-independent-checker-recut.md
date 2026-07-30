@@ -2,10 +2,11 @@
 
 ## Current hypothesis
 
-A compact declarative eligibility contract can generate the production
-adjudicator and a structurally different checker, or a compact certificate
-checker can validate a richer producer result, while keeping the checker
-decision core below 70% of the production adjudication surface.
+No non-executing checker can authenticate a fully self-consistent rebound of
+producer-owned case observations from the current authored inputs alone.
+Internal structural and policy consistency can still be checked independently,
+but observation authenticity requires an independently acquired custody input.
+The frozen claim must either add that input or explicitly narrow its authority.
 
 ## Supporting evidence
 
@@ -37,6 +38,12 @@ decision core below 70% of the production adjudication surface.
   interpreters are separate.
 - A certificate can become a disguised producer assertion unless the checker
   derives every acceptance-critical field from independently available inputs.
+- The bounded TypeScript resolving experiment compared all three prescribed
+  recuts. Honest checker/production adjudication ratios were 229.6% for the
+  declarative table, 114.9% for the certificate, and 230.6% for the
+  structural/semantic recut. All accepted the fully re-digested rebound; the
+  certificate also accepted a self-consistent eligibility lie. See
+  `research/independent-checker-recut-experiment.md`.
 
 ## Dependent work
 
@@ -47,7 +54,7 @@ decision core below 70% of the production adjudication surface.
 
 ## Resolving experiment
 
-Build disposable, read-only prototypes against the frozen inventory fixtures:
+The disposable, read-only prototype comparison is complete:
 
 1. one declarative rule table with two independently implemented evaluators;
 2. one minimal certificate format with a checker that validates only the
@@ -62,9 +69,17 @@ Reject any option that passes by enlarging the production denominator,
 excluding semantic checker branches, sharing an adjudication implementation,
 or trusting producer-owned eligibility fields.
 
+No option met the decision criteria. The next resolving experiment is one
+minimal `ObservationCustody` commitment for the broken realization, produced by
+an authority independent of the checked producer. If that authority cannot be
+named without circularity, revise the frozen claim to internal consistency and
+remove the impossible authenticity requirement.
+
 ## Decision criteria
 
 Select an option only if it satisfies the original behavioral and mutation
 corpus, preserves typed evidence meanings, and meets the frozen 70% gate without
 measurement gaming. Otherwise reopen the semantic claim itself through an
 explicit design-spec revision.
+
+The “otherwise” branch is now active. No implementation option is selected.
