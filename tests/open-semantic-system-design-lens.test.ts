@@ -309,13 +309,6 @@ ${DESIGN_LENS_HEADINGS.map((heading) => `  ### ${heading}\n\n  Hidden account.`)
       '<div style="display:none; display:block">Concrete account.</div>',
       '<div style="visibility:hidden; visibility:visible">Concrete account.</div>',
       '<div style="display:none; display:block !important">Concrete account.</div>',
-      '<div style="display:none; display:var(--layout)">Concrete account.</div>',
-      '<div style="display:none; display:env(foo)">Concrete account.</div>',
-      '<div style="display:none; display:env(foo 0, block)">Concrete account.</div>',
-      '<div style="display:none; display:attr(data-x)">Concrete account.</div>',
-      '<div style="display:none; display:attr(data-x junk)">Concrete account.</div>',
-      '<div style="display:none; display:attr(data-x px, block)">Concrete account.</div>',
-      '<div style="display:none; display:var(--layout, block)">Concrete account.</div>',
       "<details><summary>Concrete account.</summary>Hidden detail.</details>",
       "<details open><p>Concrete account.</p></details>",
     ]) {
@@ -366,6 +359,25 @@ ${DESIGN_LENS_HEADINGS.map((heading) => `  ### ${heading}\n\n  Hidden account.`)
     ]) {
       const lens = completeLens((heading) =>
         heading === DESIGN_LENS_HEADINGS[0] ? hiddenHtml : `Account for ${heading}.`,
+      );
+      expect(rejection(lens)).toContain("placeholder-only");
+    }
+
+    for (const indeterminateHtml of [
+      '<div style="display:var(--layout)">Concrete account.</div>',
+      '<div style="display:none; display:var(--layout)">Concrete account.</div>',
+      '<div style="display:none; display:var(--layout,)">Concrete account.</div>',
+      '<div style="display:none; display:env(foo,)">Concrete account.</div>',
+      '<div style="display:none; display:e\\6ev(foo)">Concrete account.</div>',
+      '<div style="display:none; display:attr(data-x,)">Concrete account.</div>',
+      '<div style="display:none; display:a\\74tr(data-x)">Concrete account.</div>',
+      '<div style="display:none; display:attr(data-x %)">Concrete account.</div>',
+      '<div style="display:none; display:attr(data-x type(<number>))">Concrete account.</div>',
+      '<div style="display:none; display:var(--layout, env())">Concrete account.</div>',
+      '<div style="display:none; display:var(--layout, attr())">Concrete account.</div>',
+    ]) {
+      const lens = completeLens((heading) =>
+        heading === DESIGN_LENS_HEADINGS[0] ? indeterminateHtml : `Account for ${heading}.`,
       );
       expect(rejection(lens)).toContain("placeholder-only");
     }

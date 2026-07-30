@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0015-open-semantic-system-design-lens.md`](../../design-specs/0015-open-semantic-system-design-lens.md).
 This mutable execution record cannot redefine that contract.
 
-Status: sixth independent-review counterexamples corrected; exact-head re-review
+Status: ninth independent-review counterexamples corrected; exact-head re-review
 pending
 
 Owner: primary Semantic Systems lead
@@ -285,6 +285,29 @@ state, and unrelated project-model changes.
   and eight generated views. Full integration passed with 338 Bun tests/1,753
   expectations, zero Effect diagnostics, and 68 transitional Python custody
   checks. Clean-head custody and re-review remain pending.
+- 2026-07-31: ninth independent review rejected exact clean head `e11423a`.
+  A 73-case CSSWG/Chromium matrix found fourteen disagreements. CSS Tree emits
+  some current `attr()` syntax and malformed nested substitutions as opaque
+  `Raw` nodes, rejects valid empty fallbacks, and cannot reliably match escaped
+  function spellings or current typed-attribute syntax. The implementation
+  therefore could neither support its claimed current grammar nor validate
+  every nested substitution.
+- 2026-07-31: removed the repository-owned substitution grammar. The direct
+  inline evidence boundary is now explicitly three-valued: CSS Tree
+  property-grammar matches participate in the static cascade; ordinary invalid
+  declarations are ignored; grammar-invalid function or raw syntax and
+  unparseable inline style are indeterminate and cannot contribute acceptance
+  prose. This intentionally rejects some browser-visible prose rather than
+  pretending to know dynamic custom-property, environment, or attribute state.
+  A local Chromium 150 comparison reproduced valid, invalid, escaped, nested,
+  empty-fallback, indexed, unit, and typed-attribute cases used to set this
+  boundary. Focused evidence passes with 15 tests/107 expectations, typecheck,
+  formatting, and explicit indeterminate fixtures. Exact acceptance passed
+  with the unchanged 24 control-loop tests/250 expectations, typecheck, severe
+  lint, model validation, and eight generated views. Full integration passed
+  with 338 Bun tests/1,757 expectations, zero Effect diagnostics, and 68
+  transitional Python custody checks. Clean-head custody and re-review remain
+  pending.
 
 ## Acceptance command
 

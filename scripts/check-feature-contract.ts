@@ -19,7 +19,6 @@ import {
   walk as walkCss,
   type Declaration,
   type DeclarationList,
-  type FunctionNode,
 } from "css-tree";
 import { fromMarkdown } from "mdast-util-from-markdown";
 import type { Heading, Nodes, RootContent } from "mdast";
@@ -234,46 +233,16 @@ const NONVISIBLE_HTML_ELEMENTS = new Set([
   "video",
 ]);
 
-const validDeferredFunction = (node: FunctionNode): boolean => {
-  const name = cssIdentifier.decode(node.name).toLowerCase();
-  if (name === "var") {
-    const children = node.children.toArray();
-    const customProperty = children[0];
-    if (
-      customProperty === undefined ||
-      cssLexer.matchType("custom-property-name", customProperty).error !== null
-    ) {
-      return false;
-    }
-    if (children.length === 1) return true;
-    const comma = children[1];
-    return comma?.type === "Operator" && comma.value === ",";
-  }
-  if (name === "env") {
-    return (
-      cssLexer.match("env( <custom-ident> <integer [0,∞]>* , <declaration-value>? )", node)
-        .error === null
-    );
-  }
-  if (name === "attr") {
-    return (
-      cssLexer.match(
-        "attr( <attr-name> [ type( <syntax> ) | raw-string | number | <custom-ident> ]? , <declaration-value>? )",
-        node,
-      ).error === null
-    );
-  }
-  return false;
-};
-
-const directStyleHides = (style: string): boolean => {
+const directStyleExcludesContent = (style: string): boolean => {
   let declarationList: DeclarationList;
   try {
     const parsed = parseCss(style, { context: "declarationList", positions: false });
     if (parsed.type !== "DeclarationList") return false;
     declarationList = parsed;
   } catch {
-    return false;
+    // An unparseable direct style is outside this static evidence boundary.
+    // Excluding its subtree prevents unknown rendering from satisfying prose.
+    return true;
   }
 
   const cascaded = new Map<string, { important: boolean; value: string }>();
@@ -284,20 +253,17 @@ const directStyleHides = (style: string): boolean => {
     if (property !== "display" && property !== "visibility") continue;
     const value = cssIdentifier.decode(generateCss(declaration.value).trim()).toLowerCase();
     const grammar = cssLexer.matchProperty(property, value);
-    let hasDeferredSubstitution = false;
-    let hasInvalidDeferredSubstitution = false;
-    walkCss(declaration.value, {
-      visit: "Function",
-      enter(node) {
-        const functionName = cssIdentifier.decode(node.name).toLowerCase();
-        if (functionName === "attr" || functionName === "env" || functionName === "var") {
-          hasDeferredSubstitution = true;
-          if (!validDeferredFunction(node)) hasInvalidDeferredSubstitution = true;
-        }
-      },
-    });
-    const defersPropertyGrammar = hasDeferredSubstitution && !hasInvalidDeferredSubstitution;
-    if (grammar.error !== null && !defersPropertyGrammar) continue;
+    if (grammar.error !== null) {
+      let indeterminate = false;
+      walkCss(declaration.value, (node) => {
+        if (node.type === "Function" || node.type === "Raw") indeterminate = true;
+      });
+      // Substitution and opaque syntax depends on state this gate does not
+      // observe. It is neither fabricated as visible nor parsed by a local
+      // approximation of the browser's evolving argument grammars.
+      if (indeterminate) return true;
+      continue;
+    }
     const important = Boolean(declaration.important);
     const previous = cascaded.get(property);
     if (previous?.important === true && !important) continue;
@@ -320,7 +286,7 @@ const staticallyHidden = (node: DefaultTreeAdapterTypes.Element): boolean => {
     return true;
   }
   const style = node.attrs.find((attribute) => attribute.name === "style")?.value;
-  return style !== undefined && directStyleHides(style);
+  return style !== undefined && directStyleExcludesContent(style);
 };
 
 const renderedMarkdownContent = (source: string): string => {
