@@ -276,6 +276,34 @@
       }
     },
     {
+      "id": "work.actor-trace-retention",
+      "kind": "work_item",
+      "name": "Bound actor trace retention",
+      "summary": "Replace lifetime trace accumulation with a declared bounded observation window and exact eviction evidence.",
+      "status": "in_progress",
+      "tags": ["actors", "resources", "validation"],
+      "attributes": {
+        "phase": "implementation",
+        "effort": 5,
+        "design_spec": "design-specs/0013-bounded-actor-trace-retention.md",
+        "plan": "plans/active/0013-bounded-actor-trace-retention.md",
+        "acceptance": [
+          "Retained actor trace entries never exceed the declared capacity",
+          "Eviction and completeness counters remain exact",
+          "Actor delivery, ownership, failure-stop, and inventory equivalence remain unchanged"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 5,
+          "testability": 5,
+          "reversibility": 4,
+          "integration_independence": 4,
+          "blast_radius": 3,
+          "human_review": true
+        }
+      }
+    },
+    {
       "id": "work.stm-laws",
       "kind": "work_item",
       "name": "Specify STM effect and handler laws",
@@ -454,6 +482,13 @@
       "target": "work.actor-runtime",
       "kind": "blocks",
       "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "work.actor-trace-retention",
+      "target": "work.actor-runtime",
+      "kind": "changes",
+      "summary": "Replaces append-only lifecycle observation retention without changing mailbox or transition semantics.",
       "attributes": {}
     },
     {
