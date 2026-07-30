@@ -172,6 +172,18 @@ describe("open semantic system design-lens shape", () => {
     );
     expect(rejection(commented)).toContain("exactly one Design-Lens-Version");
 
+    const inlineCode = completeLens().replace(
+      `Design-Lens-Version: ${DESIGN_LENS_VERSION}`,
+      `\`before\nDesign-Lens-Version: ${DESIGN_LENS_VERSION}\nafter\``,
+    );
+    expect(rejection(inlineCode)).toContain("exactly one Design-Lens-Version");
+
+    const inlineComment = completeLens().replace(
+      `Design-Lens-Version: ${DESIGN_LENS_VERSION}`,
+      `before <!--\nDesign-Lens-Version: ${DESIGN_LENS_VERSION}\nafter -->`,
+    );
+    expect(rejection(inlineComment)).toContain("exactly one Design-Lens-Version");
+
     const fenced = `# Design
 
 Design-Lens-Version: ${DESIGN_LENS_VERSION}
@@ -277,6 +289,25 @@ ${DESIGN_LENS_HEADINGS.map((heading) => `  ### ${heading}\n\n  Hidden account.`)
   \`\`\`
 `;
     expect(rejection(hiddenInListFence)).toContain('"Open semantic system design lens" section');
+  });
+
+  test("counts rendered HTML text but not comments or nonvisible element content", () => {
+    for (const visibleHtml of ["<div>\nConcrete account.\n</div>", "<p>Concrete account.</p>"]) {
+      const lens = completeLens((heading) =>
+        heading === DESIGN_LENS_HEADINGS[0] ? visibleHtml : `Account for ${heading}.`,
+      );
+      expect(() => validateDesignLensText(lens, "design-specs/9999-fixture.md")).not.toThrow();
+    }
+
+    for (const hiddenHtml of [
+      "<div><!-- Concrete account. --></div>",
+      "<script>Concrete account.</script>",
+    ]) {
+      const lens = completeLens((heading) =>
+        heading === DESIGN_LENS_HEADINGS[0] ? hiddenHtml : `Account for ${heading}.`,
+      );
+      expect(rejection(lens)).toContain("placeholder-only");
+    }
   });
 
   test("reports static design-lens shape, never semantic correctness", () => {

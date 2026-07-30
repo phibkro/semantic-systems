@@ -4,8 +4,8 @@ Canonical frozen contract:
 [`design-specs/0015-open-semantic-system-design-lens.md`](../../design-specs/0015-open-semantic-system-design-lens.md).
 This mutable execution record cannot redefine that contract.
 
-Status: second independent-review counterexamples under correction; exact-head
-re-review pending
+Status: third independent-review counterexamples corrected; exact-head re-review
+pending
 
 Owner: primary Semantic Systems lead
 
@@ -166,6 +166,26 @@ state, and unrelated project-model changes.
   tests/1,697 expectations, zero Effect diagnostics, and 68 transitional Python
   custody checks. Production range replay and independent review remain
   invalid until a new clean commit exists.
+- 2026-07-30: third independent review rejected exact head `4167493`.
+  Raw marker extraction still saw a marker hidden inside multiline inline code
+  or an inline HTML comment, while visible prose inside CommonMark HTML blocks
+  was incorrectly discarded. All earlier falsifiers, source-position cases,
+  actual contracts, production range replay, dependency provenance, and the
+  full 337-test integration suite passed independently.
+- 2026-07-30: marker extraction now considers only direct MDAST text children,
+  so inline code, comments, links, and other nested inline syntax cannot lend
+  hidden source lines structural force. Added exact `parse5@8.0.1` (MIT,
+  `inikulin/parse5`) to parse MDAST HTML fragments according to the WHATWG HTML
+  model and collect actual text nodes while excluding comments and nonvisible
+  script/style/template/title content. This avoids a repository-owned HTML tag
+  scanner; Parse5 was preferred over a regex because quoted `>` characters and
+  browser tree correction are relevant adversarial cases. Exact acceptance
+  passed with 15 lens tests/53 expectations, the unchanged 24 control-loop
+  tests/250 expectations, typecheck, type-aware lint, formatting, model
+  validation, and eight generated views. Full integration passed with 338 Bun
+  tests/1,703 expectations, zero Effect diagnostics, and 68 transitional Python
+  custody checks. Production range replay, clean commit custody, and re-review
+  remain pending.
 
 ## Acceptance command
 

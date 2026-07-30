@@ -13,6 +13,7 @@ import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fromMarkdown } from "mdast-util-from-markdown";
 import type { Heading, Nodes, RootContent } from "mdast";
+import { parseFragment, type DefaultTreeAdapterTypes } from "parse5";
 
 const FEATURE_ID = /^[0-9]{4}-[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const SHA = /^[0-9a-f]{40}$/;
@@ -205,8 +206,23 @@ const atxHeadingTitle = (content: string, heading: Heading): string | undefined 
   return (match[2] ?? "").replace(/[ \t]+#+[ \t]*$/, "").trim();
 };
 
+const NONVISIBLE_HTML_ELEMENTS = new Set(["script", "style", "template", "title"]);
+
+const visibleHtmlContent = (source: string): string => {
+  const textFrom = (node: DefaultTreeAdapterTypes.Node): string => {
+    if ("value" in node) return node.value;
+    if (node.nodeName === "#comment" || node.nodeName === "#documentType") return "";
+    if ("tagName" in node && NONVISIBLE_HTML_ELEMENTS.has(node.tagName)) return "";
+    if ("childNodes" in node) return node.childNodes.map((child) => textFrom(child)).join("\n");
+    return "";
+  };
+
+  return textFrom(parseFragment(source));
+};
+
 const visibleDesignContent = (node: Nodes): string => {
-  if (node.type === "code" || node.type === "html") return "";
+  if (node.type === "code") return "";
+  if (node.type === "html") return visibleHtmlContent(node.value);
   if ("value" in node && typeof node.value === "string") return node.value;
   if ((node.type === "image" || node.type === "imageReference") && typeof node.alt === "string") {
     return node.alt;
@@ -220,12 +236,15 @@ const visibleDesignContent = (node: Nodes): string => {
 const markerValues = (content: string, children: readonly RootContent[]): string[] =>
   children.flatMap((node) => {
     if (node.type !== "paragraph") return [];
-    return sourceForNode(content, node)
-      .split(/\r?\n/)
-      .flatMap((line) => {
-        const match = /^Design-Lens-Version:[ \t]*(.*?)[ \t]*$/.exec(line);
-        return match === null ? [] : [match[1] ?? ""];
-      });
+    return node.children.flatMap((child) => {
+      if (child.type !== "text") return [];
+      return sourceForNode(content, child)
+        .split(/\r?\n/)
+        .flatMap((line) => {
+          const match = /^Design-Lens-Version:[ \t]*(.*?)[ \t]*$/.exec(line);
+          return match === null ? [] : [match[1] ?? ""];
+        });
+    });
   });
 
 type StructuralHeading = {
