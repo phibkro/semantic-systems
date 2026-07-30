@@ -25,12 +25,14 @@
         "ignoreEffectErrorsInTscExitCode": false,
         "overrides": [
           {
-            "include": ["src/project-model/**/*.ts", "src/tracer/**/*.ts"],
+            "include": ["src/project-model/**/*.ts", "src/tracer/**/*.ts", "src/stm/**/*.ts"],
             "exclude": [
               "src/project-model/main-bun.ts",
               "src/project-model/main-node.ts",
               "src/tracer/main-bun.ts",
-              "src/tracer/main-node.ts"
+              "src/tracer/main-node.ts",
+              "src/stm/main-bun.ts",
+              "src/stm/main-node.ts"
             ],
             "options": {
               "diagnosticSeverity": {

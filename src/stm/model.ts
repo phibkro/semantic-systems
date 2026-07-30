@@ -14,6 +14,13 @@ const TxnTypeId: unique symbol = Symbol.for("semantic-systems/stm/Txn");
 const StoreTypeId: unique symbol = Symbol.for("semantic-systems/stm/Store");
 const AttemptTypeId: unique symbol = Symbol.for("semantic-systems/stm/Attempt");
 const SuspensionTypeId: unique symbol = Symbol.for("semantic-systems/stm/Suspension");
+const domainCustody = new WeakSet<object>();
+const tvarCustody = new WeakSet<object>();
+const descriptionCustody = new WeakSet<object>();
+const knownAttemptCustody = new WeakSet<object>();
+const liveAttemptCustody = new WeakSet<object>();
+const rerunnableAttemptCustody = new WeakSet<object>();
+const liveSuspensionCustody = new WeakSet<object>();
 
 export interface Domain<out Name extends string = string> {
   readonly [DomainTypeId]: true;
@@ -49,7 +56,7 @@ type Instruction =
       readonly kind: "or_else";
       readonly left: Txn<string, JsonValue, JsonValue, JsonValue, JsonValue>;
       readonly right: Txn<string, JsonValue, JsonValue, JsonValue, JsonValue>;
-      readonly bind?: string;
+      readonly bind: string;
     }
   | {
       readonly kind: "nested";
@@ -145,7 +152,26 @@ export interface DomainRejection {
   readonly attemptStarted: false;
 }
 
-export type BeginResult = { readonly kind: "attempt"; readonly attempt: Attempt } | DomainRejection;
+export interface DescriptionRejection {
+  readonly kind: "description_rejected";
+  readonly transactionId: string;
+  readonly reason: "not_handler_custodied";
+  readonly attemptStarted: false;
+}
+
+export interface InvalidAttempt {
+  readonly kind: "invalid_attempt";
+  readonly store: Store<string>;
+  readonly reason: "not_handler_custodied" | "already_settled" | "not_rerunnable";
+  readonly commitActions: readonly [];
+  readonly abortActions: readonly [];
+}
+
+export type BeginResult =
+  | { readonly kind: "attempt"; readonly attempt: Attempt }
+  | DomainRejection
+  | DescriptionRejection
+  | InvalidAttempt;
 
 export interface Suspension {
   readonly [SuspensionTypeId]: true;
@@ -196,7 +222,8 @@ export type Settlement =
       readonly commitActions: readonly [];
       readonly abortActions: ReadonlyArray<JsonValue>;
       readonly attemptOrdinal: bigint;
-    };
+    }
+  | InvalidAttempt;
 
 export interface DiscardedAttempt {
   readonly kind: "interrupted" | "defect";
@@ -278,6 +305,78 @@ const freezeExpression = (expression: Expression): Expression => {
   }
 };
 
+const requireCustodiedDescription = (
+  transaction: Txn<string, JsonValue, JsonValue, JsonValue, JsonValue>,
+): void => {
+  if (!descriptionCustody.has(transaction)) {
+    throw new TypeError("nested transaction description is not handler-custodied");
+  }
+};
+
+const freezeInstruction = (instruction: Instruction): Instruction => {
+  switch (instruction.kind) {
+    case "read": {
+      if (!tvarCustody.has(instruction.ref)) {
+        throw new TypeError("read TVar is not handler-custodied");
+      }
+      return Object.freeze({
+        kind: "read",
+        ref: instruction.ref,
+        bind: requireId(instruction.bind, "binding"),
+      });
+    }
+    case "write": {
+      if (!tvarCustody.has(instruction.ref)) {
+        throw new TypeError("write TVar is not handler-custodied");
+      }
+      return Object.freeze({
+        kind: "write",
+        ref: instruction.ref,
+        value: freezeExpression(instruction.value),
+      });
+    }
+    case "after_commit":
+      return Object.freeze({
+        kind: "after_commit",
+        action: portableValue(instruction.action),
+      });
+    case "abort":
+      return Object.freeze({
+        kind: "abort",
+        error: portableValue(instruction.error),
+        actions: Object.freeze(instruction.actions.map((action) => portableValue(action))),
+      });
+    case "retry":
+      return Object.freeze({ kind: "retry" });
+    case "nested":
+      requireCustodiedDescription(instruction.transaction);
+      return Object.freeze({
+        kind: "nested",
+        transaction: instruction.transaction,
+        ...(instruction.bind === undefined ? {} : { bind: requireId(instruction.bind, "binding") }),
+      });
+    case "or_else":
+      requireCustodiedDescription(instruction.left);
+      requireCustodiedDescription(instruction.right);
+      return Object.freeze({
+        kind: "or_else",
+        left: instruction.left,
+        right: instruction.right,
+        bind: requireId(instruction.bind, "binding"),
+      });
+    case "when":
+      requireCustodiedDescription(instruction.ifTrue);
+      requireCustodiedDescription(instruction.ifFalse);
+      return Object.freeze({
+        kind: "when",
+        condition: freezeExpression(instruction.condition),
+        ifTrue: instruction.ifTrue,
+        ifFalse: instruction.ifFalse,
+        ...(instruction.bind === undefined ? {} : { bind: requireId(instruction.bind, "binding") }),
+      });
+  }
+};
+
 const makeTxn = <
   D extends string,
   E extends JsonValue,
@@ -289,8 +388,11 @@ const makeTxn = <
   id: string,
   instructions: ReadonlyArray<Instruction>,
   result: Expression,
-): Txn<D, E, A, C, X> =>
-  Object.freeze({
+): Txn<D, E, A, C, X> => {
+  if (!domainCustody.has(domain)) {
+    throw new TypeError("transaction domain is not handler-custodied");
+  }
+  const transaction = Object.freeze({
     [TxnTypeId]: Object.freeze({
       domain: domain.name,
       error: null,
@@ -300,24 +402,37 @@ const makeTxn = <
     }) as unknown as TxnVariance<D, E, A, C, X>,
     domain,
     id: requireId(id, "transaction id"),
-    instructions: Object.freeze([...instructions]),
+    instructions: Object.freeze(instructions.map(freezeInstruction)),
     result: freezeExpression(result),
   });
+  descriptionCustody.add(transaction);
+  return transaction;
+};
 
-export const domain = <const Name extends string>(name: Name): Domain<Name> =>
-  Object.freeze({ [DomainTypeId]: true as const, name: requireId(name, "domain name") as Name });
+export const domain = <const Name extends string>(name: Name): Domain<Name> => {
+  const owner = Object.freeze({
+    [DomainTypeId]: true as const,
+    name: requireId(name, "domain name") as Name,
+  });
+  domainCustody.add(owner);
+  return owner;
+};
 
 export const tvar = <D extends string, A extends JsonValue>(
   owner: Domain<D>,
   id: string,
   initialValue: A,
-): TVar<D, A> =>
-  Object.freeze({
+): TVar<D, A> => {
+  if (!domainCustody.has(owner)) throw new TypeError("TVar domain is not handler-custodied");
+  const ref = Object.freeze({
     [TVarTypeId]: true as const,
     domain: owner,
     id: requireId(id, "TVar id"),
     initialValue: portableValue(initialValue) as A,
   });
+  tvarCustody.add(ref);
+  return ref;
+};
 
 export const literal = (value: JsonValue): Expression =>
   freezeExpression({ kind: "literal", value });
@@ -413,13 +528,15 @@ export const sequence = <
   id: string,
   parts: ReadonlyArray<Txn<D, E, JsonValue, C, X>>,
   result: Expression | A = null as A,
-): Txn<D, E, A, C, X> =>
-  makeTxn(
+): Txn<D, E, A, C, X> => {
+  for (const part of parts) requireCustodiedDescription(part);
+  return makeTxn(
     owner,
     id,
     parts.flatMap((part) => part.instructions),
     isExpression(result) ? result : literal(result),
   );
+};
 
 export const nested = <
   D extends string,
@@ -454,9 +571,9 @@ export const orElse = <
 >(
   left: Txn<D, E, A, C, X>,
   right: Txn<D, E, A, C, X>,
-  bind?: string,
-): Txn<D, E, A, C, X> =>
-  makeTxn(
+): Txn<D, E, A, C, X> => {
+  const resultBinding = `or-else-value-${left.id}-${right.id}`;
+  return makeTxn(
     left.domain,
     `or-else-${left.id}-${right.id}`,
     [
@@ -464,11 +581,12 @@ export const orElse = <
         kind: "or_else",
         left: left as Txn<string, JsonValue, JsonValue, JsonValue, JsonValue>,
         right: right as Txn<string, JsonValue, JsonValue, JsonValue, JsonValue>,
-        ...(bind === undefined ? {} : { bind: requireId(bind, "binding") }),
+        bind: resultBinding,
       },
     ],
-    bind === undefined ? literal(null) : binding(bind),
+    binding(resultBinding),
   );
+};
 
 export const when = <
   D extends string,
@@ -509,9 +627,11 @@ export const makeStore = <D extends string>(
   owner: Domain<D>,
   refs: ReadonlyArray<TVar<D, JsonValue>>,
 ): Store<D> => {
+  if (!domainCustody.has(owner)) throw new TypeError("store domain is not handler-custodied");
   const ids = new Set<string>();
   const cells = refs
     .map((ref) => {
+      if (!tvarCustody.has(ref)) throw new TypeError(`TVar ${ref.id} is not handler-custodied`);
       if (ref.domain !== owner) throw new TypeError(`TVar ${ref.id} belongs to another domain`);
       if (ids.has(ref.id)) throw new TypeError(`duplicate TVar id ${ref.id}`);
       ids.add(ref.id);
@@ -775,6 +895,14 @@ export const beginAttempt = <
 ): BeginResult => {
   if (ordinal < 1n) throw new RangeError("attempt ordinal must be positive");
   const erased = transaction as Txn<string, JsonValue, JsonValue, JsonValue, JsonValue>;
+  if (!descriptionCustody.has(erased)) {
+    return Object.freeze({
+      kind: "description_rejected",
+      transactionId: typeof erased.id === "string" ? erased.id : "unknown",
+      reason: "not_handler_custodied",
+      attemptStarted: false,
+    });
+  }
   const rejection = domainMismatch(erased, store.domain);
   if (rejection !== undefined) return rejection;
   const context: MutableContext = {
@@ -786,29 +914,44 @@ export const beginAttempt = <
     commitActions: [],
   };
   const evaluation = evaluate(erased, context);
+  const attempt = Object.freeze({
+    [AttemptTypeId]: true as const,
+    description: erased,
+    ordinal,
+    startVersions: Object.freeze(
+      store.cells.map((cell) => Object.freeze({ id: cell.id, version: cell.version })),
+    ),
+    readSet: Object.freeze([...context.reads.values()].sort((a, b) => a.id.localeCompare(b.id))),
+    writeSet: Object.freeze([...context.writes.values()].sort((a, b) => a.id.localeCompare(b.id))),
+    commitActions: Object.freeze([...context.commitActions]),
+    evaluation,
+  });
+  knownAttemptCustody.add(attempt);
+  liveAttemptCustody.add(attempt);
   return Object.freeze({
     kind: "attempt",
-    attempt: Object.freeze({
-      [AttemptTypeId]: true as const,
-      description: erased,
-      ordinal,
-      startVersions: Object.freeze(
-        store.cells.map((cell) => Object.freeze({ id: cell.id, version: cell.version })),
-      ),
-      readSet: Object.freeze([...context.reads.values()].sort((a, b) => a.id.localeCompare(b.id))),
-      writeSet: Object.freeze(
-        [...context.writes.values()].sort((a, b) => a.id.localeCompare(b.id)),
-      ),
-      commitActions: Object.freeze([...context.commitActions]),
-      evaluation,
-    }),
+    attempt,
   });
 };
 
 const unchangedStore = (store: Store<string>): Store<string> => store;
 const emptyTuple: readonly [] = Object.freeze([]) as readonly [];
+const invalidAttempt = (store: Store<string>, reason: InvalidAttempt["reason"]): InvalidAttempt =>
+  Object.freeze({
+    kind: "invalid_attempt",
+    store,
+    reason,
+    commitActions: emptyTuple,
+    abortActions: emptyTuple,
+  });
 
 export const settleAttempt = (currentStore: Store<string>, attempt: Attempt): Settlement => {
+  if (!knownAttemptCustody.has(attempt)) {
+    return invalidAttempt(currentStore, "not_handler_custodied");
+  }
+  if (!liveAttemptCustody.delete(attempt)) {
+    return invalidAttempt(currentStore, "already_settled");
+  }
   if (currentStore.domain !== attempt.description.domain) {
     throw new TypeError("attempt cannot settle against another transaction domain");
   }
@@ -820,15 +963,17 @@ export const settleAttempt = (currentStore: Store<string>, attempt: Attempt): Se
       }
       return Object.freeze({ id, observedVersion: observed.version });
     });
+    const suspension = Object.freeze({
+      [SuspensionTypeId]: true as const,
+      description: attempt.description,
+      attemptOrdinal: attempt.ordinal,
+      dependencies: Object.freeze(dependencies),
+    });
+    liveSuspensionCustody.add(suspension);
     return Object.freeze({
       kind: "suspended",
       store: unchangedStore(currentStore),
-      suspension: Object.freeze({
-        [SuspensionTypeId]: true as const,
-        description: attempt.description,
-        attemptOrdinal: attempt.ordinal,
-        dependencies: Object.freeze(dependencies),
-      }),
+      suspension,
       commitActions: emptyTuple,
       abortActions: emptyTuple,
       attemptOrdinal: attempt.ordinal,
@@ -849,6 +994,7 @@ export const settleAttempt = (currentStore: Store<string>, attempt: Attempt): Se
     .map((observation) => observation.id)
     .sort();
   if (stale.length > 0) {
+    rerunnableAttemptCustody.add(attempt);
     return Object.freeze({
       kind: "conflict",
       store: unchangedStore(currentStore),
@@ -896,17 +1042,31 @@ export const discardAttempt = (
   store: Store<string>,
   attempt: Attempt,
   reason: "interrupted" | "defect",
-): DiscardedAttempt =>
-  Object.freeze({
+): DiscardedAttempt | InvalidAttempt => {
+  if (!knownAttemptCustody.has(attempt)) {
+    return invalidAttempt(store, "not_handler_custodied");
+  }
+  if (!liveAttemptCustody.delete(attempt)) {
+    return invalidAttempt(store, "already_settled");
+  }
+  return Object.freeze({
     kind: reason,
     store: unchangedStore(store),
     commitActions: emptyTuple,
     abortActions: emptyTuple,
     attemptOrdinal: attempt.ordinal,
   });
+};
 
-export const rerunAttempt = (store: Store<string>, attempt: Attempt): BeginResult =>
-  beginAttempt(store, attempt.description, attempt.ordinal + 1n);
+export const rerunAttempt = (store: Store<string>, attempt: Attempt): BeginResult => {
+  if (!knownAttemptCustody.has(attempt)) {
+    return invalidAttempt(store, "not_handler_custodied");
+  }
+  if (!rerunnableAttemptCustody.delete(attempt)) {
+    return invalidAttempt(store, "not_rerunnable");
+  }
+  return beginAttempt(store, attempt.description, attempt.ordinal + 1n);
+};
 
 export const changedDependencies = (
   suspension: Suspension,
@@ -922,10 +1082,12 @@ export const changedDependencies = (
 export const wakeAndRerun = (
   suspension: Suspension,
   store: Store<string>,
-): BeginResult | undefined =>
-  changedDependencies(suspension, store).length === 0
-    ? undefined
-    : beginAttempt(store, suspension.description, suspension.attemptOrdinal + 1n);
+): BeginResult | undefined => {
+  if (!liveSuspensionCustody.has(suspension)) return undefined;
+  if (changedDependencies(suspension, store).length === 0) return undefined;
+  liveSuspensionCustody.delete(suspension);
+  return beginAttempt(store, suspension.description, suspension.attemptOrdinal + 1n);
+};
 
 export const projectStore = (store: Store<string>): JsonObject =>
   Object.freeze({

@@ -126,13 +126,15 @@ describe("STM law boundary 0014", () => {
 
     expect(inspectCell(conflict.store, y).value).toBe(0);
     expect(conflict.commitActions).toEqual([]);
-    expect(discardAttempt(store, attempt, "interrupted")).toMatchObject({
+    const interrupted = requireAttempt(beginAttempt(store, transaction));
+    expect(discardAttempt(store, interrupted, "interrupted")).toMatchObject({
       kind: "interrupted",
       store,
       commitActions: [],
       abortActions: [],
     });
-    expect(discardAttempt(store, attempt, "defect")).toMatchObject({
+    const defected = requireAttempt(beginAttempt(store, transaction));
+    expect(discardAttempt(store, defected, "defect")).toMatchObject({
       kind: "defect",
       store,
       commitActions: [],
@@ -184,6 +186,102 @@ describe("STM law boundary 0014", () => {
     const settled = requireSettlement(settleAttempt(concurrent.store, second), "committed");
     expect(settled.commitActions).toEqual([{ order: 1 }, { order: 2 }]);
     expect(Object.isFrozen(settled.commitActions)).toBe(true);
+
+    expect(settleAttempt(settled.store, second)).toEqual({
+      kind: "invalid_attempt",
+      store: settled.store,
+      reason: "already_settled",
+      commitActions: [],
+      abortActions: [],
+    });
+  });
+
+  test("[L2 custody] a copied and forged attempt cannot settle injected writes or actions", () => {
+    const { owner, store, x } = fixture();
+    const description = sequence(owner, "custodied-attempt", [
+      read(x, "custody-x"),
+      write(x, add(binding("custody-x"), literal(1))),
+      afterCommit(owner, { legitimate: true }),
+    ]);
+    const legitimate = requireAttempt(beginAttempt(store, description));
+    const forged = {
+      ...legitimate,
+      readSet: [],
+      writeSet: [{ id: "x", startVersion: 0n, value: 999 }],
+      evaluation: { kind: "success", value: "forged" },
+      commitActions: [{ forged: true }],
+    } as unknown as Attempt;
+
+    expect(settleAttempt(store, forged)).toEqual({
+      kind: "invalid_attempt",
+      store,
+      reason: "not_handler_custodied",
+      commitActions: [],
+      abortActions: [],
+    });
+    expect(inspectCell(store, x)).toEqual({ value: 0, version: 0n });
+
+    const committed = requireSettlement(settleAttempt(store, legitimate), "committed");
+    expect(inspectCell(committed.store, x).value).toBe(1);
+    expect(committed.commitActions).toEqual([{ legitimate: true }]);
+  });
+
+  test("[L4 custody] reruns reuse one recursively frozen canonical description", () => {
+    const { owner, store, x } = fixture();
+    const callerAction = { kind: "notify", payload: { amount: 1 } };
+    const description = sequence(owner, "frozen-rerun", [
+      read(x, "frozen-x"),
+      write(x, add(binding("frozen-x"), literal(1))),
+      afterCommit(owner, callerAction),
+    ]);
+    callerAction.payload.amount = 999;
+    expect(Object.isFrozen(description)).toBe(true);
+    expect(Object.isFrozen(description.instructions)).toBe(true);
+    expect(description.instructions.every((instruction) => Object.isFrozen(instruction))).toBe(
+      true,
+    );
+    expect(() => {
+      (description.instructions[0] as { kind: string }).kind = "retry";
+    }).toThrow();
+
+    const first = requireAttempt(beginAttempt(store, description));
+    const concurrent = commit(store, write(x, 10));
+    expect(settleAttempt(concurrent.store, first).kind).toBe("conflict");
+    const second = requireAttempt(rerunAttempt(concurrent.store, first));
+    expect(second.description).toBe(description);
+    const committed = requireSettlement(settleAttempt(concurrent.store, second), "committed");
+    expect(committed.commitActions).toEqual([{ kind: "notify", payload: { amount: 1 } }]);
+  });
+
+  test("[L5 value] orElse returns the selected branch value without an optional binding", () => {
+    const { owner, store } = fixture();
+    const left = requireSettlement(
+      settleAttempt(
+        store,
+        requireAttempt(
+          beginAttempt(
+            store,
+            orElse(succeed(owner, "left-value", 41), succeed(owner, "unused-right", 42)),
+          ),
+        ),
+      ),
+      "committed",
+    );
+    expect(left.value).toBe(41);
+
+    const right = requireSettlement(
+      settleAttempt(
+        store,
+        requireAttempt(
+          beginAttempt(
+            store,
+            orElse(retry(owner, "retry-left"), succeed(owner, "right-value", 42)),
+          ),
+        ),
+      ),
+      "committed",
+    );
+    expect(right.value).toBe(42);
   });
 
   test("[L2 positive and negative oracle / CE05] validation rejects a stale read-only observation", () => {
@@ -369,11 +467,13 @@ describe("STM law boundary 0014", () => {
       maximum_transactions: "2",
       maximum_attempts_per_transaction: "2",
       maximum_cells: "3",
-      maximum_scheduler_steps: "12",
-      schedules_explored: "2",
+      maximum_scheduler_steps: "6",
+      schedules_explored: "6",
     });
     expect(report.evidence).toMatchObject({
-      bounded_model_checked: ["two transactions over the declared finite schedule bound"],
+      bounded_model_checked: [
+        "all 6 terminal schedules generated by every enabled transaction choice within the declared handler-step bound",
+      ],
       unsupported: [
         "general serializability proof",
         "affine ownership proof",
@@ -382,6 +482,43 @@ describe("STM law boundary 0014", () => {
     });
     expect(report.unsupported_guarantees).toContain("fairness");
     expect(report.unsupported_guarantees).toContain("lock freedom");
+    expect(report.law_observations).toHaveLength(10);
+    const lawObservations = report.law_observations as ReadonlyArray<{
+      readonly observed: boolean;
+      readonly evidence: Readonly<Record<string, JsonValue>>;
+      readonly evidence_paths?: ReadonlyArray<string>;
+    }>;
+    expect(
+      lawObservations.every(
+        ({ evidence, evidence_paths: evidencePaths, observed }) =>
+          observed &&
+          evidencePaths === undefined &&
+          Object.keys(evidence).length > 0 &&
+          isPortableData(evidence),
+      ),
+    ).toBe(true);
+    const trace = report.reference_trace as {
+      readonly bounded_schedules: ReadonlyArray<{
+        readonly serially_equivalent: boolean;
+        readonly events: ReadonlyArray<unknown>;
+      }>;
+      readonly scheduler_completeness: {
+        readonly choice_rule: string;
+        readonly symmetry_reduction: boolean;
+        readonly terminal_schedules: string;
+        readonly maximum_steps_derived: string;
+      };
+    };
+    expect(trace.bounded_schedules).toHaveLength(6);
+    expect(trace.bounded_schedules.every(({ serially_equivalent }) => serially_equivalent)).toBe(
+      true,
+    );
+    expect(trace.scheduler_completeness).toEqual({
+      choice_rule: "enumerate each non-committed transaction at every handler step",
+      symmetry_reduction: false,
+      terminal_schedules: "6",
+      maximum_steps_derived: "6",
+    });
     expect(canonicalStmLawReport("bun")).toBe(canonicalStmLawReport("bun"));
   });
 

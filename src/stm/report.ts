@@ -238,52 +238,143 @@ const histories = (
   readonly boundedSchedules: ReadonlyArray<JsonObject>;
   readonly serialOrderings: ReadonlyArray<ReadonlyArray<string>>;
   readonly rejectsCycle: boolean;
+  readonly maximumAttempts: bigint;
+  readonly maximumSteps: bigint;
 } => {
-  const first = sequence(
-    base.initial.domain,
-    "serial-a",
-    [read(base.x, "serial-a-x"), write(base.x, add(binding("serial-a-x"), literal(1)))],
-    binding("serial-a-x"),
-  );
-  const second = sequence(
-    base.initial.domain,
-    "serial-b",
-    [read(base.x, "serial-b-x"), write(base.y, binding("serial-b-x"))],
-    binding("serial-b-x"),
-  );
-  const runSchedule = (
-    id: string,
-    ordered: ReadonlyArray<Txn<string, JsonValue, JsonValue, JsonValue, JsonValue>>,
-  ): JsonObject => {
-    let current = base.initial;
+  type Phase =
+    | { readonly kind: "ready"; readonly conflicted?: Attempt }
+    | { readonly kind: "attempt"; readonly attempt: Attempt }
+    | { readonly kind: "committed" };
+  interface Replay {
+    readonly phases: readonly [Phase, Phase];
+    readonly store: Store<string>;
+    readonly initial: Store<string>;
+    readonly history: ReadonlyArray<CommitRecord>;
+    readonly events: ReadonlyArray<JsonObject>;
+    readonly attempts: readonly [bigint, bigint];
+  }
+
+  const replay = (choices: ReadonlyArray<0 | 1>): Replay => {
+    const owner = domain("bounded-scheduler-domain");
+    const x = tvar(owner, "x", 0);
+    const y = tvar(owner, "y", 0);
+    const initial = makeStore(owner, [x, y]);
+    const descriptions = [
+      sequence(owner, "scheduler-a", [
+        read(x, "scheduler-a-x"),
+        write(x, add(binding("scheduler-a-x"), literal(1))),
+        write(y, 1),
+        afterCommit(owner, { transaction: "scheduler-a" }),
+      ]),
+      sequence(owner, "scheduler-b", [
+        read(x, "scheduler-b-x"),
+        write(x, add(binding("scheduler-b-x"), literal(2))),
+        write(y, 2),
+        afterCommit(owner, { transaction: "scheduler-b" }),
+      ]),
+    ] as const;
+    let phases: [Phase, Phase] = [{ kind: "ready" }, { kind: "ready" }];
+    let store: Store<string> = initial;
     const history: CommitRecord[] = [];
-    for (const description of ordered) {
-      const settlement = commit(current, description);
-      current = settlement.store;
-      history.push(settlement.history);
-    }
-    const orderings = serialOrderingsFor(base.initial, history);
-    return Object.freeze({
-      id,
-      transaction_order: Object.freeze(ordered.map((description) => description.id)),
-      committed_history: Object.freeze(
-        history.map((record) =>
+    const events: JsonObject[] = [];
+    const attempts: [bigint, bigint] = [0n, 0n];
+
+    for (const selected of choices) {
+      const phase = phases[selected];
+      const transactionId = descriptions[selected].id;
+      if (phase.kind === "committed") {
+        throw new Error(`scheduler selected completed transaction ${transactionId}`);
+      }
+      if (phase.kind === "ready") {
+        const begun =
+          phase.conflicted === undefined
+            ? beginAttempt(store, descriptions[selected])
+            : rerunAttempt(store, phase.conflicted);
+        const attempt = requireAttempt(begun);
+        attempts[selected] = attempt.ordinal;
+        phases[selected] = { kind: "attempt", attempt };
+        events.push(
           Object.freeze({
-            transaction_id: record.transactionId,
-            reads: record.reads,
-            writes: record.writes,
+            step: BigInt(events.length + 1).toString(10),
+            transaction_id: transactionId,
+            operation: "begin_read_stage",
+            attempt: attempt.ordinal.toString(10),
           }),
-        ),
-      ),
-      final_store: projectStore(current),
-      serial_orderings: orderings,
-      serially_equivalent: orderings.length > 0,
-    });
+        );
+        continue;
+      }
+      const settlement = settleAttempt(store, phase.attempt);
+      if (settlement.kind === "conflict") {
+        phases[selected] = { kind: "ready", conflicted: phase.attempt };
+      } else if (settlement.kind === "committed") {
+        store = settlement.store;
+        history.push(settlement.history);
+        phases[selected] = { kind: "committed" };
+      } else {
+        throw new Error(
+          `bounded scheduler transaction ${transactionId} settled as ${settlement.kind}`,
+        );
+      }
+      events.push(
+        Object.freeze({
+          step: BigInt(events.length + 1).toString(10),
+          transaction_id: transactionId,
+          operation: "validate_publish",
+          attempt: phase.attempt.ordinal.toString(10),
+          result: settlement.kind,
+        }),
+      );
+    }
+    return {
+      phases,
+      store,
+      initial,
+      history: Object.freeze(history),
+      events: Object.freeze(events),
+      attempts,
+    };
   };
-  const boundedSchedules = Object.freeze([
-    runSchedule("schedule-a-then-b", [first, second]),
-    runSchedule("schedule-b-then-a", [second, first]),
-  ]);
+
+  const terminalSchedules: JsonObject[] = [];
+  const explore = (choices: ReadonlyArray<0 | 1>): void => {
+    const state = replay(choices);
+    if (state.phases.every((phase) => phase.kind === "committed")) {
+      const orderings = serialOrderingsFor(state.initial, state.history);
+      terminalSchedules.push(
+        Object.freeze({
+          id: `schedule-${terminalSchedules.length + 1}`,
+          scheduler_choices: Object.freeze(
+            choices.map((selected) => (selected === 0 ? "scheduler-a" : "scheduler-b")),
+          ),
+          events: state.events,
+          committed_history: Object.freeze(
+            state.history.map((record) =>
+              Object.freeze({
+                transaction_id: record.transactionId,
+                reads: record.reads,
+                writes: record.writes,
+              }),
+            ),
+          ),
+          final_store: projectStore(state.store),
+          attempts: Object.freeze(state.attempts.map((count) => count.toString(10))),
+          serial_orderings: orderings,
+          serially_equivalent: orderings.length > 0,
+        }),
+      );
+      return;
+    }
+    if (choices.length >= 6) {
+      throw new Error("bounded scheduler exceeded its derived six-step state space");
+    }
+    for (const selected of [0, 1] as const) {
+      if (state.phases[selected].kind !== "committed") {
+        explore([...choices, selected]);
+      }
+    }
+  };
+  explore([]);
+  const boundedSchedules = Object.freeze(terminalSchedules);
   const cyclic: ReadonlyArray<CommitRecord> = [
     {
       transactionId: "cycle-a",
@@ -296,21 +387,106 @@ const histories = (
       writes: [{ id: "x", value: 1 }],
     },
   ];
+  const maximumAttempts = boundedSchedules.reduce(
+    (maximum, schedule) =>
+      Math.max(
+        maximum,
+        ...(schedule.attempts as ReadonlyArray<string>).map((count) => Number(count)),
+      ),
+    0,
+  );
+  const maximumSteps = boundedSchedules.reduce(
+    (maximum, schedule) => Math.max(maximum, (schedule.events as ReadonlyArray<JsonObject>).length),
+    0,
+  );
   return {
     boundedSchedules,
     serialOrderings: boundedSchedules[0]!.serial_orderings as ReadonlyArray<ReadonlyArray<string>>,
     rejectsCycle: !isSeriallyEquivalent(base.initial, cyclic),
+    maximumAttempts: BigInt(maximumAttempts),
+    maximumSteps: BigInt(maximumSteps),
   };
 };
 
 const observation = (id: string, catchesCounterexample: boolean): JsonObject =>
   Object.freeze({ id, catches_counterexample: catchesCounterexample });
 
+const forgedAttemptIsRejected = (base: ReferenceScenario): boolean => {
+  const forged = {
+    ...base.firstAttempt,
+    readSet: [],
+    writeSet: [{ id: "x", startVersion: 0n, value: 999 }],
+    commitActions: [{ forged: true }],
+    evaluation: { kind: "success", value: "forged" },
+  } as unknown as Attempt;
+  const result = settleAttempt(base.initial, forged);
+  return (
+    result.kind === "invalid_attempt" &&
+    result.reason === "not_handler_custodied" &&
+    result.store === base.initial &&
+    result.commitActions.length === 0
+  );
+};
+
+const descriptionIsDeeplyFrozen = (attempt: Attempt): boolean =>
+  Object.isFrozen(attempt.description) &&
+  Object.isFrozen(attempt.description.instructions) &&
+  attempt.description.instructions.every((instruction) => Object.isFrozen(instruction)) &&
+  Object.isFrozen(attempt.description.result);
+
+const alternativeValuesArePreserved = (base: ReferenceScenario): boolean => {
+  const leftValue = requireCommitted(
+    settleAttempt(
+      base.initial,
+      requireAttempt(
+        beginAttempt(
+          base.initial,
+          orElse(
+            succeed(base.initial.domain, "left-value", 41),
+            succeed(base.initial.domain, "unused-right-value", 42),
+          ),
+        ),
+      ),
+    ),
+  );
+  const rightValue = requireCommitted(
+    settleAttempt(
+      base.initial,
+      requireAttempt(
+        beginAttempt(
+          base.initial,
+          orElse(
+            retry(base.initial.domain, "retry-left-value"),
+            succeed(base.initial.domain, "right-value", 42),
+          ),
+        ),
+      ),
+    ),
+  );
+  return leftValue.value === 41 && rightValue.value === 42;
+};
+
 export const buildStmLawReport = (runtimeLayer: RuntimeLayer): JsonObject => {
   const base = referenceScenario();
   const retryResult = retryScenario(base);
   const alternative = alternativeScenario(base);
   const historyResult = histories(base);
+  const nestingAtomic = nestingIsAtomic(base);
+  const portableActions = isPortableData({ kind: "inert-action" }) && !isPortableData(() => null);
+  const repeatedSettlement = settleAttempt(base.committed.store, base.rerun);
+  const allBoundedSchedulesSerializable = historyResult.boundedSchedules.every(
+    (schedule) => schedule.serially_equivalent === true,
+  );
+  const unsupportedGuarantees = Object.freeze([
+    "lock freedom",
+    "starvation freedom",
+    "bounded retries",
+    "fairness",
+    "termination",
+    "crash-safe exactly-once action delivery",
+    "general affine resource ownership",
+    "unbounded serializability proof",
+  ]);
 
   const observations = [
     observation(
@@ -331,7 +507,11 @@ export const buildStmLawReport = (runtimeLayer: RuntimeLayer): JsonObject => {
     ),
     observation(
       "ce04-duplicate-commit-action",
-      base.committed.commitActions.length === 1 && base.rerun.ordinal === 2n,
+      base.committed.commitActions.length === 1 &&
+        base.rerun.ordinal === 2n &&
+        repeatedSettlement.kind === "invalid_attempt" &&
+        repeatedSettlement.reason === "already_settled" &&
+        repeatedSettlement.commitActions.length === 0,
     ),
     observation("ce05-stale-read-ignored", base.conflict.stale.includes("x")),
     observation("ce06-blind-write-lost-update", blindWriteConflicts(base)),
@@ -364,16 +544,123 @@ export const buildStmLawReport = (runtimeLayer: RuntimeLayer): JsonObject => {
     ),
     observation("ce12-cross-domain-attempt", crossDomainRejected(base)),
     observation("ce13-nonserial-history", historyResult.rejectsCycle),
-    observation(
-      "ce14-ambient-authority",
-      isPortableData({ kind: "inert-action" }) && !isPortableData(() => "opaque"),
-    ),
+    observation("ce14-ambient-authority", portableActions),
     observation(
       "ce15-evidence-upgrade",
-      historyResult.boundedSchedules.length === 2 &&
-        historyResult.boundedSchedules.every((schedule) => schedule.serially_equivalent === true),
+      historyResult.boundedSchedules.length > 2 && allBoundedSchedulesSerializable,
     ),
+    observation("attempt-forgery-rejected", forgedAttemptIsRejected(base)),
+    observation("description-deep-freeze", descriptionIsDeeplyFrozen(base.firstAttempt)),
+    observation("or-else-values", alternativeValuesArePreserved(base)),
   ];
+
+  const lawObservations = Object.freeze([
+    Object.freeze({
+      id: "law-l1-observed",
+      law: "L1",
+      observed:
+        inspectCell(base.initial, base.y).value === 0 &&
+        inspectCell(base.committed.store, base.y).value === 11,
+      evidence: Object.freeze({
+        before_y: inspectCell(base.initial, base.y).value,
+        after_y: inspectCell(base.committed.store, base.y).value,
+      }),
+    }),
+    Object.freeze({
+      id: "law-l2-observed",
+      law: "L2",
+      observed: base.conflict.stale.includes("x") && forgedAttemptIsRejected(base),
+      evidence: Object.freeze({
+        stale: Object.freeze([...base.conflict.stale]),
+        forged_attempt_rejected: forgedAttemptIsRejected(base),
+      }),
+    }),
+    Object.freeze({
+      id: "law-l3-observed",
+      law: "L3",
+      observed:
+        changedDependencies(retryResult.suspended.suspension, retryResult.unrelatedStore).length ===
+          0 && retryResult.wakeAttempt.ordinal === 2n,
+      evidence: Object.freeze({
+        unrelated_changes: Object.freeze(
+          changedDependencies(retryResult.suspended.suspension, retryResult.unrelatedStore),
+        ),
+        wake_attempt: retryResult.wakeAttempt.ordinal.toString(10),
+      }),
+    }),
+    Object.freeze({
+      id: "law-l4-observed",
+      law: "L4",
+      observed:
+        base.firstAttempt.description === base.rerun.description &&
+        descriptionIsDeeplyFrozen(base.firstAttempt),
+      evidence: Object.freeze({
+        same_description_identity: base.firstAttempt.description === base.rerun.description,
+        recursively_frozen: descriptionIsDeeplyFrozen(base.firstAttempt),
+      }),
+    }),
+    Object.freeze({
+      id: "law-l5-observed",
+      law: "L5",
+      observed:
+        inspectCell(alternative.committed.store, base.y).value === 2 &&
+        alternativeValuesArePreserved(base),
+      evidence: Object.freeze({
+        selected_branch_y: inspectCell(alternative.committed.store, base.y).value,
+        selected_values_preserved: alternativeValuesArePreserved(base),
+      }),
+    }),
+    Object.freeze({
+      id: "law-l6-observed",
+      law: "L6",
+      observed:
+        base.committed.commitActions.length === 1 && repeatedSettlement.kind === "invalid_attempt",
+      evidence: Object.freeze({
+        commit_action_count: BigInt(base.committed.commitActions.length).toString(10),
+        repeated_settlement:
+          repeatedSettlement.kind === "invalid_attempt"
+            ? Object.freeze({
+                kind: repeatedSettlement.kind,
+                reason: repeatedSettlement.reason,
+                commit_action_count: BigInt(repeatedSettlement.commitActions.length).toString(10),
+              })
+            : Object.freeze({ kind: repeatedSettlement.kind }),
+      }),
+    }),
+    Object.freeze({
+      id: "law-l7-observed",
+      law: "L7",
+      observed: nestingAtomic && crossDomainRejected(base),
+      evidence: Object.freeze({
+        nesting_atomic: nestingAtomic,
+        cross_domain_rejected: crossDomainRejected(base),
+      }),
+    }),
+    Object.freeze({
+      id: "law-l8-observed",
+      law: "L8",
+      observed: portableActions,
+      evidence: Object.freeze({ inert_data_only: portableActions }),
+    }),
+    Object.freeze({
+      id: "law-l9-observed",
+      law: "L9",
+      observed: allBoundedSchedulesSerializable && historyResult.rejectsCycle,
+      evidence: Object.freeze({
+        terminal_schedules: BigInt(historyResult.boundedSchedules.length).toString(10),
+        all_serially_equivalent: allBoundedSchedulesSerializable,
+        cyclic_history_rejected: historyResult.rejectsCycle,
+      }),
+    }),
+    Object.freeze({
+      id: "law-l10-observed",
+      law: "L10",
+      observed:
+        unsupportedGuarantees.includes("fairness") &&
+        unsupportedGuarantees.includes("lock freedom"),
+      evidence: Object.freeze({ unsupported_guarantees: unsupportedGuarantees }),
+    }),
+  ]);
 
   return Object.freeze({
     schema_version: 1,
@@ -381,10 +668,10 @@ export const buildStmLawReport = (runtimeLayer: RuntimeLayer): JsonObject => {
     model: "semantic-stm-laws-0014",
     bounds: Object.freeze({
       maximum_transactions: "2",
-      maximum_attempts_per_transaction: "2",
-      maximum_cells: "3",
-      maximum_scheduler_steps: "12",
-      schedules_explored: "2",
+      maximum_attempts_per_transaction: historyResult.maximumAttempts.toString(10),
+      maximum_cells: BigInt(base.initial.cells.length).toString(10),
+      maximum_scheduler_steps: historyResult.maximumSteps.toString(10),
+      schedules_explored: BigInt(historyResult.boundedSchedules.length).toString(10),
     }),
     assumptions: Object.freeze([
       "one local store publication is atomic",
@@ -394,7 +681,7 @@ export const buildStmLawReport = (runtimeLayer: RuntimeLayer): JsonObject => {
     evidence: Object.freeze({
       derived: Object.freeze(["journal projections", "dependency sets", "exact versions"]),
       bounded_model_checked: Object.freeze([
-        "two transactions over the declared finite schedule bound",
+        `all ${historyResult.boundedSchedules.length} terminal schedules generated by every enabled transaction choice within the declared handler-step bound`,
       ]),
       runtime_validated: Object.freeze([
         "canonical report entrypoint executed under the named runtime_layer",
@@ -410,18 +697,19 @@ export const buildStmLawReport = (runtimeLayer: RuntimeLayer): JsonObject => {
     }),
     laws: Object.freeze(
       [
-        ["L1", "ce01-partial-publication", "ce02-conflict-write-leak"],
-        ["L2", "ce05-stale-read-ignored", "ce06-blind-write-lost-update"],
-        ["L3", "ce07-unrelated-retry-wake", "ce08-missed-retry-wake"],
-        ["L4", "ce04-duplicate-commit-action", "ce08-missed-retry-wake"],
-        ["L5", "ce09-or-else-left-leak", "ce10-or-else-dependency-loss"],
-        ["L6", "ce03-failed-action-leak", "ce04-duplicate-commit-action"],
-        ["L7", "same-domain-nesting", "ce12-cross-domain-attempt"],
-        ["L8", "inert-action-data", "ce14-ambient-authority"],
-        ["L9", "bounded-serial-history", "ce13-nonserial-history"],
-        ["L10", "unsupported-progress", "ce15-evidence-upgrade"],
+        ["L1", "law-l1-observed", "ce02-conflict-write-leak"],
+        ["L2", "law-l2-observed", "ce06-blind-write-lost-update"],
+        ["L3", "law-l3-observed", "ce07-unrelated-retry-wake"],
+        ["L4", "law-l4-observed", "ce04-duplicate-commit-action"],
+        ["L5", "law-l5-observed", "ce10-or-else-dependency-loss"],
+        ["L6", "law-l6-observed", "ce03-failed-action-leak"],
+        ["L7", "law-l7-observed", "ce12-cross-domain-attempt"],
+        ["L8", "law-l8-observed", "ce14-ambient-authority"],
+        ["L9", "law-l9-observed", "ce13-nonserial-history"],
+        ["L10", "law-l10-observed", "ce15-evidence-upgrade"],
       ].map(([law, positive, negative]) => Object.freeze({ law, positive, negative })),
     ),
+    law_observations: lawObservations,
     observations: Object.freeze(observations),
     reference_trace: Object.freeze({
       initial_store: projectStore(base.initial),
@@ -430,20 +718,17 @@ export const buildStmLawReport = (runtimeLayer: RuntimeLayer): JsonObject => {
       original_description_rerun: base.firstAttempt.description === base.rerun.description,
       attempt_count: base.rerun.ordinal.toString(10),
       commit_actions: base.committed.commitActions,
-      nesting_atomic: nestingIsAtomic(base),
+      nesting_atomic: nestingAtomic,
       serial_orderings: historyResult.serialOrderings,
       bounded_schedules: historyResult.boundedSchedules,
+      scheduler_completeness: Object.freeze({
+        choice_rule: "enumerate each non-committed transaction at every handler step",
+        symmetry_reduction: false,
+        terminal_schedules: BigInt(historyResult.boundedSchedules.length).toString(10),
+        maximum_steps_derived: historyResult.maximumSteps.toString(10),
+      }),
     }),
-    unsupported_guarantees: Object.freeze([
-      "lock freedom",
-      "starvation freedom",
-      "bounded retries",
-      "fairness",
-      "termination",
-      "crash-safe exactly-once action delivery",
-      "general affine resource ownership",
-      "unbounded serializability proof",
-    ]),
+    unsupported_guarantees: unsupportedGuarantees,
   });
 };
 

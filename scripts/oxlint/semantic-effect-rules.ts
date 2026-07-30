@@ -10,10 +10,12 @@ const portableSemanticProgram = (filename: string): boolean => {
     "/src/tracer/",
     "/src/references/",
     "/src/actor/",
+    "/src/stm/",
     "src/project-model/",
     "src/tracer/",
     "src/references/",
     "src/actor/",
+    "src/stm/",
   ].some((fragment) => normalized.includes(fragment) || normalized.startsWith(fragment));
   const runtimeAdapter = [
     "/main-bun.ts",
@@ -160,7 +162,7 @@ export const ambientConsole = Rule.define({
       }),
       Visitor.on("Program:exit", () =>
         Effect.gen(function* () {
-          if (!(yield* Ref.get(importsEffect))) return;
+          if (!(yield* Ref.get(importsEffect)) && !portableSemanticProgram(ctx.filename)) return;
           for (const node of yield* Ref.get(ambientReferences)) {
             yield* report(
               ctx,

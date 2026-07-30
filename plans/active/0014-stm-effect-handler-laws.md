@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0014-stm-effect-handler-laws.md`](../../design-specs/0014-stm-effect-handler-laws.md).
 This mutable execution record cannot redefine that contract.
 
-Status: tracer implemented; exact acceptance green; full integration gate and independent review pending
+Status: independent review correction implemented; exact acceptance green; full integration gate and exact-head re-review pending
 
 Owner: main research and integration agent
 
@@ -111,9 +111,10 @@ decision.stm-library`; generated readiness must derive from that source edge.
   delivery was rejected from this tracer as an explicit non-goal.
 - 2026-07-30: reused the repository's portable Bun/Node entrypoint split,
   canonical JSON projection, exact decimal-string counter convention, and
-  oracle-first test naming. Rejected a generic scheduler/model-checker scaffold
-  as an unbounded side quest; the model enumerates only the declared two-record
-  serial orderings.
+  oracle-first test naming. Rejected a generic scheduler/model-checker
+  scaffold as an unbounded side quest; the corrected tracer exhaustively
+  enumerates every enabled transaction choice in its fixed two-transaction
+  handler-step state space.
 - 2026-07-30: implemented a closed pure transaction-description AST, immutable
   store snapshots, exact bigint versions, handler-owned journals, retry
   registration/wake-up, branch isolation, inert commit/abort values,
@@ -134,3 +135,38 @@ decision.stm-library`; generated readiness must derive from that source edge.
   integration loop: 338 Bun tests with 1,727 assertions, 68 transitional Python
   custody checks, commit-policy conformance, formatting, lint, TypeScript plus
   Effect diagnostics, Bun/Node probes, model validation, and generated views.
+- 2026-07-30: independent exact-head review rejected `661e0a7` because
+  structural attempt copies could settle, transaction instructions were only
+  shallow-frozen, `orElse` lost its selected branch value, two selected serial
+  orders were mislabeled bounded model checking, settlement was replayable,
+  STM was outside the portable lint domain, and positive law claims lacked
+  canonical evidence bindings.
+- 2026-07-30: correction introduced private WeakSet custody for domains, TVars,
+  descriptions, attempts, rerun rights, and suspensions. Attempt settlement is
+  affine: copied/forged attempts and repeated settlement return inert typed
+  rejection values. Every instruction/expression/action payload is
+  canonicalized and recursively frozen before custody, and `orElse` now
+  returns the selected branch value without a public optional binding.
+- 2026-07-30: replaced selected-history examples with complete enumeration of
+  all six terminal schedules produced by every enabled transaction choice in
+  the fixed handler-step model. Bounds are derived as two transactions, two
+  attempts per transaction, six handler steps, and six schedules. Every
+  terminal history is serially equivalent; the deliberately cyclic history
+  remains rejected. This is still bounded model evidence, never a general
+  runtime proof.
+- 2026-07-30: added one canonical observation for every L1–L10 positive claim,
+  extended the portable Effect/Oxlint and language-service domains to
+  `src/stm/`, and strengthened acceptance against ambient Bun/process,
+  clock, random, Web Crypto, fetch, console, and native Promise authority.
+  Exact acceptance passed with 20 STM tests/133 assertions, eight semantic lint
+  tests, genuine Bun/Node parity, neighboring gates, and canonical view checks.
+- 2026-07-30: correction mutation checks demonstrated that removing attempt
+  custody commits the forged `x=999` write and forged action, removing
+  instruction freezing leaves mutable rerun nodes, omitting one scheduler
+  choice destroys completeness, and removing affine settlement lets the same
+  attempt settle again. Each corresponding focused oracle failed; all
+  mutations were reverted.
+- 2026-07-30: the corrected full integration loop passed with 342 Bun
+  tests/1,760 assertions, 68 transitional custody checks, zero Effect
+  diagnostics, formatting, lint, typecheck, commit-policy conformance,
+  Bun/Node probes, model validation, and generated-view checking.

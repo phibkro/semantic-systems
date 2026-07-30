@@ -65,6 +65,23 @@ const importsOf = (source: string): ReadonlyArray<string> => {
   return imports;
 };
 
+const ambientAuthority = (source: string): string | undefined => {
+  const forbidden = [
+    ["Bun runtime global", /\bBun\s*\./],
+    ["process runtime global", /\bprocess\s*\./],
+    ["ambient clock", /\bDate\s*\.\s*now\s*\(|\bnew\s+Date\s*\(\s*\)/],
+    ["ambient random", /\bMath\s*\.\s*random\s*\(/],
+    [
+      "ambient crypto",
+      /\bcrypto\s*\.\s*(?:randomUUID|getRandomValues)\s*\(|\bglobalThis\s*\.\s*crypto\b/,
+    ],
+    ["ambient fetch", /\b(?:globalThis\s*\.\s*)?fetch\s*\(/],
+    ["ambient console", /\b(?:globalThis\s*\.\s*)?console\s*\./],
+    ["native Promise", /\b(?:new\s+)?Promise\s*[.(]/],
+  ] as const;
+  return forbidden.find(([, pattern]) => pattern.test(source))?.[0];
+};
+
 const portableClosure = (): Effect.Effect<ReadonlyArray<string>, AcceptanceFailure> =>
   Effect.gen(function* () {
     const pending = ["src/stm/model.ts", "src/stm/report.ts"];
@@ -81,9 +98,10 @@ const portableClosure = (): Effect.Effect<ReadonlyArray<string>, AcceptanceFailu
             message: `cannot inspect portable STM source ${repositoryPath}: ${String(cause)}`,
           }),
       });
-      if (/\b(?:Bun|process)\s*\./.test(source)) {
+      const authority = ambientAuthority(source);
+      if (authority !== undefined) {
         return yield* new AcceptanceFailure({
-          message: `portable STM closure reaches an ambient runtime global in ${repositoryPath}`,
+          message: `portable STM closure reaches ${authority} in ${repositoryPath}`,
         });
       }
       for (const specifier of importsOf(source)) {

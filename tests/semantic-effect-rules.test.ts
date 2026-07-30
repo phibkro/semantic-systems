@@ -17,12 +17,15 @@ const portableReferences = { filename: "/repo/src/references/verify.ts" };
 const referencesBunMain = { filename: "/repo/src/references/main-bun.ts" };
 const referencesBunToml = { filename: "/repo/src/references/toml-bun.ts" };
 const referencesCuratorHolder = { filename: "/repo/src/references/curator-holder.ts" };
+const portableStm = { filename: "/repo/src/stm/model.ts" };
+const stmBunMain = { filename: "/repo/src/stm/main-bun.ts" };
 
 const runAmbientConsole = (
   events: ReadonlyArray<readonly [visitor: string, node: unknown]>,
   referenceKind: "global" | "unresolved" | "shadowed" = "global",
+  filename = "/repo/unrelated.ts",
 ) => {
-  const { context, diagnostics } = Testing.createMockContext();
+  const { context, diagnostics } = Testing.createMockContext({ filename });
   Object.defineProperty(context.sourceCode, "isGlobalReference", {
     value: () => referenceKind === "global",
   });
@@ -136,6 +139,68 @@ describe("Semantic Systems Effect Oxlint rules", () => {
         tracerBunMain,
       ),
     );
+  });
+
+  test("STM implementation is a portable Effect lint domain with only explicit mains exempted", () => {
+    Testing.expectDiagnostics(
+      Testing.runRule(
+        portableRuntimeImports,
+        "ImportDeclaration",
+        Testing.importDecl("node:fs/promises"),
+        portableStm,
+      ),
+      [
+        {
+          message:
+            "Portable semantic code must request Effect services; provide Bun or Node layers only in main entrypoints",
+        },
+      ],
+    );
+    Testing.expectNoDiagnostics(
+      Testing.runRule(
+        portableRuntimeImports,
+        "ImportDeclaration",
+        Testing.importDecl("@effect/platform-bun"),
+        stmBunMain,
+      ),
+    );
+    Testing.expectDiagnostics(
+      Testing.runRule(
+        ambientNondeterminism,
+        "CallExpression",
+        Testing.callOfMember("Math", "random"),
+        portableStm,
+      ),
+      [
+        {
+          message: "Use Effect Clock, Random, or Crypto services instead of ambient nondeterminism",
+        },
+      ],
+    );
+    Testing.expectDiagnostics(
+      Testing.runRule(
+        effectRuntimeBoundary,
+        "CallExpression",
+        Testing.callOfMember("Effect", "runSync"),
+        portableStm,
+      ),
+      [
+        {
+          message:
+            "Keep Effect programs composable; execute them only in main-bun.ts or main-node.ts",
+        },
+      ],
+    );
+    expect(
+      runAmbientConsole(
+        [
+          ["Identifier", Testing.id("console")],
+          ["Program:exit", { type: "Program", body: [] }],
+        ],
+        "global",
+        portableStm.filename,
+      ),
+    ).toHaveLength(1);
   });
 
   test("reference custody is portable except for explicit runtime adapters", () => {
