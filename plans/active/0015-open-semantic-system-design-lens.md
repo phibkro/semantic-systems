@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0015-open-semantic-system-design-lens.md`](../../design-specs/0015-open-semantic-system-design-lens.md).
 This mutable execution record cannot redefine that contract.
 
-Status: third independent-review counterexamples corrected; exact-head re-review
+Status: fourth independent-review counterexamples corrected; exact-head re-review
 pending
 
 Owner: primary Semantic Systems lead
@@ -186,6 +186,29 @@ state, and unrelated project-model changes.
   tests/1,703 expectations, zero Effect diagnostics, and 68 transitional Python
   custody checks. Production range replay, clean commit custody, and re-review
   remain pending.
+- 2026-07-30: fourth independent review rejected exact head `913f88b`.
+  Parsing each MDAST HTML token as an independent fragment lost the browser's
+  context across inline sibling nodes. Template, script, self-closing raw-text,
+  native-hidden, and fallback elements could therefore lend non-rendered text
+  or a non-standalone marker structural force. The exact acceptance, full
+  integration, Node/Bun parser parity, production range, source positions,
+  pins, and licenses all passed independently; the failure was specifically
+  the validator's rendered-visibility model.
+- 2026-07-30: the fourth correction removes per-node HTML interpretation.
+  MDAST still supplies top-level structural headings and authenticated code
+  ranges; exact `micromark@4.0.2` (MIT, `micromark/micromark`) renders each
+  complete section as one CommonMark fragment, and Parse5 parses that complete
+  HTML fragment once. Fenced/indented code ranges are blanked before rendering
+  while raw visible HTML remains eligible. Static HTML visibility excludes
+  comments, raw/non-rendered and fallback containers, native `hidden`, closed
+  dialogs, and direct `display:none`/hidden visibility declarations. The
+  version marker is now one complete standalone top-level paragraph rather
+  than a text-node substring. Exact acceptance passed with 15 focused tests/66
+  expectations plus the unchanged 24 control-loop tests/250 expectations,
+  typecheck, type-aware lint, formatting, model validation, and eight generated
+  views. Full integration passed with 338 Bun tests/1,716 expectations, zero
+  Effect diagnostics, and 68 transitional Python custody checks. Clean
+  commit/range custody and re-review remain pending.
 
 ## Acceptance command
 

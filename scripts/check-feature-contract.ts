@@ -13,6 +13,7 @@ import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fromMarkdown } from "mdast-util-from-markdown";
 import type { Heading, Nodes, RootContent } from "mdast";
+import { micromark } from "micromark";
 import { parseFragment, type DefaultTreeAdapterTypes } from "parse5";
 
 const FEATURE_ID = /^[0-9]{4}-[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -206,45 +207,83 @@ const atxHeadingTitle = (content: string, heading: Heading): string | undefined 
   return (match[2] ?? "").replace(/[ \t]+#+[ \t]*$/, "").trim();
 };
 
-const NONVISIBLE_HTML_ELEMENTS = new Set(["script", "style", "template", "title"]);
+const NONVISIBLE_HTML_ELEMENTS = new Set([
+  "canvas",
+  "datalist",
+  "head",
+  "iframe",
+  "noembed",
+  "noframes",
+  "noscript",
+  "object",
+  "script",
+  "style",
+  "template",
+  "title",
+]);
 
-const visibleHtmlContent = (source: string): string => {
+const staticallyHidden = (node: DefaultTreeAdapterTypes.Element): boolean => {
+  if (NONVISIBLE_HTML_ELEMENTS.has(node.tagName)) return true;
+  if (node.attrs.some((attribute) => attribute.name === "hidden")) return true;
+  if (node.tagName === "dialog" && !node.attrs.some((attribute) => attribute.name === "open")) {
+    return true;
+  }
+  const style = node.attrs
+    .find((attribute) => attribute.name === "style")
+    ?.value.toLowerCase()
+    .replaceAll(/\s+/g, "");
+  return (
+    style !== undefined &&
+    /(?:^|;)(?:display:none|visibility:(?:hidden|collapse))(?:!important)?(?:;|$)/.test(style)
+  );
+};
+
+const renderedMarkdownContent = (source: string): string => {
   const textFrom = (node: DefaultTreeAdapterTypes.Node): string => {
     if ("value" in node) return node.value;
     if (node.nodeName === "#comment" || node.nodeName === "#documentType") return "";
-    if ("tagName" in node && NONVISIBLE_HTML_ELEMENTS.has(node.tagName)) return "";
+    if ("tagName" in node && staticallyHidden(node)) return "";
     if ("childNodes" in node) return node.childNodes.map((child) => textFrom(child)).join("\n");
     return "";
   };
 
-  return textFrom(parseFragment(source));
+  return textFrom(parseFragment(micromark(source, { allowDangerousHtml: true })));
 };
 
-const visibleDesignContent = (node: Nodes): string => {
-  if (node.type === "code") return "";
-  if (node.type === "html") return visibleHtmlContent(node.value);
-  if ("value" in node && typeof node.value === "string") return node.value;
-  if ((node.type === "image" || node.type === "imageReference") && typeof node.alt === "string") {
-    return node.alt;
+const codeRanges = (node: Nodes): ReadonlyArray<readonly [start: number, end: number]> => {
+  if (node.type === "code") {
+    const start = node.position?.start.offset;
+    const end = node.position?.end.offset;
+    return start === undefined || end === undefined ? [] : [[start, end]];
   }
   if ("children" in node) {
-    return node.children.map((child) => visibleDesignContent(child)).join("\n");
+    return node.children.flatMap((child) => codeRanges(child));
   }
-  return "";
+  return [];
+};
+
+const visibleDesignContent = (content: string, nodes: readonly RootContent[]): string => {
+  const first = nodes[0]?.position?.start.offset;
+  const end = nodes.at(-1)?.position?.end.offset;
+  if (first === undefined || end === undefined) return "";
+
+  const ranges = nodes.flatMap((node) => codeRanges(node)).sort(([left], [right]) => left - right);
+  let cursor = first;
+  let source = "";
+  for (const [hiddenStart, hiddenEnd] of ranges) {
+    source += content.slice(cursor, hiddenStart);
+    source += content.slice(hiddenStart, hiddenEnd).replace(/[^\r\n]/g, " ");
+    cursor = hiddenEnd;
+  }
+  source += content.slice(cursor, end);
+  return renderedMarkdownContent(source);
 };
 
 const markerValues = (content: string, children: readonly RootContent[]): string[] =>
   children.flatMap((node) => {
     if (node.type !== "paragraph") return [];
-    return node.children.flatMap((child) => {
-      if (child.type !== "text") return [];
-      return sourceForNode(content, child)
-        .split(/\r?\n/)
-        .flatMap((line) => {
-          const match = /^Design-Lens-Version:[ \t]*(.*?)[ \t]*$/.exec(line);
-          return match === null ? [] : [match[1] ?? ""];
-        });
-    });
+    const match = /^Design-Lens-Version:[ \t]*(.*?)[ \t]*$/.exec(sourceForNode(content, node));
+    return match === null ? [] : [match[1] ?? ""];
   });
 
 type StructuralHeading = {
@@ -309,10 +348,7 @@ export const validateDesignLensText = (content: string, path: string): void => {
     const sectionStart = heading.childIndex + 1;
     const next = levelThree.find((candidate) => candidate.childIndex > heading.childIndex);
     const sectionEnd = next?.childIndex ?? end;
-    const visible = children
-      .slice(sectionStart, sectionEnd)
-      .map((node) => visibleDesignContent(node))
-      .join("\n");
+    const visible = visibleDesignContent(content, children.slice(sectionStart, sectionEnd));
     if (isPlaceholderOnly(visible)) {
       throw new Error(`${path} design-lens subsection "${required}" is empty or placeholder-only`);
     }

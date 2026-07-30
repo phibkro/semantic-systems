@@ -91,7 +91,7 @@ describe("open semantic system design-lens shape", () => {
       rejection(
         valid.replace(
           `Design-Lens-Version: ${DESIGN_LENS_VERSION}`,
-          `Design-Lens-Version: ${DESIGN_LENS_VERSION}\nDesign-Lens-Version: ${DESIGN_LENS_VERSION}`,
+          `Design-Lens-Version: ${DESIGN_LENS_VERSION}\n\nDesign-Lens-Version: ${DESIGN_LENS_VERSION}`,
         ),
       ),
     ).toContain("found 2");
@@ -184,6 +184,17 @@ describe("open semantic system design-lens shape", () => {
     );
     expect(rejection(inlineComment)).toContain("exactly one Design-Lens-Version");
 
+    for (const hiddenMarker of [
+      `<template>Design-Lens-Version: ${DESIGN_LENS_VERSION}</template>`,
+      `prefix <script>\nDesign-Lens-Version: ${DESIGN_LENS_VERSION}\n</script>`,
+    ]) {
+      expect(
+        rejection(
+          completeLens().replace(`Design-Lens-Version: ${DESIGN_LENS_VERSION}`, hiddenMarker),
+        ),
+      ).toContain("exactly one Design-Lens-Version");
+    }
+
     const fenced = `# Design
 
 Design-Lens-Version: ${DESIGN_LENS_VERSION}
@@ -224,7 +235,7 @@ ${DESIGN_LENS_HEADINGS.map((heading) => `### ${heading}\n\nHidden account.`).joi
           `Design-Lens-Version:\n${DESIGN_LENS_VERSION}`,
         ),
       ),
-    ).toContain(`must be ${DESIGN_LENS_VERSION}`);
+    ).toContain("exactly one Design-Lens-Version");
     expect(
       rejection(
         valid.replace(
@@ -302,12 +313,29 @@ ${DESIGN_LENS_HEADINGS.map((heading) => `  ### ${heading}\n\n  Hidden account.`)
     for (const hiddenHtml of [
       "<div><!-- Concrete account. --></div>",
       "<script>Concrete account.</script>",
+      "<template>Concrete account.</template>",
+      "*<script>Concrete account.</script>*",
+      "<script/>Concrete account.",
+      "<div hidden>Concrete account.</div>",
+      "<span hidden>Concrete account.</span>",
+      "<iframe>Concrete account.</iframe>",
+      "<noembed>Concrete account.</noembed>",
+      "<noframes>Concrete account.</noframes>",
+      '<div style="display: none">Concrete account.</div>',
+      "<dialog>Concrete account.</dialog>",
     ]) {
       const lens = completeLens((heading) =>
         heading === DESIGN_LENS_HEADINGS[0] ? hiddenHtml : `Account for ${heading}.`,
       );
       expect(rejection(lens)).toContain("placeholder-only");
     }
+
+    const visiblePre = completeLens((heading) =>
+      heading === DESIGN_LENS_HEADINGS[0]
+        ? "<pre>Concrete account.</pre>"
+        : `Account for ${heading}.`,
+    );
+    expect(() => validateDesignLensText(visiblePre, "design-specs/9999-fixture.md")).not.toThrow();
   });
 
   test("reports static design-lens shape, never semantic correctness", () => {
