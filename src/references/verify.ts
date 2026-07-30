@@ -33,6 +33,20 @@ export interface CheckoutVerification {
   readonly reasons: ReadonlyArray<string>;
 }
 
+const isVisibleIndirectionReason = (reason: string): boolean =>
+  (reason.startsWith("tracked path ") &&
+    (reason.endsWith(" is an unmaterialized submodule gitlink") ||
+      reason.endsWith(" is a committed Git LFS pointer") ||
+      reason.endsWith(" is a Git LFS pointer, not hydrated content"))) ||
+  (reason.startsWith("license path ") &&
+    reason.endsWith(" is a Git LFS pointer, not real content"));
+
+/** Findings that may be published only as an explicitly incomplete checkout. */
+export const publicationBlockingReasons = (
+  verification: CheckoutVerification,
+): ReadonlyArray<string> =>
+  verification.reasons.filter((reason) => !isVisibleIndirectionReason(reason));
+
 type VerificationCapabilities =
   | ChildProcessSpawner.ChildProcessSpawner
   | Crypto.Crypto

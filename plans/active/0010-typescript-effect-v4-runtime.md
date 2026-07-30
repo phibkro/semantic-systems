@@ -19,13 +19,14 @@ Owner: main integration agent
   selected TypeScript, Unicorn, Import, and Promise rules. Effect-aware
   `@effect/tsgo` diagnostics and the local architecture plugin remain
   dependency-gated.
-- Remaining Python surface: reference custody's remote acquisition and
-  materialization; online/general `lock`, `materialize`, and the transitional
-  differential test module; plus transitional Nix/fast/integration wiring.
+- Remaining Python surface: reference custody's remote acquisition and remote
+  materialization; online/general `lock`, history-fallback `materialize`, and
+  the transitional differential test module; plus transitional
+  Nix/fast/integration wiring.
   Catalog/lock parsing, atomic lock writing, the interoperable curator guard,
   transactional offline locking from local siblings or managed object caches,
-  checkout verification, and both network-free status modes are now TypeScript
-  (see item 6 below).
+  atomic offline materialization, checkout verification, and both network-free
+  status modes are now TypeScript (see item 6 below).
   Project model, tracer, and governance tests are TypeScript.
 - External `.references/` checkouts are excluded from repository-source
   migration.
@@ -57,18 +58,20 @@ Other active feature worktrees and their owned files remain forbidden.
    parity and a final pinned Python oracle pass.**
 5. Recut the independent checker against the accepted TypeScript resolver.
 6. Implement reference custody with explicit Git/filesystem/lock services.
-   **Catalog/lock/offline-lock/full-status boundary complete**
+   **Catalog/lock/offline-lock/offline-materialize/full-status boundary
+   complete**
    (`src/references/`):
    `sources.toml` parsing/validation, `reference-lock-v1` parsing, canonical
    catalog digests, atomic lock writing, offline local-sibling and managed-cache
    Git observation, an interoperable kernel curator guard, all-or-nothing
-   offline lock publication, checkout verification, and both network-free
-   status modes now run on Effect v4 under Bun and Node. The
+   offline lock publication, offline atomic materialization, checkout
+   verification, and both network-free status modes now run on Effect v4 under
+   Bun and Node. The
    parsing/status/writer suite remains differential against the Python oracle;
    Git security boundaries use adversarial fixtures and deliberately exceed
-   Python where review exposed shared defects. Remote acquisition,
-   materialization, and the remaining `lock`/`materialize` CLI surface remain
-   Python and are the rest of this item.
+   Python where review exposed shared defects. Remote acquisition, remote and
+   history-fallback materialization, and the remaining online CLI surface
+   remain Python and are the rest of this item.
 7. Migrate development-control and policy tests to Bun. **Complete for
    development-control and reuse-first governance; custody tests remain with
    their owning implementation slice.**
@@ -446,3 +449,42 @@ accepted; no new Python implementation is permitted.
   All 94 focused custody tests, TypeScript, full Oxlint, Oxfmt, and diff
   hygiene pass. Broad and Nix gates remain deferred while host I/O pressure is
   elevated.
+- 2026-07-30: the independent static re-review of `709b7af` returned
+  `NEEDS_CHANGES`: nested loose, packed, and split-index symlinks could still
+  redirect Git outside managed checkout custody; the all-object inventory
+  scaled with unrelated history; and blobs above the LFS parse bound were not
+  fully integrity-checked. The correction recursively rejects stable links in
+  checkout and managed-cache object storage plus split-index administration,
+  scopes object verification to the committed tree, and recomputes selected
+  object integrity with bounded 64-OID `git fsck` batches. Only small blobs are
+  then read for bounded LFS parsing. Raw-Git positive controls prove loose
+  objects, pack files, and shared indexes remain usable through the injected
+  symlinks before hardened status rejects them. A same-size valid replacement
+  blob remains readable under the expected object path but fails the
+  recomputed-OID integrity gate.
+- 2026-07-30: ported offline `materialize` as the next substantive custody
+  tracer bullet. Catalog-to-lock binding and missing-lock failures occur
+  before curator or custody mutation. One supervised curator owns the whole
+  selected operation; each absent checkout is cloned without hardlinks into
+  a scoped sibling `.materialize-*` directory, checked out at the exact locked
+  commit detached with submodule recursion disabled, verified through the
+  shared full-status boundary, and atomically renamed into place. A valid
+  existing checkout is a no-op; a mismatch is never repaired, overwritten, or
+  deleted. Offline source selection prefers a self-contained origin-bound
+  managed cache containing the commit, then an origin/alias-bound declared
+  sibling. Remote and history-fallback materialization remain unimplemented.
+  The Python materializer, Git helpers, path helpers, and CLI were evaluated
+  and adapted; existing Effect FileSystem, Path, process, Git, Crypto, and
+  curator services were reused, so no dependency or runtime adapter was
+  added. Red CLI oracles first observed the missing command. Bun/Node
+  counterexamples now cover branch movement after lock, exact no-op reuse,
+  byte-stable catalog-drift and mismatch refusal, missing lock/commit,
+  cache-only materialization, managed-cache/source-root symlinks, visible LFS
+  publication, and a real promisor helper that raw Git can execute but the
+  offline materializer cannot. All 108 focused custody tests pass. A final
+  integration audit also made operational cache commit-probe failures fail
+  closed rather than look absent, and replaced substring-based visible
+  indirection classification with exact reason shapes; both new
+  counterexamples pass, bringing the suite to 110 tests. TypeScript, Oxlint,
+  Oxfmt, and diff hygiene pass. Broad and Nix gates remain deferred while host
+  I/O pressure is elevated.

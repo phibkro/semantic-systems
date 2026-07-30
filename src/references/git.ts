@@ -329,6 +329,89 @@ export const resolveCommitIfPresent = (
     }),
   );
 
+/** Offline existence probe for one exact commit object. */
+export const commitObjectExists = (
+  repository: string,
+  commit: string,
+): Effect.Effect<
+  boolean,
+  AcquisitionError,
+  ChildProcessSpawner.ChildProcessSpawner | GitEnvironment
+> =>
+  rejectOptionLike("commit", commit).pipe(
+    Effect.andThen(
+      runGit(["-C", repository, "cat-file", "-e", `${commit}^{commit}`], {
+        check: false,
+      }),
+    ),
+    Effect.flatMap((result) => {
+      if (result.exitCode === 0) return Effect.succeed(true);
+      if (
+        result.exitCode === 1 &&
+        result.stdout.length === 0 &&
+        result.stderr.trim().length === 0
+      ) {
+        return Effect.succeed(false);
+      }
+      return Effect.fail(
+        new AcquisitionError({
+          message:
+            `cannot probe exact commit object ${JSON.stringify(commit)} in ` +
+            `${JSON.stringify(repository)} (exit ${result.exitCode}): ${result.stderr.trim()}`,
+        }),
+      );
+    }),
+  );
+
+/** Clone only from an already-approved local repository without hardlinks. */
+export const cloneLocalRepository = (
+  sourceRepository: string,
+  destination: string,
+): Effect.Effect<
+  void,
+  AcquisitionError,
+  ChildProcessSpawner.ChildProcessSpawner | GitEnvironment
+> =>
+  requireAllowedLocation(sourceRepository, false).pipe(
+    Effect.andThen(rejectOptionLike("clone destination", destination)),
+    Effect.andThen(
+      runGit([
+        "clone",
+        "--quiet",
+        "--no-checkout",
+        "--no-hardlinks",
+        "--",
+        sourceRepository,
+        destination,
+      ]),
+    ),
+    Effect.asVoid,
+  );
+
+/** Populate an ordinary working tree at exactly one detached local commit. */
+export const checkoutDetached = (
+  repository: string,
+  commit: string,
+): Effect.Effect<
+  void,
+  AcquisitionError,
+  ChildProcessSpawner.ChildProcessSpawner | GitEnvironment
+> =>
+  rejectOptionLike("commit", commit).pipe(
+    Effect.andThen(
+      runGit([
+        "-C",
+        repository,
+        "checkout",
+        "--detach",
+        "--quiet",
+        "--no-recurse-submodules",
+        commit,
+      ]),
+    ),
+    Effect.asVoid,
+  );
+
 export const treeOfCommit = (repository: string, commit: string) =>
   rejectOptionLike("commit", commit).pipe(
     Effect.andThen(runGit(["-C", repository, "rev-parse", "--verify", `${commit}^{tree}`])),
@@ -677,70 +760,43 @@ export const inspectLocalBlobs = (
     }
     if (unique.size === 0) return { smallContents: new Map() };
     const ordered = [...unique.values()];
-    const checked = yield* runGit(
-      [
-        "-C",
-        repository,
-        "cat-file",
-        "--batch-check=%(objectname) %(objecttype) %(objectsize)",
-        "--batch-all-objects",
-        "--unordered",
-      ],
-      { check: false },
-    );
-    if (checked.exitCode !== 0) {
-      return yield* new AcquisitionError({
-        message: `cannot inspect committed blobs offline: ${checked.stderr.trim()}`,
-      });
-    }
-
-    const localObjects = new Map<string, { readonly objectType: string; readonly size: bigint }>();
-    for (const line of text(checked).split("\n")) {
-      if (line.length === 0) continue;
-      const fields = line.split(" ");
-      if (fields.length !== 3) {
-        return yield* new AcquisitionError({
-          message: `unexpected cat-file inventory record ${JSON.stringify(line)}`,
-        });
-      }
-      const [oid, objectType, rawSize] = fields as [string, string, string];
-      const size = yield* Effect.try({
-        try: () => BigInt(rawSize),
-        catch: (cause) =>
-          new AcquisitionError({
-            message: `invalid local object size ${JSON.stringify(rawSize)}`,
-            cause,
-          }),
-      });
-      localObjects.set(oid, { objectType, size });
-    }
-
-    const small: Array<LocalBlobRequest> = [];
     for (const request of ordered) {
-      const local = localObjects.get(request.oid);
-      if (local === undefined) {
+      if (request.size < 0n) {
         return yield* new AcquisitionError({
           message:
             `tracked path ${JSON.stringify(request.path)} committed blob ${request.oid} ` +
             "is unavailable offline",
         });
       }
-      if (local.objectType !== "blob" || (request.size >= 0n && local.size !== request.size)) {
+    }
+
+    const batchSize = 64;
+    for (let index = 0; index < ordered.length; index += batchSize) {
+      const batch = ordered.slice(index, index + batchSize);
+      const checked = yield* runGit(
+        [
+          "-C",
+          repository,
+          "fsck",
+          "--strict",
+          "--no-dangling",
+          "--no-reflogs",
+          "--no-progress",
+          ...batch.map(({ oid }) => oid),
+        ],
+        { check: false },
+      );
+      if (checked.exitCode !== 0) {
         return yield* new AcquisitionError({
           message:
-            `tracked path ${JSON.stringify(request.path)} committed blob metadata changed: ` +
-            `${JSON.stringify({
-              oid: request.oid,
-              objectType: local.objectType,
-              size: local.size.toString(),
-            })}`,
+            `committed blob integrity failed for tracked paths ` +
+            `${JSON.stringify(batch.map(({ path }) => path))}: ` +
+            `${checked.stderr.trim() || text(checked).trim()}`,
         });
-      }
-      if (local.size <= BigInt(smallBlobLimit)) {
-        small.push({ ...request, size: local.size });
       }
     }
 
+    const small = ordered.filter(({ size }) => size <= BigInt(smallBlobLimit));
     if (small.length === 0) return { smallContents: new Map() };
     const pairs = yield* Effect.forEach(
       small,

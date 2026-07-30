@@ -6,6 +6,7 @@ import { CatalogError } from "./errors.ts";
 import type { GitEnvironment } from "./git.ts";
 import { loadLock } from "./lockfile.ts";
 import { lockOfflineSources } from "./offline-lock.ts";
+import { materializeOfflineSources } from "./offline-materialize.ts";
 import { computeStatus, isStrictOk, orphanedLockReport, type StatusReport } from "./status.ts";
 import type { TomlParser } from "./toml.ts";
 
@@ -30,13 +31,21 @@ interface LockCommand {
   readonly all: boolean;
 }
 
-type Command = CatalogCheckCommand | LockCommand | StatusCommand;
+interface MaterializeCommand {
+  readonly root: string;
+  readonly name: "materialize";
+  readonly id: string | undefined;
+  readonly all: boolean;
+}
+
+type Command = CatalogCheckCommand | LockCommand | MaterializeCommand | StatusCommand;
 
 const usage =
   "usage: semrefs [--root PATH] catalog-check\n" +
   "       semrefs [--root PATH] lock <id>|--all --offline\n" +
+  "       semrefs [--root PATH] materialize <id>|--all --offline\n" +
   "       semrefs [--root PATH] status <id>|--all [--lock-only] [--json]\n" +
-  "(offline lock reads an existing managed object cache or a declared local_hint sibling)";
+  "(offline lock/materialize read an existing managed object cache or a declared local_hint sibling)";
 
 const parseCommand = (arguments_: ReadonlyArray<string>): Command | undefined => {
   let root = ".";
@@ -51,7 +60,7 @@ const parseCommand = (arguments_: ReadonlyArray<string>): Command | undefined =>
   if (name === "catalog-check") {
     return index === arguments_.length ? { root, name: "catalog-check" } : undefined;
   }
-  if (name !== "lock" && name !== "status") return undefined;
+  if (name !== "lock" && name !== "materialize" && name !== "status") return undefined;
 
   let id: string | undefined;
   let all = false;
@@ -70,6 +79,9 @@ const parseCommand = (arguments_: ReadonlyArray<string>): Command | undefined =>
   if (all === (id !== undefined)) return undefined;
   if (name === "lock") {
     return offline && !lockOnly && !json ? { root, name: "lock", id, all } : undefined;
+  }
+  if (name === "materialize") {
+    return offline && !lockOnly && !json ? { root, name: "materialize", id, all } : undefined;
   }
   if (offline) return undefined;
   return { root, name: "status", id, all, json, lockOnly };
@@ -116,9 +128,9 @@ const printReport = (report: StatusReport): Effect.Effect<void> =>
   });
 
 /**
- * Network-free catalog, offline lock, and strict status commands from design
- * spec 0004. Full status inspects a managed checkout through hardened Git and
- * portable filesystem services without mutating it.
+ * Network-free catalog, offline lock/materialize, and strict status commands
+ * from design spec 0004. Full status inspects a managed checkout through
+ * hardened Git and portable filesystem services without mutating it.
  */
 export const runSemrefs = (
   arguments_: ReadonlyArray<string>,
@@ -184,6 +196,30 @@ export const runSemrefs = (
         yield* Console.log(`${id}: locked at ${entry.commit}`);
       }
       return 0;
+    }
+
+    if (command.name === "materialize") {
+      let ids: ReadonlyArray<string>;
+      if (command.all) {
+        ids = [...catalog.sources.keys()].sort();
+      } else if (command.id !== undefined && catalog.sources.has(command.id)) {
+        ids = [command.id];
+      } else {
+        return yield* new CatalogError({
+          message:
+            command.id === undefined
+              ? "an explicit source id or --all is required"
+              : `unknown source id ${JSON.stringify(command.id)}`,
+        });
+      }
+      const result = yield* materializeOfflineSources(root, ids);
+      for (const { id, error } of result.failures) {
+        yield* Console.error(`${id}: materialize failed: ${error.message}`);
+      }
+      for (const [id, target] of result.materialized) {
+        yield* Console.log(`${id}: materialized at ${target}`);
+      }
+      return result.failures.length === 0 ? 0 : 1;
     }
 
     const lock = yield* loadLock(path.join(root, "references", "sources.lock.json"));

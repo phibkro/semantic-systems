@@ -170,6 +170,30 @@ const requireContained = (
     }
   });
 
+const requireNoLinksInDirectoryTree = (
+  root: string,
+  label: string,
+): Effect.Effect<void, AcquisitionError, FileSystem.FileSystem | Path.Path> =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const paths = yield* Path.Path;
+    const entries = yield* fs
+      .readDirectory(root)
+      .pipe(Effect.mapError((cause) => pathError(`cannot inspect ${label} ${root}`, cause)));
+    for (const name of entries) {
+      const child = paths.join(root, name);
+      yield* ensureNotLink(child, `${label} ${child} is an unsafe symlink`);
+      const info = yield* fs
+        .stat(child)
+        .pipe(Effect.mapError((cause) => pathError(`cannot inspect ${label} ${child}`, cause)));
+      if (info.type === "Directory") {
+        yield* requireNoLinksInDirectoryTree(child, label);
+      } else if (info.type !== "File") {
+        return yield* pathError(`${label} ${child} is not a regular file or directory`);
+      }
+    }
+  });
+
 interface WorktreeReadMessages {
   readonly symlink: string;
   readonly missing: string;
@@ -323,6 +347,41 @@ export const inspectManagedDirectory = (
     return yield* inspectDirectory(paths.join(sourceRoot, childName), "managed custody path");
   });
 
+/**
+ * Create only the path-safe source directory beneath an already-established
+ * custody root. The curator must own the surrounding mutation interval.
+ */
+export const ensureManagedSourceDirectory = (
+  referencesRoot: string,
+  sourceId: string,
+): Effect.Effect<string, AcquisitionError, FileSystem.FileSystem | Path.Path> =>
+  Effect.gen(function* () {
+    if (!isValidSourceId(sourceId)) {
+      return yield* pathError(`unsafe custody source id ${JSON.stringify(sourceId)}`);
+    }
+    const fs = yield* FileSystem.FileSystem;
+    const paths = yield* Path.Path;
+    const root = paths.resolve(referencesRoot);
+    if ((yield* inspectDirectory(root, "custody root")) === null) {
+      return yield* pathError(`custody root ${root} must exist while the curator is held`);
+    }
+    const sourceRoot = paths.join(root, sourceId);
+    if ((yield* inspectDirectory(sourceRoot, `custody source root for ${sourceId}`)) !== null) {
+      return sourceRoot;
+    }
+    yield* fs
+      .makeDirectory(sourceRoot)
+      .pipe(
+        Effect.mapError((cause) =>
+          pathError(`cannot create custody source root for ${JSON.stringify(sourceId)}`, cause),
+        ),
+      );
+    if ((yield* inspectDirectory(sourceRoot, `custody source root for ${sourceId}`)) === null) {
+      return yield* pathError(`custody source root for ${JSON.stringify(sourceId)} disappeared`);
+    }
+    return sourceRoot;
+  });
+
 export const inspectObjectCache = (referencesRoot: string, sourceId: string) =>
   inspectManagedDirectory(referencesRoot, sourceId, ".git-cache");
 
@@ -335,6 +394,7 @@ export const inspectCheckoutAdministration = (
   worktree: string,
 ): Effect.Effect<void, AcquisitionError, FileSystem.FileSystem | Path.Path> =>
   Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
     const paths = yield* Path.Path;
     const root = paths.resolve(worktree);
     const gitDirectory = paths.join(root, ".git");
@@ -381,4 +441,78 @@ export const inspectCheckoutAdministration = (
         );
       }
     }
+
+    const administrationNames = yield* fs
+      .readDirectory(gitDirectory)
+      .pipe(
+        Effect.mapError((cause) =>
+          pathError(`cannot inspect checkout Git administration ${gitDirectory}`, cause),
+        ),
+      );
+    for (const name of administrationNames) {
+      if (name.startsWith("sharedindex.")) {
+        yield* requireRegularFile(
+          paths.join(gitDirectory, name),
+          `checkout split-index administration file ${JSON.stringify(name)}`,
+        );
+      }
+    }
+
+    yield* requireNoLinksInDirectoryTree(objects, "checkout Git object storage");
+  });
+
+/** Validate the tool-owned bare/no-checkout repository used as an object cache. */
+export const inspectObjectCacheAdministration = (
+  repository: string,
+): Effect.Effect<void, AcquisitionError, FileSystem.FileSystem | Path.Path> =>
+  Effect.gen(function* () {
+    const paths = yield* Path.Path;
+    const root = paths.resolve(repository);
+    if ((yield* inspectDirectory(root, "managed object-cache administration")) === null) {
+      return yield* pathError(`managed object-cache administration ${root} is missing`);
+    }
+    const nestedGit = paths.join(root, ".git");
+    const gitDirectory =
+      (yield* inspectDirectory(nestedGit, "managed object-cache Git administration")) === null
+        ? root
+        : nestedGit;
+    if (gitDirectory !== root) {
+      yield* requireContained(root, gitDirectory, "managed object-cache Git administration");
+    }
+    const objects = paths.join(gitDirectory, "objects");
+    if ((yield* inspectDirectory(objects, "managed object-cache storage")) === null) {
+      return yield* pathError(`managed object-cache storage ${objects} is missing`);
+    }
+    yield* requireContained(gitDirectory, objects, "managed object-cache storage");
+    for (const name of ["HEAD", "config"]) {
+      yield* requireRegularFile(
+        paths.join(gitDirectory, name),
+        `managed object-cache administration file ${JSON.stringify(name)}`,
+      );
+    }
+    for (const name of ["packed-refs", "shallow"]) {
+      yield* requireOptionalRegularFile(
+        paths.join(gitDirectory, name),
+        `managed object-cache administration file ${JSON.stringify(name)}`,
+      );
+    }
+    for (const name of ["info", "pack"]) {
+      yield* requireOptionalDirectory(
+        paths.join(objects, name),
+        `managed object-cache directory ${JSON.stringify(name)}`,
+      );
+    }
+    for (const redirected of [
+      paths.join(gitDirectory, "commondir"),
+      paths.join(gitDirectory, "config.worktree"),
+      paths.join(objects, "info", "alternates"),
+      paths.join(objects, "info", "http-alternates"),
+    ]) {
+      if (yield* entryExistsNoFollow(redirected)) {
+        return yield* pathError(
+          `managed object-cache administration declares unsupported redirection ${redirected}`,
+        );
+      }
+    }
+    yield* requireNoLinksInDirectoryTree(objects, "managed object-cache storage");
   });
