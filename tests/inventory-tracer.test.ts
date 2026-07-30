@@ -16,6 +16,7 @@ import {
   evidenceToJson,
   parseEvidenceResult,
   producerDiagnosticToJson,
+  type CaseResult,
   type EvidenceResult,
   type ProducerDiagnostic,
   type ProducerOutcome,
@@ -1877,18 +1878,22 @@ describe("evidence-production boundary and resolver packet consumption", () => {
   const fixtureEvidence = async (
     realizationIdentity: string,
     obligation = "obligation.inventory.conformance",
+    payload: {
+      readonly producer?: JsonObject;
+      readonly caseResults?: ReadonlyArray<CaseResult>;
+    } = {},
   ): Promise<EvidenceResult> => {
     const withoutIdentity: Omit<EvidenceResult, "identity"> = {
       artifactKind: ARTIFACT_KIND_EVIDENCE_RESULT,
       schemaVersion: EVIDENCE_RESULT_SCHEMA_VERSION,
       category: "example_test",
-      producer: { id: "producer.test", version: "0" },
+      producer: payload.producer ?? { id: "producer.test", version: "0" },
       recipeIdentity: "sha256:fixture-recipe",
       theoryIdentity: "sha256:fixture-theory",
       realizationIdentity,
       obligation,
       assumptions: [],
-      caseResults: [{ caseId: "case-a", passed: true, detail: null }],
+      caseResults: payload.caseResults ?? [{ caseId: "case-a", passed: true, detail: null }],
     };
     const identity = await runBun(contentIdentity(evidenceResultIdentityPayload(withoutIdentity)));
     return { identity, ...withoutIdentity };
@@ -2309,6 +2314,103 @@ describe("evidence-production boundary and resolver packet consumption", () => {
     expect(realizationAssumptions.length).toBe(2);
 
     expect(resolutionClaimToJson(claim)).toEqual(before);
+  });
+
+  test("own __proto__ keys in producer metadata and failure detail survive the deep copy as data, without polluting a prototype", async () => {
+    // `JSON.parse` produces `__proto__` as an own enumerable *data* property —
+    // the shape any authored recipe or adapter payload can legitimately carry.
+    // Copying such an object with `copy[key] = value` instead invokes
+    // `Object.prototype`'s legacy `__proto__` setter, which drops the key and
+    // retargets the copy's prototype at the payload.
+    const producer = JSON.parse(
+      '{"id":"producer.test","version":"0","__proto__":{"polluted":"yes"}}',
+    ) as JsonObject;
+    const detail = JSON.parse(
+      '{"__proto__":{"detailPolluted":"yes"},"message":"failure"}',
+    ) as JsonObject;
+    expect(Object.keys(producer)).toEqual(["id", "version", "__proto__"]);
+    expect(Object.keys(detail)).toEqual(["__proto__", "message"]);
+
+    const evidence = await fixtureEvidence(
+      "sha256:fixture-realization-z",
+      "obligation.inventory.conformance",
+      { producer, caseResults: [{ caseId: "case-a", passed: false, detail }] },
+    );
+    const claim = await runCrypto(
+      buildResolutionClaim({
+        theoryId: "theory.fixture",
+        theoryIdentity: "sha256:fixture-theory",
+        requiredObligation: "obligation.inventory.conformance",
+        policy: { id: "policy.fixture" },
+        candidates: [
+          {
+            realizationId: "realization.z",
+            realizationIdentity: "sha256:fixture-realization-z",
+            targetsTheory: true,
+            realizationAssumptions: [],
+            evidence,
+            producerDiagnostic: null,
+            eligible: false,
+            reasonCodes: ["conformance_failed"],
+          },
+        ],
+        status: "rejected",
+        selectedRealizationId: null,
+      }),
+    );
+    const emitted = resolutionClaimToJson(claim);
+    const emittedEvidence = (emitted.candidates as ReadonlyArray<JsonObject>)[0]!
+      .evidence as JsonObject;
+    const emittedProducer = emittedEvidence.producer as JsonObject;
+    const emittedDetail = (emittedEvidence.case_results as ReadonlyArray<JsonObject>)[0]!
+      .detail as JsonObject;
+
+    const ownDataValue = (object: object, key: string): unknown => {
+      const descriptor = Object.getOwnPropertyDescriptor(object, key);
+      expect(descriptor, `${key} own descriptor`).toBeDefined();
+      expect("value" in descriptor!, `${key} is a data property`).toBeTrue();
+      return descriptor!.value;
+    };
+    for (const [label, object, source] of [
+      ["producer", emittedProducer, producer],
+      ["detail", emittedDetail, detail],
+    ] as const) {
+      // The key survived as an ordinary own data property...
+      expect(Object.keys(object), label).toEqual(Object.keys(source));
+      // ...its nested value survived with it...
+      expect(ownDataValue(object, "__proto__"), label).toEqual(
+        Object.getOwnPropertyDescriptor(source, "__proto__")!.value,
+      );
+      // ...the prototype is still the ordinary one, carrying nothing...
+      expect(Object.getPrototypeOf(object), label).toBe(Object.prototype);
+      // ...and emission is lossless, key order included.
+      expect(JSON.stringify(object), label).toBe(JSON.stringify(source));
+    }
+    expect((emittedProducer as Record<string, unknown>).polluted).toBeUndefined();
+    expect((emittedDetail as Record<string, unknown>).detailPolluted).toBeUndefined();
+
+    // The identity a dropped key would have invalidated: the emitted evidence
+    // reparses, and its recomputed identity still equals what is stored.
+    const reparsed = await runCrypto(parseEvidenceResult(emittedEvidence));
+    expect(reparsed.identity).toBe(evidence.identity);
+    expect(JSON.stringify(reparsed.producer)).toBe(JSON.stringify(producer));
+
+    // Deep freeze still reaches through the `__proto__` payload...
+    expect(() => Object.assign(emittedProducer, { id: "forged" })).toThrow(TypeError);
+    expect(() =>
+      Object.assign(ownDataValue(emittedProducer, "__proto__") as object, { polluted: "no" }),
+    ).toThrow(TypeError);
+    expect(() =>
+      Object.assign(ownDataValue(emittedDetail, "__proto__") as object, { detailPolluted: "no" }),
+    ).toThrow(TypeError);
+
+    // ...and the claim still aliases none of the caller's payloads.
+    (producer as Record<string, unknown>).version = "mutated";
+    (Object.getOwnPropertyDescriptor(detail, "__proto__")!.value as Record<string, unknown>).late =
+      true;
+    expect(resolutionClaimToJson(claim)).toEqual(emitted);
+    expect((emittedProducer as Record<string, unknown>).version).toBe("0");
+    expect(ownDataValue(emittedDetail, "__proto__")).toEqual({ detailPolluted: "yes" });
   });
 
   test("resolution-claim.ts's transitive relative-import closure never reaches production, execution, or I/O modules", async () => {

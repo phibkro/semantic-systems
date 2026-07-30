@@ -175,12 +175,26 @@ const frozen = <T extends object>(value: T): T => {
  * JSON documents by contract — they have already round-tripped through
  * canonical JSON to produce the evidence identity — so they are acyclic and
  * need no cycle guard.
+ *
+ * `Object.fromEntries` is load-bearing here, not stylistic. It *defines* each
+ * key as a fresh own data property, whereas `copy[key] = item` would *assign*
+ * it — and for the own `__proto__` key that `JSON.parse` legitimately
+ * produces, assignment invokes `Object.prototype`'s legacy `__proto__` setter
+ * instead of creating a property. That silently drops the key from the emitted
+ * artifact and retargets the copy's prototype at the payload's own content, so
+ * the stored evidence identity would no longer match what is emitted.
+ * `Object.defineProperty` with an explicit data descriptor is equally correct;
+ * this form is preferred because `canonical.ts` already rebuilds a JSON object
+ * exactly this way for the identity hash, so the copy and the hash cannot
+ * disagree about which keys exist. Verified against Bun 1.3.13 in the
+ * `__proto__` regression below.
  */
-const frozenJsonObject = (value: JsonObject): JsonObject => {
-  const copy: Record<string, JsonValue> = {};
-  for (const [key, item] of Object.entries(value)) copy[key] = frozenJsonValue(item);
-  return frozen(copy);
-};
+const frozenJsonObject = (value: JsonObject): JsonObject =>
+  frozen(
+    Object.fromEntries(
+      Object.entries(value).map(([key, item]): [string, JsonValue] => [key, frozenJsonValue(item)]),
+    ),
+  );
 
 const frozenJsonValue = (value: JsonValue): JsonValue => {
   if (Array.isArray(value)) return frozen(value.map(frozenJsonValue));
