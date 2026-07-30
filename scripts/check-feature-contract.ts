@@ -162,10 +162,11 @@ const visibleSectionContent = (content: string): string =>
     .replace(/^```[^\n]*$/gm, "")
     .trim();
 
-const withoutHtmlComments = (content: string): string =>
-  content.replace(/<!--[\s\S]*?(?:-->|$)/g, "");
-
 const designStructuralText = (content: string): string => {
+  // This is deliberately a bounded structural scanner, not a Markdown renderer:
+  // only fenced blocks and HTML comments can hide contract markers. Follow the
+  // CommonMark fence constraints that matter here so prose samples cannot
+  // accidentally create or consume a design-lens boundary.
   const visible: Array<string> = [];
   let fence:
     | {
@@ -173,28 +174,61 @@ const designStructuralText = (content: string): string => {
         readonly length: number;
       }
     | undefined;
+  let inHtmlComment = false;
 
-  for (const line of withoutHtmlComments(content).split("\n")) {
-    if (fence === undefined) {
-      const opening = /^ {0,3}(`{3,}|~{3,})/.exec(line);
-      if (opening !== null) {
-        const run = opening[1]!;
-        fence = {
-          marker: run[0] as "`" | "~",
-          length: run.length,
-        };
-        visible.push("");
-        continue;
+  for (const rawLine of content.split("\n")) {
+    const line = rawLine.endsWith("\r") ? rawLine.slice(0, -1) : rawLine;
+
+    if (fence !== undefined) {
+      const closing = new RegExp(`^ {0,3}\\${fence.marker}{${fence.length},}[\\t ]*$`);
+      if (closing.test(line)) {
+        fence = undefined;
       }
-      visible.push(line);
+      visible.push("");
       continue;
     }
 
-    const closing = new RegExp(`^ {0,3}\\${fence.marker}{${fence.length},}\\s*$`);
-    if (closing.test(line)) {
-      fence = undefined;
+    if (!inHtmlComment) {
+      const opening = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+      if (opening !== null) {
+        const run = opening[1]!;
+        const rest = opening[2]!;
+        if (run[0] === "~" || !rest.includes("`")) {
+          fence = {
+            marker: run[0] as "`" | "~",
+            length: run.length,
+          };
+          visible.push("");
+          continue;
+        }
+      }
     }
-    visible.push("");
+
+    let remainder = line;
+    let structural = "";
+    while (remainder.length > 0) {
+      if (inHtmlComment) {
+        const end = remainder.indexOf("-->");
+        if (end === -1) {
+          remainder = "";
+          break;
+        }
+        inHtmlComment = false;
+        remainder = remainder.slice(end + 3);
+        continue;
+      }
+
+      const start = remainder.indexOf("<!--");
+      if (start === -1) {
+        structural += remainder;
+        remainder = "";
+        break;
+      }
+      structural += remainder.slice(0, start);
+      inHtmlComment = true;
+      remainder = remainder.slice(start + 4);
+    }
+    visible.push(structural);
   }
 
   return visible.join("\n");
@@ -206,6 +240,8 @@ const PLACEHOLDER_WORDS = new Set([
   "placeholder",
   "later",
   "pending",
+  "coming",
+  "soon",
   "fill",
   "me",
   "explain",
@@ -225,14 +261,31 @@ const isPlaceholderOnly = (content: string): boolean => {
     .replace(/^[\s>*+-]+/gm, "")
     .split(/[\s`_*[\](){}:;,.!?-]+/)
     .filter((word) => word.length > 0);
-  return words.every((word) => PLACEHOLDER_WORDS.has(word));
+  return words.every((word) => PLACEHOLDER_WORDS.has(word) || /^[0-9]+$/.test(word));
 };
+
+type StructuralHeading = {
+  readonly level: number;
+  readonly title: string;
+  readonly line: number;
+};
+
+const structuralHeadings = (lines: readonly string[]): StructuralHeading[] =>
+  lines.flatMap((line, index) => {
+    const match = /^ {0,3}(#{1,6})(?:[ \t]+(.*)|[ \t]*)$/.exec(line);
+    if (match === null) return [];
+    const rawTitle = match[2] ?? "";
+    const title = rawTitle.replace(/[ \t]+#+[ \t]*$/, "").trim();
+    return [{ level: match[1]!.length, title, line: index }];
+  });
 
 export const validateDesignLensText = (content: string, path: string): void => {
   const structure = designStructuralText(content);
-  const markers = [...structure.matchAll(/^Design-Lens-Version:\s*(.*?)\s*$/gm)].map(
-    (match) => match[1] ?? "",
-  );
+  const lines = structure.split("\n");
+  const markers = lines.flatMap((line) => {
+    const match = /^Design-Lens-Version:[ \t]*(.*?)[ \t]*$/.exec(line);
+    return match === null ? [] : [match[1] ?? ""];
+  });
   if (markers.length !== 1) {
     throw new Error(
       `${path} design-lens shape requires exactly one Design-Lens-Version marker; found ${markers.length}`,
@@ -244,9 +297,10 @@ export const validateDesignLensText = (content: string, path: string): void => {
     );
   }
 
-  const levelTwo = [...structure.matchAll(/^##\s+(.+?)\s*$/gm)];
+  const headings = structuralHeadings(lines);
+  const levelTwo = headings.filter((heading) => heading.level === 2);
   const lensHeadings = levelTwo.filter(
-    (heading) => heading[1] === "Open semantic system design lens",
+    (heading) => heading.title === "Open semantic system design lens",
   );
   if (lensHeadings.length !== 1) {
     throw new Error(
@@ -254,24 +308,27 @@ export const validateDesignLensText = (content: string, path: string): void => {
     );
   }
   const lensHeading = lensHeadings[0]!;
-  const start = (lensHeading.index ?? 0) + lensHeading[0].length;
-  const nextLevelTwo = levelTwo.find((candidate) => (candidate.index ?? 0) > start);
-  const end = nextLevelTwo?.index ?? structure.length;
-  const lens = structure.slice(start, end);
-  const levelThree = [...lens.matchAll(/^###\s+(.+?)\s*$/gm)];
+  const start = lensHeading.line + 1;
+  const nextSectionBoundary = headings.find(
+    (candidate) => candidate.line > lensHeading.line && candidate.level <= 2,
+  );
+  const end = nextSectionBoundary?.line ?? lines.length;
+  const levelThree = headings.filter(
+    (heading) => heading.level === 3 && heading.line >= start && heading.line < end,
+  );
 
   for (const required of DESIGN_LENS_HEADINGS) {
-    const matches = levelThree.filter((heading) => heading[1] === required);
+    const matches = levelThree.filter((heading) => heading.title === required);
     if (matches.length !== 1) {
       throw new Error(
         `${path} design-lens subsection "${required}" must appear exactly once; found ${matches.length}`,
       );
     }
     const heading = matches[0]!;
-    const sectionStart = (heading.index ?? 0) + heading[0].length;
-    const next = levelThree.find((candidate) => (candidate.index ?? 0) > sectionStart);
-    const sectionEnd = next?.index ?? lens.length;
-    if (isPlaceholderOnly(lens.slice(sectionStart, sectionEnd))) {
+    const sectionStart = heading.line + 1;
+    const next = levelThree.find((candidate) => candidate.line > heading.line);
+    const sectionEnd = next?.line ?? end;
+    if (isPlaceholderOnly(lines.slice(sectionStart, sectionEnd).join("\n"))) {
       throw new Error(`${path} design-lens subsection "${required}" is empty or placeholder-only`);
     }
   }

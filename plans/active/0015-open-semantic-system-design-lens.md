@@ -4,8 +4,8 @@ Canonical frozen contract:
 [`design-specs/0015-open-semantic-system-design-lens.md`](../../design-specs/0015-open-semantic-system-design-lens.md).
 This mutable execution record cannot redefine that contract.
 
-Status: enforcement-ladder and parser-hardening refinement green; independent
-review pending
+Status: independent-review counterexamples corrected; exact-head re-review
+pending
 
 Owner: primary Semantic Systems lead
 
@@ -113,6 +113,27 @@ state, and unrelated project-model changes.
   tests/250 expectations. Full integration passed with 332 Bun tests/1,683
   expectations, zero Effect diagnostics, and 68 transitional Python custody
   checks. Independent exact-head review remains pending.
+- 2026-07-30: independent review rejected exact head `513bd85` because an
+  unchanged template and obvious prose placeholders passed, `\s` let structural
+  markers span lines, and the fence/comment scanner disagreed with CommonMark
+  on fenced comments, backticks in info strings, indentation, and closing
+  hashes. Ten falsifiers produced six false accepts and four false rejects.
+- 2026-07-30: searched the established dependency graph for CommonMark,
+  micromark, Remark, markdown-it, and Marked before editing; none is installed.
+  Reused the existing pure validator and implemented only its bounded
+  contract-shape grammar instead of introducing a renderer dependency.
+  Template instructions are now HTML comments, markers are same-line tokens,
+  structural sections use parsed line/heading records, fences authenticate
+  before comments, and obvious placeholder tokens remain bounded rather than
+  inferring prose meaning. The reviewer falsifiers and a higher-level section
+  boundary are executable tests.
+- 2026-07-30: corrected exact acceptance passed with 12 dedicated lens tests/43
+  expectations and 24 control-loop tests/250 expectations, plus typecheck,
+  type-aware lint, formatting, project-model validation, and generated-view
+  equality. This remains implementation evidence pending a clean committed
+  head and independent re-review. Full integration replay also passed with 335
+  Bun tests/1,693 expectations, zero Effect diagnostics, and 68 transitional
+  Python custody checks.
 
 ## Acceptance command
 
