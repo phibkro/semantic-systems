@@ -43,11 +43,13 @@ also trusts acceptance-critical producer fields.
 - A certificate can become a disguised producer assertion unless the checker
   derives every acceptance-critical field from independently available inputs.
 - The corrected bounded TypeScript resolving experiment compared all three
-  prescribed recuts. Honest checker/production adjudication ratios were 282.7%
-  for the declarative table, 244.8% for the certificate, and 290.3% for the
-  structural/semantic recut. All rejected the fully re-derived rebound through
-  canonical-model disagreement. The certificate accepted refreshed
-  reason-set, selected-assumption, and eligibility lies. See
+  prescribed recuts. Honest checker/production adjudication ratios, including
+  all validity-affecting structural and identity regions, were 406.2% for the
+  declarative table, 449.3% for the certificate, and 429.2% for the
+  structural/semantic recut. All rejected four producer-rederived stale
+  authored-identity probes and the fully re-derived rebound through
+  canonical-model disagreement. The certificate accepted refreshed reason-set,
+  selected-assumption, and eligibility lies. See
   `research/independent-checker-recut-experiment.md`.
 
 ## Dependent work

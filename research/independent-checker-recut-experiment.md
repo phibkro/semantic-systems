@@ -7,7 +7,7 @@ Contract: `design-specs/0003-independent-resolution-checker.md`
 Uncertainty: `uncertainties/0004-independent-checker-recut.md`
 
 Corrected source inspected read-only:
-`3b65bc76eb8514376df90ea3534f1763c535c37d`
+`2d9935159bd264620f677ca9955d19dadddd1b37`
 
 Rejected prior implementation: `a373ae955bae3b986ef028571cc14b79fc19f4ae`
 
@@ -31,10 +31,17 @@ The first lab also:
 - credited stale certificate digests as semantic mutation rejection; and
 - used a tautological arithmetic assertion as its symmetry oracle.
 
-The corrected experiment includes the existing correlated canonical evidence,
-reissues certificates after producer-controlled semantic changes, separates a
-digest-only control, and checks unique non-overlapping regions against named
-frozen responsibilities.
+A second exact-head review then found that the first correction still trusted
+stored authored theory, realization, recipe, and policy identities while
+claiming complete responsibility coverage. It also excluded
+validity-determining structural decoding from the checker numerator.
+
+The final corrected experiment includes the existing correlated canonical
+evidence, reissues certificates after producer-controlled semantic changes,
+recomputes all four authored identity classes, separates a digest-only control,
+derives responsibility coverage from executable witnesses, and independently
+discovers every validity-affecting region that the checker numerator must
+contain.
 
 `ObservationCustody` may be a future authority extension. It is not a
 prerequisite for design spec 0003.
@@ -59,9 +66,9 @@ the lab contains no capability boundary.
 
 | Option | Production | Checker | Ratio | Semantic mutations | Responsibilities | Rebound | 70% gate |
 |---|---:|---:|---:|---:|---:|---|---|
-| Declarative rule table | 81 | 229 | 282.7% | 21/21 rejected | 7/7 | rejected | fail |
-| Minimal certificate | 67 | 164 | 244.8% | 18/21 rejected | 5/7 | rejected | fail |
-| Structural/semantic recut | 72 | 209 | 290.3% | 21/21 rejected | 7/7 | rejected | fail |
+| Declarative rule table | 81 | 329 | 406.2% | 25/25 rejected | 7/7 | rejected | fail |
+| Minimal certificate | 67 | 301 | 449.3% | 22/25 rejected | 5/7 | rejected | fail |
+| Structural/semantic recut | 72 | 309 | 429.2% | 25/25 rejected | 7/7 | rejected | fail |
 
 Counts are nonblank, noncomment physical lines inside explicit marked regions.
 Production denominators include policy decisions, terminal selection, exact
@@ -69,14 +76,21 @@ selected identity, and assumption projection. No serializer, reporter, model
 adapter, fixture, test, measurement code, or structural decoder enlarges a
 denominator.
 
-Checker numerators include every implemented checker-side responsibility:
-semantic comparison, exact packet binding, canonical evidence agreement,
-candidate coverage, terminal checks, and selected identity/assumption checks.
-Structural decoding and explanations are reported separately, not hidden in a
-production denominator.
+Checker numerators include every validity-affecting checker-side region:
+structural decoding, exact packet and authored-identity recomputation,
+canonical evidence agreement, candidate coverage, semantic comparison,
+terminal checks, and selected identity/assumption checks. Explanations are
+reported separately because checker acceptance does not call them.
+
+The measurement oracle discovers marked validity regions through each
+checker's dependency closure and compares that set with the numerator. It
+finds eight discovered and eight included regions for every option, with no
+missing, extraneous, duplicate, overlapping, or double-counted regions. Its
+negative regression removes one packet-decoding region and detects the exact
+omission.
 
 The rule table has an additional 19-line correlated semantic contract. Even
-counting it symmetrically gives `(229 + 19) / (81 + 19) = 248%`; the size gate
+counting it symmetrically gives `(329 + 19) / (81 + 19) = 348%`; the size gate
 still fails.
 
 ## Corrected canonical rebound
@@ -105,7 +119,7 @@ That limitation is already explicit in frozen spec 0003.
 
 ## Mutation classification
 
-The corrected 21-case semantic corpus refreshes packet identities and
+The corrected 25-case semantic corpus refreshes packet identities and
 certificate bindings after producer-controlled changes. A separate control
 changes only the certificate digest and is classified as
 `digest_only_rejection`; it is excluded from the semantic score.
@@ -120,6 +134,8 @@ including:
 - policy and canonical-model drift;
 - foreign packets, wrong obligations, unsupported ambiguity, and duplicate
   authored candidates;
+- producer-rederived theory, realization, recipe, and policy content with stale
+  authored identities;
 - a reissued producer eligibility lie; and
 - the fully re-derived all-passing rebound.
 
@@ -129,15 +145,17 @@ The certificate accepts three refreshed producer lies:
 - an omitted selected assumption; and
 - a self-consistent eligibility manipulation.
 
-Its other 18 rejections contain independently recomputed semantic or canonical
+Its other 22 rejections contain independently recomputed semantic or canonical
 violations, rather than only stale-digest failures. The certificate therefore
 remains disqualified both by trusted acceptance-critical fields and by size.
 
 ## Responsibility and closure checks
 
-Every counted region must have one ordered start/end pair, name at least one
-frozen responsibility, and not overlap another region in the same numerator
-or denominator. The seven responsibilities are:
+Every counted region must have one ordered start/end pair and not overlap
+another region in the same numerator or denominator. Region labels describe
+ownership but do not earn coverage. Coverage comes from executable semantic
+mutations that must report the expected independently recomputed violation.
+The seven responsibilities are:
 
 1. exact artifact bindings;
 2. complete unique candidate coverage;
@@ -147,9 +165,10 @@ or denominator. The seven responsibilities are:
 6. selected identity and assumption projection; and
 7. canonical-model agreement.
 
-Rule table and recut cover 7/7. The certificate covers 5/7 because it trusts
-eligibility/reasons and selected assumptions. A hard assertion prevents it
-from being reported responsibility-complete.
+Rule table and recut cover 7/7 through executable witnesses. The certificate
+covers 5/7 because refreshed reason, selected-assumption, and self-consistent
+eligibility lies remain accepted. A hard assertion prevents it from being
+reported responsibility-complete.
 
 The deterministic dependency scanner follows every current relative import,
 including type-only imports. Manual review confirmed that no checker closure
@@ -169,7 +188,7 @@ The rule-table and recut options satisfy the corrected mutation,
 responsibility, and capability gates but independently fail the 70% size gate.
 The certificate additionally trusts acceptance-critical producer fields.
 Option 3 is the smallest responsibility-complete checker surface, but it is
-still 290.3% of its production adjudication surface.
+still 429.2% of its production adjudication surface.
 
 No result establishes CLM-0002. The next design work must address the honest
 size asymmetry or explicitly recut the checked claim through a reviewed spec
@@ -202,7 +221,8 @@ bun test /tmp/semantic-checker-recut-lab
 bun /tmp/semantic-checker-recut-lab/matrix.ts
 ```
 
-Observed: 15 tests passed, 0 failed, 150 assertions. The matrix reproduced the
+Observed: 17 tests passed, 0 failed, 233 assertions. The matrix reproduced the
 exact ratios, mutation classifications, responsibility coverage, canonical
-rebound violation, and clean forbidden closures above. No Pagu, network, Nix,
-hydration, broad tests, fuzzing, or model checking was used.
+rebound violation, complete numerator composition, and clean forbidden
+closures above. No Pagu, network, Nix, hydration, broad tests, fuzzing, or
+model checking was used.

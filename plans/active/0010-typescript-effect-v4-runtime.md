@@ -557,3 +557,11 @@ accepted; no new Python implementation is permitted.
   diff hygiene pass. The custody corpus is now 122 tests. Broad and Nix gates
   remain deferred under severe host I/O PSI despite a nearly idle direct NVMe
   sample and zero Btrfs device errors.
+- 2026-07-30: finalized uncertainty 0004's corrected disposable checker
+  experiment after a second exact-head review exposed trusted authored
+  identities and omitted validity-decoding lines. Seventeen focused tests and
+  233 assertions now cover 25 refreshed semantic mutations, four
+  producer-rederived stale authored identities, executable responsibility
+  witnesses, and an independent numerator-composition oracle. Honest ratios
+  are 406.2%, 449.3%, and 429.2%; no option is selected and no result
+  establishes CLM-0002.

@@ -39,14 +39,15 @@ and kill criteria are frozen in design spec 0003.
   establishes CLM-0002.
 - The uncertainty-0004 resolving experiment is complete. Three disposable
   TypeScript recuts produced honest checker/production adjudication ratios of
-  282.7% (declarative rule table), 244.8% (minimal certificate), and 290.3%
-  (structural/semantic recut). All checker closures avoided forbidden
-  capabilities and all options rejected the strongest fully re-derived rebound
-  through the canonical broken-result binding of `7/9` and its two named
-  counterexamples. The certificate nevertheless accepted three refreshed
-  semantic lies. Every option fails the honest size gate, no option is
-  selected, and no result establishes CLM-0002. The exact bounded evidence is
-  recorded in
+  406.2% (declarative rule table), 449.3% (minimal certificate), and 429.2%
+  (structural/semantic recut), including every discovered validity-affecting
+  structural and identity region. All checker closures avoided forbidden
+  capabilities. All options rejected four producer-rederived stale authored
+  identities and the strongest fully re-derived rebound through the canonical
+  broken-result binding of `7/9` and its two named counterexamples. The
+  certificate nevertheless accepted three refreshed semantic lies. Every
+  option fails the honest size gate, no option is selected, and no result
+  establishes CLM-0002. The exact bounded evidence is recorded in
   `research/independent-checker-recut-experiment.md`.
 
 ## Contract-owned implementation slices
@@ -169,16 +170,21 @@ validity.
   binding, credited stale certificate digests as semantic rejection, and used
   a tautological symmetry oracle.
 - 2026-07-30: corrected the disposable experiment against the complete
-  nine-case canonical fixture. Fifteen focused tests and 150 assertions
-  exercised the positive path, refreshed semantic mutations, transitive
-  forbidden-capability closure, unique non-overlapping marked regions, and the
-  strongest fully re-derived rebound. All options reject the rebound through
-  canonical-model disagreement. The two responsibility-complete options still
-  measure 282.7% and 290.3%; the 244.8% certificate covers only 5/7
-  responsibilities and accepts three refreshed semantic lies. No option met
-  the 70% gate, and no production checker code was integrated. The frontier
-  now requires a reviewed design treatment of the size asymmetry or an
-  explicit recut of the checked claim.
+  nine-case canonical fixture. A second exact-head review rejected that
+  correction because stored authored identities were still trusted and
+  validity-affecting structural decoding was omitted from the numerator.
+- 2026-07-30: completed the final bounded correction. Seventeen focused tests
+  and 233 assertions exercise the positive path, 25 refreshed semantic
+  mutations, all four producer-rederived stale authored identities, transitive
+  forbidden-capability closure, executable witnesses for all seven
+  responsibilities, an eight-region numerator-composition oracle with a
+  negative omission regression, and the strongest fully re-derived rebound.
+  All options reject the rebound through canonical-model disagreement. The two
+  responsibility-complete options measure 406.2% and 429.2%; the 449.3%
+  certificate covers only 5/7 responsibilities and accepts three refreshed
+  semantic lies. No option met the 70% gate, and no production checker code was
+  integrated. The frontier now requires a reviewed design treatment of the
+  size asymmetry or an explicit recut of the checked claim.
 
 ## Decisions and deviations
 
