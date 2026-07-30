@@ -5,7 +5,10 @@ import {
   FreshIdentifier,
   inventoryActorDefinition,
 } from "../src/actor/inventory.ts";
-import { prepareActorScenarioInputs } from "../src/actor/journey.ts";
+import {
+  actorRuntimeRealizationContract,
+  prepareActorScenarioInputs,
+} from "../src/actor/journey.ts";
 import {
   ActorClosed,
   ActorMessageNotTransferable,
@@ -62,6 +65,15 @@ const hostileTransferValue = (): object =>
   );
 
 describe("minimal actor runtime", () => {
+  test("realization identity input binds the ownership representation contract", () => {
+    expect(actorRuntimeRealizationContract).toMatchObject({
+      value_transfer: "structured_clone_without_shared_memory.v1",
+      definition_custody: "snapshot_fields_at_spawn.v1",
+      transfer_failures: "typed_with_total_cause_rendering.v1",
+      failure_stop: "linearized_before_current_receipt.v1",
+    });
+  });
+
   test("inventory messages are receiver-FIFO and replay-equivalent to the pure realization", async () => {
     const observation = await run(
       Effect.scoped(
@@ -574,10 +586,13 @@ describe("minimal actor runtime", () => {
     );
 
     expect(result.first).toBeInstanceOf(ActorTransitionFailed);
-    expect(result.second).toBeInstanceOf(ActorTransitionFailed);
+    expect(result.second).toBeInstanceOf(ActorClosed);
     expect(result.future).toBeInstanceOf(ActorClosed);
     expect((result.future as ActorClosed).reason).toBe("transition_failed");
     expect(result.trace.some((entry: ActorTrace) => entry.kind === "transition_failed")).toBe(true);
+    expect(
+      result.trace.filter((entry) => entry.kind === "accepted").map((entry) => entry.sequence),
+    ).toEqual([1]);
     expect(
       result.trace.some(
         (entry: ActorTrace) =>
@@ -585,5 +600,47 @@ describe("minimal actor runtime", () => {
           entry.sequence === (result.first as ActorTransitionFailed).sequence,
       ),
     ).toBe(false);
+  });
+
+  test("envelopes accepted before a transition failure fail without being processed", async () => {
+    const result = await run(
+      Effect.scoped(
+        Effect.gen(function* () {
+          const started = yield* Deferred.make<void>();
+          const release = yield* Deferred.make<void>();
+          const actor = yield* spawn<number, number, number, "transition-defect", never>({
+            id: "preaccepted-failure",
+            initialState: 0,
+            mailboxCapacity: 2,
+            transition: () =>
+              Effect.gen(function* () {
+                yield* Deferred.succeed(started, undefined);
+                yield* Deferred.await(release);
+                return yield* Effect.fail("transition-defect" as const);
+              }),
+          });
+          const firstFiber = yield* Effect.forkChild(actor.send(1).pipe(Effect.flip));
+          yield* Deferred.await(started);
+          const secondFiber = yield* Effect.forkChild(actor.send(2).pipe(Effect.flip));
+          yield* Effect.yieldNow;
+          yield* Deferred.succeed(release, undefined);
+          const first = yield* Fiber.join(firstFiber);
+          const second = yield* Fiber.join(secondFiber);
+          const future = yield* actor.send(3).pipe(Effect.flip);
+          const trace = yield* actor.close;
+          return { first, second, future, trace };
+        }),
+      ),
+    );
+
+    expect(result.first).toBeInstanceOf(ActorTransitionFailed);
+    expect(result.second).toBeInstanceOf(ActorTransitionFailed);
+    expect(result.future).toBeInstanceOf(ActorClosed);
+    expect(
+      result.trace.filter((entry) => entry.kind === "accepted").map((entry) => entry.sequence),
+    ).toEqual([1, 2]);
+    expect(result.trace.some((entry) => entry.kind === "started" && entry.sequence === 2)).toBe(
+      false,
+    );
   });
 });

@@ -282,13 +282,13 @@ export const spawn = <Message, State, Event, TransitionError, Requirements>(
             sequence: signal.sequence,
             cause: failure.cause,
           });
-          yield* Deferred.fail(signal.receipt, failure);
-          yield* capacity.release(1);
           yield* acceptanceGate.withPermit(
             Effect.sync(() => {
               accepting = "transition_failed";
             }),
           );
+          yield* Deferred.fail(signal.receipt, failure);
+          yield* capacity.release(1);
           yield* failPending(failure);
           yield* finishClosed;
           return;

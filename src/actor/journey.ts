@@ -64,6 +64,19 @@ export interface ActorJourneyObservation {
   readonly unsupported_guarantees: ReadonlyArray<string>;
 }
 
+export const actorRuntimeRealizationContract = {
+  realization: "semantic.actor.single-owner.v0",
+  transition: "inventory.reference.v0",
+  ordering: "receiver_fifo_by_acceptance_sequence",
+  delivery: "at_most_once_in_process",
+  backpressure: "bounded_suspend",
+  lifecycle: "scoped_graceful_drain",
+  value_transfer: "structured_clone_without_shared_memory.v1",
+  definition_custody: "snapshot_fields_at_spawn.v1",
+  transfer_failures: "typed_with_total_cause_rendering.v1",
+  failure_stop: "linearized_before_current_receipt.v1",
+} as const;
+
 export interface ActorScenarioInputs {
   readonly initialState: ReturnType<typeof parseState>;
   readonly steps: ReadonlyArray<JsonObject>;
@@ -162,14 +175,7 @@ export const runInventoryActorJourney = (
       theoryId,
     );
     const mailboxCapacity = 2;
-    const actorRuntimeIdentity = yield* contentIdentity({
-      realization: "semantic.actor.single-owner.v0",
-      transition: "inventory.reference.v0",
-      ordering: "receiver_fifo_by_acceptance_sequence",
-      delivery: "at_most_once_in_process",
-      backpressure: "bounded_suspend",
-      lifecycle: "scoped_graceful_drain",
-    });
+    const actorRuntimeIdentity = yield* contentIdentity(actorRuntimeRealizationContract);
 
     const actorResult = yield* Effect.scoped(
       Effect.gen(function* () {

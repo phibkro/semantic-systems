@@ -166,3 +166,18 @@ paths, acceptance commands, expected deliverables, and this posture:
   Node. The focused result is now 16 Bun tests (45 expectations) and two
   genuine-Node tests; the full exact-head acceptance and another independent
   review remain required.
+- 2026-07-30: review closed the hostile-cause defect under Bun and Node but
+  found that the actor realization identity still omitted the revised
+  ownership representation. Revision 4 binds value transfer, definition
+  custody, and total typed failure rendering into the content-identity input.
+  The prior identity and reviewed `b20be6b` head are not integrable.
+- 2026-07-30: the same review found transition failure was delivered before
+  failure-stop state was linearized. Revision 5 moves the state transition
+  under the acceptance gate before receipt completion and separately tests a
+  future send (closed) against a genuinely preaccepted envelope (typed pending
+  failure). Failure-stop ordering is included in the revised realization
+  identity.
+- 2026-07-30: revisions 4–5 pass 18 focused Bun tests (52 expectations), two
+  genuine-Node transfer-boundary tests, TypeScript, and Oxlint. The full
+  acceptance journey and independent exact-head review remain required before
+  integration.

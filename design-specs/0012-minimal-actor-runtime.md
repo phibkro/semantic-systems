@@ -25,6 +25,17 @@ boundary diagnostics now use total cause rendering; even hostile Proxy and
 error accessors must produce the declared typed failure rather than an Effect
 defect.
 
+Revision 4: exact-head review found the realization identity underbound after
+the ownership revisions. The identity input now includes the value-transfer
+subset, definition-field custody, and typed failure-rendering contracts so an
+observably different ownership representation cannot retain the old identity.
+
+Revision 5: concurrency review found transition-failure shutdown was exposed
+after the current failed receipt. The actor now linearizes its failed state
+under the acceptance gate before completing that receipt or releasing
+capacity. A send begun after observing the failure is rejected as
+`ActorClosed`; only envelopes genuinely accepted earlier fail as pending work.
+
 Semantic frontier: isolated state ownership, typed actor messaging, mailbox
 ordering, and inventory-realization equivalence
 
@@ -149,6 +160,11 @@ records failure, stops that actor, fails the current receipt, and rejects
 future sends. Already accepted but unprocessed envelopes fail visibly; they
 are never reported as processed.
 
+Entering the failed state is linearized before the current failed receipt is
+made observable. Therefore, observing `ActorTransitionFailed` establishes that
+subsequent `send` calls cannot be accepted. This failure-stop ordering is part
+of the actor realization identity.
+
 External publication is outside this commit boundary. The first tracer returns
 events as values and reconstructs state through the accepted replay function.
 It does not claim transactional delivery to a database, broker, log, or other
@@ -207,6 +223,12 @@ Runtime identity is presentation metadata and does not change the bounded
 semantic result. After normalizing that field, Bun and Node observations must
 be byte-equivalent.
 
+The realization identity binds ordering, delivery, backpressure, lifecycle,
+failure-stop ordering, inventory transition, value transfer excluding shared
+memory, definition snapshot custody, and total typed transfer-failure
+rendering. A change to any of those representation contracts requires a new
+identity even when the bounded inventory events remain equal.
+
 ## Oracle-first counterexamples
 
 Before implementation, executable tests must observe red for:
@@ -221,14 +243,17 @@ Before implementation, executable tests must observe red for:
    thrown while rendering their failure cause;
 5. post-close send acceptance or nontermination;
 6. close discarding an already accepted envelope;
-7. transition failure being rendered as a domain rejection;
-8. a caller interruption after acceptance cancelling actor-owned work;
-9. requesting a fresh identifier for an invalid reservation;
-10. invalid or insufficient scenario steps shifting the deterministic
+7. transition failure being rendered as a domain rejection or observed before
+   future mailbox acceptance is disabled;
+8. an envelope accepted before failure being reported as processed rather than
+   failed pending work;
+9. a caller interruption after acceptance cancelling actor-owned work;
+10. requesting a fresh identifier for an invalid reservation;
+11. invalid or insufficient scenario steps shifting the deterministic
     identifier received by a later eligible reservation;
-11. actor events or replayed state diverging from the pure oracle;
-12. runtime-specific authority imported by the portable actor closure; and
-13. Bun and Node producing different normalized observations.
+12. actor events or replayed state diverging from the pure oracle;
+13. runtime-specific authority imported by the portable actor closure; and
+14. Bun and Node producing different normalized observations.
 
 Each oracle must fail for its intended semantic reason before the conforming
 implementation is accepted.
@@ -247,7 +272,9 @@ The first actor tracer is accepted only when:
    acceptance cannot cancel actor-owned work;
 7. graceful close drains accepted work, is idempotent, and rejects later sends;
 8. typed transition failure stops only the failing actor and remains distinct
-   from domain rejection;
+   from domain rejection; failed state is established before the current
+   failed receipt, future sends reject as closed, and genuinely preaccepted
+   envelopes fail visibly without starting;
 9. invalid inventory reservations do not consume a fresh identifier;
 10. initial state, accepted messages, committed state, and returned events do
     not share caller-mutable aliases;
@@ -259,16 +286,18 @@ The first actor tracer is accepted only when:
     defect;
 13. the inventory actor event sequence equals the pure reference sequence,
     including a guarded-reservation freshness-alignment counterexample;
-14. replay of actor events equals both actor and pure final observations;
-15. the trace states only the frozen ordering, delivery, and lifecycle
+14. the actor realization identity binds every meaning-bearing ownership,
+    transfer, and failure-stop representation contract;
+15. replay of actor events equals both actor and pure final observations;
+16. the trace states only the frozen ordering, delivery, and lifecycle
     guarantees;
-16. Bun and Node live layers produce byte-equivalent normalized bounded
+17. Bun and Node live layers produce byte-equivalent normalized bounded
     observations;
-17. the portable actor core's transitive imports contain no concrete runtime
+18. the portable actor core's transitive imports contain no concrete runtime
     or ambient platform authority;
-18. existing inventory resolution, evidence, execution, and generated-view
+19. existing inventory resolution, evidence, execution, and generated-view
     oracles remain green; and
-19. no output upgrades tests, runtime validation, static analysis, or review
+20. no output upgrades tests, runtime validation, static analysis, or review
     into proof.
 
 ## Executable acceptance commands
@@ -351,3 +380,13 @@ The reviewed `af5c398` head is invalidated because hostile caller-controlled
 causes could defect while being stringified. A fresh exact head must retain
 initial-state, message, and transition-output transfer failures in their typed
 channels under Bun and Node.
+
+Revision 4 binds revisions 1–3 into the realization identity. The reviewed
+`b20be6b` head is invalidated because it emitted the pre-ownership-revision
+identity. A fresh exact head must demonstrate that the identity input contains
+the complete value-transfer, definition-custody, and typed-failure contracts.
+
+Revision 5 binds transition-failure shutdown to the acceptance boundary. The
+same reviewed `b20be6b` head is independently invalidated because a send begun
+after observing failure could still enter accepted history. A fresh exact head
+must distinguish future sends from envelopes accepted before failure.
