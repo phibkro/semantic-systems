@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0015-open-semantic-system-design-lens.md`](../../design-specs/0015-open-semantic-system-design-lens.md).
 This mutable execution record cannot redefine that contract.
 
-Status: tenth independent-review counterexamples corrected; exact-head
+Status: eleventh independent-review counterexamples corrected; exact-head
 acceptance and full integration pass; clean-head custody and re-review pending
 
 Owner: primary Semantic Systems lead
@@ -321,6 +321,18 @@ state, and unrelated project-model changes.
   with 15 tests/112 expectations and the full integration gate passes with 338
   Bun tests/1,762 expectations, zero Effect diagnostics, and 68 transitional
   Python custody checks. Clean-head custody and re-review remain pending.
+- 2026-07-31: eleventh independent review rejected exact clean head `dc2b9ab`.
+  The expanded 53-case WHATWG/Chromium popover matrix and inherited 73-case
+  CSS matrix produced zero unsafe accepts, but a fresh 59-case static HTML
+  matrix found that supported `progress` and `meter` widgets do not render
+  their fallback child text and the standard user-agent rule hides `rp`
+  fallback parentheses in ruby annotations.
+- 2026-07-31: `progress`, `meter`, and `rp` fallback subtrees are now excluded
+  from acceptance prose, with focused regression fixtures. Exact acceptance
+  passes with 15 tests/115 expectations and the full integration gate passes
+  with 338 Bun tests/1,765 expectations, zero Effect diagnostics, and 68
+  transitional Python custody checks. Clean-head custody and re-review remain
+  pending.
 
 ## Acceptance command
 
