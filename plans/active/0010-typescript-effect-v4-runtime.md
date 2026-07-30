@@ -1,0 +1,226 @@
+# Execution plan 0010: TypeScript, Bun, and Effect v4 runtime
+
+Design: `design-specs/0010-typescript-effect-v4-runtime.md`
+
+Status: in progress
+
+Owner: main integration agent
+
+## Current state
+
+- Frozen migration contract: complete.
+- Exact Effect v4 pin: `effect@4.0.0-beta.102`.
+- Existing reusable tooling: Bun 1.3.13, TypeScript 7.0.2, Oxfmt 0.61.0,
+  Oxlint 1.76.0.
+- Operator amendment: Bun remains the default runtime and package manager;
+  Node is a supported alternative supplied through official Effect platform
+  live layers.
+- Oxlint now denies correctness, suspicious, and performance categories plus
+  selected TypeScript, Unicorn, Import, and Promise rules. Effect-aware
+  `@effect/tsgo` diagnostics and the local architecture plugin remain
+  dependency-gated.
+- Remaining Python surface: reference custody and its test module, plus
+  transitional Nix/fast/integration wiring. Project model, tracer, and
+  governance tests are TypeScript.
+- External `.references/` checkouts are excluded from repository-source
+  migration.
+
+## Owned paths
+
+- `design-specs/0010-typescript-effect-v4-runtime.md`
+- `plans/active/0010-typescript-effect-v4-runtime.md`
+- `scripts/accept/0010-typescript-effect-v4-runtime.ts`
+- `src/**/*.ts`
+- `tests/**/*.test.ts`
+- project toolchain/check/Nix configuration
+- current documentation and canonical command/evidence references
+- superseded repository-owned Python files when their slice is accepted
+
+Other active feature worktrees and their owned files remain forbidden.
+
+## Work queue
+
+1. Pin Effect v4 and freeze the migration contract. **Complete.**
+2. Implement the project-model vertical slice with differential/golden oracles.
+   **Complete.**
+3. Switch project-model active commands and gates after focused parity passes.
+   **Complete for host/active commands; the Nix derivation remains a declared
+   transitional differential oracle until dependencies are hermetically
+   packaged.**
+4. Implement the inventory-tracer vertical slice. **Complete; the former
+   Python package and test suite were removed after exact result differential
+   parity and a final pinned Python oracle pass.**
+5. Recut the independent checker against the accepted TypeScript resolver.
+6. Implement reference custody with explicit Git/filesystem/lock services.
+7. Migrate development-control and policy tests to Bun. **Complete for
+   development-control and reuse-first governance; custody tests remain with
+   their owning implementation slice.**
+8. Migrate repository-owned shell orchestration and executable acceptance to
+   Bun TypeScript, revising governance 0005 atomically. **Complete: checks,
+   acceptance programs, and Git hooks are executable Bun TypeScript; Just is
+   the pinned declarative task surface.**
+9. Remove Python packaging, source, tests, Nix dependencies, caches, legacy
+   shell logic, Makefile indirection, and active command references.
+10. Run exact acceptance, independent review, semantic/evidence audit, preview,
+    and integration gates.
+11. Replace direct Bun/Node capability use in semantic programs with portable
+    Effect platform services; compose official Bun and Node live layers at
+    entrypoints and prove equivalent bounded observations. **Complete for the
+    project-model and inventory-tracer slices; reference custody remains.**
+12. Install compatible exact `@effect/tsgo` and `effect-oxlint` releases,
+    enable type-aware Effect diagnostics, and add tested local rules for
+    portable-core imports, runtime execution boundaries, Schema decoding, and
+    ambient nondeterminism. **Complete for the project-model and inventory
+    tracer slices.**
+
+## First-slice gates
+
+```bash
+bun test tests/project-model.test.ts
+bun run typecheck
+bun run semproj -- validate
+bun run semproj -- generate --check
+git diff --check
+```
+
+The existing generated directory is the byte-for-byte golden oracle. Python
+remains installed only as a temporary differential oracle until the slice is
+accepted; no new Python implementation is permitted.
+
+## Reuse and prior art record
+
+- Reused the existing Bun/TypeScript/Oxc repository scaffold.
+- Selected Effect v4 core `Schema`, typed errors, effects, scopes, and services
+  rather than adding unrelated schema/error/task libraries.
+- Reviewed Effect's official repository and v4 migration sources; MIT license
+  is compatible.
+- Selected official Effect portable platform services with Bun and Node live
+  layers rather than an owned filesystem abstraction. Exact compatible beta
+  adapter pins will be reviewed together before installation.
+- Evaluated and installed exact `effect-oxlint` 0.3.3 (MIT) as the Effect v4 toolkit for local
+  Oxlint rules. It complements rather than replaces official `@effect/tsgo`
+  diagnostics because Oxlint JavaScript plugins do not currently receive
+  TypeScript type information. The older `@effect/language-service` package
+  was rejected because the official documentation routes TypeScript 7 users
+  to `@effect/tsgo`.
+- Reviewed `joelhooks/effectts-skills` at
+  `0a7a0d984033fa6d6ff4ef2b50bdd9eb06a3a6c5` as MIT-declared prior art.
+  Reused its source-first posture and independently corroborated guidance on
+  typed errors, single composition boundaries, injected nondeterminism, and
+  stricter TypeScript flags. It was not copied or installed: the checkout has
+  no license-text file, and several claimed latest-v4 examples are stale or
+  internally inconsistent with exact Effect beta.102 (`ServiceMap.Service`,
+  pre-TS7 `@effect/language-service`, the old `TaggedErrorClass` call shape,
+  and ambient `crypto.randomUUID()` inside an Effect generator). The UUID call
+  is correctly deferred because `Effect.gen` is implemented with
+  `Effect.suspend`; its remaining issue is ambient, non-replaceable authority,
+  not eager evaluation. Security-sensitive UUIDs use the injectable
+  `Crypto.Crypto` service, while deterministic non-cryptographic tests may
+  replace `Random`.
+
+## Risks
+
+- Effect v4 beta APIs may change; exact pins and static checks contain drift.
+- Differential tests can preserve accidental behavior; the frozen semantic
+  contract and adversarial oracles decide intended compatibility.
+- Reference custody has substantially more filesystem/Git race and safety
+  surface than the first two slices; it is migrated after the local semantic
+  core is stable.
+- The full acceptance gate remains intentionally red until the final
+  Python-removal slice.
+
+## Log
+
+- 2026-07-30: operator selected TypeScript, Bun, and specifically Effect v4.
+- 2026-07-30: npm registry independently reported `beta` as
+  `4.0.0-beta.102`; exact dependency installed.
+- 2026-07-30: inventory found 35 repository-owned Python source modules and
+  five Python test modules across project model, tracer, custody, and controls.
+- 2026-07-30: project-model Bun tests passed 7/7; all eight views matched
+  byte-for-byte; `validate`, `report`, and `generate --check` matched Python
+  stdout and exit status exactly. Active host commands now use Bun/Effect v4.
+- 2026-07-30: inventory tracer result JSON matched Python exactly, including
+  resolution, evidence, counterexamples, execution, assumptions, and
+  explanation. The TypeScript platform semantic diff recomputed both
+  realization identities and updated every canonical binding; 13 tracer tests
+  and the final pinned Python differential suite passed before deletion.
+- 2026-07-30: development-control and reuse-first governance moved to 15 Bun
+  tests. The mixed transitional integration loop passed 68 custody Python
+  tests; the integration script now runs Bun tests as an authoritative gate.
+- 2026-07-30: operator expanded the target to repository-owned shell logic.
+  Check orchestration and executable feature acceptance will move to Bun
+  TypeScript; only pre-Bun or externally fixed bootstrap launchers may remain.
+- 2026-07-30: replaced all repository shell programs under `scripts/` and
+  `.githooks/` with typed Bun entrypoints, replaced the Makefile with a thin
+  `justfile`, pinned Just in the Nix shell, and migrated acceptance identity
+  from `.sh` to `.ts` across the validator, dispatcher, tests, hooks, CI, docs,
+  and checked Clamor adaptation provenance. Focused governance tests,
+  typecheck, lint, formatting, and provenance conformance pass; pinned
+  Actionlint/integration remain deferred while live Agda Git custody drives
+  elevated I/O pressure.
+- 2026-07-30: an independent read-only GPT-5.6 Sol audit found controlled-error,
+  deleted-oracle, acceptance-authority, stale-migration, and Just-dispatch
+  defects. The project-model boundary and CLI grammar were repaired; deletion,
+  rename/copy, zero-plan, and removed-plan oracles were restored; migration
+  authority is now range-bound; direct Just acceptance uses validated,
+  non-shell dispatch; and acceptance verifies exact Effect manifest/lock pins,
+  scans active TypeScript/CI entrypoints, and invokes the declared Nix gate.
+  The deleted executable-mode, provenance, hook-environment, and fresh-checkout
+  installation oracles were then restored. Focused development-control tests
+  pass 22/22 and typecheck/diff checks pass. Effect capability services and the
+  derivation-invariance oracle remain open; broad and Nix gates remain deferred
+  under elevated I/O pressure.
+- 2026-07-30: strengthened the inventory tracer document boundary from a
+  top-level unknown record to kind-specific Effect Schemas for theories,
+  realizations, evidence suites and cases, policies, and scenarios while
+  preserving the original JSON documents for canonical identity. A nested
+  malformed `theory.laws` counterexample now fails at schema decoding. Focused
+  tracer tests pass 14/14 and typecheck/diff checks pass.
+- 2026-07-30: operator required a swappable Bun/Node runtime boundary. The
+  contract now targets portable Effect platform services and confines official
+  live layers to composition entrypoints; the provisional owned filesystem
+  adapter was removed before adoption.
+- 2026-07-30: enabled an Oxlint baseline that denies correctness, suspicious,
+  and performance categories plus high-signal TypeScript/Promise/import rules,
+  reports unused suppressions, and passes the current TypeScript tree in 0.2s
+  on one thread. Blanket `no-await-in-loop`, mutable-array replacement, and
+  promise-chain style rules remain explicitly off pending semantic rewrites.
+  Official `@effect/tsgo` diagnostics and tested `effect-oxlint` architecture
+  rules are the next static-safety slice after compatible exact versions can
+  be installed without worsening elevated I/O pressure.
+- 2026-07-30: installed exact TS7-compatible `@effect/tsgo` and official Bun
+  and Node Effect platform layers. An idempotent explicit setup now attaches
+  Effect diagnostics after lifecycle-script-free installs and a read-only
+  fast-loop check fails if the compiler is unpatched. Project-model filesystem
+  and path capabilities moved to official Effect services; real Bun and Node
+  entrypoints validate the same 119 entities and 171 relations, and a
+  bounded layer-equivalence oracle compares all generated views.
+- 2026-07-30: activated five tested `effect-oxlint` project rules for portable
+  runtime imports/globals, Effect execution/provision boundaries, Schema JSON
+  decoding, ambient nondeterminism, and thrown portable failures. The thrown
+  failure oracle found a genuinely partial cyclic-graph path; topological
+  ordering now reports `undefined` and longest-path returns no fabricated
+  result. Exact TSGO diagnostics enforce additional v4/capability rules on the
+  portable slice, and TypeScript now enables exact optional properties,
+  no-unused locals, implicit-override checks, forced module detection, and
+  verbatim module syntax.
+- 2026-07-30: moved the inventory tracer's JSON loading, path resolution, and
+  SHA-256 content identities onto official Effect FileSystem, Path, and Crypto
+  services. Separate Bun and Node entrypoints now compose only their live
+  platform layers. Fifteen focused tracer tests preserve the accepted
+  identities and rejection behavior, a live-layer oracle compares the complete
+  result under Bun and Node, and the pinned Node 24.18.0 entrypoint completes
+  the real inventory journey with the same selected realization.
+- 2026-07-30: widened the tested Effect Oxlint portability rules from the
+  project model to the inventory tracer, excluding only the explicit Bun and
+  Node composition roots. Ambient clock, random, crypto and fetch access is
+  rejected because it bypasses injectable capability services. The rule does
+  not misclassify `Effect.gen` as eager: v4 constructs it through
+  `Effect.suspend`; ordinary generator statements run when the runtime advances
+  the iterator, while a yielded `Effect.sync` thunk runs when that Effect is
+  interpreted. Both `crypto.randomUUID()` and
+  `globalThis.crypto.randomUUID()` now have regression oracles, while the
+  injected `Crypto.Crypto.randomUUIDv4` description remains valid. The strict
+  TSGO Effect/capability diagnostics and Schema-over-JSON rule now cover the
+  tracer as well as the project model. Focused rule and tracer suites pass
+  20/20, and typecheck, full lint, formatting, and diff hygiene are green.

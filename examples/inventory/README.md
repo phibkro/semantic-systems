@@ -39,5 +39,5 @@ produce proof evidence.
 Run:
 
 ```bash
-PYTHONPATH=src python -m semantic_tracer demo examples/inventory
+bun run semantic-tracer -- demo examples/inventory
 ```

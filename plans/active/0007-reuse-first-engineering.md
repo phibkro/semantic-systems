@@ -26,8 +26,8 @@ semantic, evidence, license, or merge-authority change is allowed.
 ## Acceptance commands
 
 ```bash
-nix develop --command ./scripts/accept/0007-reuse-first-engineering.sh
-nix develop --command ./scripts/check.sh
+nix develop --command just accept 0007-reuse-first-engineering
+nix develop --command just check
 ```
 
 ## Evidence requirements

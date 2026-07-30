@@ -21,18 +21,21 @@ Install the exact locked JavaScript tools once after entering the shell:
 
 ```bash
 bun install --frozen-lockfile --ignore-scripts
+bun run effect:setup
 bun run hooks:install
 ```
 
-The frozen install disables all package lifecycle scripts. The separate,
-checked hook installer then sets `core.hooksPath=.githooks` explicitly; these
-local hooks improve feedback latency but remain advisory and bypassable.
+The frozen install disables all package lifecycle scripts. The explicit,
+idempotent Effect TSGO setup attaches Effect diagnostics to the pinned native
+TypeScript 7 compiler and the checked hook installer sets
+`core.hooksPath=.githooks`; local hooks improve feedback latency but remain
+advisory and bypassable.
 
 | Loop | Command | Latency | Covers |
 |---|---|---|---|
-| Fast | `./scripts/check-fast.sh` | seconds | format, lint, typecheck, model validate/generate, commit-policy conformance |
-| Integration | `./scripts/check.sh` | minutes | frozen install + fast loop + `pyright` + full `pytest` |
-| Feature | `./scripts/accept/<id>-<slug>.sh` | tracer-sized | the exact acceptance script for one frozen design spec |
+| Fast | `just fast` | seconds | format, lint, typecheck, model validate/generate, commit-policy conformance |
+| Integration | `just check` | minutes | frozen install + fast loop + full `bun test` + transitional custody `pyright`/`pytest` |
+| Feature | `just accept <id>-<slug>` | tracer-sized | the exact Bun acceptance program for one frozen design spec |
 
 `nix flake check` runs the parts of the fast/integration loop that are
 hermetic (Python static checks, tests, and the network-free commit-policy
@@ -61,7 +64,7 @@ external prerequisite is not claimed active by this checkout.
 
 A nontrivial feature owns one numeric ID shared by
 `design-specs/<id>-<slug>.md`, `plans/active/<id>-<slug>.md`,
-`scripts/accept/<id>-<slug>.sh`, one feature branch, and one pull request.
+`scripts/accept/<id>-<slug>.ts`, one feature branch, and one pull request.
 Trivial formatting, typo, generated-refresh, and mechanically equivalent
 maintenance may skip the feature loop but must still pass the fast and
 integration loops.
@@ -79,6 +82,7 @@ ruff check .
 ruff format --check .
 pyright
 pytest
+bun test
 semproj validate
 semproj generate --check
 bun run format:check

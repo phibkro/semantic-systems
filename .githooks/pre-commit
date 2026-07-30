@@ -1,41 +1,73 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env bun
+import { statSync } from "node:fs";
 
-root="$(git rev-parse --show-toplevel)"
-cd "${root}"
+const run = (
+  command: ReadonlyArray<string>,
+  options: { readonly cwd?: string; readonly capture?: boolean } = {},
+) =>
+  Bun.spawnSync({
+    cmd: [...command],
+    cwd: options.cwd,
+    stdin: "inherit",
+    stdout: options.capture ? "pipe" : "inherit",
+    stderr: options.capture ? "pipe" : "inherit",
+  });
 
-if [[ ! -x ./node_modules/.bin/oxfmt || ! -x ./node_modules/.bin/oxlint ]]; then
-  echo "pre-commit: dependencies are missing; run 'bun install --frozen-lockfile'." >&2
-  exit 1
-fi
+const rootResult = run(["git", "rev-parse", "--show-toplevel"], { capture: true });
+if (rootResult.exitCode !== 0) {
+  process.stderr.write(rootResult.stderr);
+  process.exit(rootResult.exitCode);
+}
+const root = rootResult.stdout.toString().trim();
+const oxfmt = `${root}/node_modules/.bin/oxfmt`;
+const oxlint = `${root}/node_modules/.bin/oxlint`;
+try {
+  if ((statSync(oxfmt).mode & 0o111) === 0 || (statSync(oxlint).mode & 0o111) === 0) {
+    throw new Error("not executable");
+  }
+} catch {
+  console.error(
+    "pre-commit: dependencies are missing; run 'bun install --frozen-lockfile'.",
+  );
+  process.exit(1);
+}
 
-format_files=()
-lint_files=()
+const names = run(["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR", "-z"], {
+  cwd: root,
+  capture: true,
+});
+if (names.exitCode !== 0) {
+  process.stderr.write(names.stderr);
+  process.exit(names.exitCode);
+}
+const files = names.stdout
+  .toString()
+  .split("\0")
+  .filter((path) => path.length > 0);
+const formatFiles: string[] = [];
+const lintFiles: string[] = [];
+const scriptPattern = /\.(?:js|jsx|ts|tsx|mjs|cjs|mts|cts)$/;
+const dataPattern = /\.(?:json|jsonc|css|scss)$/;
+// Clamor configuration materialization: *.js|*.jsx|*.ts|*.tsx|*.mjs|*.cjs|*.mts|*.cts
+for (const file of files) {
+  if (run(["git", "diff", "--quiet", "--", file], { cwd: root }).exitCode !== 0) {
+    console.error(`pre-commit: ${file} has both staged and unstaged changes.`);
+    console.error("Stage the exact artifact to validate, then commit again.");
+    process.exit(1);
+  }
+  if (scriptPattern.test(file)) {
+    formatFiles.push(file);
+    lintFiles.push(file);
+  } else if (dataPattern.test(file)) {
+    formatFiles.push(file);
+  }
+}
 
-while IFS= read -r -d '' file; do
-  if ! git diff --quiet -- "${file}"; then
-    echo "pre-commit: ${file} has both staged and unstaged changes." >&2
-    echo "Stage the exact artifact to validate, then commit again." >&2
-    exit 1
-  fi
-
-  case "${file}" in
-    *.js|*.jsx|*.ts|*.tsx|*.mjs|*.cjs|*.mts|*.cts)
-      format_files+=("${file}")
-      lint_files+=("${file}")
-      ;;
-    *.json|*.jsonc|*.css|*.scss)
-      format_files+=("${file}")
-      ;;
-  esac
-done < <(git diff --cached --name-only --diff-filter=ACMR -z)
-
-if ((${#format_files[@]} > 0)); then
-  ./node_modules/.bin/oxfmt --check "${format_files[@]}"
-fi
-
-if ((${#lint_files[@]} > 0)); then
-  ./node_modules/.bin/oxlint --deny-warnings "${lint_files[@]}"
-fi
-
-./scripts/check-fast.sh
+for (const command of [
+  ...(formatFiles.length > 0 ? [[oxfmt, "--check", ...formatFiles]] : []),
+  ...(lintFiles.length > 0 ? [[oxlint, "--deny-warnings", ...lintFiles]] : []),
+  ["bun", "scripts/check-fast.ts"],
+]) {
+  const result = run(command, { cwd: root });
+  if (result.exitCode !== 0) process.exit(result.exitCode);
+}

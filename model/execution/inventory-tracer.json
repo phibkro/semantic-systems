@@ -6,10 +6,7 @@
       "name": "Inventory development evidence policy",
       "summary": "Accepts example-test, property-test, or proof evidence and permits declared assumptions.",
       "status": "current",
-      "tags": [
-        "inventory",
-        "policy"
-      ],
+      "tags": ["inventory", "policy"],
       "attributes": {
         "path": "examples/inventory/policies/development.json"
       }
@@ -20,11 +17,7 @@
       "name": "Inventory high-assurance counter-policy",
       "summary": "Accepts proof evidence only and therefore rejects the current test-backed candidates.",
       "status": "current",
-      "tags": [
-        "inventory",
-        "policy",
-        "counterexample"
-      ],
+      "tags": ["inventory", "policy", "counterexample"],
       "attributes": {
         "path": "examples/inventory/policies/high-assurance.json"
       }
@@ -35,10 +28,7 @@
       "name": "Inventory reference deployment",
       "summary": "Development-policy selection of the lawful pure realization for the reference scenario.",
       "status": "locked",
-      "tags": [
-        "inventory",
-        "tracer-bullet"
-      ],
+      "tags": ["inventory", "tracer-bullet"],
       "attributes": {
         "scenario": "examples/inventory/scenarios/demo.json",
         "oracle_matched": true
@@ -50,17 +40,14 @@
       "name": "Inventory reference selection lock",
       "summary": "Records the exact theory, realization, policy, evidence category, and visible assumptions selected by the demo.",
       "status": "current",
-      "tags": [
-        "inventory",
-        "lock"
-      ],
+      "tags": ["inventory", "lock"],
       "attributes": {
         "theory_identity": "sha256:456b5f8d991ce08c400c6b1688216834ad0460ab57ad14ef99cb5b4866a158ba",
-        "realization_identity": "sha256:8fbc8156ae30ecfa37c71e9c25ec3a86608bdb491c9427c190affd607e0dc5c4",
+        "realization_identity": "sha256:67a6b723fa37eaaa7fffe0890f27174f2d04027e05f3eaf8760d9a430a7201b9",
         "evidence_type": "example_test",
         "assumptions": [
-          "Operation binding names are interpreted by the in-process Python builtin registry.",
-          "Python integer arithmetic is exact for fixture quantities.",
+          "Operation binding names are interpreted by the in-process TypeScript builtin registry.",
+          "All fixture quantities stay within JavaScript's exact safe-integer range.",
           "The nine authored cases adequately sample the v0 contract for development selection."
         ]
       }
@@ -71,12 +58,9 @@
       "name": "Inventory resolution explanation",
       "summary": "Structured rule tree for selection, rejection, evidence, assumptions, and developer-change guidance.",
       "status": "generated_at_runtime",
-      "tags": [
-        "inventory",
-        "explanation"
-      ],
+      "tags": ["inventory", "explanation"],
       "attributes": {
-        "producer": "semantic_tracer.resolver"
+        "producer": "tracer.resolver"
       }
     }
   ],
@@ -97,7 +81,7 @@
     },
     {
       "source": "deployment.inventory.reference",
-      "target": "assumption.inventory.python-adapter",
+      "target": "assumption.inventory.typescript-adapter",
       "kind": "assumes",
       "summary": "",
       "attributes": {}

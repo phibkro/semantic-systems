@@ -16,7 +16,8 @@ Markdown and Mermaid diagrams are generated projections of that graph.
   realization, a standing broken realization, typed example-test evidence,
   policy resolution, execution, and structured explanations. Actor and STM
   realizations remain planned.
-- A typed Python graph loader, validator, scheduler, and view generator.
+- A strict TypeScript/Effect v4 graph loader, validator, scheduler, and view
+  generator running on Bun.
 - Canonical generated views:
   1. recursive system map;
   2. theory–realization map;
@@ -25,7 +26,9 @@ Markdown and Mermaid diagrams are generated projections of that graph.
   5. work dependencies and critical path;
   6. delegation frontier;
   7. runtime interaction view.
-- Ruff, Pyright, and pytest configuration.
+- Bun, Effect v4, strict TypeScript, Oxfmt, and Oxlint configuration.
+- Transitional Ruff, Pyright, and pytest configuration only for the
+  reference-custody slice that remains to be migrated.
 
 ## Commands
 
@@ -35,33 +38,28 @@ Enter the pinned development environment:
 nix develop
 ```
 
-Run the completed tracer:
+Run the Effect v4 inventory tracer:
 
 ```bash
-PYTHONPATH=src python -m semantic_tracer demo examples/inventory
+bun run semantic-tracer -- demo examples/inventory
 ```
 
-Run the project model without installation:
+Run the Effect v4 project model:
 
 ```bash
-PYTHONPATH=src python -m semantic_project_model validate
-PYTHONPATH=src python -m semantic_project_model report
-PYTHONPATH=src python -m semantic_project_model generate
-PYTHONPATH=src pytest
+bun run semproj -- validate
+bun run semproj -- report
+bun run semproj -- generate
+bun test tests/project-model.test.ts
 ```
 
-After installation:
-
-```bash
-semproj validate
-semproj report
-semproj generate
-```
+Reference custody still uses Python during its behavior-preserving migration
+slice; it is not a runtime fallback for the project model or inventory tracer.
 
 Run every available check:
 
 ```bash
-./scripts/check.sh
+just check
 ```
 
 The model intentionally retains a warning for the unsupported future

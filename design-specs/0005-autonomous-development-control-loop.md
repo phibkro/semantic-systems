@@ -43,7 +43,7 @@ It owns one numeric ID across:
 ```text
 design-specs/<id>-<slug>.md
 plans/active/<id>-<slug>.md
-scripts/accept/<id>-<slug>.sh
+scripts/accept/<id>-<slug>.ts
 one feature branch
 one pull request
 ```
@@ -54,6 +54,14 @@ invalidation statement, and renewed review.
 
 Trivial formatting, typo, generated refresh, and mechanically equivalent
 maintenance may skip the feature loop, but must still pass integration checks.
+
+A cross-cutting carrier or toolchain migration may update existing contract
+artifacts under one owning feature only when its frozen design spec contains
+one exact `Migrates-Feature-IDs:` declaration. Every declared ID must change,
+every changed secondary contract ID must be declared, and range replay runs
+the owning acceptance program rather than obsolete migrated programs.
+Undeclared, duplicate, cyclic, ownerless, or stale migration scope fails
+closed. The declaration is scope metadata, not semantic approval.
 
 ### Feedback ladder
 
@@ -296,3 +304,11 @@ semantics, evidence category meaning, or trust claim.
 Revision 1, 2026-07-29: the operator added deterministic lifecycle hooks. This
 strengthens where existing gates run and clarifies their authority; it does not
 change the merge-authority boundary or evidence meanings.
+
+Revision 2, 2026-07-30: the operator selected executable Bun TypeScript for
+repository-owned orchestration and Just as the declarative task surface.
+Acceptance identity now ends in `.ts`; the validator, dispatcher, hooks, CI,
+tests, contributor commands, and all existing acceptance programs are
+invalidated until they agree on that extension and runtime. This changes the
+execution carrier, not the feature identity, merge-authority boundary, or
+evidence meanings.

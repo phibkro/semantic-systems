@@ -8,9 +8,7 @@
       "status": "active",
       "tags": [],
       "attributes": {
-        "responsibilities": [
-          "project architecture"
-        ]
+        "responsibilities": ["project architecture"]
       }
     },
     {
@@ -21,9 +19,7 @@
       "status": "research",
       "tags": [],
       "attributes": {
-        "responsibilities": [
-          "language semantics"
-        ]
+        "responsibilities": ["language semantics"]
       }
     },
     {
@@ -66,11 +62,7 @@
       "status": "design",
       "tags": [],
       "attributes": {
-        "responsibilities": [
-          "artifact generation",
-          "realization selection",
-          "assumption recording"
-        ]
+        "responsibilities": ["artifact generation", "realization selection", "assumption recording"]
       }
     },
     {
@@ -81,11 +73,7 @@
       "status": "prototype",
       "tags": [],
       "attributes": {
-        "responsibilities": [
-          "realization selection",
-          "evidence policy",
-          "assumption recording"
-        ]
+        "responsibilities": ["realization selection", "evidence policy", "assumption recording"]
       }
     },
     {
@@ -96,10 +84,7 @@
       "status": "design",
       "tags": [],
       "attributes": {
-        "responsibilities": [
-          "package identity",
-          "compatibility"
-        ]
+        "responsibilities": ["package identity", "compatibility"]
       }
     },
     {
@@ -110,10 +95,7 @@
       "status": "planned",
       "tags": [],
       "attributes": {
-        "responsibilities": [
-          "distribution",
-          "discovery"
-        ]
+        "responsibilities": ["distribution", "discovery"]
       }
     },
     {
@@ -124,9 +106,7 @@
       "status": "design",
       "tags": [],
       "attributes": {
-        "responsibilities": [
-          "runtime execution"
-        ]
+        "responsibilities": ["runtime execution"]
       }
     },
     {
@@ -137,10 +117,7 @@
       "status": "planned",
       "tags": [],
       "attributes": {
-        "responsibilities": [
-          "effect handling",
-          "continuations"
-        ]
+        "responsibilities": ["effect handling", "continuations"]
       }
     },
     {
@@ -151,10 +128,7 @@
       "status": "planned",
       "tags": [],
       "attributes": {
-        "responsibilities": [
-          "mailbox scheduling",
-          "state ownership"
-        ]
+        "responsibilities": ["mailbox scheduling", "state ownership"]
       }
     },
     {
@@ -165,11 +139,7 @@
       "status": "research",
       "tags": [],
       "attributes": {
-        "responsibilities": [
-          "transaction isolation",
-          "retry scheduling",
-          "commit publication"
-        ]
+        "responsibilities": ["transaction isolation", "retry scheduling", "commit publication"]
       }
     },
     {
@@ -180,11 +150,7 @@
       "status": "implemented",
       "tags": [],
       "attributes": {
-        "responsibilities": [
-          "model validation",
-          "view generation",
-          "work scheduling"
-        ]
+        "responsibilities": ["model validation", "view generation", "work scheduling"]
       }
     },
     {
@@ -195,9 +161,7 @@
       "status": "active",
       "tags": [],
       "attributes": {
-        "responsibilities": [
-          "evaluation"
-        ]
+        "responsibilities": ["evaluation"]
       }
     },
     {
@@ -208,10 +172,7 @@
       "status": "implemented",
       "tags": [],
       "attributes": {
-        "responsibilities": [
-          "evaluation",
-          "integration"
-        ]
+        "responsibilities": ["evaluation", "integration"]
       }
     },
     {
@@ -223,8 +184,8 @@
       "tags": [],
       "attributes": {
         "manifest": "examples/inventory/realizations/pure.json",
-        "identity": "sha256:8fbc8156ae30ecfa37c71e9c25ec3a86608bdb491c9427c190affd607e0dc5c4",
-        "execution_adapter": "python-builtins-v0"
+        "identity": "sha256:67a6b723fa37eaaa7fffe0890f27174f2d04027e05f3eaf8760d9a430a7201b9",
+        "execution_adapter": "typescript-builtins-v0"
       }
     },
     {
@@ -253,9 +214,7 @@
       "status": "planned",
       "tags": [],
       "attributes": {
-        "responsibilities": [
-          "event publication"
-        ]
+        "responsibilities": ["event publication"]
       }
     }
   ],

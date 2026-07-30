@@ -43,6 +43,7 @@ export type FeatureSelection = {
   head: string;
   changedPaths: string[];
   acceptanceScript?: string;
+  contractMigrations?: string[];
 };
 
 const parseArguments = (argv: string[]): Map<string, string> => {
@@ -191,7 +192,7 @@ export const validateFeatureArtifacts = (
     );
   }
 
-  const acceptanceScript = `scripts/accept/${featureId}.sh`;
+  const acceptanceScript = `scripts/accept/${featureId}.ts`;
   const acceptancePath = resolve(root, acceptanceScript);
   if (!existsSync(acceptancePath)) {
     throw new Error(`feature ${featureId} is missing ${acceptanceScript}`);
@@ -210,12 +211,12 @@ const isTrivialPath = (path: string): boolean =>
 export const nonTrivialPaths = (paths: string[]): string[] =>
   paths.filter((path) => !isTrivialPath(path));
 
-const featureIdsFromContractPaths = (paths: string[]): string[] => {
+export const featureIdsFromContractPaths = (paths: string[]): string[] => {
   const ids = new Set<string>();
   const patterns = [
     /^design-specs\/([0-9]{4}-[a-z0-9]+(?:-[a-z0-9]+)*)\.md$/,
     /^plans\/(?:active|completed)\/([0-9]{4}-[a-z0-9]+(?:-[a-z0-9]+)*)\.md$/,
-    /^scripts\/accept\/([0-9]{4}-[a-z0-9]+(?:-[a-z0-9]+)*)\.sh$/,
+    /^scripts\/accept\/([0-9]{4}-[a-z0-9]+(?:-[a-z0-9]+)*)\.ts$/,
   ];
   for (const path of paths) {
     for (const pattern of patterns) {
@@ -226,6 +227,29 @@ const featureIdsFromContractPaths = (paths: string[]): string[] => {
     }
   }
   return [...ids].sort();
+};
+
+export const contractMigrationsFor = (root: string, featureId: string): string[] => {
+  const designPath = resolve(root, "design-specs", `${featureId}.md`);
+  if (!existsSync(designPath)) return [];
+  const contents = readFileSync(designPath, "utf8");
+  const markers = [...contents.matchAll(/^Migrates-Feature-IDs:\s*(.*?)\s*$/gm)];
+  if (markers.length === 0) return [];
+  if (markers.length !== 1) {
+    throw new Error(`feature ${featureId} design must contain at most one migration marker`);
+  }
+  const migrations = (markers[0]?.[1] ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+  if (
+    migrations.length === 0 ||
+    migrations.some((value) => !FEATURE_ID.test(value) || value === featureId) ||
+    new Set(migrations).size !== migrations.length
+  ) {
+    throw new Error(`feature ${featureId} has a malformed Migrates-Feature-IDs marker`);
+  }
+  return migrations.sort();
 };
 
 export const validatePullRequestEvent = (root: string, eventPath: string): FeatureSelection => {
@@ -257,9 +281,27 @@ export const validatePullRequestEvent = (root: string, eventPath: string): Featu
   const artifacts = validateFeatureArtifacts(root, featureId);
   const changedFeatureIds = featureIdsFromContractPaths(changedPaths);
   const conflictingIds = changedFeatureIds.filter((changedId) => changedId !== featureId);
-  if (conflictingIds.length > 0) {
+  const contractMigrations = contractMigrationsFor(root, featureId);
+  const designPath = `design-specs/${featureId}.md`;
+  if (contractMigrations.length > 0 && !changedPaths.includes(designPath)) {
     throw new Error(
-      `PR contains multiple feature identities: selected ${featureId}, also changed ${conflictingIds.join(", ")}`,
+      `feature ${featureId} cannot reuse contract migrations without changing ${designPath}`,
+    );
+  }
+  const undeclaredIds = conflictingIds.filter(
+    (changedId) => !contractMigrations.includes(changedId),
+  );
+  const unchangedDeclarations = contractMigrations.filter(
+    (migration) => !conflictingIds.includes(migration),
+  );
+  if (undeclaredIds.length > 0) {
+    throw new Error(
+      `PR contains multiple feature identities: selected ${featureId}, undeclared changes ${undeclaredIds.join(", ")}`,
+    );
+  }
+  if (unchangedDeclarations.length > 0) {
+    throw new Error(
+      `feature ${featureId} declares unchanged contract migrations: ${unchangedDeclarations.join(", ")}`,
     );
   }
   if (!changedPaths.includes(artifacts.planPath)) {
@@ -273,6 +315,7 @@ export const validatePullRequestEvent = (root: string, eventPath: string): Featu
     head,
     changedPaths,
     acceptanceScript: artifacts.acceptanceScript,
+    contractMigrations,
   };
 };
 
@@ -285,8 +328,12 @@ if (import.meta.main) {
       throw new Error("provide --event <path> or GITHUB_EVENT_PATH");
     }
     const selection = validatePullRequestEvent(root, resolve(eventPath));
+    const migrations =
+      selection.contractMigrations === undefined || selection.contractMigrations.length === 0
+        ? ""
+        : `; contract migrations: ${selection.contractMigrations.join(", ")}`;
     console.log(
-      `feature-contract: ${selection.featureId} at ${selection.head}; ${selection.changedPaths.length} changed path(s) validated.`,
+      `feature-contract: ${selection.featureId} at ${selection.head}; ${selection.changedPaths.length} changed path(s) validated${migrations}.`,
     );
   } catch (error) {
     console.error(`feature-contract: ${error instanceof Error ? error.message : String(error)}`);

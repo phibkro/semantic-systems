@@ -1,14 +1,30 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env bun
+const rootResult = Bun.spawnSync(["git", "rev-parse", "--show-toplevel"]);
+if (rootResult.exitCode !== 0) {
+  process.stderr.write(rootResult.stderr);
+  process.exit(rootResult.exitCode);
+}
+const root = rootResult.stdout.toString().trim();
+const localVariables = Bun.spawnSync(["git", "rev-parse", "--local-env-vars"]);
+if (localVariables.exitCode !== 0) {
+  process.stderr.write(localVariables.stderr);
+  process.exit(localVariables.exitCode);
+}
+const environment = { ...process.env };
+for (const name of localVariables.stdout.toString().split(/\s+/).filter(Boolean)) {
+  delete environment[name];
+}
+if (Bun.which("nix") === null) {
+  console.error("pre-push: Nix is required for the pinned integration gate.");
+  process.exit(1);
+}
 
-root="$(git rev-parse --show-toplevel)"
-mapfile -t git_local_env < <(git rev-parse --local-env-vars)
-unset "${git_local_env[@]}"
-cd "${root}"
-
-if ! command -v nix >/dev/null 2>&1; then
-  echo "pre-push: Nix is required for the pinned integration gate." >&2
-  exit 1
-fi
-
-nix develop --command ./scripts/check.sh
+const result = Bun.spawnSync({
+  cmd: ["nix", "develop", "--command", "bun", "scripts/check.ts"],
+  cwd: root,
+  env: environment,
+  stdin: "inherit",
+  stdout: "inherit",
+  stderr: "inherit",
+});
+process.exit(result.exitCode);

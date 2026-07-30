@@ -7,7 +7,7 @@ flowchart TD
     artifact_normalized_core["Normalized semantic core artifact"]
     assumption_inventory_fixture_coverage["Development fixture adequacy"]
     assumption_inventory_integer_arithmetic["Fixture integer arithmetic"]
-    assumption_inventory_python_adapter["Python builtin execution adapter"]
+    assumption_inventory_typescript_adapter["TypeScript builtin execution adapter"]
     assumption_memory_model["Target atomic memory model"]
     claim_inventory_invariant["Inventory transitions preserve non-negative quantities"]
     claim_inventory_resolution["Evidence-aware inventory resolution"]
@@ -41,10 +41,10 @@ flowchart TD
     evidence_inventory_pure_conformance_v0 -->|supports| claim_inventory_invariant
     evidence_inventory_pure_conformance_v0 -->|covers| obligation_inventory_conformance
     evidence_inventory_pure_conformance_v0 -->|validates| realization_inventory_pure
-    claim_inventory_resolution -->|assumes| assumption_inventory_python_adapter
+    claim_inventory_resolution -->|assumes| assumption_inventory_typescript_adapter
     claim_inventory_resolution -->|assumes| assumption_inventory_integer_arithmetic
     claim_inventory_resolution -->|assumes| assumption_inventory_fixture_coverage
-    deployment_inventory_reference -->|assumes| assumption_inventory_python_adapter
+    deployment_inventory_reference -->|assumes| assumption_inventory_typescript_adapter
     deployment_inventory_reference -->|assumes| assumption_inventory_integer_arithmetic
     deployment_inventory_reference -->|assumes| assumption_inventory_fixture_coverage
     work_inventory_proof -->|discharges| obligation_inventory_proof

@@ -30,7 +30,7 @@ platform, evidence, and trust policies.
 - `docs/metamodel.md` — canonical graph vocabulary
 - `docs/*-spec.md` — subsystem contracts
 - `model/` — canonical project graph
-- `src/semantic_project_model/` — bootstrap graph tooling
+- `src/project-model/` — Bun/Effect v4 project graph tooling
 - `design-specs/` — frozen problem contracts
 - `plans/active/` — mutable execution state linked to one design spec
 - `examples/` — executable tracer bullets and fixtures
@@ -43,21 +43,23 @@ iterating and the integration loop before opening or updating a pull request:
 
 ```bash
 bun install --frozen-lockfile --ignore-scripts
+bun run effect:setup
 bun run hooks:install
-./scripts/check-fast.sh
-./scripts/check.sh
-PYTHONPATH=src python -m semantic_project_model report
+just fast
+just check
+bun run semproj -- report
 ```
 
 For one frozen feature, run its exact acceptance script:
 
 ```bash
-./scripts/accept/<id>-<slug>.sh
+just accept <id>-<slug>
 ```
 
 A missing required tool fails these gates; it is never downgraded to a
-warning. `nix flake check` re-runs the hermetic subset (Python static checks,
-tests, and commit-policy conformance) as real sandboxed derivations. Commit
+warning. During migration 0010, `nix flake check` re-runs the remaining
+reference-custody Python checks and commit-policy conformance as real sandboxed
+derivations. Commit
 messages and pull-request titles follow the Conventional Commits policy in
 `commitlint.config.ts`; see `CONTRIBUTING.md` for the full loop and commit
 provenance. Targeted commands are documented in `CONTRIBUTING.md`. Report

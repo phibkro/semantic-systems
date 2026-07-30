@@ -13,12 +13,14 @@ import { spawnSync } from "node:child_process";
 
 import {
   changedPathsForRange,
+  contractMigrationsFor,
+  featureIdsFromContractPaths,
   nonTrivialPaths,
   validateFeatureArtifacts,
   validatePullRequestEvent,
 } from "./check-feature-contract.ts";
 
-type Mode = "pr" | "range" | "release";
+type Mode = "direct" | "pr" | "range" | "release";
 
 const parseArguments = (argv: string[]): Map<string, string> => {
   const parsed = new Map<string, string>();
@@ -61,7 +63,7 @@ const runAcceptance = (root: string, featureId: string, script: string, head: st
   if ((statSync(scriptPath).mode & 0o111) === 0) {
     throw new Error(`acceptance script is not executable: ${script}`);
   }
-  const result = spawnSync("sh", [scriptPath], {
+  const result = spawnSync("bun", [scriptPath], {
     cwd: root,
     env: process.env,
     stdio: "inherit",
@@ -89,6 +91,17 @@ const featureIdsFromPlans = (paths: string[]): string[] => {
 };
 
 const run = (mode: Mode, root: string, args: Map<string, string>): void => {
+  if (mode === "direct") {
+    const featureId = args.get("--feature");
+    if (featureId === undefined || !/^[0-9]{4}-[a-z0-9]+(?:-[a-z0-9]+)*$/.test(featureId)) {
+      throw new Error("direct mode requires one well-formed --feature <NNNN-slug>");
+    }
+    const head = assertCheckedOutHead(root);
+    const artifacts = validateFeatureArtifacts(root, featureId);
+    runAcceptance(root, featureId, artifacts.acceptanceScript, head);
+    return;
+  }
+
   if (mode === "pr") {
     const eventPath = args.get("--event") ?? process.env.GITHUB_EVENT_PATH;
     if (eventPath === undefined) {
@@ -127,7 +140,47 @@ const run = (mode: Mode, root: string, args: Map<string, string>): void => {
       );
       return;
     }
+    const contractIds = featureIdsFromContractPaths(changedPaths);
+    const migrations = new Set<string>();
     for (const featureId of featureIds) {
+      const declaredMigrations = contractMigrationsFor(root, featureId);
+      const designPath = `design-specs/${featureId}.md`;
+      if (declaredMigrations.length > 0 && !changedPaths.includes(designPath)) {
+        const reusedMigrations = declaredMigrations.filter((migration) =>
+          contractIds.includes(migration),
+        );
+        if (reusedMigrations.length > 0) {
+          throw new Error(
+            `feature ${featureId} reuses stale contract migrations without changing ${designPath}: ${reusedMigrations.join(", ")}`,
+          );
+        }
+        continue;
+      }
+      for (const migrated of declaredMigrations) {
+        if (!contractIds.includes(migrated)) {
+          throw new Error(
+            `feature ${featureId} declares unchanged contract migration ${migrated} in range`,
+          );
+        }
+        if (
+          migrations.has(migrated) ||
+          (featureIds.includes(migrated) && contractMigrationsFor(root, migrated).length > 0)
+        ) {
+          throw new Error(`contract migration ${migrated} has ambiguous range ownership`);
+        }
+        migrations.add(migrated);
+      }
+    }
+    const owners = featureIds.filter((featureId) => !migrations.has(featureId));
+    if (owners.length === 0) {
+      throw new Error("range contract migrations have no owning feature");
+    }
+    if (migrations.size > 0) {
+      console.log(
+        `feature-acceptance: commit ${checkedOutHead}; contract migrations owned by ${owners.join(", ")}: ${[...migrations].sort().join(", ")}`,
+      );
+    }
+    for (const featureId of owners) {
       const artifacts = validateFeatureArtifacts(root, featureId);
       runAcceptance(root, featureId, artifacts.acceptanceScript, checkedOutHead);
     }
@@ -137,7 +190,7 @@ const run = (mode: Mode, root: string, args: Map<string, string>): void => {
   const head = assertCheckedOutHead(root);
   const acceptDirectory = resolve(root, "scripts", "accept");
   const scripts = readdirSync(acceptDirectory)
-    .filter((name) => /^[0-9]{4}-[a-z0-9]+(?:-[a-z0-9]+)*\.sh$/.test(name))
+    .filter((name) => /^[0-9]{4}-[a-z0-9]+(?:-[a-z0-9]+)*\.ts$/.test(name))
     .sort();
   if (scripts.length === 0) {
     throw new Error("release mode found no checked-in feature acceptance scripts");
@@ -151,8 +204,8 @@ const run = (mode: Mode, root: string, args: Map<string, string>): void => {
 try {
   const args = parseArguments(process.argv.slice(2));
   const mode = args.get("--mode") as Mode | undefined;
-  if (mode !== "pr" && mode !== "range" && mode !== "release") {
-    throw new Error("--mode must be pr, range, or release");
+  if (mode !== "direct" && mode !== "pr" && mode !== "range" && mode !== "release") {
+    throw new Error("--mode must be direct, pr, range, or release");
   }
   const root = resolve(args.get("--root") ?? resolve(import.meta.dirname, ".."));
   run(mode, root, args);

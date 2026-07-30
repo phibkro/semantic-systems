@@ -28,9 +28,9 @@ Feature-ID: <NNNN-slug>
 
 <!-- exact commands and their results; the tested SHA must match the PR head -->
 
-- [ ] `nix develop --command ./scripts/check-fast.sh`
-- [ ] `nix develop --command ./scripts/check.sh`
-- [ ] `nix develop --command ./scripts/accept/<id>-<slug>.sh`
+- [ ] `nix develop --command just fast`
+- [ ] `nix develop --command just check`
+- [ ] `nix develop --command just accept <id>-<slug>`
 - [ ] `nix flake check`
 
 ## Evidence categories and artifacts

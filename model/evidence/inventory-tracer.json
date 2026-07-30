@@ -6,10 +6,7 @@
       "name": "Evidence-aware inventory resolution",
       "summary": "Under fixed artifacts and policy, exactly one eligible realization is selected and only it executes the reference scenario.",
       "status": "supported",
-      "tags": [
-        "inventory",
-        "tracer-bullet"
-      ],
+      "tags": ["inventory", "tracer-bullet"],
       "attributes": {
         "registry": "claims/registry.md#clm-0001--evidence-aware-inventory-resolution",
         "not_established": "Universal inventory correctness, proof evidence, external evidence import, or production runtime suitability."
@@ -21,10 +18,7 @@
       "name": "Inventory conformance recipe v0",
       "summary": "Authored nine-case recipe bound to one exact theory identity; executing it produces per-realization evidence.",
       "status": "current",
-      "tags": [
-        "inventory",
-        "oracle"
-      ],
+      "tags": ["inventory", "oracle"],
       "attributes": {
         "path": "examples/inventory/evidence/conformance-v0.json",
         "theory_identity": "sha256:456b5f8d991ce08c400c6b1688216834ad0460ab57ad14ef99cb5b4866a158ba",
@@ -37,23 +31,18 @@
       "name": "Pure inventory conformance result v0",
       "summary": "Nine finite example cases pass for one exact pure realization identity.",
       "status": "current",
-      "tags": [
-        "inventory",
-        "tracer-bullet"
-      ],
+      "tags": ["inventory", "tracer-bullet"],
       "attributes": {
         "evidence_type": "example_test",
-        "command": "PYTHONPATH=src python -m semantic_tracer demo examples/inventory",
+        "command": "bun run semantic-tracer -- demo examples/inventory",
         "theory_identity": "sha256:456b5f8d991ce08c400c6b1688216834ad0460ab57ad14ef99cb5b4866a158ba",
-        "realization_identity": "sha256:8fbc8156ae30ecfa37c71e9c25ec3a86608bdb491c9427c190affd607e0dc5c4",
+        "realization_identity": "sha256:67a6b723fa37eaaa7fffe0890f27174f2d04027e05f3eaf8760d9a430a7201b9",
         "cases": "9/9",
         "assumptions": [
-          "Python integer arithmetic is exact for fixture quantities.",
+          "All fixture quantities stay within JavaScript's exact safe-integer range.",
           "The nine authored cases adequately sample the v0 contract for development selection."
         ],
-        "invalidated_by": [
-          "A theory, realization, suite, adapter, or runner change."
-        ]
+        "invalidated_by": ["A theory, realization, suite, adapter, or runner change."]
       }
     },
     {
@@ -62,41 +51,30 @@
       "name": "Broken inventory conformance result v0",
       "summary": "One insufficient-stock counterexample fails for one exact broken realization identity.",
       "status": "failed",
-      "tags": [
-        "inventory",
-        "counterexample"
-      ],
+      "tags": ["inventory", "counterexample"],
       "attributes": {
         "evidence_type": "example_test",
-        "command": "PYTHONPATH=src python -m semantic_tracer demo examples/inventory",
+        "command": "bun run semantic-tracer -- demo examples/inventory",
         "theory_identity": "sha256:456b5f8d991ce08c400c6b1688216834ad0460ab57ad14ef99cb5b4866a158ba",
-        "realization_identity": "sha256:e30c8e4be3a26655ed8b6019c6c4b557367bf64d53e1b248b95f801a08e3b06c",
+        "realization_identity": "sha256:44bc84e17c9abaab229cc3a6fb143ebeb3a6a6655e014eec60c0d7fbe0c029c0",
         "cases": "7/9",
-        "counterexamples": [
-          "insufficient-stock",
-          "missing-stock-is-zero"
-        ],
+        "counterexamples": ["insufficient-stock", "missing-stock-is-zero"],
         "assumptions": [
-          "Python integer arithmetic is exact for fixture quantities.",
+          "All fixture quantities stay within JavaScript's exact safe-integer range.",
           "The nine authored cases adequately sample the v0 contract for development selection."
         ],
-        "invalidated_by": [
-          "A theory, realization, suite, adapter, or runner change."
-        ]
+        "invalidated_by": ["A theory, realization, suite, adapter, or runner change."]
       }
     },
     {
-      "id": "assumption.inventory.python-adapter",
+      "id": "assumption.inventory.typescript-adapter",
       "kind": "assumption",
-      "name": "Python builtin execution adapter",
-      "summary": "Manifest operation keys are bound to the checked Python reference functions for this Stage A tracer.",
+      "name": "TypeScript builtin execution adapter",
+      "summary": "Manifest operation keys are bound to the checked TypeScript reference functions for this Stage A tracer.",
       "status": "visible",
-      "tags": [
-        "inventory",
-        "bootstrap"
-      ],
+      "tags": ["inventory", "bootstrap"],
       "attributes": {
-        "statement": "Operation binding names are interpreted by the in-process Python builtin registry.",
+        "statement": "Operation binding names are interpreted by the in-process TypeScript builtin registry.",
         "replacement_criterion": "Replace when an authored or normalized executable representation crosses the same contract."
       }
     },
@@ -104,12 +82,9 @@
       "id": "assumption.inventory.integer-arithmetic",
       "kind": "assumption",
       "name": "Fixture integer arithmetic",
-      "summary": "Python integer arithmetic is exact for the quantities exercised by the finite fixture.",
+      "summary": "All fixture quantities stay within JavaScript's exact safe-integer range.",
       "status": "visible",
-      "tags": [
-        "inventory",
-        "bootstrap"
-      ],
+      "tags": ["inventory", "bootstrap"],
       "attributes": {}
     },
     {
@@ -118,10 +93,7 @@
       "name": "Development fixture adequacy",
       "summary": "The nine authored cases adequately sample the v0 contract for development selection.",
       "status": "visible",
-      "tags": [
-        "inventory",
-        "evidence"
-      ],
+      "tags": ["inventory", "evidence"],
       "attributes": {
         "not_established": "Universal law coverage."
       }
@@ -186,7 +158,7 @@
     },
     {
       "source": "claim.inventory.resolution",
-      "target": "assumption.inventory.python-adapter",
+      "target": "assumption.inventory.typescript-adapter",
       "kind": "assumes",
       "summary": "",
       "attributes": {}

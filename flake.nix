@@ -29,6 +29,7 @@
               pkgs.actionlint
               pkgs.git
               pkgs.jq
+              pkgs.just
               # `node`, not just `bun`: the materialized .githooks/* scripts
               # are byte-identical to Clamor's ConventionalCommits block,
               # which hardcodes `#!/usr/bin/env node` shebangs for
@@ -56,13 +57,13 @@
       );
 
       # Real repository-validation checks, not just devShell evaluation:
-      # `nix flake check` actually runs the fast/integration Python gates
-      # (ruff, pyright, pytest, model validate/generate) and the
+      # During migration 0010, `nix flake check` runs the remaining Python
+      # reference-custody/control gates (ruff, pyright, pytest) and the
       # network-free commit-policy conformance script inside sandboxed
       # derivations. Checks that need npm-fetched devDependencies (oxfmt,
       # oxlint, tsc, commitlint) cannot run hermetically here without a
       # vendored node_modules fixed-output derivation, so they stay in
-      # `scripts/check-fast.sh` / `scripts/check.sh` under `nix develop`
+      # `just fast` / `just check` under `nix develop`
       # rather than being silently claimed as sandboxed `nix flake check`
       # coverage.
       checks = forAllSystems (
@@ -123,8 +124,6 @@
               ruff check .
               ruff format --check .
               actionlint .github/workflows/check.yml
-              python -m semantic_project_model validate
-              python -m semantic_project_model generate --check
               pyright
               pytest -p no:cacheprovider
             '';

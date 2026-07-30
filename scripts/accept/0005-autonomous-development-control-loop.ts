@@ -1,0 +1,34 @@
+#!/usr/bin/env bun
+import { resolve } from "node:path";
+import { Effect } from "effect";
+import { requireTool, runCommand, runMain } from "../lib/command.ts";
+
+const root = resolve(import.meta.dirname, "../..");
+const label = "accept/0005";
+const cacheRoot = resolve(process.env.TMPDIR ?? "/tmp", "semantic-systems-accept-0005", "xdg");
+const environment = { ...process.env, XDG_CACHE_HOME: cacheRoot };
+
+const program = Effect.gen(function* () {
+  for (const tool of ["actionlint", "bun", "git"]) yield* requireTool(label, tool);
+  for (const command of [
+    ["bun", "test", "tests/development-control-loop.test.ts"],
+    ["actionlint", ".github/workflows/check.yml"],
+    ["bun", "run", "check-commit-policy"],
+  ] as const) {
+    yield* runCommand(command, { cwd: root, env: environment });
+  }
+  const head = Bun.spawnSync({
+    cmd: ["git", "rev-parse", "HEAD"],
+    cwd: root,
+    stdout: "pipe",
+    stderr: "inherit",
+  });
+  if (head.exitCode !== 0) {
+    return yield* runCommand(["git", "rev-parse", "HEAD"], { cwd: root, env: environment });
+  }
+  console.log(
+    `accept/0005: commit ${head.stdout.toString().trim()}; feature-contract fixtures, Actionlint, and policy conformance passed.`,
+  );
+});
+
+runMain(label, program);
