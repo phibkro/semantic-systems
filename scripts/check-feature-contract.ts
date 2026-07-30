@@ -162,13 +162,71 @@ const visibleSectionContent = (content: string): string =>
     .replace(/^```[^\n]*$/gm, "")
     .trim();
 
-const designStructuralText = (content: string): string =>
-  content
-    .replace(/<!--[\s\S]*?-->/g, "")
-    .replace(/```[\s\S]*?```/g, "")
-    .replace(/~~~[\s\S]*?~~~/g, "");
+const withoutHtmlComments = (content: string): string =>
+  content.replace(/<!--[\s\S]*?(?:-->|$)/g, "");
+
+const designStructuralText = (content: string): string => {
+  const visible: Array<string> = [];
+  let fence:
+    | {
+        readonly marker: "`" | "~";
+        readonly length: number;
+      }
+    | undefined;
+
+  for (const line of withoutHtmlComments(content).split("\n")) {
+    if (fence === undefined) {
+      const opening = /^ {0,3}(`{3,}|~{3,})/.exec(line);
+      if (opening !== null) {
+        const run = opening[1]!;
+        fence = {
+          marker: run[0] as "`" | "~",
+          length: run.length,
+        };
+        visible.push("");
+        continue;
+      }
+      visible.push(line);
+      continue;
+    }
+
+    const closing = new RegExp(`^ {0,3}\\${fence.marker}{${fence.length},}\\s*$`);
+    if (closing.test(line)) {
+      fence = undefined;
+    }
+    visible.push("");
+  }
+
+  return visible.join("\n");
+};
+
+const PLACEHOLDER_WORDS = new Set([
+  "todo",
+  "tbd",
+  "placeholder",
+  "later",
+  "pending",
+  "fill",
+  "me",
+  "explain",
+  "none",
+  "na",
+  "n/a",
+]);
 
 const visibleDesignContent = (content: string): string => designStructuralText(content).trim();
+
+const isPlaceholderOnly = (content: string): boolean => {
+  const visible = visibleDesignContent(content);
+  if (visible.length === 0) return true;
+  const words = visible
+    .toLowerCase()
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^[\s>*+-]+/gm, "")
+    .split(/[\s`_*[\](){}:;,.!?-]+/)
+    .filter((word) => word.length > 0);
+  return words.every((word) => PLACEHOLDER_WORDS.has(word));
+};
 
 export const validateDesignLensText = (content: string, path: string): void => {
   const structure = designStructuralText(content);
@@ -213,7 +271,7 @@ export const validateDesignLensText = (content: string, path: string): void => {
     const sectionStart = (heading.index ?? 0) + heading[0].length;
     const next = levelThree.find((candidate) => (candidate.index ?? 0) > sectionStart);
     const sectionEnd = next?.index ?? lens.length;
-    if (visibleDesignContent(lens.slice(sectionStart, sectionEnd)).length === 0) {
+    if (isPlaceholderOnly(lens.slice(sectionStart, sectionEnd))) {
       throw new Error(`${path} design-lens subsection "${required}" is empty or placeholder-only`);
     }
   }

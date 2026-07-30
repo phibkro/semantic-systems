@@ -41,6 +41,30 @@ describe("open semantic system design-lens shape", () => {
     expect(template).toContain("intentional persistent-process meaning");
   });
 
+  test("assigns enforcement claims only to boundaries that can observe them", () => {
+    const lens = readFileSync("docs/open-semantic-system-design.md", "utf8");
+    const template = readFileSync("design-specs/TEMPLATE.md", "utf8");
+
+    expect(lens).toContain("## Enforcement ladder");
+    expect(lens).toContain("A query cannot secretly");
+    expect(lens).toContain("TypeScript's structural types disappear at runtime");
+    expect(lens).toContain("claim-before-effect intent");
+    expect(template).toContain("Do not assign a semantic claim to a gate that cannot");
+  });
+
+  test("keeps FSM, actor, supervision, and task-scope responsibilities orthogonal", () => {
+    const lens = readFileSync("docs/open-semantic-system-design.md", "utf8");
+    const template = readFileSync("design-specs/TEMPLATE.md", "utf8");
+
+    expect(lens).toContain("### Recursive components and runtime realizations");
+    expect(lens).toContain("FSM/statechart/reducer");
+    expect(lens).toContain("Actor/process");
+    expect(lens).toContain("OTP-style supervision");
+    expect(lens).toContain("Structured concurrency");
+    expect(lens).toContain("effect results re-enter as observations");
+    expect(template).toContain("which separate responsibility each mechanism owns");
+  });
+
   test("accepts domain-specific prose without keyword inference", () => {
     const text = completeLens((heading) => `A bounded answer written for ${heading}.`);
     expect(() => validateDesignLensText(text, "design-specs/9999-fixture.md")).not.toThrow();
@@ -98,6 +122,13 @@ describe("open semantic system design-lens shape", () => {
         ),
       ),
     ).toContain("placeholder-only");
+    expect(
+      rejection(
+        completeLens((candidate) =>
+          candidate === heading ? "TODO: explain later" : `Account for ${candidate}.`,
+        ),
+      ),
+    ).toContain("placeholder-only");
   });
 
   test("does not recognize markers or headings hidden in comments or code fences", () => {
@@ -116,8 +147,26 @@ Design-Lens-Version: ${DESIGN_LENS_VERSION}
 
 ${DESIGN_LENS_HEADINGS.map((heading) => `### ${heading}\n\nHidden account.`).join("\n\n")}
 \`\`\`
-`;
+    `;
     expect(rejection(fenced)).toContain('"Open semantic system design lens" section');
+
+    const longFence = `# Design
+
+\`\`\`\`
+Design-Lens-Version: ${DESIGN_LENS_VERSION}
+
+## Open semantic system design lens
+
+${DESIGN_LENS_HEADINGS.map((heading) => `### ${heading}\n\nHidden account.`).join("\n\n")}
+\`\`\`
+`;
+    expect(rejection(longFence)).toContain("exactly one Design-Lens-Version");
+
+    const unclosedComment = completeLens().replace(
+      `Design-Lens-Version: ${DESIGN_LENS_VERSION}`,
+      `<!--\nDesign-Lens-Version: ${DESIGN_LENS_VERSION}`,
+    );
+    expect(rejection(unclosedComment)).toContain("exactly one Design-Lens-Version");
   });
 
   test("reports static design-lens shape, never semantic correctness", () => {

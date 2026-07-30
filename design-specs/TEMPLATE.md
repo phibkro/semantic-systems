@@ -51,7 +51,10 @@ effect interpretation. Trace important vertical slices to an explicit value,
 rejection, outward request, handoff, wait, or suspension. For each message
 cycle, declare a progress measure, bound, wait state, cancellation/escalation
 policy, environmental assumption, or intentional persistent-process meaning.
-State composition risks beyond local correctness.
+State composition risks beyond local correctness. If using FSMs, actors,
+OTP-style supervision, structured concurrency, effect handlers, STM, or a
+coordinator, state which separate responsibility each mechanism owns and how
+state is reconstructed, reset, retained, or left unknown after failure.
 
 ### Bounded autonomy and resources
 
@@ -62,7 +65,11 @@ depends on.
 ### Evidence, assumptions, and unsupported claims
 
 Name actual evidence categories and artifacts. Record environmental premises
-and guarantees the feature does not establish.
+and guarantees the feature does not establish. State which contract-shape,
+type/module, dependency/lint, runtime-decode, pure-law, effect-interpreter,
+protocol-exploration, runtime-observation, and independent-review gates enforce
+the declared boundaries. Do not assign a semantic claim to a gate that cannot
+observe it.
 
 ## Deep-module contract
 

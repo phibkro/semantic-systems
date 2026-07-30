@@ -190,6 +190,79 @@ progress story. State at least one of:
 Without one of these, a cyclic message graph exposes possible livelock,
 amplification, or non-termination rather than establishing a valid loop.
 
+### Recursive components and runtime realizations
+
+The open-system model is recursive. A whole application, one subsystem, one
+actor, or one finite-state component can each be viewed through the same
+boundary:
+
+```text
+Component<State, Input, Event, Artifact, EffectRequest>
+  owns:        state invariants + accepted-input serialization
+  reacts:      State × Input -> Transition
+  publishes:   typed messages, events, and derived artifacts
+  requests:    outward effects through declared protocols
+  suspends:    at an explicit wait or lifecycle boundary
+```
+
+Finite-state machines, actors, OTP, and structured concurrency answer
+different questions and can compose:
+
+| Mechanism              | Question it answers                                           |
+| ---------------------- | ------------------------------------------------------------- |
+| FSM/statechart/reducer | How does one owned state react to one semantic input?         |
+| Actor/process          | Who exclusively owns state, a mailbox, and message order?     |
+| OTP-style supervision  | Who owns lifecycle, restart, escalation, and availability?    |
+| Structured concurrency | Who owns temporary tasks, cancellation, joining, and failure? |
+| Effect handler         | Who may interpret one declared outward capability?            |
+| STM/coordinator        | Who protects an invariant spanning ownership boundaries?      |
+
+One useful realization is:
+
+```mermaid
+flowchart TD
+    S[Supervisor: lifecycle and restart policy]
+    A[Actor: mailbox and persistent state owner]
+    F[FSM: pure reaction to one typed message]
+    T[Bounded task scope for this reaction]
+    R[Effect requests]
+    H[Capability handler]
+    O[Returned observations]
+
+    S --> A
+    A --> F
+    F --> A
+    F --> T
+    T --> R
+    R --> H
+    H -. evidence .-> O
+    O --> A
+```
+
+The actor may intentionally live forever while every mailbox turn terminates,
+returns to a wait state, or records durable suspension. Tasks spawned by one
+turn must be joined or cancelled before that scope ends, unless ownership is
+explicitly transferred to another persistent component. A restart must state
+whether state is reconstructed, loaded, reset, or left unknown.
+
+Composition needs rules beyond each component's local correctness:
+
+- mutable actor state and aliases never escape its ownership boundary;
+- messages are immutable values or are snapshotted at acceptance;
+- each input has one declared receiving owner and an ordering policy;
+- mailbox capacity, backpressure, fairness, and overload behavior are explicit;
+- effect results re-enter as observations rather than mutating state from an
+  adapter callback;
+- cross-actor atomic invariants move under one owner, STM domain, or explicit
+  coordination protocol; and
+- supervisors do not silently become domain authorities merely because they
+  own lifecycle.
+
+Actors, OTP, or structured concurrency are realization choices, not mandatory
+semantic theories. A pure finite calculation may need none of them. Their
+selection and configuration require operational evidence in addition to the
+component's semantic contract.
+
 ## Bounded autonomy
 
 Persistent actors and services may live indefinitely. Each reaction should
@@ -246,6 +319,104 @@ Every new or changed feature design fills the versioned worksheet in
 
 The repository gate checks that these accounts exist. Reviewers and executable
 oracles evaluate their substance.
+
+## Enforcement ladder
+
+No single TypeScript type, linter, test, or diagram can establish this whole
+model. Enforce each claim at the boundary that can actually observe it:
+
+| Boundary                       | Mechanically enforce                                                             | Does not establish                                       |
+| ------------------------------ | -------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| Design contract                | Every category, owner, protocol, cycle, assumption, and unsupported claim exists | That the authored account is semantically correct        |
+| Semantic type/module boundary  | Distinct inputs, events, artifacts, requests, outcomes, opaque constructors      | That a producer used the category truthfully             |
+| Dependency and lint boundary   | Domain code cannot import adapters or invoke ambient platform capabilities       | Domain laws, progress, or environmental consequences     |
+| Runtime decode boundary        | Exact schema/version, provenance, identity, correlation, and capability checks   | That an authenticated observation is true                |
+| Pure transition and projection | Determinism, immutability, exhaustive cases, replay and derivation laws          | Behavior outside the modeled state and inputs            |
+| Effect interpreter             | Only declared requests reach capabilities; attempts and outcomes are recorded    | Exactly-once consequences in an uncontrolled environment |
+| Protocol exploration           | Selected traces, schedules, bounds, deadlocks, and counterexamples               | Unbounded correctness unless a proof actually covers it  |
+| Runtime observation            | What this execution received, decided, requested, acknowledged, and retained     | Unobserved world state                                   |
+| Independent evidence audit     | Claims are bound to exact artifacts and reported in their real evidence class    | More assurance than the cited evidence category supplies |
+
+### Typed semantic kernel
+
+Use one small canonical vocabulary rather than parallel lookalike types:
+
+```text
+react  : State × (Command | Observation)
+      -> State × DomainEvent* × Artifact* × EffectRequest*
+
+answer : State × Query
+      -> Artifact*
+
+interpret : EffectRequest
+         -> Observation*
+```
+
+The notation is a boundary contract, not a demand for one global reducer.
+Components may own smaller state and message types. A query cannot secretly
+change canonical state or perform an outward effect; a request for refreshed
+world data is a command whose eventual response returns as an observation.
+
+Make command, observation, domain event, artifact, effect request, and effect
+outcome distinct tagged types. Observations require source identity,
+provenance, observation time or sequence where relevant, schema identity, and
+their claimed evidential strength. Effect requests carry stable action and
+idempotency identities when retries or reconciliation exist.
+
+TypeScript's structural types disappear at runtime. Handler-owned authority
+therefore cannot rely on an exported interface or a brand assertion alone.
+Keep authoritative constructors private, expose validated smart constructors,
+snapshot mutable inputs, and revalidate serialized values at every trust
+boundary. If settlement depends on handler custody, bind it to an
+unforgeable/private token or handler registry rather than accepting a
+structurally compatible journal.
+
+### Dependency and capability enforcement
+
+Declare code domains and enforce their import graph:
+
+```text
+semantic theory/types
+  <- pure transition and projection
+  <- application composition
+  <- platform/runtime adapters
+  <- process entrypoints
+```
+
+Portable semantic code may construct effect requests but cannot call
+filesystem, network, clock, randomness, crypto, process, ambient console, or
+runtime execution APIs directly. Type-aware lint rules should recognize the
+declared code domain and imported symbol identity; names and raw text are not
+semantic evidence. Runtime-specific adapters may use those capabilities
+through explicit Effect services and layers.
+
+### Executable laws and runtime custody
+
+Require counterexamples and laws appropriate to the declared feature:
+
+- same state plus same input produces the same transition;
+- input values and returned artifacts cannot mutate owned state by alias;
+- query evaluation leaves canonical state unchanged and emits no effects;
+- generated views are reproducible from their canonical sources;
+- replay does not repeat an external effect;
+- every emitted effect request belongs to the declared protocol;
+- timeout and persistence failure preserve explicit uncertainty;
+- retry obeys idempotency, deduplication, or reconciliation policy;
+- actor/mailbox ownership serializes every operation on one mutable resource;
+- every important vertical slice reaches its declared result or suspension;
+  and
+- every cycle has its stated progress, bound, wait, or persistence behavior.
+
+At runtime, use durable envelopes with message, schema, correlation, causation,
+owner, and action identities. Record claim-before-effect intent, observed
+attempt, acknowledgement, uncertainty, reconciliation, and completion as
+different states. A failed database commit cannot roll back an already-issued
+GUI or network effect.
+
+Project-model and Workgraph views can then derive message topology, ownership,
+effect interpreters, projections, vertical slices, and annotated cycles from
+canonical declarations. The generated graph is a review surface; declarations,
+code, and exact evidence remain authority.
 
 ## Review prompts
 

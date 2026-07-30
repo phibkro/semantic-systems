@@ -4,8 +4,8 @@ Canonical frozen contract:
 [`design-specs/0015-open-semantic-system-design-lens.md`](../../design-specs/0015-open-semantic-system-design-lens.md).
 This mutable execution record cannot redefine that contract.
 
-Status: implementation and exact acceptance green; full integration
-revalidation and independent review pending
+Status: enforcement-ladder and parser-hardening refinement green; independent
+review pending
 
 Owner: primary Semantic Systems lead
 
@@ -106,6 +106,13 @@ state, and unrelated project-model changes.
   330 Bun tests/1,668 expectations, zero Effect diagnostics, and 68
   transitional Python custody checks. This is exact implementation evidence,
   not independent review.
+- 2026-07-30: added the enforcement ladder, recursive FSM/actor/OTP/task-scope
+  component model, CommonMark-length-aware fenced-block stripping, unclosed
+  comment handling, and explicit placeholder rejection. Exact acceptance
+  passed with 9 dedicated lens tests/33 expectations and 24 control-loop
+  tests/250 expectations. Full integration passed with 332 Bun tests/1,683
+  expectations, zero Effect diagnostics, and 68 transitional Python custody
+  checks. Independent exact-head review remains pending.
 
 ## Acceptance command
 
