@@ -10,16 +10,52 @@ import {
   type JsonObject,
   type JsonValue,
 } from "./json.ts";
-import {
-  EVIDENCE_RESULT_KIND,
-  PACKET_SCHEMA_VERSION,
-  type CaseResult,
-  type EvidenceResultInput,
-} from "./packets.ts";
 import type { Realization } from "./realization.ts";
 import type { Theory } from "./theory.ts";
 
 export const EVIDENCE_CATEGORY = "example_test";
+
+export interface CaseResult {
+  readonly caseId: string;
+  readonly passed: boolean;
+  readonly detail: JsonObject | null;
+}
+
+export interface EvidenceResult {
+  readonly category: string;
+  readonly obligation: string;
+  readonly producer: JsonObject;
+  readonly theoryIdentity: string;
+  readonly realizationIdentity: string;
+  readonly assumptions: ReadonlyArray<string>;
+  readonly caseResults: ReadonlyArray<CaseResult>;
+}
+
+export const evidenceTotalCases = (evidence: EvidenceResult): number => evidence.caseResults.length;
+export const evidencePassedCases = (evidence: EvidenceResult): number =>
+  evidence.caseResults.filter((item) => item.passed).length;
+export const evidencePassed = (evidence: EvidenceResult): boolean =>
+  evidenceTotalCases(evidence) > 0 &&
+  evidencePassedCases(evidence) === evidenceTotalCases(evidence);
+export const caseResultToJson = (result: CaseResult): JsonObject => ({
+  case_id: result.caseId,
+  passed: result.passed,
+  detail: result.detail,
+});
+export const evidenceCounterexamples = (evidence: EvidenceResult): ReadonlyArray<JsonObject> =>
+  evidence.caseResults.filter((item) => !item.passed).map(caseResultToJson);
+
+export const evidenceToJson = (evidence: EvidenceResult): JsonObject => ({
+  category: evidence.category,
+  obligation: evidence.obligation,
+  producer: evidence.producer,
+  theory_identity: evidence.theoryIdentity,
+  realization_identity: evidence.realizationIdentity,
+  assumptions: evidence.assumptions,
+  passed: evidencePassed(evidence),
+  total_cases: evidenceTotalCases(evidence),
+  passed_cases: evidencePassedCases(evidence),
+});
 
 const invariantViolations = (state: JsonObject): ReadonlyArray<string> => {
   const violations: Array<string> = [];
@@ -83,10 +119,9 @@ export const runConformance = (
   theory: Theory,
   realization: Realization,
   suite: JsonObject,
-  recipeIdentity: string,
   transition: Transition,
   replay: Replay,
-): EvidenceResultInput => {
+): EvidenceResult => {
   const category = requireString(
     requireKey(suite, "category", "conformance_suite"),
     "suite.category",
@@ -107,12 +142,9 @@ export const runConformance = (
   const assumptions = requireStringList(suite.assumptions ?? [], "suite.assumptions");
   const cases = requireObjectList(requireKey(suite, "cases", "conformance_suite"), "suite.cases");
   return {
-    artifactKind: EVIDENCE_RESULT_KIND,
-    schemaVersion: PACKET_SCHEMA_VERSION,
     category: EVIDENCE_CATEGORY,
     obligation,
     producer,
-    recipeIdentity,
     theoryIdentity: theory.identity,
     realizationIdentity: realization.identity,
     assumptions,

@@ -323,7 +323,6 @@ describe("inventory tracer Effect v4 slice", () => {
     });
     expect(recipe.theory_identity).toBe(theoryIdentity);
     expect(entity(evidence, "artifact.inventory.conformance-recipe-v0").attributes).toMatchObject({
-      identity: "sha256:92335ebf5242f2c74c0b14fb1dae7c0588eb0795768954730560d9d713ce3524",
       theory_identity: theoryIdentity,
     });
     expect(entity(components, "realization.inventory.pure").attributes).toMatchObject({
@@ -334,15 +333,11 @@ describe("inventory tracer Effect v4 slice", () => {
       identity: broken.realization_identity,
     });
     expect(entity(evidence, "evidence.inventory.pure-conformance-v0").attributes).toMatchObject({
-      identity: (pure.evidence as JsonObject).identity,
-      recipe_identity: (pure.evidence as JsonObject).recipe_identity,
       theory_identity: theoryIdentity,
       realization_identity: pure.realization_identity,
       cases: "9/9",
     });
     expect(entity(evidence, "evidence.inventory.broken-conformance-v0").attributes).toMatchObject({
-      identity: (broken.evidence as JsonObject).identity,
-      recipe_identity: (broken.evidence as JsonObject).recipe_identity,
       theory_identity: theoryIdentity,
       realization_identity: broken.realization_identity,
       cases: "7/9",
@@ -350,10 +345,6 @@ describe("inventory tracer Effect v4 slice", () => {
     expect(entity(execution, "artifact.lock.inventory.reference").attributes).toMatchObject({
       theory_identity: theoryIdentity,
       realization_identity: pure.realization_identity,
-      policy_id: "policy.inventory.development",
-      policy_identity: ((result.claim as JsonObject).policy as JsonObject).content_identity,
-      recipe_identity: (pure.evidence as JsonObject).recipe_identity,
-      evidence_result_identity: (pure.evidence as JsonObject).identity,
     });
   });
 });

@@ -27,14 +27,6 @@ export interface Theory {
   readonly payload: JsonObject;
 }
 
-export const requiredObligationId = (theory: Theory): string | null => {
-  const raw = theory.payload.obligations;
-  if (!Array.isArray(raw) || raw.length !== 1) return null;
-  const first = raw[0];
-  if (first === null || typeof first !== "object" || Array.isArray(first)) return null;
-  return typeof first.id === "string" ? first.id : null;
-};
-
 const semanticDeclaration = (declaration: JsonObject): JsonObject =>
   Object.fromEntries(Object.entries(declaration).filter(([key]) => !NON_SEMANTIC_FIELDS.has(key)));
 

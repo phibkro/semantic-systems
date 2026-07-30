@@ -9,36 +9,7 @@
       "tags": ["inventory", "tracer-bullet"],
       "attributes": {
         "registry": "claims/registry.md#clm-0001--evidence-aware-inventory-resolution",
-        "independent_checker_registry": "claims/registry.md#clm-0002--independently-checkable-resolution",
         "not_established": "Universal inventory correctness, proof evidence, external evidence import, or production runtime suitability."
-      }
-    },
-    {
-      "id": "artifact.inventory.resolution-claim-v1",
-      "kind": "artifact",
-      "name": "Inventory resolution claim v1",
-      "summary": "Lossless runtime claim over exact theory, policy, candidate, evidence-result, selection, and assumption bindings.",
-      "status": "generated_at_runtime",
-      "tags": ["inventory", "resolution", "checker"],
-      "attributes": {
-        "artifact_kind": "resolution_claim",
-        "schema_version": 1,
-        "command": "bun run semantic-tracer -- verify-resolution examples/inventory"
-      }
-    },
-    {
-      "id": "evidence.inventory.resolution-check-v1",
-      "kind": "evidence",
-      "name": "Independent inventory resolution check v1",
-      "summary": "Runtime validation re-derives the resolution claim without importing the resolver or execution machinery and checks its canonical model binding.",
-      "status": "current",
-      "tags": ["inventory", "runtime-validation", "checker"],
-      "attributes": {
-        "evidence_type": "runtime_check",
-        "command": "bun run semantic-tracer -- verify-resolution examples/inventory",
-        "checker_status": "valid",
-        "model_binding": "valid",
-        "not_proof": true
       }
     },
     {
@@ -50,7 +21,6 @@
       "tags": ["inventory", "oracle"],
       "attributes": {
         "path": "examples/inventory/evidence/conformance-v0.json",
-        "identity": "sha256:92335ebf5242f2c74c0b14fb1dae7c0588eb0795768954730560d9d713ce3524",
         "theory_identity": "sha256:456b5f8d991ce08c400c6b1688216834ad0460ab57ad14ef99cb5b4866a158ba",
         "not_evidence": true
       }
@@ -64,9 +34,7 @@
       "tags": ["inventory", "tracer-bullet"],
       "attributes": {
         "evidence_type": "example_test",
-        "command": "bun run semantic-tracer -- verify-resolution examples/inventory",
-        "identity": "sha256:675c9310444fa849f75a28b4a994e39c36b190c2c898bc1049447adf646a0c30",
-        "recipe_identity": "sha256:92335ebf5242f2c74c0b14fb1dae7c0588eb0795768954730560d9d713ce3524",
+        "command": "bun run semantic-tracer -- demo examples/inventory",
         "theory_identity": "sha256:456b5f8d991ce08c400c6b1688216834ad0460ab57ad14ef99cb5b4866a158ba",
         "realization_identity": "sha256:67a6b723fa37eaaa7fffe0890f27174f2d04027e05f3eaf8760d9a430a7201b9",
         "cases": "9/9",
@@ -86,9 +54,7 @@
       "tags": ["inventory", "counterexample"],
       "attributes": {
         "evidence_type": "example_test",
-        "command": "bun run semantic-tracer -- verify-resolution examples/inventory",
-        "identity": "sha256:537110cb24a7a051afcd9d91a88a9c1a4e81f7cfc8751dcb4f3ab66d7b47a744",
-        "recipe_identity": "sha256:92335ebf5242f2c74c0b14fb1dae7c0588eb0795768954730560d9d713ce3524",
+        "command": "bun run semantic-tracer -- demo examples/inventory",
         "theory_identity": "sha256:456b5f8d991ce08c400c6b1688216834ad0460ab57ad14ef99cb5b4866a158ba",
         "realization_identity": "sha256:44bc84e17c9abaab229cc3a6fb143ebeb3a6a6655e014eec60c0d7fbe0c029c0",
         "cases": "7/9",
@@ -134,27 +100,6 @@
     }
   ],
   "relations": [
-    {
-      "source": "artifact.inventory.resolution-claim-v1",
-      "target": "claim.inventory.resolution",
-      "kind": "derives",
-      "summary": "The serialized claim is produced from the complete authored inputs, producer outcomes, and production adjudication.",
-      "attributes": {}
-    },
-    {
-      "source": "evidence.inventory.resolution-check-v1",
-      "target": "artifact.inventory.resolution-claim-v1",
-      "kind": "validates",
-      "summary": "The independent checker re-derives every semantic claim field and the inventory adapter checks canonical bindings.",
-      "attributes": {}
-    },
-    {
-      "source": "evidence.inventory.resolution-check-v1",
-      "target": "claim.inventory.resolution",
-      "kind": "supports",
-      "summary": "Supports only internal consistency of the frozen v1 artifacts under visible canonicalization and runtime assumptions.",
-      "attributes": {}
-    },
     {
       "source": "evidence.inventory.pure-conformance-v0",
       "target": "artifact.inventory.conformance-recipe-v0",

@@ -1,15 +1,12 @@
-import { Effect, type Crypto } from "effect";
-import { contentIdentity } from "./canonical.ts";
 import {
   evidenceCounterexamples,
   evidencePassed,
   evidencePassedCases,
   evidenceToJson,
   evidenceTotalCases,
+  runConformance,
   type EvidenceResult,
-  type ProducerDiagnostic,
-  type ProducerOutcome,
-} from "./packets.ts";
+} from "./evidence.ts";
 import type { ExplanationNode } from "./explanation.ts";
 import {
   DocumentError,
@@ -18,23 +15,28 @@ import {
   requireString,
   type JsonObject,
 } from "./json.ts";
-import { realizationAssumptions, realizationId, type Realization } from "./realization.ts";
+import { resolveReplay, resolveTransition } from "./operations.ts";
 import {
-  REASON_AMBIGUOUS,
-  REASON_ASSUMPTIONS_NOT_ALLOWED,
-  REASON_CATEGORY_NOT_ACCEPTED,
-  REASON_CONFORMANCE_FAILED,
-  REASON_EVIDENCE_AMBIGUOUS,
-  REASON_EVIDENCE_OBLIGATION_MISMATCH,
-  REASON_EVIDENCE_STALE,
-  REASON_MISSING_EVIDENCE,
-  REASON_NO_ELIGIBLE,
-  REASON_OBLIGATION_NOT_GOVERNED,
-  REASON_OBLIGATION_SET_UNSUPPORTED,
-  REASON_OPERATION_UNBOUND,
-  REASON_THEORY_MISMATCH,
-} from "./reasons.ts";
-import { requiredObligationId, type Theory } from "./theory.ts";
+  operationBinding,
+  realizationAssumptions,
+  realizationId,
+  type Realization,
+} from "./realization.ts";
+import type { Theory } from "./theory.ts";
+
+export const REASON_MISSING_EVIDENCE = "missing_evidence";
+export const REASON_CATEGORY_NOT_ACCEPTED = "evidence_category_not_accepted";
+export const REASON_ASSUMPTIONS_NOT_ALLOWED = "assumptions_not_allowed";
+export const REASON_CONFORMANCE_FAILED = "conformance_failed";
+export const REASON_OBLIGATION_NOT_GOVERNED = "obligation_not_governed";
+export const REASON_AMBIGUOUS = "ambiguous_candidates";
+export const REASON_NO_ELIGIBLE = "no_eligible_candidates";
+export const REASON_THEORY_MISMATCH = "theory_mismatch";
+export const REASON_EVIDENCE_AMBIGUOUS = "ambiguous_evidence";
+export const REASON_EVIDENCE_OBLIGATION_MISMATCH = "evidence_obligation_mismatch";
+export const REASON_OBLIGATION_SET_UNSUPPORTED = "required_obligation_set_unsupported";
+export const REASON_EVIDENCE_STALE = "stale_evidence_recipe";
+export const REASON_OPERATION_UNBOUND = "unbound_operation";
 
 const CHANGE_OPTIONS: Readonly<Record<string, string>> = {
   [REASON_MISSING_EVIDENCE]: "Add one matching conformance suite for the required obligation.",
@@ -56,7 +58,6 @@ export interface Candidate {
   readonly eligible: boolean;
   readonly reasonCodes: ReadonlyArray<string>;
   readonly evidence: EvidenceResult | null;
-  readonly producerDiagnostic: ProducerDiagnostic | null;
 }
 
 export interface Resolution {
@@ -73,13 +74,6 @@ export const candidateToJson = (candidate: Candidate): JsonObject => ({
   eligible: candidate.eligible,
   reason_codes: candidate.reasonCodes,
   evidence: candidate.evidence === null ? null : evidenceToJson(candidate.evidence),
-  producer_diagnostic:
-    candidate.producerDiagnostic === null
-      ? null
-      : {
-          reason_code: candidate.producerDiagnostic.reasonCode,
-          detail: candidate.producerDiagnostic.detail,
-        },
   counterexamples: candidate.evidence === null ? [] : evidenceCounterexamples(candidate.evidence),
 });
 
@@ -124,118 +118,48 @@ export const resolutionToJson = (resolution: Resolution): JsonObject => ({
   candidates: resolution.candidates.map(candidateToJson),
 });
 
-export const selectedAssumptions = (resolution: Resolution): ReadonlyArray<string> => {
-  if (resolution.status !== "selected") return [];
-  const selected = resolution.candidates.find(
-    (candidate) => realizationId(candidate.realization) === resolution.selectedRealization,
-  );
-  if (selected === undefined) {
-    throw new DocumentError({ message: "selected realization is absent from candidates" });
-  }
-  return [
-    ...new Set([
-      ...realizationAssumptions(selected.realization),
-      ...(selected.evidence?.assumptions ?? []),
-    ]),
-  ].sort();
+const requiredObligation = (theory: Theory): string | null => {
+  const raw = theory.payload.obligations;
+  if (!Array.isArray(raw) || raw.length !== 1) return null;
+  const first = raw[0];
+  if (first === null || typeof first !== "object" || Array.isArray(first)) return null;
+  return typeof first.id === "string" ? first.id : null;
 };
-
-const claimCandidateToJson = (candidate: Candidate): JsonObject => ({
-  realization_id: realizationId(candidate.realization),
-  realization_identity: candidate.realization.identity,
-  targets_theory: candidate.realization.targetsTheory,
-  realization_assumptions: realizationAssumptions(candidate.realization),
-  evidence: candidate.evidence === null ? null : evidenceToJson(candidate.evidence),
-  producer_diagnostic:
-    candidate.producerDiagnostic === null
-      ? null
-      : {
-          reason_code: candidate.producerDiagnostic.reasonCode,
-          detail: candidate.producerDiagnostic.detail,
-        },
-  eligible: candidate.eligible,
-  reason_codes: candidate.reasonCodes,
-});
-
-export const buildResolutionClaim = (
-  theory: Theory,
-  theoryId: string,
-  policy: JsonObject,
-  resolution: Resolution,
-): Effect.Effect<JsonObject, DocumentError, Crypto.Crypto> =>
-  Effect.gen(function* () {
-    const policyId = yield* Effect.try({
-      try: () => requireString(requireKey(policy, "id", "policy"), "policy.id"),
-      catch: (cause) =>
-        cause instanceof DocumentError
-          ? cause
-          : new DocumentError({ message: "cannot identify resolution policy", cause }),
-    });
-    const selectedCandidate =
-      resolution.status === "selected"
-        ? resolution.candidates.find(
-            (candidate) => realizationId(candidate.realization) === resolution.selectedRealization,
-          )
-        : undefined;
-    if (resolution.status === "selected" && selectedCandidate === undefined) {
-      return yield* new DocumentError({
-        message: "selected realization is absent from resolution candidates",
-      });
-    }
-    return {
-      artifact_kind: "resolution_claim",
-      schema_version: 1,
-      theory: { id: theoryId, identity: theory.identity },
-      required_obligation: requiredObligationId(theory),
-      policy: { id: policyId, content_identity: yield* contentIdentity(policy) },
-      candidates: resolution.candidates.map(claimCandidateToJson),
-      status: resolution.status,
-      selected:
-        selectedCandidate === undefined
-          ? null
-          : {
-              id: realizationId(selectedCandidate.realization),
-              identity: selectedCandidate.realization.identity,
-            },
-      selected_assumptions: selectedAssumptions(resolution),
-    };
-  });
 
 const evaluateCandidate = (
   theory: Theory,
+  theoryId: string,
   realization: Realization,
-  outcomes: ReadonlyArray<ProducerOutcome>,
+  suites: ReadonlyArray<JsonObject>,
   policy: JsonObject,
 ): Candidate => {
-  const reject = (
-    reason: string,
-    producerDiagnostic: ProducerDiagnostic | null = null,
-  ): Candidate => ({
+  const reject = (reason: string): Candidate => ({
     realization,
     eligible: false,
     reasonCodes: [reason],
     evidence: null,
-    producerDiagnostic,
   });
   if (!realization.targetsTheory) return reject(REASON_THEORY_MISMATCH);
-  const obligation = requiredObligationId(theory);
+  const obligation = requiredObligation(theory);
   if (obligation === null) return reject(REASON_OBLIGATION_SET_UNSUPPORTED);
 
-  const matching = outcomes.filter(
-    (outcome) =>
-      outcome.theoryIdentity === theory.identity &&
-      outcome.realizationIdentity === realization.identity,
-  );
+  const matching = suites.filter((suite) => suite.theory === theoryId);
   if (matching.length === 0) return reject(REASON_MISSING_EVIDENCE);
   if (matching.length > 1) return reject(REASON_EVIDENCE_AMBIGUOUS);
-  const outcome = matching[0]!;
-  if (outcome.artifactKind === "producer_diagnostic") {
-    return reject(outcome.reasonCode, outcome);
+  const suite = matching[0]!;
+  if (suite.theory_identity !== theory.identity) return reject(REASON_EVIDENCE_STALE);
+  if (suite.obligation !== obligation) return reject(REASON_EVIDENCE_OBLIGATION_MISMATCH);
+
+  let transition: ReturnType<typeof resolveTransition>;
+  let replay: ReturnType<typeof resolveReplay>;
+  try {
+    transition = resolveTransition(operationBinding(realization.document, "transition"));
+    replay = resolveReplay(operationBinding(realization.document, "replay"));
+  } catch (error) {
+    if (error instanceof DocumentError) return reject(REASON_OPERATION_UNBOUND);
+    throw error;
   }
-  const evidence = outcome;
-  if (evidence.obligation !== obligation) {
-    return reject(REASON_EVIDENCE_OBLIGATION_MISMATCH);
-  }
+  const evidence: EvidenceResult = runConformance(theory, realization, suite, transition, replay);
 
   const reasons: Array<string> = [];
   const requirements = requireObject(
@@ -263,14 +187,14 @@ const evaluateCandidate = (
     eligible: reasons.length === 0,
     reasonCodes: reasons,
     evidence,
-    producerDiagnostic: null,
   };
 };
 
 export const resolve = (
   theory: Theory,
+  theoryId: string,
   realizations: ReadonlyArray<Realization>,
-  outcomes: ReadonlyArray<ProducerOutcome>,
+  suites: ReadonlyArray<JsonObject>,
   policy: JsonObject,
 ): Resolution => {
   const ambiguity = requireString(requireKey(policy, "ambiguity", "policy"), "policy.ambiguity");
@@ -278,7 +202,7 @@ export const resolve = (
     throw new DocumentError({ message: `unsupported ambiguity policy '${ambiguity}'` });
   }
   const candidates = realizations.map((realization) =>
-    evaluateCandidate(theory, realization, outcomes, policy),
+    evaluateCandidate(theory, theoryId, realization, suites, policy),
   );
   const eligible = candidates.filter((candidate) => candidate.eligible);
   if (eligible.length === 1) {

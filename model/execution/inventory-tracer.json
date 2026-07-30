@@ -8,8 +8,7 @@
       "status": "current",
       "tags": ["inventory", "policy"],
       "attributes": {
-        "path": "examples/inventory/policies/development.json",
-        "content_identity": "sha256:5873935921a72d445df6b33579152e0c965a637d4e4927e35c4f7327beb1bf10"
+        "path": "examples/inventory/policies/development.json"
       }
     },
     {
@@ -20,8 +19,7 @@
       "status": "current",
       "tags": ["inventory", "policy", "counterexample"],
       "attributes": {
-        "path": "examples/inventory/policies/high-assurance.json",
-        "content_identity": "sha256:20714a343dc5e3e7abb2da4c6e1cd20953501021c487569cd519c2c4c5dc5a8e"
+        "path": "examples/inventory/policies/high-assurance.json"
       }
     },
     {
@@ -46,10 +44,6 @@
       "attributes": {
         "theory_identity": "sha256:456b5f8d991ce08c400c6b1688216834ad0460ab57ad14ef99cb5b4866a158ba",
         "realization_identity": "sha256:67a6b723fa37eaaa7fffe0890f27174f2d04027e05f3eaf8760d9a430a7201b9",
-        "policy_id": "policy.inventory.development",
-        "policy_identity": "sha256:5873935921a72d445df6b33579152e0c965a637d4e4927e35c4f7327beb1bf10",
-        "recipe_identity": "sha256:92335ebf5242f2c74c0b14fb1dae7c0588eb0795768954730560d9d713ce3524",
-        "evidence_result_identity": "sha256:675c9310444fa849f75a28b4a994e39c36b190c2c898bc1049447adf646a0c30",
         "evidence_type": "example_test",
         "assumptions": [
           "Operation binding names are interpreted by the in-process TypeScript builtin registry.",
