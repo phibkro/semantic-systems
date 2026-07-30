@@ -107,6 +107,117 @@ Other active feature worktrees and their owned files remain forbidden.
     ambient nondeterminism. **Complete for the project-model, inventory tracer,
     and reference-custody portable slices.**
 
+## Next delegated custody slice: remote acquisition and materialization
+
+This slice is frozen against design specs 0004 and 0010. Autonomy is A3:
+produce one committed, reviewable TypeScript custody slice in an isolated
+worktree based on the exact integration head containing this assignment. It
+may complete online `lock` and remote/history-fallback `materialize`; it is not
+authorized to delete the Python oracle or perform a real network acquisition.
+
+Owned writes:
+
+- `src/references/**`;
+- `tests/reference-custody.test.ts`.
+
+Forbidden writes:
+
+- `src/semantic_references/**`, `tests/test_reference_custody.py`, and
+  `pyproject.toml`; the Python implementation remains a read-only differential
+  oracle for this slice;
+- `references/sources.toml`, `references/sources.lock.json`,
+  `references/refs.bib`, and `.references/`;
+- all project-model, tracer, generated, model, claim, decision, design, plan,
+  uncertainty, Nix, package, hook, CI, and general check/toolchain files;
+- custody schema, state names, evidence categories, catalog/lock meaning,
+  trusted-origin claims, or the existing offline behavior.
+
+Required behavior:
+
+1. Port remote lock acquisition to portable Effect services. Resolve the
+   selected ref coherently, fetch into a scoped sibling temporary managed
+   cache, recompute and validate the selected commit/tree/license identities,
+   hydrate the complete selected object closure for offline replay, advertise
+   only refs backed by that closure, and publish all selected caches plus the
+   canonical lock atomically under one supervised curator.
+2. Port remote materialization. Try the exact locked commit shallowly, then the
+   recorded concrete ref only if it still resolves to that commit. Broader
+   blobless history is available only after explicit
+   `--allow-history-fallback`. Build and verify a scoped sibling checkout
+   before one no-replace atomic publication.
+3. Preserve `lock <id>|--all [--offline]` and
+   `materialize <id>|--all [--offline] [--allow-history-fallback]` grammar and
+   exit behavior. Offline paths remain transport-denied and history fallback
+   is never implicit.
+4. Keep runtime-specific Bun/Node layers at composition roots. All filesystem,
+   path, crypto, clock, process, and environment authority remains injected;
+   no ambient runtime capability, shell string, credential prompt, repository
+   hook, submodule recursion, LFS hydration, provider API, or unapproved Git
+   transport/helper may cross the boundary.
+5. Reuse the existing curator, canonical lock writer, path confinement,
+   object-identity recomputation, checkout verifier, Git environment, and
+   offline materializer. Do not fork a second implementation of those
+   semantics.
+
+Required red/green oracles, using only local Git fixtures and executable
+transport canaries:
+
+- remote lock produces `acquisition: "remote"` and
+  `origin_verified: true`, then its cache materializes the complete locked tree
+  offline after the origin disappears;
+- branch movement after locking cannot change materialized bytes;
+- exact-commit, recorded-ref, and explicit history-fallback materialization
+  occur in that order, with moved-ref rejection and no silent widening;
+- a later failure in `lock --all`, cache-install failure, or lock-write failure
+  restores every prior cache and preserves prior lock bytes;
+- selector movement during observation, missing or symlinked license blobs,
+  wrong object type/identity, incomplete closure, unsafe path administration,
+  destination races, and verification failure publish nothing and leave no
+  temporary or backup artifacts;
+- custom helpers, SSH/scp spellings, repository programs/configuration,
+  prompts, hooks, submodules, LFS hydration, and offline/promisor lazy fetches
+  are rejected without executing their canaries;
+- SHA-1 and SHA-256 repositories follow the represented lock schema where the
+  installed Git supports them;
+- equivalent bounded journeys succeed under the pinned Bun and Node live
+  layers;
+- affected Python observations are compared explicitly, while existing
+  intentional security improvements over Python remain documented rather than
+  weakened for parity.
+
+Focused acceptance:
+
+```bash
+bun test tests/reference-custody.test.ts
+bun run typecheck
+bun run lint
+bunx oxfmt --check src/references tests/reference-custody.test.ts
+node src/references/main-node.ts catalog-check
+git diff --check
+```
+
+Stop rule:
+
+- Stop after the complete bounded local-fixture corpus passes for online lock
+  and remote materialization under both live-layer compositions.
+- Do not access a real remote, update checked-in custody observations, broaden
+  transport policy, delete Python, change Nix/package/check wiring, or begin
+  final migration cleanup.
+- Preserve counterevidence in the commit if a frozen behavior cannot be ported
+  faithfully; do not hide it through a compatibility fallback or weakened
+  oracle.
+
+Deliver:
+
+- one focused Conventional Commit and exact head;
+- the red observation established before each behavior family;
+- Bun/Node and Python-differential results;
+- atomicity, path-confinement, transport, object-closure, and negative-control
+  results;
+- evaluated/reused prior art with license/provenance;
+- semantic diff and remaining trusted assumptions;
+- exact commands, checks not run, deviations, and remaining uncertainty.
+
 ## First-slice gates
 
 ```bash
