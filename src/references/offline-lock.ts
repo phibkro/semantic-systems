@@ -1,6 +1,6 @@
 import { type Crypto, Effect, type FileSystem, Path, Result } from "effect";
 import type { ChildProcessSpawner } from "effect/unstable/process";
-import { lockFromLocalSibling } from "./acquire.ts";
+import { lockOfflineSource } from "./acquire.ts";
 import { isLockable, loadCatalog } from "./catalog.ts";
 import { acquireCuratorLock, type CuratorProcess, superviseCurator } from "./curator.ts";
 import {
@@ -27,13 +27,14 @@ export interface OfflineLockResult {
 }
 
 /**
- * Observe selected local siblings and publish one canonical lock transaction.
+ * Observe selected managed caches or local siblings and publish one canonical
+ * lock transaction.
  *
  * Every observation completes before `writeLock` is reached. A failed source
- * therefore leaves the prior lock byte-identical; this local-sibling slice has
- * no object-cache side effects to roll back.
+ * therefore leaves the prior lock byte-identical. Offline cache observation is
+ * read-only, so this slice has no cache side effects to roll back.
  */
-export const lockOfflineLocalSiblings = (
+export const lockOfflineSources = (
   projectRoot: string,
   selectedIds: ReadonlyArray<string>,
   generator: string,
@@ -78,7 +79,7 @@ export const lockOfflineLocalSiblings = (
                 continue;
               }
               const observed = yield* Effect.result(
-                lockFromLocalSibling(source, root, lock.sources.get(id) ?? null),
+                lockOfflineSource(source, root, lock.sources.get(id) ?? null),
               );
               if (Result.isFailure(observed)) {
                 failures.push({ id, error: observed.failure });

@@ -12,6 +12,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { BunChildProcessSpawner, BunCrypto, BunFileSystem, BunPath } from "@effect/platform-bun";
 import { createHash } from "node:crypto";
 import {
+  chmod,
   link,
   mkdir,
   mkdtemp,
@@ -42,7 +43,7 @@ import {
   makeCuratorProcess,
   superviseCurator,
 } from "../src/references/curator.ts";
-import { CuratorLockedError } from "../src/references/errors.ts";
+import { AcquisitionError, CuratorLockedError } from "../src/references/errors.ts";
 import {
   GitEnvironment,
   makeGitEnvironment,
@@ -50,7 +51,8 @@ import {
   runGit,
 } from "../src/references/git.ts";
 import { loadLock, parseLockText, serializeLock, writeLock } from "../src/references/lockfile.ts";
-import { lockOfflineLocalSiblings } from "../src/references/offline-lock.ts";
+import { lockOfflineSources } from "../src/references/offline-lock.ts";
+import { inspectObjectCache } from "../src/references/paths.ts";
 import {
   catalogBindingReasons,
   computeLockOnlyStatus,
@@ -326,6 +328,17 @@ license_paths = ["LICENSE"]
 classes = ["testing"]
 `,
   };
+};
+
+const installObjectCache = async (
+  project: string,
+  sibling: string,
+  sourceId = "demo.repo",
+): Promise<string> => {
+  const cache = join(project, ".references", sourceId, ".git-cache");
+  await mkdir(join(project, ".references", sourceId), { recursive: true });
+  runCommand(["git", "clone", "--bare", "--quiet", sibling, cache], project);
+  return cache;
 };
 
 const BASE_CATALOG = `
@@ -626,7 +639,7 @@ describe("reference custody Effect v4 slice: curator serialization", () => {
     );
 
     const exit = await Effect.runPromiseExit(
-      lockOfflineLocalSiblings(fixture.project, ["demo.repo"], "semantic-systems/0.0.0").pipe(
+      lockOfflineSources(fixture.project, ["demo.repo"], "semantic-systems/0.0.0").pipe(
         Effect.provide([BunFileSystem.layer, BunPath.layer, BunCrypto.layer, BunTomlParser]),
         Effect.provide([BunChildProcessLayer, ExitingCuratorLayer, GitEnvironmentLayer]),
       ),
@@ -764,7 +777,7 @@ license_paths = ["LICENSE"]
     await writeFile(lockPath, baseline);
 
     const failed = await runBun(
-      lockOfflineLocalSiblings(root, ["local.good", "local.bad"], "semantic-systems/0.0.0"),
+      lockOfflineSources(root, ["local.good", "local.bad"], "semantic-systems/0.0.0"),
     );
     expect(failed.committed).toBeFalse();
     expect([...failed.locked.keys()]).toEqual(["local.good"]);
@@ -773,13 +786,205 @@ license_paths = ["LICENSE"]
 
     runCommand(["git", "remote", "set-url", "origin", badOrigin], bad.sibling);
     const committed = await runBun(
-      lockOfflineLocalSiblings(root, ["local.good", "local.bad"], "semantic-systems/0.0.0"),
+      lockOfflineSources(root, ["local.good", "local.bad"], "semantic-systems/0.0.0"),
     );
     expect(committed.committed).toBeTrue();
     expect(committed.failures).toEqual([]);
     const lock = await runBun(loadLock(lockPath));
     expect(lock.generator).toBe("semantic-systems/0.0.0");
     expect([...lock.sources.keys()].sort()).toEqual(["local.bad", "local.good"]);
+  });
+});
+
+describe("reference custody Effect v4 slice: managed offline object cache", () => {
+  test("locks from an existing cache when no local sibling is declared", async () => {
+    const fixture = await localSiblingFixture();
+    const expectedCommit = runCommand(["git", "rev-parse", "HEAD"], fixture.sibling);
+    const cache = await installObjectCache(fixture.project, fixture.sibling);
+    await mkdir(join(fixture.project, "references"));
+    await writeFile(
+      join(fixture.project, "references", "sources.toml"),
+      fixture.sourceText.replace('local_hint = "../sibling"\n', ""),
+    );
+
+    const result = await runBun(
+      lockOfflineSources(fixture.project, ["demo.repo"], "semantic-systems/0.0.0"),
+    );
+    expect(result.committed).toBeTrue();
+    expect(result.failures).toEqual([]);
+    expect(result.locked.get("demo.repo")?.acquisition).toBe("local-object-cache");
+    expect(result.locked.get("demo.repo")?.commit).toBe(expectedCommit);
+    expect(
+      await runBun(inspectObjectCache(join(fixture.project, ".references"), "demo.repo")),
+    ).toBe(cache);
+  });
+
+  test("prefers a usable managed cache over a newer local sibling", async () => {
+    const fixture = await localSiblingFixture();
+    const cachedCommit = runCommand(["git", "rev-parse", "HEAD"], fixture.sibling);
+    await installObjectCache(fixture.project, fixture.sibling);
+    await writeFile(join(fixture.sibling, "new.txt"), "new sibling bytes\n");
+    runCommand(["git", "add", "new.txt"], fixture.sibling);
+    runCommand(
+      [
+        "git",
+        "-c",
+        "user.name=Semantic Custody Test",
+        "-c",
+        "user.email=custody@example.invalid",
+        "commit",
+        "-m",
+        "test: advance sibling beyond cache",
+      ],
+      fixture.sibling,
+    );
+    const siblingCommit = runCommand(["git", "rev-parse", "HEAD"], fixture.sibling);
+    expect(siblingCommit).not.toBe(cachedCommit);
+    await mkdir(join(fixture.project, "references"));
+    await writeFile(join(fixture.project, "references", "sources.toml"), fixture.sourceText);
+
+    const result = await runBun(
+      lockOfflineSources(fixture.project, ["demo.repo"], "semantic-systems/0.0.0"),
+    );
+    expect(result.committed).toBeTrue();
+    expect(result.locked.get("demo.repo")?.acquisition).toBe("local-object-cache");
+    expect(result.locked.get("demo.repo")?.commit).toBe(cachedCommit);
+  });
+
+  test("falls back to the declared sibling when the cache lacks the selector", async () => {
+    const fixture = await localSiblingFixture();
+    const expectedCommit = runCommand(["git", "rev-parse", "HEAD"], fixture.sibling);
+    const cache = await installObjectCache(fixture.project, fixture.sibling);
+    runCommand(["git", "-C", cache, "update-ref", "-d", "refs/heads/main"], fixture.project);
+    await mkdir(join(fixture.project, "references"));
+    await writeFile(join(fixture.project, "references", "sources.toml"), fixture.sourceText);
+
+    const result = await runBun(
+      lockOfflineSources(fixture.project, ["demo.repo"], "semantic-systems/0.0.0"),
+    );
+    expect(result.committed).toBeTrue();
+    expect(result.locked.get("demo.repo")?.acquisition).toBe("local-sibling");
+    expect(result.locked.get("demo.repo")?.commit).toBe(expectedCommit);
+  });
+
+  for (const symlinkPosition of ["source-root", "object-cache"] as const) {
+    test(`rejects a symlinked managed ${symlinkPosition}`, async () => {
+      const fixture = await localSiblingFixture();
+      const referencesRoot = join(fixture.project, ".references");
+      const external = join(fixture.project, `external-${symlinkPosition}`);
+      await mkdir(referencesRoot);
+      await mkdir(external);
+      if (symlinkPosition === "source-root") {
+        await symlink(external, join(referencesRoot, "demo.repo"), "dir");
+      } else {
+        await mkdir(join(referencesRoot, "demo.repo"));
+        await symlink(
+          join(fixture.sibling, ".git"),
+          join(referencesRoot, "demo.repo", ".git-cache"),
+          "dir",
+        );
+      }
+      await mkdir(join(fixture.project, "references"));
+      await writeFile(join(fixture.project, "references", "sources.toml"), fixture.sourceText);
+
+      const result = await runBun(
+        lockOfflineSources(fixture.project, ["demo.repo"], "semantic-systems/0.0.0"),
+      );
+      expect(result.committed).toBeFalse();
+      expect(result.failures).toHaveLength(1);
+      expect(result.failures[0]?.error).toBeInstanceOf(AcquisitionError);
+      expect(result.failures[0]?.error.message).toContain("symlink");
+      expect(await readdir(external)).toEqual([]);
+    });
+  }
+
+  test("rejects a non-directory cache instead of silently using the sibling", async () => {
+    const fixture = await localSiblingFixture();
+    const sourceRoot = join(fixture.project, ".references", "demo.repo");
+    await mkdir(sourceRoot, { recursive: true });
+    await writeFile(join(sourceRoot, ".git-cache"), "not a repository directory\n");
+    await mkdir(join(fixture.project, "references"));
+    await writeFile(join(fixture.project, "references", "sources.toml"), fixture.sourceText);
+
+    const result = await runBun(
+      lockOfflineSources(fixture.project, ["demo.repo"], "semantic-systems/0.0.0"),
+    );
+    expect(result.committed).toBeFalse();
+    expect(result.failures).toHaveLength(1);
+    expect(result.failures[0]?.error).toBeInstanceOf(AcquisitionError);
+    expect(result.failures[0]?.error.message).toContain("not a directory");
+  });
+
+  test("a promisor cache missing a license blob cannot invoke its transport", async () => {
+    const fixture = await localSiblingFixture();
+    runCommand(["git", "config", "uploadpack.allowFilter", "true"], fixture.sibling);
+    const sourceRoot = join(fixture.project, ".references", "demo.repo");
+    const cache = join(sourceRoot, ".git-cache");
+    await mkdir(sourceRoot, { recursive: true });
+    runCommand(
+      [
+        "git",
+        "clone",
+        "--quiet",
+        "--filter=blob:none",
+        "--no-checkout",
+        `file://${fixture.sibling}`,
+        cache,
+      ],
+      fixture.project,
+    );
+    expect(
+      runCommand(
+        ["git", "-C", cache, "config", "--get", "remote.origin.partialclonefilter"],
+        fixture.project,
+      ),
+    ).toBe("blob:none");
+
+    const marker = join(fixture.project, "transport-invoked");
+    const bin = join(fixture.project, "bin");
+    const helper = join(bin, "git-remote-custodyprobe");
+    await mkdir(bin);
+    await writeFile(
+      helper,
+      `#!${NODE_EXECUTABLE}\n` +
+        `require("node:fs").writeFileSync(${JSON.stringify(marker)}, "invoked\\n");\n` +
+        "process.exit(1);\n",
+    );
+    await chmod(helper, 0o755);
+    runCommand(
+      [
+        "git",
+        "-C",
+        cache,
+        "remote",
+        "set-url",
+        "origin",
+        `custodyprobe::file://${fixture.sibling}`,
+      ],
+      fixture.project,
+    );
+    await mkdir(join(fixture.project, "references"));
+    await writeFile(
+      join(fixture.project, "references", "sources.toml"),
+      fixture.sourceText.replace('local_hint = "../sibling"\n', ""),
+    );
+    const ProbeGitEnvironmentLayer = Layer.succeed(
+      GitEnvironment,
+      makeGitEnvironment({
+        ...process.env,
+        PATH: `${bin}:${process.env.PATH ?? ""}`,
+      }),
+    );
+
+    const result = await Effect.runPromise(
+      lockOfflineSources(fixture.project, ["demo.repo"], "semantic-systems/0.0.0").pipe(
+        Effect.provide([BunFileSystem.layer, BunPath.layer, BunCrypto.layer, BunTomlParser]),
+        Effect.provide([BunChildProcessLayer, CuratorProcessLayer, ProbeGitEnvironmentLayer]),
+      ),
+    );
+    expect(result.committed).toBeFalse();
+    expect(result.failures).toHaveLength(1);
+    expect(await Bun.file(marker).exists()).toBeFalse();
   });
 });
 
@@ -1309,6 +1514,37 @@ describe("reference custody Effect v4 slice: CLI parity with Python", () => {
     const lock = await runBun(loadLock(lockPath));
     expect(lock.generator).toBe("semantic-systems/0.0.0");
     expect(lock.sources.get("demo.repo")?.commit).toBe(expectedCommit);
+  });
+
+  test("offline managed-cache lock publishes under Node and is byte-stable under Bun", async () => {
+    const fixture = await localSiblingFixture();
+    const expectedCommit = runCommand(["git", "rev-parse", "HEAD"], fixture.sibling);
+    await installObjectCache(fixture.project, fixture.sibling);
+    await mkdir(join(fixture.project, "references"));
+    await writeFile(
+      join(fixture.project, "references", "sources.toml"),
+      fixture.sourceText.replace('local_hint = "../sibling"\n', ""),
+    );
+    const lockPath = join(fixture.project, "references", "sources.lock.json");
+    const args = ["--root", fixture.project, "lock", "demo.repo", "--offline"];
+
+    const node = runNodeCli(args);
+    if (node.exitCode !== 0) {
+      throw new Error(`Node managed-cache CLI failed (${node.exitCode}): ${node.stderr}`);
+    }
+    expect(node.stderr).toBe("");
+    expect(node.stdout.trim()).toBe(`demo.repo: locked at ${expectedCommit}`);
+    const firstBytes = await readFile(lockPath);
+    const firstStat = await stat(lockPath);
+    const lock = await runBun(loadLock(lockPath));
+    expect(lock.sources.get("demo.repo")?.acquisition).toBe("local-object-cache");
+
+    const bun = runTsCli(args);
+    expect(bun.exitCode).toBe(0);
+    expect(bun.stderr).toBe("");
+    expect(bun.stdout).toBe(node.stdout);
+    expect(await readFile(lockPath)).toEqual(firstBytes);
+    expect((await stat(lockPath)).ino).toBe(firstStat.ino);
   });
 
   test("catalog-check on the real repository catalog is byte-identical to Python", () => {

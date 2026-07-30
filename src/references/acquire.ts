@@ -1,4 +1,4 @@
-import { Clock, Effect, FileSystem, Path, type Crypto } from "effect";
+import { Clock, Effect, FileSystem, Path, Result, type Crypto } from "effect";
 import type { ChildProcessSpawner } from "effect/unstable/process";
 import { catalogDigest, type CatalogSource, isLockable } from "./catalog.ts";
 import { AcquisitionError, NotLockableError, type CatalogError } from "./errors.ts";
@@ -14,8 +14,10 @@ import {
   treeOfCommit,
 } from "./git.ts";
 import { lockEntryContentEqual, type LicenseObservation, type LockEntry } from "./lockfile.ts";
+import { inspectObjectCache } from "./paths.ts";
 
 const REGULAR_BLOB_MODES = new Set(["100644", "100755"]);
+type OfflineAcquisition = "local-sibling" | "local-object-cache";
 
 const resolveLocalSibling = (
   source: CatalogSource,
@@ -129,6 +131,52 @@ const hashLicenses = (
 const retrievedAt = (milliseconds: number): string =>
   new Date(Math.floor(milliseconds / 1000) * 1000).toISOString().replace(".000Z", "Z");
 
+const observeOfflineRepository = (
+  source: CatalogSource,
+  repository: string,
+  acquisition: OfflineAcquisition,
+  existingEntry: LockEntry | null,
+): Effect.Effect<
+  LockEntry,
+  AcquisitionError | CatalogError | NotLockableError,
+  | FileSystem.FileSystem
+  | Path.Path
+  | Crypto.Crypto
+  | ChildProcessSpawner.ChildProcessSpawner
+  | GitEnvironment
+> =>
+  Effect.gen(function* () {
+    if (!isLockable(source) || source.track === null) {
+      return yield* new NotLockableError({
+        message:
+          `source ${JSON.stringify(source.id)} has no track/license_paths declaration and ` +
+          "cannot be locked",
+      });
+    }
+    const format = yield* objectFormat(repository);
+    const commit = yield* resolveCommit(repository, source.track);
+    yield* requireFullObjectId(format, "resolved commit", commit);
+    const resolvedRef = yield* observeConcreteRef(repository, source.track, commit);
+    const tree = yield* treeOfCommit(repository, commit);
+    yield* requireFullObjectId(format, "resolved tree", tree);
+    const candidate: LockEntry = {
+      origin: source.origin,
+      track: source.track,
+      resolvedRef,
+      objectFormat: format,
+      commit,
+      tree,
+      catalogDigest: yield* catalogDigest(source.raw),
+      retrievedAt: retrievedAt(yield* Clock.currentTimeMillis),
+      acquisition,
+      originVerified: false,
+      licenses: yield* hashLicenses(repository, source, commit, format),
+    };
+    return existingEntry !== null && lockEntryContentEqual(existingEntry, candidate)
+      ? existingEntry
+      : candidate;
+  });
+
 /**
  * Observe only committed objects from a declared local sibling. This path is
  * structurally offline: Git receives a default-deny environment and every
@@ -156,26 +204,54 @@ export const lockFromLocalSibling = (
       });
     }
     const repository = yield* resolveLocalSibling(source, projectRoot);
-    const format = yield* objectFormat(repository);
-    const commit = yield* resolveCommit(repository, source.track);
-    yield* requireFullObjectId(format, "resolved commit", commit);
-    const resolvedRef = yield* observeConcreteRef(repository, source.track, commit);
-    const tree = yield* treeOfCommit(repository, commit);
-    yield* requireFullObjectId(format, "resolved tree", tree);
-    const candidate: LockEntry = {
-      origin: source.origin,
-      track: source.track,
-      resolvedRef,
-      objectFormat: format,
-      commit,
-      tree,
-      catalogDigest: yield* catalogDigest(source.raw),
-      retrievedAt: retrievedAt(yield* Clock.currentTimeMillis),
-      acquisition: "local-sibling",
-      originVerified: false,
-      licenses: yield* hashLicenses(repository, source, commit, format),
-    };
-    return existingEntry !== null && lockEntryContentEqual(existingEntry, candidate)
-      ? existingEntry
-      : candidate;
+    return yield* observeOfflineRepository(source, repository, "local-sibling", existingEntry);
+  });
+
+/**
+ * Prefer a previously managed object cache when it contains the requested
+ * selector, otherwise fall back to the catalogued local sibling. Both paths
+ * are read-only and run through the same transport-denying Git boundary.
+ */
+export const lockOfflineSource = (
+  source: CatalogSource,
+  projectRoot: string,
+  existingEntry: LockEntry | null,
+): Effect.Effect<
+  LockEntry,
+  AcquisitionError | CatalogError | NotLockableError,
+  | FileSystem.FileSystem
+  | Path.Path
+  | Crypto.Crypto
+  | ChildProcessSpawner.ChildProcessSpawner
+  | GitEnvironment
+> =>
+  Effect.gen(function* () {
+    if (!isLockable(source) || source.track === null) {
+      return yield* new NotLockableError({
+        message:
+          `source ${JSON.stringify(source.id)} has no track/license_paths declaration and ` +
+          "cannot be locked",
+      });
+    }
+    const paths = yield* Path.Path;
+    const referencesRoot = paths.join(paths.resolve(projectRoot), ".references");
+    const cache = yield* inspectObjectCache(referencesRoot, source.id);
+    if (cache !== null) {
+      const cacheCommit = yield* Effect.result(resolveCommit(cache, source.track));
+      if (Result.isSuccess(cacheCommit)) {
+        return yield* observeOfflineRepository(source, cache, "local-object-cache", existingEntry);
+      }
+    }
+    return yield* lockFromLocalSibling(source, projectRoot, existingEntry).pipe(
+      Effect.mapError((error) =>
+        source.localHint === null && error instanceof AcquisitionError
+          ? new AcquisitionError({
+              message:
+                `source ${JSON.stringify(source.id)}: offline lock needs a declared ` +
+                "local_hint sibling or an existing local object cache",
+              cause: error,
+            })
+          : error,
+      ),
+    );
   });

@@ -5,7 +5,7 @@ import type { CuratorProcess } from "./curator.ts";
 import { CatalogError } from "./errors.ts";
 import type { GitEnvironment } from "./git.ts";
 import { loadLock } from "./lockfile.ts";
-import { lockOfflineLocalSiblings } from "./offline-lock.ts";
+import { lockOfflineSources } from "./offline-lock.ts";
 import {
   computeLockOnlyStatus,
   isStrictOk,
@@ -40,7 +40,7 @@ const usage =
   "usage: semrefs [--root PATH] catalog-check\n" +
   "       semrefs [--root PATH] lock <id>|--all --offline\n" +
   "       semrefs [--root PATH] status <id>|--all --lock-only [--json]\n" +
-  "(offline lock currently observes declared local_hint siblings; object-cache fallback remains deferred)";
+  "(offline lock reads an existing managed object cache or a declared local_hint sibling)";
 
 const parseCommand = (arguments_: ReadonlyArray<string>): Command | undefined => {
   let root = ".";
@@ -171,7 +171,7 @@ export const runSemrefs = (
               : `unknown source id ${JSON.stringify(command.id)}`,
         });
       }
-      const result = yield* lockOfflineLocalSiblings(root, ids, "semantic-systems/0.0.0");
+      const result = yield* lockOfflineSources(root, ids, "semantic-systems/0.0.0");
       for (const id of result.skipped) {
         yield* Console.error(`${id}: skipped (not lockable, missing track/license_paths)`);
       }

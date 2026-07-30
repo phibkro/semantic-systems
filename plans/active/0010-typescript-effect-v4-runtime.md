@@ -19,14 +19,14 @@ Owner: main integration agent
   selected TypeScript, Unicorn, Import, and Promise rules. Effect-aware
   `@effect/tsgo` diagnostics and the local architecture plugin remain
   dependency-gated.
-- Remaining Python surface: reference custody's remote acquisition, local
-  object-cache fallback, materialization, checkout verification, and the
-  checkout-inspecting half of status; online/general `lock`, `materialize`,
-  and its test module; plus transitional Nix/fast/integration wiring.
+- Remaining Python surface: reference custody's remote acquisition,
+  materialization, checkout verification, and the checkout-inspecting half of
+  status; online/general `lock`, `materialize`, and its test module; plus
+  transitional Nix/fast/integration wiring.
   Catalog/lock parsing, atomic lock writing, the interoperable curator guard,
-  transactional offline local-sibling locking, and network-free
-  `status --lock-only` are now TypeScript (see item 6 below). Project model,
-  tracer, and governance tests are TypeScript.
+  transactional offline locking from local siblings or managed object caches,
+  and network-free `status --lock-only` are now TypeScript (see item 6 below).
+  Project model, tracer, and governance tests are TypeScript.
 - External `.references/` checkouts are excluded from repository-source
   migration.
 
@@ -60,15 +60,15 @@ Other active feature worktrees and their owned files remain forbidden.
    **Catalog/lock/status-lock-only boundary complete** (`src/references/`):
    `sources.toml` parsing/validation, `reference-lock-v1` parsing, canonical
    catalog digests, atomic lock writing, network-free `status --lock-only`,
-   offline local-sibling Git observation, an interoperable kernel curator
-   guard, and all-or-nothing local-sibling lock publication now run on Effect
-   v4 under Bun and Node. The
+   offline local-sibling and managed-cache Git observation, an interoperable
+   kernel curator guard, and all-or-nothing offline lock publication now run
+   on Effect v4 under Bun and Node. The
    parsing/status/writer suite remains differential against the Python oracle;
    Git security boundaries use adversarial fixtures and deliberately exceed
-   Python where review exposed shared defects. Local object-cache fallback,
-   remote acquisition, materialization, checkout verification, and the
-   remaining `lock`/`materialize` CLI surface remain Python and are the rest
-   of this item.
+   Python where review exposed shared defects. Remote acquisition,
+   materialization, checkout verification, and the remaining
+   `lock`/`materialize` CLI surface remain Python and are the rest of this
+   item.
 7. Migrate development-control and policy tests to Bun. **Complete for
    development-control and reuse-first governance; custody tests remain with
    their owning implementation slice.**
@@ -363,3 +363,24 @@ accepted; no new Python implementation is permitted.
   59 focused tests. Object-cache fallback and remote/cache publication remain
   deferred and are stated in CLI usage. Nix and broad integration gates were
   not run while host I/O full pressure remained above 80%.
+- 2026-07-30: ported read-only offline fallback to the existing managed
+  `.references/<id>/.git-cache`. The implementation first inspects the custody
+  root, source root, and cache as real directories without following stable
+  symlinks; a present unsafe or non-directory component fails closed. A cache
+  that resolves the requested selector is preferred, matching the transitional
+  Python oracle; an absent cache or one lacking that selector falls back to the
+  declared origin-matched sibling. Both acquisition kinds share one committed
+  object, concrete-ref, tree, and license-blob observer and the same
+  transport-denying Git capability. No cache bytes are created or mutated.
+  The prior Python path helper and resolver order were evaluated and adapted;
+  Effect FileSystem/Path and the existing Git service were reused, so no new
+  dependency or hand-written runtime adapter was needed.
+  Oracles cover cache-only custody, cache preference over a newer sibling,
+  selector fallback, source/cache symlink escape, a non-directory cache, and a
+  real partial-promisor cache whose missing license blob must fail without
+  invoking its executable transport canary. A fresh cache-backed mutation runs
+  under Node followed by a byte/inode-stable Bun re-lock. TypeScript, oxlint,
+  formatting, diff hygiene, and all 67 focused custody tests pass. Remote cache
+  construction/publication and materialization remain deferred. Nix and broad
+  integration gates were not run while host I/O full pressure remained above
+  80%.
