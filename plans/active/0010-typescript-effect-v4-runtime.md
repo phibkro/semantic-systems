@@ -57,12 +57,14 @@ Other active feature worktrees and their owned files remain forbidden.
    Python package and test suite were removed after exact result differential
    parity and a final pinned Python oracle pass.**
 5. Recut the independent checker against the accepted TypeScript resolver.
-   **A bounded producer/resolver increment across slices 2-3 is integrated and
-   independently reviewed: evidence production precedes resolution, lossless
-   typed outcomes carry exact subject bindings and visible diagnostics, and
-   the resolver's transitive closure cannot reach the producer, execution, or
-   I/O. The complete `evidence_result_v1` artifact and checker remain blocked
-   on a faithful design-spec 0003 prototype or explicit reviewed revision.
+   **The producer/resolver boundary and complete `evidence_result_v1` slice 2
+   are integrated and independently reviewed: evidence production precedes
+   resolution, lossless typed outcomes carry exact semantic bindings and
+   visible diagnostics, every bound successful packet is parser-validated
+   before eligibility, and the resolver's transitive closure cannot reach the
+   producer, execution, or I/O. The serialized resolution claim and independent
+   checker remain blocked on a faithful design-spec 0003 prototype or explicit
+   reviewed revision.
    Uncertainty 0004's partial three-way screen found that every current
    prototype failed even its configured lower-bound size gate, while
    exact-head review found incomplete frozen artifacts, presentation-order
@@ -142,10 +144,13 @@ accepted; no new Python implementation is permitted.
   no license-text file, and several claimed latest-v4 examples are stale or
   internally inconsistent with exact Effect beta.102 (`ServiceMap.Service`,
   pre-TS7 `@effect/language-service`, the old `TaggedErrorClass` call shape,
-  and ambient `crypto.randomUUID()` inside an Effect generator). The UUID call
-  is correctly deferred because `Effect.gen` is implemented with
-  `Effect.suspend`; its remaining issue is ambient, non-replaceable authority,
-  not eager evaluation. Security-sensitive UUIDs use the injectable
+  and ambient `crypto.randomUUID()` inside an Effect generator). `Effect.gen`
+  defers entry to the generator, but JavaScript still evaluates
+  `Effect.succeed(crypto.randomUUID())` as the iterator advances, before that
+  `Effect.succeed` value is yielded; only a thunk such as
+  `Effect.sync(() => crypto.randomUUID())` captures the operation for the
+  interpreter. Ambient authority remains non-replaceable in either form.
+  Security-sensitive UUIDs therefore use the injectable
   `Crypto.Crypto` service, while deterministic non-cryptographic tests may
   replace `Random`.
 
@@ -572,3 +577,12 @@ accepted; no new Python implementation is permitted.
   adapter is folded into the generic checker. The ratios are retained as lower
   bounds for the current prototypes. No option is selected and no result
   establishes CLM-0002.
+- 2026-07-30: integrated the complete current-tracer `evidence_result_v1`
+  producer/resolver slice as `2d8f124`, `ba3ce95`, `8b3324e`, `e7dba9d`, and
+  `9144e9a`. Exact-head GPT-5.6 Sol review of source head `2a2fec8` returned
+  `RESOLVED` with no findings after 50 focused tests/295 assertions,
+  TypeScript, and diff hygiene. Resolution now uses the shared Effect Crypto
+  parser to revalidate every bound successful producer packet before
+  eligibility while preserving earlier binding-error precedence. The same
+  targeted gates pass on the integrated head; broad and Nix gates remain
+  deferred under severe I/O PSI.

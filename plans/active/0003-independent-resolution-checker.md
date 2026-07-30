@@ -20,8 +20,11 @@ and kill criteria are frozen in design spec 0003.
   operations, execution, nor I/O.
 - Evidence JSON now preserves every case result and detail while deriving
   counts and counterexamples. The frozen `evidence_result_v1` artifact kind,
-  schema version, and exact recipe identity remain deferred with slices 4-5;
-  this partial data contract is not yet the complete frozen artifact.
+  schema version, exact recipe identity, exact theory/realization/obligation
+  bindings, declared assumptions, producer identity, and complete case-result
+  algebra are implemented. The resolver revalidates every bound successful
+  packet through that parser before eligibility rather than trusting a
+  structurally typed producer value.
 - Canonical model identities and case counts agree today, but the agreement is
   hand-copied and guarded only by tests.
 - Independent adversarial review identified these seams before this contract
@@ -61,10 +64,10 @@ and kill criteria are frozen in design spec 0003.
 ## Contract-owned implementation slices
 
 1. Oracle and mutation corpus.
-2. Lossless evidence result and evidence-production packet. **Partially
-   complete:** case results, exact theory/realization/obligation bindings, and
-   producer diagnostics are implemented; artifact kind, schema version, and
-   exact recipe identity remain open.
+2. Lossless evidence result and evidence-production packet. **Complete for the
+   current tracer:** the fixed artifact/category/schema, producer and exact
+   semantic bindings, lossless case algebra, derived aggregates, content
+   identities, strict parser, and producer diagnostics are implemented.
 3. Production resolver consumes packets rather than executing recipes.
    **Complete for the current tracer.**
 4. Serialized resolution claim.
@@ -219,6 +222,23 @@ validity.
   import. The TypeScript-lexer oracle covers static, side-effect, re-export,
   type-only, multiline, no-semicolon, dynamic-string, import-equals, and nested
   imports and permits only the bare module `effect`.
+- 2026-07-30: completed `evidence_result_v1` slice 2 and integrated it as
+  `2d8f124`, `ba3ce95`, `8b3324e`, `e7dba9d`, and `9144e9a`. The result
+  contract now has fixed artifact/category/schema literals, exact recipe,
+  theory, realization, obligation, assumption, and producer bindings, a
+  discriminated pass/failure case algebra, strict unknown-field and nonempty
+  checks, lossless failure details, recomputed aggregates, and recomputed
+  content identity. Recipe/theory validation precedes adapters and case work;
+  arbitrary adapter defects retain reference custody instead of becoming
+  producer diagnostics.
+- 2026-07-30: an exact-head review of the pre-integration source commit
+  `2a2fec8` returned `RESOLVED` with no Blocker, Major, or Minor findings after
+  reproducing 50 focused tests with 295 assertions, TypeScript, and diff
+  hygiene. The review first exposed that structural injected results bypassed
+  parser invariants; the accepted correction makes resolution Effectful,
+  preserves wrapper/binding error precedence, and parser-validates every bound
+  successful packet before eligibility. The same gates pass on integrated head
+  `9144e9a`. Broad and Nix validation remain deferred under severe I/O PSI.
 
 ## Decisions and deviations
 
@@ -236,6 +256,11 @@ validity.
   realization if all current identity fields are recomputed. The current test
   records this accepting behavior as deferred; only the checker and canonical
   adapter slices may close it.
+- `produceEvidence` still selects from the raw recipe collection by reading
+  `suite.theory` before validating the selected envelope. This inherited
+  collection-ingestion discrepancy is explicit and deferred; it must not be
+  mistaken for validation of every unselected recipe. The accepted slice does
+  validate the exact selected recipe before adapters or execution.
 - Do not reinterpret the size metric, expand the resolver denominator, or
   merge a known-red acceptance gate. The next slice is a fresh design
   experiment, not incremental patching of `b9cea28`.
