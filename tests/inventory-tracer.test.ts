@@ -1,21 +1,20 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { cp, mkdtemp, rm, unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { BunCrypto, BunFileSystem, BunPath } from "@effect/platform-bun";
 import { NodeCrypto, NodeFileSystem, NodePath } from "@effect/platform-node";
 import { Effect, Exit, type Crypto, type FileSystem, type Path } from "effect";
 import { demoToJson, runDemo } from "../src/tracer/demo.ts";
+import { produceEvidence, type EvidenceAdapters } from "../src/tracer/evidence.ts";
 import {
   caseResultToJson,
   evidenceToJson,
-  produceEvidence,
   producerDiagnosticToJson,
-  type EvidenceAdapters,
   type EvidenceResult,
   type ProducerDiagnostic,
   type ProducerOutcome,
-} from "../src/tracer/evidence.ts";
+} from "../src/tracer/evidence-result.ts";
 import type { JsonObject } from "../src/tracer/json.ts";
 import { loadInventory } from "../src/tracer/loader.ts";
 import { resolveReplay, resolveTransition } from "../src/tracer/operations.ts";
@@ -416,6 +415,46 @@ describe("evidence-production boundary and resolver packet consumption", () => {
     };
   };
 
+  /**
+   * Statically walks the transitive closure of relative (`./`, `../`)
+   * imports reachable from `entryPath`, recording every visited file's
+   * source and every non-relative (bare/`node:`) import specifier
+   * encountered anywhere in the closure. This is deliberately a source-text
+   * walk, not a bundler resolution or a runtime module graph: it exists to
+   * catch an INDIRECT reintroduction (resolver.ts imports a module that
+   * later grows an import into evidence.ts/domain.ts/etc.), which a
+   * substring check against resolver.ts's own text alone cannot see.
+   */
+  const transitiveRelativeImportClosure = async (
+    entryPath: string,
+  ): Promise<{
+    readonly files: ReadonlySet<string>;
+    readonly bareImports: ReadonlySet<string>;
+    readonly sources: ReadonlyMap<string, string>;
+  }> => {
+    const importSpecifierPattern = /\bfrom\s+["']([^"']+)["']/g;
+    const files = new Set<string>();
+    const bareImports = new Set<string>();
+    const sources = new Map<string, string>();
+    const queue: Array<string> = [entryPath];
+    while (queue.length > 0) {
+      const path = queue.shift()!;
+      if (files.has(path)) continue;
+      files.add(path);
+      const source = await Bun.file(path).text();
+      sources.set(path, source);
+      for (const match of source.matchAll(importSpecifierPattern)) {
+        const specifier = match[1]!;
+        if (specifier.startsWith("./") || specifier.startsWith("../")) {
+          queue.push(resolve(dirname(path), specifier));
+        } else {
+          bareImports.add(specifier);
+        }
+      }
+    }
+    return { files, bareImports, sources };
+  };
+
   test("lossless case details survive evidenceToJson", () => {
     const evidence: EvidenceResult = {
       category: "example_test",
@@ -509,6 +548,112 @@ describe("evidence-production boundary and resolver packet consumption", () => {
     ).toBeTrue();
   });
 
+  test("a not_targeted producer diagnostic stays visible on a theory-mismatch candidate", async () => {
+    const { fixture, theory, pure } = await loadPureAndBroken();
+    const obligation = requiredObligation(theory);
+    const adapters: EvidenceAdapters = { resolveTransition, resolveReplay };
+    const wrongTheoryDocument: JsonObject = {
+      ...pure.document,
+      theory: "theory.some-other-contract",
+    };
+    const wrongTheoryRealization = await runBun(
+      normalizeRealization(wrongTheoryDocument, theory, THEORY_ID),
+    );
+    // produceEvidence independently computes its own not_targeted
+    // diagnostic for this exact realization; the resolver still derives
+    // theory_mismatch itself, but must not drop that diagnostic.
+    const outcome = produceEvidence(
+      theory,
+      THEORY_ID,
+      obligation,
+      wrongTheoryRealization,
+      fixture.evidenceSuites,
+      adapters,
+    );
+    if (outcome.ok) throw new Error("expected a not_targeted diagnostic");
+    expect(outcome.diagnostic.kind).toBe("not_targeted");
+
+    const resolution = resolveDeployment(theory, [wrongTheoryRealization], [outcome], fixture.policy);
+    const candidate = resolution.candidates[0]!;
+    expect(candidate.reasonCodes).toEqual(["theory_mismatch"]);
+    expect(candidate.producerDiagnostic).toEqual(outcome.diagnostic);
+    expect(candidateToJson(candidate).producer_diagnostic).toEqual(
+      producerDiagnosticToJson(outcome.diagnostic),
+    );
+  });
+
+  test("an obligation_unsupported producer diagnostic stays visible on an obligation-unsupported candidate", async () => {
+    const rawTheory = await readJson(join(INVENTORY, "contracts", "inventory-v0.json"));
+    const brokenObligationTheory = structuredClone(rawTheory) as Record<string, unknown>;
+    const obligations = brokenObligationTheory.obligations as Array<Record<string, unknown>>;
+    obligations.push({ ...obligations[0]!, id: "obligation.inventory.second" });
+    const theory = await runBun(normalizeTheory(brokenObligationTheory as JsonObject));
+    expect(requiredObligation(theory)).toBeNull();
+
+    const fixture = await runBun(loadInventory(INVENTORY, "development"));
+    const pureDocument = fixture.realizations.find(
+      (candidate) => candidate.id === "realization.inventory.pure",
+    )!;
+    const pure = await runBun(normalizeRealization(pureDocument, theory, THEORY_ID));
+    const adapters: EvidenceAdapters = { resolveTransition, resolveReplay };
+    const outcome = produceEvidence(theory, THEORY_ID, null, pure, fixture.evidenceSuites, adapters);
+    if (outcome.ok) throw new Error("expected an obligation_unsupported diagnostic");
+    expect(outcome.diagnostic.kind).toBe("obligation_unsupported");
+
+    const resolution = resolveDeployment(theory, [pure], [outcome], fixture.policy);
+    const candidate = resolution.candidates[0]!;
+    expect(candidate.reasonCodes).toEqual(["required_obligation_set_unsupported"]);
+    expect(candidate.producerDiagnostic).toEqual(outcome.diagnostic);
+  });
+
+  test("resolver rejects duplicate authored realization IDs before binding outcomes", async () => {
+    const { fixture, theory, pure } = await loadPureAndBroken();
+    const obligation = requiredObligation(theory);
+    const adapters: EvidenceAdapters = { resolveTransition, resolveReplay };
+    const pureOutcome = produceEvidence(
+      theory,
+      THEORY_ID,
+      obligation,
+      pure,
+      fixture.evidenceSuites,
+      adapters,
+    );
+    expect(() =>
+      resolveDeployment(theory, [pure, pure], [pureOutcome], fixture.policy),
+    ).toThrow("duplicate authored realization ID");
+  });
+
+  test("resolver rejects two differently-identitied realizations sharing one authored ID", async () => {
+    const { fixture, theory, pure } = await loadPureAndBroken();
+    const variantDocument: JsonObject = {
+      ...pure.document,
+      platform_requirements: [
+        ...(pure.document.platform_requirements as ReadonlyArray<string>),
+        "extra",
+      ],
+    };
+    const variant = await runBun(normalizeRealization(variantDocument, theory, THEORY_ID));
+    expect(variant.identity).not.toBe(pure.identity);
+    expect(realizationId(variant)).toBe(realizationId(pure));
+    const obligation = requiredObligation(theory);
+    const adapters: EvidenceAdapters = { resolveTransition, resolveReplay };
+    const pureOutcome = produceEvidence(
+      theory,
+      THEORY_ID,
+      obligation,
+      pure,
+      fixture.evidenceSuites,
+      adapters,
+    );
+    // A naive Set/Map binding by ID alone would collapse `pure` and
+    // `variant` into one entry and could still resolve to a selection
+    // without ever surfacing that two distinct, differently-identitied
+    // realizations claimed the same authored ID (the review probe).
+    expect(() =>
+      resolveDeployment(theory, [pure, variant], [pureOutcome], fixture.policy),
+    ).toThrow("duplicate authored realization ID");
+  });
+
   test("resolver binds outcomes by realization identity, not array order", async () => {
     const { fixture, theory, pure, broken } = await loadPureAndBroken();
     const obligation = requiredObligation(theory);
@@ -546,7 +691,7 @@ describe("evidence-production boundary and resolver packet consumption", () => {
     expect(brokenCandidate.reasonCodes).toContain("conformance_failed");
   });
 
-  test("a passing result rebound to the broken realization identity is rejected deterministically", async () => {
+  test("a copied result with a stale inner subject binding is rejected deterministically", async () => {
     const { fixture, theory, pure, broken } = await loadPureAndBroken();
     const obligation = requiredObligation(theory);
     const adapters: EvidenceAdapters = { resolveTransition, resolveReplay };
@@ -561,10 +706,12 @@ describe("evidence-production boundary and resolver packet consumption", () => {
     if (!pureOutcome.ok) throw new Error("expected the pure realization to produce evidence");
     // The pure realization's passing evidence is copied and rebound to the
     // broken realization's declared ID and wrapper identity, retaining its
-    // passing case payload (the canonical adversarial rebind case). The
-    // wrapper claims to match broken, but the embedded evidence artifact
-    // still declares pure's identity, so the inner cross-check must catch
-    // it even though the outer wrapper looks consistent.
+    // passing case payload. The wrapper claims to match broken, but the
+    // embedded evidence artifact's own realizationIdentity field is still
+    // stale (it still says pure), so the inner cross-check must catch it
+    // even though the outer wrapper looks consistent. This narrowly covers
+    // a STALE inner subject; it says nothing about a fully re-stamped
+    // forgery — see the separate DEFERRED test below for that gap.
     const reboundOutcome: ProducerOutcome = {
       ok: true,
       realizationId: realizationId(broken),
@@ -574,6 +721,45 @@ describe("evidence-production boundary and resolver packet consumption", () => {
     expect(() =>
       resolveDeployment(theory, [pure, broken], [pureOutcome, reboundOutcome], fixture.policy),
     ).toThrow("evidence result for realization 'realization.inventory.broken' carries a mismatched realization identity");
+  });
+
+  test("DEFERRED: a fully refreshed rebind of passing cases onto the broken realization is not caught by this partial slice", async () => {
+    const { fixture, theory, pure, broken } = await loadPureAndBroken();
+    const obligation = requiredObligation(theory);
+    const adapters: EvidenceAdapters = { resolveTransition, resolveReplay };
+    const pureOutcome = produceEvidence(
+      theory,
+      THEORY_ID,
+      obligation,
+      pure,
+      fixture.evidenceSuites,
+      adapters,
+    );
+    if (!pureOutcome.ok) throw new Error("expected the pure realization to produce evidence");
+    // Unlike the stale-inner-subject case above, every identity field here
+    // is correctly refreshed to declare `broken` as the subject — only the
+    // case-result payload is actually pure's passing run. This partial
+    // slice compares declared identity strings; it does not re-execute
+    // conformance or independently re-derive evidence content, so a
+    // self-consistent forgery like this is NOT rejected here. Closing this
+    // gap is explicitly deferred to the independent checker and canonical
+    // project-model binding adapter (design spec 0003 slices 5-7). This
+    // test documents the known boundary — it is NOT a contract acceptance,
+    // and this outcome must not be read as "the rebind defense works."
+    const forgedResult: EvidenceResult = {
+      ...pureOutcome.result,
+      realizationIdentity: broken.identity,
+      theoryIdentity: theory.identity,
+    };
+    const forgedOutcome: ProducerOutcome = {
+      ok: true,
+      realizationId: realizationId(broken),
+      realizationIdentity: broken.identity,
+      result: forgedResult,
+    };
+    const resolution = resolveDeployment(theory, [broken], [forgedOutcome], fixture.policy);
+    expect(resolution.status).toBe("selected");
+    expect(resolution.selectedRealization).toBe("realization.inventory.broken");
   });
 
   test("a diagnostic rebound to a mismatched realization identity is rejected deterministically", async () => {
@@ -736,26 +922,49 @@ describe("evidence-production boundary and resolver packet consumption", () => {
     }
   });
 
-  test("resolver.ts imports no evidence-production, operations, domain, execution, demo, or I/O code", async () => {
-    const source = await Bun.file(join(ROOT, "src", "tracer", "resolver.ts")).text();
-    const forbidden = [
-      "runConformance",
-      "produceEvidence",
-      'from "./operations.ts"',
-      'from "./domain.ts"',
-      'from "./execution.ts"',
-      'from "./demo.ts"',
-      'from "./loader.ts"',
+  test("resolver.ts's transitive relative-import closure never reaches evidence production, execution, or I/O", async () => {
+    const entry = join(ROOT, "src", "tracer", "resolver.ts");
+    const closure = await transitiveRelativeImportClosure(entry);
+
+    // Files the closure must never contain, by basename, regardless of how
+    // many relative-import hops away they are.
+    const forbiddenBasenames = [
+      "evidence.ts",
+      "domain.ts",
+      "operations.ts",
+      "execution.ts",
+      "demo.ts",
+      "loader.ts",
+    ];
+    const visitedBasenames = [...closure.files].map((path) => path.split("/").pop()!);
+    for (const basename of forbiddenBasenames) {
+      expect(visitedBasenames).not.toContain(basename);
+    }
+
+    // Bare/`node:` specifiers reachable anywhere in the closure must never
+    // be filesystem, network, or subprocess capable.
+    const forbiddenBareImports = [
       "node:fs",
+      "node:fs/promises",
       "node:net",
       "node:http",
       "node:https",
       "node:dns",
       "node:child_process",
-      '"bun"',
+      "bun",
+      "@effect/platform-bun",
+      "@effect/platform-node",
     ];
-    for (const needle of forbidden) {
-      expect(source).not.toContain(needle);
+    for (const bare of forbiddenBareImports) {
+      expect(closure.bareImports).not.toContain(bare);
+    }
+
+    // Belt-and-suspenders: the producer runner symbols must not appear
+    // anywhere in the closure's combined source, even under a re-export
+    // alias that the basename check above would miss.
+    const combinedSource = [...closure.sources.values()].join("\n");
+    for (const symbol of ["runConformance", "produceEvidence"]) {
+      expect(combinedSource).not.toContain(symbol);
     }
   });
 });

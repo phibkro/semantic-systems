@@ -1,6 +1,13 @@
 import { jsonEqual } from "./canonical.ts";
 import { parseState, runSteps, stateToJson, type Replay, type Transition } from "./domain.ts";
 import {
+  EVIDENCE_CATEGORY,
+  type CaseResult,
+  type EvidenceResult,
+  type ProducerDiagnosticKind,
+  type ProducerOutcome,
+} from "./evidence-result.ts";
+import {
   DocumentError,
   requireKey,
   requireObject,
@@ -13,50 +20,10 @@ import {
 import { operationBinding, realizationId, type Realization } from "./realization.ts";
 import type { Theory } from "./theory.ts";
 
-export const EVIDENCE_CATEGORY = "example_test";
-
-export interface CaseResult {
-  readonly caseId: string;
-  readonly passed: boolean;
-  readonly detail: JsonObject | null;
-}
-
-export interface EvidenceResult {
-  readonly category: string;
-  readonly obligation: string;
-  readonly producer: JsonObject;
-  readonly theoryIdentity: string;
-  readonly realizationIdentity: string;
-  readonly assumptions: ReadonlyArray<string>;
-  readonly caseResults: ReadonlyArray<CaseResult>;
-}
-
-export const evidenceTotalCases = (evidence: EvidenceResult): number => evidence.caseResults.length;
-export const evidencePassedCases = (evidence: EvidenceResult): number =>
-  evidence.caseResults.filter((item) => item.passed).length;
-export const evidencePassed = (evidence: EvidenceResult): boolean =>
-  evidenceTotalCases(evidence) > 0 &&
-  evidencePassedCases(evidence) === evidenceTotalCases(evidence);
-export const caseResultToJson = (result: CaseResult): JsonObject => ({
-  case_id: result.caseId,
-  passed: result.passed,
-  detail: result.detail,
-});
-export const evidenceCounterexamples = (evidence: EvidenceResult): ReadonlyArray<JsonObject> =>
-  evidence.caseResults.filter((item) => !item.passed).map(caseResultToJson);
-
-export const evidenceToJson = (evidence: EvidenceResult): JsonObject => ({
-  category: evidence.category,
-  obligation: evidence.obligation,
-  producer: evidence.producer,
-  theory_identity: evidence.theoryIdentity,
-  realization_identity: evidence.realizationIdentity,
-  assumptions: evidence.assumptions,
-  passed: evidencePassed(evidence),
-  total_cases: evidenceTotalCases(evidence),
-  passed_cases: evidencePassedCases(evidence),
-  case_results: evidence.caseResults.map(caseResultToJson),
-});
+// Re-export the neutral data contracts so existing importers of this module
+// (demo.ts, tests, cli.ts) keep working; the canonical definitions and the
+// resolver-facing import path both live in evidence-result.ts.
+export * from "./evidence-result.ts";
 
 const invariantViolations = (state: JsonObject): ReadonlyArray<string> => {
   const violations: Array<string> = [];
@@ -157,64 +124,21 @@ export const runConformance = (
  * Evidence-production boundary (contract slices 2-3): the producer is the
  * only place that selects a conformance recipe, resolves execution adapters,
  * and runs `runConformance`. It returns one lossless `EvidenceResult` or a
- * typed diagnostic and no result; it never adjudicates policy or
- * eligibility.
+ * typed diagnostic and no result (data contracts in `evidence-result.ts`);
+ * it never adjudicates policy or eligibility.
  *
  * Every non-executing preflight (theory targeting, obligation shape, recipe
  * matching, staleness, and obligation binding) is rejected before an adapter
  * is resolved or conformance runs, so a wrong-theory realization or a
  * wrong-obligation/stale/ambiguous/missing suite never triggers execution.
- * `requiredObligation` is threaded in (rather than recomputed here) so this
- * module stays the single definition of the theory's obligation shape; see
- * `resolver.ts`.
+ * `requiredObligation` is threaded in (rather than recomputed here) so
+ * `resolver.ts` stays the single definition of the theory's obligation
+ * shape.
  */
-export type ProducerDiagnosticKind =
-  | "not_targeted"
-  | "obligation_unsupported"
-  | "missing_evidence"
-  | "ambiguous_evidence"
-  | "stale_evidence_recipe"
-  | "evidence_obligation_mismatch"
-  | "unbound_operation";
-
-export interface ProducerDiagnostic {
-  readonly kind: ProducerDiagnosticKind;
-  readonly message: string;
-}
-
-/**
- * Every outcome self-declares the realization it is bound to by declared ID
- * (not array position) plus the exact authored realization content
- * identity, so a resolver consuming a list of outcomes can reject
- * reordering, omission, duplication, or rebinding deterministically instead
- * of trusting positional alignment or the outcome's own say-so.
- * `realizationIdentity` is set alongside `result.realizationIdentity` for
- * the `ok: true` case (both derived from the same realization at
- * construction) and is the only identity carrier for diagnostics.
- */
-export type ProducerOutcome =
-  | {
-      readonly ok: true;
-      readonly realizationId: string;
-      readonly realizationIdentity: string;
-      readonly result: EvidenceResult;
-    }
-  | {
-      readonly ok: false;
-      readonly realizationId: string;
-      readonly realizationIdentity: string;
-      readonly diagnostic: ProducerDiagnostic;
-    };
-
 export interface EvidenceAdapters {
   readonly resolveTransition: (key: string) => Transition;
   readonly resolveReplay: (key: string) => Replay;
 }
-
-export const producerDiagnosticToJson = (diagnostic: ProducerDiagnostic): JsonObject => ({
-  kind: diagnostic.kind,
-  message: diagnostic.message,
-});
 
 export const produceEvidence = (
   theory: Theory,

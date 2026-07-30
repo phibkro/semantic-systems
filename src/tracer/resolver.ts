@@ -9,7 +9,7 @@ import {
   type ProducerDiagnostic,
   type ProducerDiagnosticKind,
   type ProducerOutcome,
-} from "./evidence.ts";
+} from "./evidence-result.ts";
 import type { ExplanationNode } from "./explanation.ts";
 import {
   DocumentError,
@@ -160,6 +160,16 @@ const DIAGNOSTIC_REASON: Readonly<Record<ProducerDiagnosticKind, string>> = {
  * diagnostic); it never selects a recipe, resolves an execution adapter, or
  * runs conformance itself. See the evidence-production boundary in
  * `evidence.ts`.
+ *
+ * The resolver independently derives `theory_mismatch` and
+ * `required_obligation_set_unsupported` from the realization/theory data it
+ * already has, rather than trusting the producer's `not_targeted`/
+ * `obligation_unsupported` diagnostic kinds as the reason. But when the
+ * producer outcome for this exact realization is itself a diagnostic (of
+ * any kind, not only those two), it stays visible on the candidate — a
+ * short-circuited reason must not silently drop the underlying producer
+ * diagnostic (see design spec 0003: "retaining the producer diagnostic in
+ * the explanation").
  */
 const evaluateCandidate = (
   theory: Theory,
@@ -167,12 +177,16 @@ const evaluateCandidate = (
   producerOutcome: ProducerOutcome,
   policy: JsonObject,
 ): Candidate => {
-  const reject = (reason: string, producerDiagnostic: ProducerDiagnostic | null = null): Candidate => ({
+  const producerDiagnostic = producerOutcome.ok ? null : producerOutcome.diagnostic;
+  const reject = (
+    reason: string,
+    diagnostic: ProducerDiagnostic | null = producerDiagnostic,
+  ): Candidate => ({
     realization,
     eligible: false,
     reasonCodes: [reason],
     evidence: null,
-    producerDiagnostic,
+    producerDiagnostic: diagnostic,
   });
   if (!realization.targetsTheory) return reject(REASON_THEORY_MISMATCH);
   const obligation = requiredObligation(theory);
@@ -218,6 +232,27 @@ const evaluateCandidate = (
 };
 
 /**
+ * `realizationId` is the binding key everywhere below; a Set/Map naturally
+ * collapses two realizations that share one authored ID into a single
+ * entry, which would silently let one producer outcome stand in for both
+ * and could still leave exactly one eligible candidate (a "selected"
+ * result) without ever surfacing the duplication. Reject it outright,
+ * before any binding, so duplication can never hide behind coincidental
+ * eligibility — the frozen oracle requires a duplicated candidate to be a
+ * stable rejection, not a silent collapse.
+ */
+const requireUniqueRealizationIds = (realizations: ReadonlyArray<Realization>): void => {
+  const seen = new Set<string>();
+  for (const realization of realizations) {
+    const id = realizationId(realization);
+    if (seen.has(id)) {
+      throw new DocumentError({ message: `duplicate authored realization ID '${id}'` });
+    }
+    seen.add(id);
+  }
+};
+
+/**
  * Binds each producer outcome to its realization by declared, unique
  * authored ID (`outcome.realizationId`), never by array position:
  * `evidenceOutcomes` may arrive in any order relative to `realizations`.
@@ -234,6 +269,7 @@ const bindOutcomes = (
   realizations: ReadonlyArray<Realization>,
   evidenceOutcomes: ReadonlyArray<ProducerOutcome>,
 ): ReadonlyMap<string, ProducerOutcome> => {
+  requireUniqueRealizationIds(realizations);
   const outcomeById = new Map<string, ProducerOutcome>();
   for (const outcome of evidenceOutcomes) {
     if (outcomeById.has(outcome.realizationId)) {
