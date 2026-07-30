@@ -1,10 +1,10 @@
-# Active plan 0013: bounded actor trace retention
+# Completed plan 0013: bounded actor trace retention
 
 Canonical frozen contract:
 [`design-specs/0013-bounded-actor-trace-retention.md`](../../design-specs/0013-bounded-actor-trace-retention.md).
 This mutable plan records execution state and cannot redefine that contract.
 
-Status: accepted-counter custody correction complete; independent exact-head re-review pending
+Status: complete; accepted implementation integrated at `460d2b8`
 
 Owner: main research and integration agent
 
@@ -25,7 +25,7 @@ Owner: main research and integration agent
 ## Owned paths
 
 - `design-specs/0013-bounded-actor-trace-retention.md`
-- `plans/active/0013-bounded-actor-trace-retention.md`
+- `plans/completed/0013-bounded-actor-trace-retention.md`
 - `scripts/accept/0013-bounded-actor-trace-retention.ts`
 - `src/actor/**`
 - `tests/actor-runtime.test.ts`
@@ -155,3 +155,15 @@ git diff --check
   findings, and 68 compatibility tests. This is bounded test,
   static-analysis, and runtime-validation evidence; fresh independent
   exact-head review remains required.
+- 2026-07-30: final independent exact-head review accepted
+  `460d2b88993116d01d3901fc4f5a73c9ab671511`. The reviewer mutated production
+  to remove and duplicate the shared accepted-envelope transition; both
+  mutants failed focused counter assertions, establishing that the oracle
+  detects missing and double accepted-count updates rather than merely
+  projecting a precomputed value. The reviewer reproduced the full integration
+  and exact 0013 acceptance loops on a clean tree: 321 Bun tests (1,626
+  expectations), 24 focused actor tests (190 expectations), two genuine-Node
+  tests, zero Effect diagnostics, 68 compatibility tests, exact 0012,
+  inventory, semantic lint, model/view, import-closure, and Bun/Node parity
+  gates. This remains bounded test, runtime-validation, static-analysis, and
+  independent-assertion evidence—not proof of an unbounded execution.
