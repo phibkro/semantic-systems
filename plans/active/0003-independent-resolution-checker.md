@@ -126,14 +126,17 @@ Required artifact behavior:
   realization assumptions, exactly one evidence result or producer diagnostic,
   claimed eligibility, and a claimed reason set;
 - candidate and reason ordering is presentation-only. Emission is
-  deterministic; duplicate candidate IDs/identities and duplicate reason codes
-  fail rather than being silently collapsed;
+  deterministic; duplicate candidate IDs and duplicate reason codes fail
+  rather than being silently collapsed. Distinct authored candidate IDs may
+  share one content identity and must remain distinct: realization identity
+  deliberately excludes display ID/name, and the accepted ambiguity scenario
+  depends on preserving both authored candidates;
 - selected assumptions are the deterministic unique projection of the selected
   realization and evidence assumptions; rejected claims project `[]`;
 - construction rejects internally inconsistent selected status/subject
   bindings instead of fabricating a claim;
 - a strict parser validates fixed literals, exact closed envelopes, nonempty
-  identifiers, candidate uniqueness, evidence/diagnostic exclusivity,
+  identifiers, candidate-ID uniqueness, evidence/diagnostic exclusivity,
   embedded evidence through `parseEvidenceResult`, status/selection
   consistency, and derived selected-assumption consistency available from the
   claim itself. Coverage against authored inputs and policy truth remains the
@@ -157,10 +160,12 @@ Required executable oracles:
 - selected assumptions are unique and deterministic;
 - reversing candidate and reason presentation order does not change normalized
   claim meaning;
-- wrong kind/version, unknown claim/candidate fields, empty bindings,
-  duplicate candidates/reasons, evidence-plus-diagnostic, neither payload,
-  malformed embedded evidence, inconsistent status/selected subject, and
-  stale selected-assumption projection fail with stable messages;
+- wrong kind/version, unknown claim/candidate fields, empty bindings, duplicate
+  candidate IDs/reasons, evidence-plus-diagnostic, neither payload, malformed
+  embedded evidence, inconsistent status/selected subject, and stale
+  selected-assumption projection fail with stable messages;
+- two distinct authored candidate IDs with one content identity round-trip
+  without collapse and remain available to the rejected ambiguity claim;
 - the claim module's transitive import closure satisfies the forbidden
   capability/module boundary.
 
@@ -285,6 +290,14 @@ validity.
   preserves wrapper/binding error precedence, and parser-validates every bound
   successful packet before eligibility. The same gates pass on integrated head
   `9144e9a`. Broad and Nix validation remain deferred under severe I/O PSI.
+- 2026-07-30: while implementing slice 4, the bounded worker exposed a
+  plan-level contradiction: the initial slice text rejected repeated
+  realization content identities, but design spec 0003 requires complete
+  authored-candidate coverage and the accepted ambiguity tracer represents two
+  distinct authored IDs whose display-insensitive content identities are
+  equal. The main agent stopped the worker before commit and corrected this
+  execution contract to require unique authored candidate IDs while preserving
+  repeated content identities. The frozen design spec is unchanged.
 
 ## Decisions and deviations
 
