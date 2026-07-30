@@ -28,8 +28,10 @@ resolution claim if and only if:
 4. candidate eligibility and reasons follow the frozen policy;
 5. zero, one, or multiple eligible candidates produce the declared terminal
    result;
-6. selected identity and assumptions are complete; and
-7. the canonical project-model bindings agree.
+6. selected identity and assumptions are complete.
+
+The composite checker-and-adapter gate additionally requires the canonical
+project-model bindings to agree before execution.
 
 Any single semantic-field mutation whose expected value is derivable from the
 relevant declared inputs produces a stable named violation and prevents
@@ -67,9 +69,10 @@ Required minimal rejections:
 Required subtle adversarial distinction: a copied pure evidence result rebound
 to the broken realization with any stale subject, aggregate, claim, or result
 identity must be rejected. If every declared field and identity is refreshed
-self-consistently, the generic checker must record that observation
-authenticity is not derivable from its inputs rather than fabricate a
-violation.
+self-consistently, the oracle must expose that observation authenticity is not
+derivable from the generic checker inputs, and the checker must not fabricate a
+violation. This is a spec-level evidence limit, not an additional checker-report
+field.
 
 ## Frozen deep-module contract
 

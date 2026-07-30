@@ -62,9 +62,10 @@ Other active feature worktrees and their owned files remain forbidden.
    resolution, lossless typed outcomes carry exact semantic bindings and
    visible diagnostics, every bound successful packet is parser-validated
    before eligibility, and the resolver's transitive closure cannot reach the
-   producer, execution, or I/O. The serialized resolution claim and independent
-   checker remain blocked on a faithful design-spec 0003 prototype or explicit
-   reviewed revision.
+   producer, execution, or I/O. The serialized `resolution_claim_v1` is
+   integrated and independently reviewed as `310c4dd`, `b2772ef`, and
+   `bd0e6c3`. The independent checker remains blocked pending the declarative
+   shared-policy experiment under the recut design spec 0003.
    Uncertainty 0004's partial three-way screen found that every current
    prototype failed even its configured lower-bound size gate, while
    exact-head review found incomplete frozen artifacts, presentation-order
@@ -594,4 +595,9 @@ accepted; no new Python implementation is permitted.
   a targeted suppression carrying a `dev only:` reason. All three existing
   Effect-bearing violations moved to `Console.log` or `Console.error`. Seven
   focused lint-rule tests, TypeScript, full severe Oxlint, formatting, and the
-  full 228-test repository suite pass at `48b388b`.
+  full 228-test repository suite pass at `48b388b`. A real CLI probe then
+  exposed that Oxlint's built-in global-reference query missed unresolved bare
+  `console` while catching `globalThis.console`; `d25d3cf` adds the
+  scope-through fallback and a durable regression. Both forms now fail, local
+  shadows remain allowed, and a targeted `-- dev only: ...` suppression is
+  accepted.
