@@ -181,10 +181,11 @@ const evaluateCandidate = (
   if (!producerOutcome.ok) {
     return reject(DIAGNOSTIC_REASON[producerOutcome.diagnostic.kind], producerOutcome.diagnostic);
   }
-  // The producer only returns `ok: true` after matching this exact
-  // obligation (see evidence.ts), so evidence.obligation === obligation is
-  // guaranteed here rather than re-checked.
   const evidence = producerOutcome.result;
+  // The producer only returns `ok: true` after matching this exact
+  // obligation (see evidence.ts), but the resolver re-checks explicitly
+  // rather than trusting that internal invariant alone.
+  if (evidence.obligation !== obligation) return reject(REASON_EVIDENCE_OBLIGATION_MISMATCH);
 
   const reasons: Array<string> = [];
   const requirements = requireObject(
@@ -217,17 +218,19 @@ const evaluateCandidate = (
 };
 
 /**
- * Binds each producer outcome to its realization by declared ID
- * (`outcome.realizationId`), never by array position: `evidenceOutcomes` may
- * arrive in any order relative to `realizations`. Coverage must be exact —
- * one outcome per realization, no omission, no duplicate binding, no
- * outcome bound to an unknown realization — and every accepted evidence
- * result must carry the exact realization content identity it claims,
- * otherwise resolution throws instead of silently misattributing evidence
- * (a rebound pure result must never make a different, broken realization
- * eligible).
+ * Binds each producer outcome to its realization by declared, unique
+ * authored ID (`outcome.realizationId`), never by array position:
+ * `evidenceOutcomes` may arrive in any order relative to `realizations`.
+ * Coverage must be exact — one outcome per realization, no omission, no
+ * duplicate binding, no outcome bound to an unknown realization. Every
+ * outcome (success or diagnostic) must also declare the exact authored
+ * realization content identity it claims, and every successful result must
+ * declare the exact authored theory content identity; a mismatch on either
+ * throws instead of silently misattributing evidence (a rebound pure result
+ * or diagnostic must never make a different, broken realization eligible).
  */
 const bindOutcomes = (
+  theory: Theory,
   realizations: ReadonlyArray<Realization>,
   evidenceOutcomes: ReadonlyArray<ProducerOutcome>,
 ): ReadonlyMap<string, ProducerOutcome> => {
@@ -256,10 +259,26 @@ const bindOutcomes = (
         message: `missing evidence-production outcome for realization '${id}'`,
       });
     }
-    if (outcome.ok && outcome.result.realizationIdentity !== realization.identity) {
+    if (outcome.realizationIdentity !== realization.identity) {
       throw new DocumentError({
         message: `evidence-production outcome for realization '${id}' carries a mismatched realization identity`,
       });
+    }
+    if (outcome.ok) {
+      // The wrapper-level realizationIdentity check above only catches a
+      // forged wrapper; also verify the embedded evidence artifact's own
+      // claimed subject and theory, since a copied result could carry a
+      // stale realizationIdentity even under a correctly rebound wrapper.
+      if (outcome.result.realizationIdentity !== realization.identity) {
+        throw new DocumentError({
+          message: `evidence result for realization '${id}' carries a mismatched realization identity`,
+        });
+      }
+      if (outcome.result.theoryIdentity !== theory.identity) {
+        throw new DocumentError({
+          message: `evidence-production outcome for realization '${id}' carries a mismatched theory identity`,
+        });
+      }
     }
   }
   return outcomeById;
@@ -275,7 +294,7 @@ export const resolve = (
   if (ambiguity !== "reject") {
     throw new DocumentError({ message: `unsupported ambiguity policy '${ambiguity}'` });
   }
-  const outcomeById = bindOutcomes(realizations, evidenceOutcomes);
+  const outcomeById = bindOutcomes(theory, realizations, evidenceOutcomes);
   const candidates = realizations.map((realization) =>
     evaluateCandidate(theory, realization, outcomeById.get(realizationId(realization))!, policy),
   );

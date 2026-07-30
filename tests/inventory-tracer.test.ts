@@ -468,6 +468,7 @@ describe("evidence-production boundary and resolver packet consumption", () => {
     const outcome: ProducerOutcome = {
       ok: true,
       realizationId: realizationId(realization),
+      realizationIdentity: realization.identity,
       result: injected,
     };
     const resolution = resolveDeployment(theory, [realization], [outcome], fixture.policy);
@@ -487,6 +488,7 @@ describe("evidence-production boundary and resolver packet consumption", () => {
     const outcome: ProducerOutcome = {
       ok: false,
       realizationId: realizationId(realization),
+      realizationIdentity: realization.identity,
       diagnostic,
     };
     const resolution = resolveDeployment(theory, [realization], [outcome], fixture.policy);
@@ -558,16 +560,77 @@ describe("evidence-production boundary and resolver packet consumption", () => {
     );
     if (!pureOutcome.ok) throw new Error("expected the pure realization to produce evidence");
     // The pure realization's passing evidence is copied and rebound to the
-    // broken realization's declared ID, retaining its passing case payload
-    // (the canonical adversarial rebind case).
+    // broken realization's declared ID and wrapper identity, retaining its
+    // passing case payload (the canonical adversarial rebind case). The
+    // wrapper claims to match broken, but the embedded evidence artifact
+    // still declares pure's identity, so the inner cross-check must catch
+    // it even though the outer wrapper looks consistent.
     const reboundOutcome: ProducerOutcome = {
       ok: true,
       realizationId: realizationId(broken),
+      realizationIdentity: broken.identity,
       result: pureOutcome.result,
     };
     expect(() =>
       resolveDeployment(theory, [pure, broken], [pureOutcome, reboundOutcome], fixture.policy),
+    ).toThrow("evidence result for realization 'realization.inventory.broken' carries a mismatched realization identity");
+  });
+
+  test("a diagnostic rebound to a mismatched realization identity is rejected deterministically", async () => {
+    const { fixture, theory, pure, broken } = await loadPureAndBroken();
+    const obligation = requiredObligation(theory);
+    const adapters: EvidenceAdapters = { resolveTransition, resolveReplay };
+    const pureOutcome = produceEvidence(
+      theory,
+      THEORY_ID,
+      obligation,
+      pure,
+      fixture.evidenceSuites,
+      adapters,
+    );
+    const diagnostic: ProducerDiagnostic = {
+      kind: "unbound_operation",
+      message: "unbound transition operation 'inventory.unavailable.v0'",
+    };
+    // Bound (by declared ID) to `broken`, so realization coverage is
+    // otherwise complete, but its declared content identity claims `pure`
+    // instead — an internally inconsistent diagnostic binding.
+    const misboundDiagnostic: ProducerOutcome = {
+      ok: false,
+      realizationId: realizationId(broken),
+      realizationIdentity: pure.identity,
+      diagnostic,
+    };
+    expect(() =>
+      resolveDeployment(
+        theory,
+        [pure, broken],
+        [pureOutcome, misboundDiagnostic],
+        fixture.policy,
+      ),
     ).toThrow("mismatched realization identity");
+  });
+
+  test("a successful result bound to a mismatched theory identity is rejected deterministically", async () => {
+    const { fixture, theory, pure } = await loadPureAndBroken();
+    const obligation = requiredObligation(theory);
+    const adapters: EvidenceAdapters = { resolveTransition, resolveReplay };
+    const pureOutcome = produceEvidence(
+      theory,
+      THEORY_ID,
+      obligation,
+      pure,
+      fixture.evidenceSuites,
+      adapters,
+    );
+    if (!pureOutcome.ok) throw new Error("expected the pure realization to produce evidence");
+    const wrongTheoryOutcome: ProducerOutcome = {
+      ...pureOutcome,
+      result: { ...pureOutcome.result, theoryIdentity: "sha256:some-other-theory" },
+    };
+    expect(() =>
+      resolveDeployment(theory, [pure], [wrongTheoryOutcome], fixture.policy),
+    ).toThrow("mismatched theory identity");
   });
 
   test("resolver rejects a missing evidence-production outcome instead of defaulting", async () => {

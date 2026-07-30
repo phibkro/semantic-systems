@@ -184,15 +184,25 @@ export interface ProducerDiagnostic {
 
 /**
  * Every outcome self-declares the realization it is bound to by declared ID
- * (not array position), so a resolver consuming a list of outcomes can
- * reject reordering, omission, duplication, or rebinding deterministically
- * instead of trusting positional alignment.
+ * (not array position) plus the exact authored realization content
+ * identity, so a resolver consuming a list of outcomes can reject
+ * reordering, omission, duplication, or rebinding deterministically instead
+ * of trusting positional alignment or the outcome's own say-so.
+ * `realizationIdentity` is set alongside `result.realizationIdentity` for
+ * the `ok: true` case (both derived from the same realization at
+ * construction) and is the only identity carrier for diagnostics.
  */
 export type ProducerOutcome =
-  | { readonly ok: true; readonly realizationId: string; readonly result: EvidenceResult }
+  | {
+      readonly ok: true;
+      readonly realizationId: string;
+      readonly realizationIdentity: string;
+      readonly result: EvidenceResult;
+    }
   | {
       readonly ok: false;
       readonly realizationId: string;
+      readonly realizationIdentity: string;
       readonly diagnostic: ProducerDiagnostic;
     };
 
@@ -214,10 +224,12 @@ export const produceEvidence = (
   suites: ReadonlyArray<JsonObject>,
   adapters: EvidenceAdapters,
 ): ProducerOutcome => {
-  const subject = realizationId(realization);
+  const subjectId = realizationId(realization);
+  const subjectIdentity = realization.identity;
   const reject = (kind: ProducerDiagnosticKind, message: string): ProducerOutcome => ({
     ok: false,
-    realizationId: subject,
+    realizationId: subjectId,
+    realizationIdentity: subjectIdentity,
     diagnostic: { kind, message },
   });
   if (!realization.targetsTheory) {
@@ -260,7 +272,8 @@ export const produceEvidence = (
   }
   return {
     ok: true,
-    realizationId: subject,
+    realizationId: subjectId,
+    realizationIdentity: subjectIdentity,
     result: runConformance(theory, realization, suite, transition, replay),
   };
 };
