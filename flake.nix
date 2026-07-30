@@ -28,6 +28,9 @@
                 python
                 pkgs.bun
                 pkgs.actionlint
+                # Atomic same-filesystem no-replace publication for reference
+                # custody (`mv --update=none-fail --no-copy`).
+                pkgs.coreutils
                 pkgs.git
                 pkgs.jq
                 pkgs.just

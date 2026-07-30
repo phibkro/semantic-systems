@@ -194,6 +194,41 @@ const requireNoLinksInDirectoryTree = (
     }
   });
 
+const requireObjectStorageAdministration = (
+  objects: string,
+  label: string,
+): Effect.Effect<void, AcquisitionError, FileSystem.FileSystem | Path.Path> =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const paths = yield* Path.Path;
+    const entries = yield* fs
+      .readDirectory(objects)
+      .pipe(Effect.mapError((cause) => pathError(`cannot inspect ${label} ${objects}`, cause)));
+    for (const name of entries) {
+      const child = paths.join(objects, name);
+      yield* ensureNotLink(child, `${label} ${child} is an unsafe symlink`);
+      const info = yield* fs
+        .stat(child)
+        .pipe(Effect.mapError((cause) => pathError(`cannot inspect ${label} ${child}`, cause)));
+      if (name === "info" || name === "pack") {
+        if (info.type !== "Directory") {
+          return yield* pathError(`${label} ${child} is not a directory`);
+        }
+        yield* requireNoLinksInDirectoryTree(child, label);
+        continue;
+      }
+      if (/^[0-9a-f]{2}$/.test(name)) {
+        if (info.type !== "Directory") {
+          return yield* pathError(`${label} loose-object fanout ${child} is not a directory`);
+        }
+        continue;
+      }
+      if (info.type !== "File" && info.type !== "Directory") {
+        return yield* pathError(`${label} ${child} is not a regular file or directory`);
+      }
+    }
+  });
+
 interface WorktreeReadMessages {
   readonly symlink: string;
   readonly missing: string;
@@ -385,6 +420,40 @@ export const ensureManagedSourceDirectory = (
 export const inspectObjectCache = (referencesRoot: string, sourceId: string) =>
   inspectManagedDirectory(referencesRoot, sourceId, ".git-cache");
 
+const repositoryGitDirectory = (
+  repository: string,
+): Effect.Effect<string, AcquisitionError, FileSystem.FileSystem | Path.Path> =>
+  Effect.gen(function* () {
+    const paths = yield* Path.Path;
+    const root = paths.resolve(repository);
+    const nested = paths.join(root, ".git");
+    return (yield* inspectDirectory(nested, "repository Git administration")) ?? root;
+  });
+
+/**
+ * Reject redirection at the exact loose-object paths selected by custody.
+ * Absence is valid because the object may live in an already-inspected pack.
+ */
+export const inspectRepositoryObjectPaths = (
+  repository: string,
+  objectIds: ReadonlyArray<string>,
+): Effect.Effect<void, AcquisitionError, FileSystem.FileSystem | Path.Path> =>
+  Effect.gen(function* () {
+    const paths = yield* Path.Path;
+    const gitDirectory = yield* repositoryGitDirectory(repository);
+    const objects = paths.join(gitDirectory, "objects");
+    for (const oid of new Set(objectIds)) {
+      if (!/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(oid)) {
+        return yield* pathError(`unsafe Git object id ${JSON.stringify(oid)}`);
+      }
+      const fanout = paths.join(objects, oid.slice(0, 2));
+      if ((yield* inspectDirectory(fanout, "selected loose-object fanout")) === null) continue;
+      const object = paths.join(fanout, oid.slice(2));
+      if (!(yield* entryExistsNoFollow(object))) continue;
+      yield* requireRegularFile(object, `selected loose object ${JSON.stringify(oid)}`);
+    }
+  });
+
 /**
  * Establish a self-contained ordinary checkout administration boundary before
  * invoking Git. Linked worktrees, gitfiles, alternates, and worktree-specific
@@ -458,7 +527,7 @@ export const inspectCheckoutAdministration = (
       }
     }
 
-    yield* requireNoLinksInDirectoryTree(objects, "checkout Git object storage");
+    yield* requireObjectStorageAdministration(objects, "checkout Git object storage");
   });
 
 /** Validate the tool-owned bare/no-checkout repository used as an object cache. */
@@ -514,5 +583,5 @@ export const inspectObjectCacheAdministration = (
         );
       }
     }
-    yield* requireNoLinksInDirectoryTree(objects, "managed object-cache storage");
+    yield* requireObjectStorageAdministration(objects, "managed object-cache storage");
   });

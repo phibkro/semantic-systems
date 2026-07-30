@@ -90,6 +90,7 @@ const MAIN_BUN = join(ROOT, "src", "references", "main-bun.ts");
 const MAIN_NODE = join(ROOT, "src", "references", "main-node.ts");
 const NODE_EXECUTABLE =
   Bun.which("node") ?? "/nix/store/lnfxdsvvm1srsa9kk94s7jqw06yq1h2d-nodejs-24.18.0/bin/node";
+const MV_EXECUTABLE = Bun.which("mv") ?? "/run/current-system/sw/bin/mv";
 const temporaryRoots: Array<string> = [];
 const GitEnvironmentLayer = Layer.succeed(GitEnvironment, makeGitEnvironment(process.env));
 const CuratorProcessLayer = Layer.succeed(
@@ -281,10 +282,11 @@ const temporaryProject = async (catalogToml: string, lockJson?: string): Promise
   return root;
 };
 
-const runCommand = (command: ReadonlyArray<string>, cwd: string): string => {
+const runCommand = (command: ReadonlyArray<string>, cwd: string, stdin?: string): string => {
   const result = Bun.spawnSync({
     cmd: [...command],
     cwd,
+    stdin: stdin === undefined ? undefined : new TextEncoder().encode(stdin),
     stdout: "pipe",
     stderr: "pipe",
   });
@@ -1740,6 +1742,28 @@ describe("reference custody Effect v4 slice: offline materialization", () => {
     const checkout = join(fixture.project, ".references", "demo.repo", "checkout");
     expect(runCommand(["git", "rev-parse", "HEAD"], checkout)).toBe(lockedCommit);
     expect(runCommand(["git", "branch", "--show-current"], checkout)).toBe("");
+    const sourceObject = join(
+      fixture.sibling,
+      ".git",
+      "objects",
+      lockedCommit.slice(0, 2),
+      lockedCommit.slice(2),
+    );
+    const checkoutObject = join(
+      checkout,
+      ".git",
+      "objects",
+      lockedCommit.slice(0, 2),
+      lockedCommit.slice(2),
+    );
+    const [sourceObjectInfo, checkoutObjectInfo] = await Promise.all([
+      stat(sourceObject, { bigint: true }),
+      stat(checkoutObject, { bigint: true }),
+    ]);
+    expect([checkoutObjectInfo.dev, checkoutObjectInfo.ino]).not.toEqual([
+      sourceObjectInfo.dev,
+      sourceObjectInfo.ino,
+    ]);
 
     const bun = runTsCli(args);
     expect(bun.exitCode, `${bun.stdout}\n${bun.stderr}`).toBe(0);
@@ -1848,6 +1872,28 @@ describe("reference custody Effect v4 slice: offline materialization", () => {
     const checkout = join(fixture.project, ".references", "demo.repo", "checkout");
     expect(runCommand(["git", "branch", "--show-current"], checkout)).toBe("");
     expect(runTsCli(["--root", fixture.project, "status", "demo.repo", "--json"]).exitCode).toBe(0);
+  });
+
+  test("a valid cache missing the commit falls back to the declared sibling", async () => {
+    const { fixture } = await lockedFixture(false);
+    const cache = join(fixture.project, ".references", "demo.repo", ".git-cache");
+    runCommand(["git", "init", "--bare", "--quiet", cache], fixture.project);
+    runCommand(
+      ["git", "-C", cache, "remote", "add", "origin", "https://example.com/demo.git"],
+      fixture.project,
+    );
+
+    const result = runTsCli(["--root", fixture.project, "materialize", "demo.repo", "--offline"]);
+    expect(result.exitCode, `${result.stdout}\n${result.stderr}`).toBe(0);
+    const lock = await runBun(loadLock(join(fixture.project, "references", "sources.lock.json")));
+    const lockedCommit = lock.sources.get("demo.repo")?.commit;
+    if (lockedCommit === undefined) throw new Error("expected a locked commit");
+    expect(
+      runCommand(
+        ["git", "rev-parse", "HEAD"],
+        join(fixture.project, ".references", "demo.repo", "checkout"),
+      ),
+    ).toBe(lockedCommit);
   });
 
   test("an operational cache commit-probe failure does not fall back to the sibling", async () => {
@@ -1980,6 +2026,61 @@ describe("reference custody Effect v4 slice: offline materialization", () => {
     expect(await directoryByteSnapshot(external)).toBe(before);
   });
 
+  test("a sibling Git-directory symlink is rejected before object acquisition", async () => {
+    const { fixture } = await lockedFixture(false);
+    const siblingGit = join(fixture.sibling, ".git");
+    const external = join(resolve(fixture.sibling, ".."), "external-sibling-git");
+    await rename(siblingGit, external);
+    await symlink(external, siblingGit);
+    expect(runCommand(["git", "rev-parse", "HEAD"], fixture.sibling)).not.toBe("");
+    const before = await directoryByteSnapshot(external);
+
+    const result = runTsCli(["--root", fixture.project, "materialize", "demo.repo", "--offline"]);
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("unsafe symlink");
+    expect(await directoryByteSnapshot(external)).toBe(before);
+    expect(
+      await Bun.file(join(fixture.project, ".references", "demo.repo", "checkout")).exists(),
+    ).toBeFalse();
+  });
+
+  test("a publication race cannot replace a destination that appears after preflight", async () => {
+    const { fixture } = await lockedFixture(false);
+    const bin = join(fixture.project, "bin");
+    const helper = join(bin, "mv");
+    await mkdir(bin);
+    await writeFile(
+      helper,
+      `#!${NODE_EXECUTABLE}\n` +
+        'const fs = require("node:fs");\n' +
+        'const cp = require("node:child_process");\n' +
+        "const args = process.argv.slice(2);\n" +
+        "const target = args.at(-1);\n" +
+        "if (target === undefined) process.exit(64);\n" +
+        "fs.mkdirSync(target, { recursive: false });\n" +
+        `const result = cp.spawnSync(${JSON.stringify(MV_EXECUTABLE)}, args, { stdio: "inherit" });\n` +
+        "process.exit(result.status ?? 1);\n",
+    );
+    await chmod(helper, 0o755);
+    const environment = {
+      ...process.env,
+      PATH: `${bin}:${process.env.PATH ?? ""}`,
+    };
+
+    const result = runTsCli(
+      ["--root", fixture.project, "materialize", "demo.repo", "--offline"],
+      environment,
+    );
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("cannot atomically publish checkout");
+    const sourceRoot = join(fixture.project, ".references", "demo.repo");
+    const checkout = join(sourceRoot, "checkout");
+    expect(await readdir(checkout)).toEqual([]);
+    expect(
+      (await readdir(sourceRoot)).some((name) => name.startsWith(".materialize-")),
+    ).toBeFalse();
+  });
+
   test("an exact checkout with a visible LFS indirection is published but not strict", async () => {
     const fixture = await localSiblingFixture();
     await writeFile(
@@ -2019,6 +2120,42 @@ describe("reference custody Effect v4 slice: offline materialization", () => {
     const [report] = JSON.parse(status.stdout);
     expect(report.state).toBe("unverifiable");
     expect(report.reasons.join(" ")).toContain("Git LFS pointer");
+  });
+
+  test("a materialized gitlink remains visibly uninitialized", async () => {
+    const fixture = await localSiblingFixture();
+    const gitlinkCommit = runCommand(["git", "rev-parse", "HEAD"], fixture.sibling);
+    runCommand(
+      ["git", "update-index", "--add", "--cacheinfo", `160000,${gitlinkCommit},nested`],
+      fixture.sibling,
+    );
+    runCommand(
+      [
+        "git",
+        "-c",
+        "user.name=Semantic Custody Test",
+        "-c",
+        "user.email=custody@example.invalid",
+        "commit",
+        "-m",
+        "test: add visible gitlink",
+      ],
+      fixture.sibling,
+    );
+    await mkdir(join(fixture.project, "references"));
+    await writeFile(join(fixture.project, "references", "sources.toml"), fixture.sourceText);
+    expect(runTsCli(["--root", fixture.project, "lock", "demo.repo", "--offline"]).exitCode).toBe(
+      0,
+    );
+    expect(
+      runTsCli(["--root", fixture.project, "materialize", "demo.repo", "--offline"]).exitCode,
+    ).toBe(0);
+    const checkout = join(fixture.project, ".references", "demo.repo", "checkout");
+    expect(await Bun.file(join(checkout, "nested")).exists()).toBeFalse();
+    const status = runTsCli(["--root", fixture.project, "status", "demo.repo", "--json"]);
+    expect(status.exitCode).toBe(1);
+    const [report] = JSON.parse(status.stdout);
+    expect(report.reasons.join(" ")).toContain("unmaterialized submodule gitlink");
   });
 });
 
@@ -2497,6 +2634,23 @@ describe("reference custody Effect v4 slice: full checkout status", () => {
     expect(report.reasons.join(" ")).toContain("unsafe symlink");
   });
 
+  test("an unrelated loose-object symlink is not traversed by selected closure custody", async () => {
+    const { fixture, checkout } = await lockedFixture();
+    if (checkout === null) throw new Error("expected a materialized checkout");
+    const objects = join(checkout, ".git", "objects");
+    const fanout = join(objects, "aa");
+    const unrelated = join(fanout, "0".repeat(38));
+    const external = join(resolve(checkout, "..", "..", ".."), "external-unrelated-object");
+    await mkdir(fanout, { recursive: true });
+    await writeFile(external, "unrelated object-like bytes");
+    await symlink(external, unrelated);
+
+    const result = runTsCli(["--root", fixture.project, "status", "demo.repo", "--json"]);
+    expect(result.exitCode, `${result.stdout}\n${result.stderr}`).toBe(0);
+    expect(JSON.parse(result.stdout)[0].state).toBe("materialized_with_visible_assumption");
+    expect(await Bun.file(external).text()).toBe("unrelated object-like bytes");
+  });
+
   test("a packed-object symlink cannot redirect Git outside managed custody", async () => {
     const { fixture, checkout } = await lockedFixture();
     if (checkout === null) throw new Error("expected a materialized checkout");
@@ -2582,6 +2736,72 @@ describe("reference custody Effect v4 slice: full checkout status", () => {
     const [report] = JSON.parse(result.stdout);
     expect(report.state).toBe("unverifiable");
     expect(report.reasons.join(" ")).toContain("integrity failed");
+  });
+
+  test("a valid commit payload stored under the locked commit OID fails identity custody", async () => {
+    const { fixture, checkout } = await lockedFixture();
+    if (checkout === null) throw new Error("expected a materialized checkout");
+    const expectedCommit = runCommand(["git", "rev-parse", "HEAD"], checkout);
+    const tree = runCommand(["git", "rev-parse", "HEAD^{tree}"], checkout);
+    const replacementCommit = runCommand(
+      [
+        "git",
+        "-c",
+        "user.name=Semantic Custody Test",
+        "-c",
+        "user.email=custody@example.invalid",
+        "commit-tree",
+        tree,
+      ],
+      checkout,
+      "replacement commit payload\n",
+    );
+    expect(replacementCommit).not.toBe(expectedCommit);
+    const objects = join(checkout, ".git", "objects");
+    const expectedPath = join(objects, expectedCommit.slice(0, 2), expectedCommit.slice(2));
+    const replacementPath = join(
+      objects,
+      replacementCommit.slice(0, 2),
+      replacementCommit.slice(2),
+    );
+    const replacementBytes = await readFile(replacementPath);
+    await rm(expectedPath);
+    await writeFile(expectedPath, replacementBytes);
+    expect(runCommand(["git", "cat-file", "commit", expectedCommit], checkout)).toContain(
+      "replacement commit payload",
+    );
+
+    const result = runTsCli(["--root", fixture.project, "status", "demo.repo", "--json"]);
+    expect(result.exitCode).toBe(1);
+    const [report] = JSON.parse(result.stdout);
+    expect(report.reasons.join(" ")).toContain("selected commit integrity failed");
+  });
+
+  test("a valid tree payload stored under the locked tree OID fails identity custody", async () => {
+    const { fixture, checkout } = await lockedFixture();
+    if (checkout === null) throw new Error("expected a materialized checkout");
+    const expectedTree = runCommand(["git", "rev-parse", "HEAD^{tree}"], checkout);
+    const replacementFile = join(fixture.project, "replacement-license");
+    await writeFile(replacementFile, "replacement tree payload\n");
+    const replacementBlob = runCommand(["git", "hash-object", "-w", replacementFile], checkout);
+    const replacementTree = runCommand(
+      ["git", "mktree"],
+      checkout,
+      `100644 blob ${replacementBlob}\tLICENSE\n`,
+    );
+    expect(replacementTree).not.toBe(expectedTree);
+    const objects = join(checkout, ".git", "objects");
+    const expectedPath = join(objects, expectedTree.slice(0, 2), expectedTree.slice(2));
+    const replacementPath = join(objects, replacementTree.slice(0, 2), replacementTree.slice(2));
+    const replacementBytes = await readFile(replacementPath);
+    await rm(expectedPath);
+    await writeFile(expectedPath, replacementBytes);
+    expect(runCommand(["git", "ls-tree", replacementTree], checkout)).toContain(replacementBlob);
+
+    const result = runTsCli(["--root", fixture.project, "status", "demo.repo", "--json"]);
+    expect(result.exitCode).toBe(1);
+    const [report] = JSON.parse(result.stdout);
+    expect(report.reasons.join(" ")).toContain("hash mismatch");
   });
 
   test("LFS-like prose is ordinary content unless it is a complete pointer", async () => {

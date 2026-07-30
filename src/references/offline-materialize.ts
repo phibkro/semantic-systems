@@ -1,5 +1,5 @@
-import { type Crypto, Effect, FileSystem, Path, Result } from "effect";
-import type { ChildProcessSpawner } from "effect/unstable/process";
+import { type Crypto, Effect, FileSystem, Path, Result, Stream } from "effect";
+import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 import { resolveOfflineMaterializationRepository } from "./acquire.ts";
 import { catalogDigest, type CatalogSource, loadCatalog } from "./catalog.ts";
 import { acquireCuratorLock, type CuratorProcess, superviseCurator } from "./curator.ts";
@@ -9,7 +9,7 @@ import {
   type CuratorLockedError,
   type LockFileError,
 } from "./errors.ts";
-import { checkoutDetached, cloneLocalRepository, type GitEnvironment } from "./git.ts";
+import { checkoutDetached, cloneLocalRepository, GitEnvironment } from "./git.ts";
 import { loadLock, type LockEntry } from "./lockfile.ts";
 import { ensureManagedSourceDirectory, inspectManagedDirectory } from "./paths.ts";
 import type { TomlParser } from "./toml.ts";
@@ -28,6 +28,49 @@ const acquisitionError = (message: string, cause?: unknown) =>
     message,
     ...(cause === undefined ? {} : { cause }),
   });
+
+const publishDirectoryNoReplace = (
+  source: string,
+  target: string,
+): Effect.Effect<
+  void,
+  AcquisitionError,
+  ChildProcessSpawner.ChildProcessSpawner | GitEnvironment
+> =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+      const environments = yield* GitEnvironment;
+      const command = ChildProcess.make(
+        "mv",
+        ["--no-copy", "--update=none-fail", "--no-target-directory", "--", source, target],
+        {
+          env: environments.forMode(false),
+          extendEnv: false,
+          shell: false,
+          detached: false,
+          stdin: "ignore",
+        },
+      );
+      const handle = yield* spawner.spawn(command);
+      const [output, exit] = yield* Effect.all(
+        [Stream.mkString(Stream.decodeText(handle.all)), handle.exitCode] as const,
+        { concurrency: "unbounded" },
+      );
+      if (Number(exit) !== 0) {
+        return yield* acquisitionError(
+          `cannot atomically publish checkout without replacing ${target} ` +
+            `(mv exit ${Number(exit)}): ${output.trim()}`,
+        );
+      }
+    }),
+  ).pipe(
+    Effect.mapError((cause) =>
+      cause instanceof AcquisitionError
+        ? cause
+        : acquisitionError(`cannot atomically publish checkout without replacing ${target}`, cause),
+    ),
+  );
 
 const requireCatalogBinding = (
   source: CatalogSource,
@@ -141,16 +184,14 @@ export const materializeOfflineSource = (
             `source ${JSON.stringify(source.id)}: checkout target ${target} appeared during materialization`,
           );
         }
-        yield* fs
-          .rename(temporary, target)
-          .pipe(
-            Effect.mapError((cause) =>
-              acquisitionError(
-                `source ${JSON.stringify(source.id)}: cannot atomically publish checkout`,
-                cause,
-              ),
+        yield* publishDirectoryNoReplace(temporary, target).pipe(
+          Effect.mapError((cause) =>
+            acquisitionError(
+              `source ${JSON.stringify(source.id)}: cannot atomically publish checkout`,
+              cause,
             ),
-          );
+          ),
+        );
         return target;
       }),
     );

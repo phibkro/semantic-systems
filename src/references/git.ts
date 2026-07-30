@@ -248,6 +248,113 @@ export interface LocalBlobInspection {
   readonly smallContents: ReadonlyMap<string, Uint8Array>;
 }
 
+export type GitObjectType = "blob" | "commit" | "tree";
+
+/**
+ * Stream one selected object through Git's repository-format-aware hasher.
+ * Neither process buffers the payload in this program, so large blobs remain
+ * bounded while their content identity is recomputed independently of the
+ * object path Git used to read them.
+ */
+export const recomputeObjectId = (
+  repository: string,
+  oid: string,
+  objectType: GitObjectType,
+): Effect.Effect<
+  string,
+  AcquisitionError,
+  ChildProcessSpawner.ChildProcessSpawner | FileSystem.FileSystem | GitEnvironment
+> =>
+  Effect.gen(function* () {
+    yield* rejectOptionLike("object id", oid);
+    const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
+    const fs = yield* FileSystem.FileSystem;
+    const environments = yield* GitEnvironment;
+    const environment = environments.forMode(false);
+    const makeCommand = (arguments_: ReadonlyArray<string>) =>
+      ChildProcess.make(
+        "git",
+        [...HARDENING_ARGUMENTS, "-c", "protocol.https.allow=never", ...arguments_],
+        {
+          env: environment,
+          extendEnv: false,
+          shell: false,
+          detached: false,
+          stdin: "ignore",
+        },
+      );
+
+    return yield* Effect.scoped(
+      Effect.gen(function* () {
+        const temporary = yield* fs.makeTempFileScoped({
+          prefix: "semantic-git-object-",
+        });
+        const source = yield* spawner.spawn(
+          makeCommand(["-C", repository, "cat-file", objectType, oid]),
+        );
+        const [, sourceError, sourceExit] = yield* Effect.all(
+          [
+            Stream.run(source.stdout, fs.sink(temporary)),
+            collectBytes(source.stderr),
+            source.exitCode,
+          ] as const,
+          { concurrency: "unbounded" },
+        );
+        const sourceCode = Number(sourceExit);
+        if (sourceCode !== 0) {
+          return yield* new AcquisitionError({
+            message:
+              `cannot read selected ${objectType} ${oid} for integrity verification ` +
+              `(exit ${sourceCode}): ${new TextDecoder().decode(sourceError).trim()}`,
+          });
+        }
+
+        const hasher = yield* spawner.spawn(
+          makeCommand([
+            "-C",
+            repository,
+            "hash-object",
+            "-t",
+            objectType,
+            "--no-filters",
+            "--",
+            temporary,
+          ]),
+        );
+        const [output, hashError, hashExit] = yield* Effect.all(
+          [collectBytes(hasher.stdout), collectBytes(hasher.stderr), hasher.exitCode] as const,
+          { concurrency: "unbounded" },
+        );
+        const hashCode = Number(hashExit);
+        if (hashCode !== 0) {
+          return yield* new AcquisitionError({
+            message:
+              `cannot recompute selected ${objectType} ${oid} identity ` +
+              `(exit ${hashCode}): ${new TextDecoder().decode(hashError).trim()}`,
+          });
+        }
+        const recomputed = new TextDecoder().decode(output).trim();
+        if (!/^[0-9a-f]+$/.test(recomputed)) {
+          return yield* new AcquisitionError({
+            message:
+              `unexpected recomputed identity for selected ${objectType} ${oid}: ` +
+              JSON.stringify(recomputed),
+          });
+        }
+        return recomputed;
+      }),
+    ).pipe(
+      Effect.mapError((cause) =>
+        cause instanceof AcquisitionError
+          ? cause
+          : new AcquisitionError({
+              message: `cannot verify selected ${objectType} ${oid} identity`,
+              cause,
+            }),
+      ),
+    );
+  });
+
 export const objectFormat = (repository: string) =>
   runGit(["-C", repository, "rev-parse", "--show-object-format"]).pipe(
     Effect.flatMap((result) => {
@@ -764,6 +871,84 @@ export const lsTreeRecursive = (
   );
 
 /**
+ * List one already-validated tree object without recursively opening child
+ * trees. Callers can therefore validate each child object path and identity
+ * before asking Git to read it.
+ */
+export const lsTreeDirectory = (
+  repository: string,
+  tree: string,
+  prefix = "",
+): Effect.Effect<
+  ReadonlyArray<TreePathEntry>,
+  AcquisitionError,
+  ChildProcessSpawner.ChildProcessSpawner | GitEnvironment
+> =>
+  rejectOptionLike("tree", tree).pipe(
+    Effect.andThen(
+      runGit(["-C", repository, "ls-tree", "-l", "-z", tree], {
+        check: false,
+      }),
+    ),
+    Effect.flatMap((result) =>
+      Effect.gen(function* () {
+        if (result.exitCode !== 0) {
+          return yield* new AcquisitionError({
+            message: `git ls-tree failed for selected tree ${tree}: ${result.stderr.trim()}`,
+          });
+        }
+        if (result.stdout.length > 0 && result.stdout[result.stdout.length - 1] !== 0) {
+          return yield* new AcquisitionError({
+            message: `unexpected non-NUL-terminated ls-tree output for selected tree ${tree}`,
+          });
+        }
+        const entries: Array<TreePathEntry> = [];
+        for (const record of splitNulRecords(result.stdout)) {
+          if (record.length === 0) continue;
+          const tab = record.indexOf(0x09);
+          if (tab < 0) {
+            return yield* new AcquisitionError({
+              message: `unexpected ls-tree record without a path separator for selected tree ${tree}`,
+            });
+          }
+          const metadata = yield* decodePath(record.slice(0, tab), "selected ls-tree metadata");
+          const fields = metadata.split(/\s+/);
+          if (fields.length !== 4) {
+            return yield* new AcquisitionError({
+              message: `unexpected selected ls-tree metadata ${JSON.stringify(metadata)}`,
+            });
+          }
+          const [mode, objectType, oid, rawSize] = fields as [string, string, string, string];
+          const name = yield* decodePath(record.slice(tab + 1), "selected ls-tree output");
+          if (name.length === 0 || name.includes("/")) {
+            return yield* new AcquisitionError({
+              message: `selected tree ${tree} contains invalid direct entry ${JSON.stringify(name)}`,
+            });
+          }
+          const size = yield* Effect.try({
+            try: () => (rawSize === "-" || rawSize === "BAD" ? -1n : BigInt(rawSize)),
+            catch: (cause) =>
+              new AcquisitionError({
+                message:
+                  `invalid selected ls-tree size ${JSON.stringify(rawSize)} for ` +
+                  JSON.stringify(name),
+                cause,
+              }),
+          });
+          entries.push({
+            path: prefix.length === 0 ? name : `${prefix}/${name}`,
+            mode,
+            objectType,
+            oid,
+            size,
+          });
+        }
+        return entries;
+      }),
+    ),
+  );
+
+/**
  * Prove every committed blob is present in the local object database without
  * opening a promisor transport. Small blobs are also returned so callers can
  * parse bounded indirection formats from committed bytes.
@@ -775,7 +960,7 @@ export const inspectLocalBlobs = (
 ): Effect.Effect<
   LocalBlobInspection,
   AcquisitionError,
-  ChildProcessSpawner.ChildProcessSpawner | GitEnvironment
+  ChildProcessSpawner.ChildProcessSpawner | FileSystem.FileSystem | GitEnvironment
 > =>
   Effect.gen(function* () {
     const unique = new Map<string, LocalBlobRequest>();
@@ -794,31 +979,24 @@ export const inspectLocalBlobs = (
       }
     }
 
-    const batchSize = 64;
-    for (let index = 0; index < ordered.length; index += batchSize) {
-      const batch = ordered.slice(index, index + batchSize);
-      const checked = yield* runGit(
-        [
-          "-C",
-          repository,
-          "fsck",
-          "--strict",
-          "--no-dangling",
-          "--no-reflogs",
-          "--no-progress",
-          ...batch.map(({ oid }) => oid),
-        ],
-        { check: false },
-      );
-      if (checked.exitCode !== 0) {
-        return yield* new AcquisitionError({
-          message:
-            `committed blob integrity failed for tracked paths ` +
-            `${JSON.stringify(batch.map(({ path }) => path))}: ` +
-            `${checked.stderr.trim() || text(checked).trim()}`,
-        });
-      }
-    }
+    yield* Effect.forEach(
+      ordered,
+      (request) =>
+        recomputeObjectId(repository, request.oid, "blob").pipe(
+          Effect.flatMap((actual) =>
+            actual === request.oid
+              ? Effect.void
+              : Effect.fail(
+                  new AcquisitionError({
+                    message:
+                      `committed blob integrity failed for tracked path ` +
+                      `${JSON.stringify(request.path)}: expected ${request.oid}, recomputed ${actual}`,
+                  }),
+                ),
+          ),
+        ),
+      { concurrency: 4, discard: true },
+    );
 
     const small = ordered.filter(({ size }) => size <= BigInt(smallBlobLimit));
     if (small.length === 0) return { smallContents: new Map() };

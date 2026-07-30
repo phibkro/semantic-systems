@@ -17,7 +17,13 @@ import {
   treeOfCommit,
 } from "./git.ts";
 import { lockEntryContentEqual, type LicenseObservation, type LockEntry } from "./lockfile.ts";
-import { inspectObjectCache, inspectObjectCacheAdministration } from "./paths.ts";
+import {
+  inspectCheckoutAdministration,
+  inspectObjectCache,
+  inspectObjectCacheAdministration,
+  inspectRepositoryObjectPaths,
+} from "./paths.ts";
+import { verifyRepositoryObjectClosure } from "./verify.ts";
 
 const REGULAR_BLOB_MODES = new Set(["100644", "100755"]);
 export type OfflineAcquisition = "local-sibling" | "local-object-cache";
@@ -70,6 +76,7 @@ export const resolveLocalSibling = (
         message: `source ${JSON.stringify(source.id)}: local_hint ${sibling} has no .git directory`,
       });
     }
+    yield* inspectCheckoutAdministration(sibling);
 
     const observed = yield* rawLocalRemoteUrl(sibling);
     const accepted = new Set([source.origin, ...source.originAliases]);
@@ -136,7 +143,9 @@ export const resolveOfflineMaterializationRepository = (
             `${JSON.stringify(source.origin)}`,
         });
       }
+      yield* inspectRepositoryObjectPaths(cache, [commit]);
       if (yield* commitObjectExists(cache, commit)) {
+        yield* verifyRepositoryObjectClosure(cache, commit);
         return { repository: cache, acquisition: "local-object-cache" };
       }
     }
@@ -153,6 +162,7 @@ export const resolveOfflineMaterializationRepository = (
           : error,
       ),
     );
+    yield* inspectRepositoryObjectPaths(sibling, [commit]);
     if (!(yield* commitObjectExists(sibling, commit))) {
       return yield* new AcquisitionError({
         message:
@@ -160,6 +170,7 @@ export const resolveOfflineMaterializationRepository = (
           "offline from both the managed object cache and the declared local sibling",
       });
     }
+    yield* verifyRepositoryObjectClosure(sibling, commit);
     return { repository: sibling, acquisition: "local-sibling" };
   });
 

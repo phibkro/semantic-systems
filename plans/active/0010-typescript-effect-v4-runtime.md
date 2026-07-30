@@ -498,3 +498,33 @@ accepted; no new Python implementation is permitted.
   but `new Date(milliseconds)` deterministically interprets an already
   captured value. The rule now distinguishes those forms without a
   suppression. All six rule tests, full Oxlint, TypeScript, and Oxfmt pass.
+- 2026-07-30: the independent exact-`13c1c22` offline-materialization review
+  returned `NEEDS_CHANGES`. It confirmed the prior nested-link and large-blob
+  fixes, then found that commit/tree identities were not independently
+  recomputed, recursive object-storage inspection still scaled with unrelated
+  loose history, an ordinary rename could replace an empty directory appearing
+  after preflight, local sibling `.git` administration could redirect outside
+  the sibling, and a missing `OID^{commit}` was misclassified because Git 2.54
+  reports it as fatal exit 128 rather than silent absence.
+- 2026-07-30: corrected that review boundary. Exact-object probing now checks
+  the undecorated OID for silent absence and separately validates its type, so
+  operational corruption fails closed while a valid cache miss falls back to
+  the sibling. Siblings pass the same self-contained administration checks as
+  checkouts before Git reads their origin or objects. Object administration
+  scans only the bounded fanout roots plus pack/info metadata; a directory-wise
+  selected-tree walk validates each exact loose-object path before opening it.
+  Every selected commit, tree, and blob is then streamed through
+  `git cat-file` into an Effect-scoped temporary file and recomputed with
+  repository-format-aware `git hash-object --no-filters`; unrelated loose
+  history is neither opened nor enumerated. Effect/Bun process-to-process
+  piping was re-evaluated and again delivered an empty stream, so the scoped
+  file is the smallest portable bounded bridge shared by Bun and Node.
+  Publication now uses GNU `mv --no-copy --update=none-fail
+  --no-target-directory`, preserving same-filesystem atomicity while refusing
+  a destination that appears after preflight. New controls cover cache
+  miss/sibling fallback, commit and tree substitution, selected versus
+  unrelated loose-object symlinks, sibling `.git` redirection, an injected
+  no-replace race, source/destination object inode separation, and actual
+  gitlink non-initialization. The custody corpus now contains 117 tests; the
+  new controls and affected prior controls pass targeted under severe I/O
+  pressure.

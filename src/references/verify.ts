@@ -8,15 +8,20 @@ import {
   inspectLocalBlobs,
   isCleanWorktree,
   isDetachedHead,
+  lsTreeDirectory,
   lsTreeEntry,
-  lsTreeRecursive,
+  recomputeObjectId,
   repositoryProgramReasons,
   treeOfCommit,
+  type GitObjectType,
   type GitEnvironment,
+  type LocalBlobInspection,
+  type TreePathEntry,
 } from "./git.ts";
 import type { LicenseObservation, LockEntry } from "./lockfile.ts";
 import {
   inspectCheckoutAdministration,
+  inspectRepositoryObjectPaths,
   readWorktreeBlobBytes,
   readWorktreeFilePrefix,
 } from "./paths.ts";
@@ -50,6 +55,12 @@ export const publicationBlockingReasons = (
 type VerificationCapabilities =
   | ChildProcessSpawner.ChildProcessSpawner
   | Crypto.Crypto
+  | FileSystem.FileSystem
+  | GitEnvironment
+  | Path.Path;
+
+type ObjectVerificationCapabilities =
+  | ChildProcessSpawner.ChildProcessSpawner
   | FileSystem.FileSystem
   | GitEnvironment
   | Path.Path;
@@ -145,29 +156,102 @@ const licenseReasons = (
     return reasons;
   });
 
+const requireObjectIdentity = (
+  worktree: string,
+  oid: string,
+  objectType: GitObjectType,
+): Effect.Effect<void, AcquisitionError, ObjectVerificationCapabilities> =>
+  Effect.gen(function* () {
+    yield* inspectRepositoryObjectPaths(worktree, [oid]);
+    const recomputed = yield* recomputeObjectId(worktree, oid, objectType);
+    if (recomputed !== oid) {
+      return yield* new AcquisitionError({
+        message: `selected ${objectType} integrity failed: expected ${oid}, recomputed ${recomputed}`,
+      });
+    }
+  });
+
+interface CompleteTreeInspection {
+  readonly entries: ReadonlyArray<TreePathEntry>;
+  readonly localBlobs: LocalBlobInspection;
+}
+
+/**
+ * Walk the locked tree one directory at a time. Every tree object is
+ * path-checked and rehashed before Git may open it; blob paths are then
+ * checked and all selected blob identities are recomputed independently.
+ */
+const inspectCompleteTree = (
+  worktree: string,
+  rootTree: string,
+  smallBlobLimit = LFS_POINTER_MAX_BYTES,
+): Effect.Effect<CompleteTreeInspection, AcquisitionError, ObjectVerificationCapabilities> =>
+  Effect.gen(function* () {
+    const entries: Array<TreePathEntry> = [];
+    const pending: Array<readonly [string, string]> = [[rootTree, ""]];
+    const verifiedTrees = new Set<string>();
+
+    for (let index = 0; index < pending.length; index += 1) {
+      const [tree, prefix] = pending[index]!;
+      if (!verifiedTrees.has(tree)) {
+        yield* requireObjectIdentity(worktree, tree, "tree");
+        verifiedTrees.add(tree);
+      }
+      const direct = yield* lsTreeDirectory(worktree, tree, prefix);
+      entries.push(...direct);
+      for (const entry of direct) {
+        if (entry.objectType === "tree") {
+          pending.push([entry.oid, entry.path]);
+        } else if (entry.objectType !== "blob" && entry.objectType !== "commit") {
+          return yield* new AcquisitionError({
+            message:
+              `tracked path ${JSON.stringify(entry.path)} has unsupported Git object type ` +
+              JSON.stringify(entry.objectType),
+          });
+        }
+      }
+    }
+
+    const blobs = entries
+      .filter((entry) => entry.objectType === "blob")
+      .map(({ oid, path, size }) => ({ oid, path, size }));
+    yield* inspectRepositoryObjectPaths(
+      worktree,
+      blobs.map(({ oid }) => oid),
+    );
+    const localBlobs = yield* inspectLocalBlobs(worktree, blobs, smallBlobLimit);
+    return { entries, localBlobs };
+  });
+
+/**
+ * Prove the exact selected commit/tree/blob closure before cloning from a
+ * local cache or sibling. No working-tree bytes are consulted.
+ */
+export const verifyRepositoryObjectClosure = (
+  repository: string,
+  commit: string,
+): Effect.Effect<string, AcquisitionError, ObjectVerificationCapabilities> =>
+  Effect.gen(function* () {
+    yield* requireObjectIdentity(repository, commit, "commit");
+    const tree = yield* treeOfCommit(repository, commit);
+    yield* inspectCompleteTree(repository, tree, -1);
+    return tree;
+  });
+
 const completeTreeReasons = (
   worktree: string,
-  head: string,
+  inspection: CompleteTreeInspection,
 ): Effect.Effect<ReadonlyArray<string>, AcquisitionError, VerificationCapabilities> =>
   Effect.gen(function* () {
-    const treeEntries = yield* lsTreeRecursive(worktree, head);
-    const local = yield* inspectLocalBlobs(
-      worktree,
-      treeEntries
-        .filter((entry) => entry.objectType === "blob")
-        .map(({ oid, path, size }) => ({ oid, path, size })),
-      LFS_POINTER_MAX_BYTES,
-    );
-
     const reasons: Array<string> = [];
-    for (const entry of treeEntries) {
+    for (const entry of inspection.entries) {
       if (entry.mode === "160000" || entry.objectType === "commit") {
         reasons.push(
           `tracked path ${JSON.stringify(entry.path)} is an unmaterialized submodule gitlink`,
         );
         continue;
       }
-      const committed = local.smallContents.get(entry.oid);
+      const committed = inspection.localBlobs.smallContents.get(entry.oid);
       const committedPointer = committed !== undefined && isGitLfsPointer(committed);
       if (committedPointer) {
         reasons.push(`tracked path ${JSON.stringify(entry.path)} is a committed Git LFS pointer`);
@@ -210,6 +294,10 @@ const verifyCheckoutEffect = (
         reasons: [`checkout is at ${head}, locked commit is ${entry.commit}`],
       };
     }
+    yield* requireObjectIdentity(worktree, head, "commit");
+    const tree = yield* treeOfCommit(worktree, head);
+    const completeTree = yield* inspectCompleteTree(worktree, tree);
+
     const hiddenReasons = yield* hiddenIndexReasons(worktree);
     if (hiddenReasons.length > 0) return { headMismatch: null, reasons: hiddenReasons };
     if (!(yield* isCleanWorktree(worktree))) {
@@ -217,14 +305,13 @@ const verifyCheckoutEffect = (
     }
 
     const reasons: Array<string> = [];
-    const tree = yield* treeOfCommit(worktree, head);
     if (tree !== entry.tree) {
       reasons.push(`checkout tree ${tree} does not match locked tree ${entry.tree}`);
     }
     for (const [path, expected] of entry.licenses) {
       reasons.push(...(yield* licenseReasons(worktree, head, path, expected)));
     }
-    reasons.push(...(yield* completeTreeReasons(worktree, head)));
+    reasons.push(...(yield* completeTreeReasons(worktree, completeTree)));
     return { headMismatch: null, reasons };
   });
 
