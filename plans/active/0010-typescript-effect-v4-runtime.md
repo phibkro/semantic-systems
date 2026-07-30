@@ -314,9 +314,9 @@ accepted; no new Python implementation is permitted.
   repository config, with URL rewrites and included config disabled.
   The lock is derived exclusively from the selected commit/tree and regular
   committed license blobs; dirty working-tree bytes are irrelevant, and a
-  byte-identical observation retains the prior custody timestamp. Four new
-  adversarial tests cover environment poisoning, transport syntax, committed
-  object custody/stable reuse, remote-origin mismatch, and replacement-ref
+  byte-identical observation retains the prior custody timestamp. Adversarial
+  tests cover environment poisoning, transport syntax, committed object
+  custody/stable reuse, remote-origin mismatch, and replacement-ref
   substitution. Local-to-local `insteadOf` attacks demonstrate both ref and
   origin-identity rewrites without opening network; a protocol canary proves
   Git rejects HTTPS before transport; multiple raw origins fail closed; and
