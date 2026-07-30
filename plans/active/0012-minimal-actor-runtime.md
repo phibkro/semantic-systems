@@ -159,3 +159,10 @@ paths, acceptance commands, expected deliverables, and this posture:
   guarded-freshness equivalence counterexample. These are local test,
   static-analysis, and runtime-validation results; a fresh independent review
   is still required.
+- 2026-07-30: independent review rejected `af5c398` because stringifying a
+  caller-controlled traversal failure could itself throw, turning a declared
+  transfer error into a defect. Revision 3 uses total cause rendering and adds
+  hostile initial-state, message, and transition-output probes under Bun and
+  Node. The focused result is now 16 Bun tests (45 expectations) and two
+  genuine-Node tests; the full exact-head acceptance and another independent
+  review remain required.

@@ -19,6 +19,12 @@ the validated definition fields instead of retaining the caller's definition
 container. Scenario freshness inputs are derived from the prepared transition
 seam, not from every authored step.
 
+Revision 3: exact-head review found that rendering a caller-controlled clone or
+traversal failure could itself throw and escape the typed channel. Ownership
+boundary diagnostics now use total cause rendering; even hostile Proxy and
+error accessors must produce the declared typed failure rather than an Effect
+defect.
+
 Semantic frontier: isolated state ownership, typed actor messaging, mailbox
 ordering, and inventory-realization equivalence
 
@@ -210,9 +216,9 @@ Before implementation, executable tests must observe red for:
 3. a public state getter, retained mutable definition container, or retained
    alias to initial state, accepted messages, committed state, or returned
    events;
-4. shared-memory or otherwise non-transferable actor values crossing a
-   boundary without the declared
-   typed failure;
+4. shared-memory, hostile Proxy, or otherwise non-transferable actor values
+   crossing a boundary without the declared typed failure, including a defect
+   thrown while rendering their failure cause;
 5. post-close send acceptance or nontermination;
 6. close discarding an already accepted envelope;
 7. transition failure being rendered as a domain rejection;
@@ -247,8 +253,10 @@ The first actor tracer is accepted only when:
     not share caller-mutable aliases;
 11. actor definition fields are captured once and later container mutation
     cannot change identity, capacity, or transition behavior;
-12. shared-memory and otherwise non-transferable values fail at their declared
-    typed boundaries under both Bun and Node;
+12. shared-memory, hostile Proxy, and otherwise non-transferable values fail at
+    their declared typed boundaries under both Bun and Node; rendering an
+    ownership-boundary cause is total and cannot upgrade the failure to a
+    defect;
 13. the inventory actor event sequence equals the pure reference sequence,
     including a guarded-reservation freshness-alignment counterexample;
 14. replay of actor events equals both actor and pure final observations;
@@ -337,3 +345,9 @@ prepared transition seam used by the actor adapter. The reviewed `e67686d`
 implementation and its demo-only parity result are invalidated; a fresh exact
 head must demonstrate the shared-memory and guarded-freshness counterexamples
 under the declared runtimes.
+
+Revision 3 makes total failure rendering part of the typed transfer boundary.
+The reviewed `af5c398` head is invalidated because hostile caller-controlled
+causes could defect while being stringified. A fresh exact head must retain
+initial-state, message, and transition-output transfer failures in their typed
+channels under Bun and Node.

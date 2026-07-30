@@ -124,6 +124,37 @@ const cloneActorValue = <Value>(value: Value): Value => {
   return cloned;
 };
 
+const renderUnknownCause = (cause: unknown): string => {
+  try {
+    if (cause instanceof Error) {
+      const name = typeof cause.name === "string" && cause.name.length > 0 ? cause.name : "Error";
+      const message = typeof cause.message === "string" ? cause.message : "";
+      return message.length > 0 ? `${name}: ${message}` : name;
+    }
+    if (typeof cause === "string") return cause;
+    if (
+      typeof cause === "number" ||
+      typeof cause === "bigint" ||
+      typeof cause === "boolean" ||
+      cause === null ||
+      cause === undefined
+    ) {
+      return `${cause}`;
+    }
+    return "uninspectable actor-boundary failure";
+  } catch {
+    return "uninspectable actor-boundary failure";
+  }
+};
+
+const renderEffectCause = (cause: Cause.Cause<unknown>): string => {
+  try {
+    return Cause.pretty(cause);
+  } catch {
+    return "transition effect failed with an uninspectable cause";
+  }
+};
+
 /**
  * Spawn one scoped actor.
  *
@@ -162,7 +193,7 @@ export const spawn = <Message, State, Event, TransitionError, Requirements>(
       try: () => cloneActorValue(initialState),
       catch: (cause) =>
         new InvalidActorDefinition({
-          message: `initial state must be transferable without shared memory: ${String(cause)}`,
+          message: `initial state must be transferable without shared memory: ${renderUnknownCause(cause)}`,
         }),
     });
 
@@ -221,7 +252,7 @@ export const spawn = <Message, State, Event, TransitionError, Requirements>(
               new ActorTransitionFailed({
                 actorId,
                 sequence: signal.sequence,
-                cause: `private state could not cross the transition boundary: ${String(cause)}`,
+                cause: `private state could not cross the transition boundary: ${renderUnknownCause(cause)}`,
               }),
           }).pipe(
             Effect.flatMap((transitionState) => transition(signal.message, transitionState)),
@@ -233,7 +264,7 @@ export const spawn = <Message, State, Event, TransitionError, Requirements>(
                   new ActorTransitionFailed({
                     actorId,
                     sequence: signal.sequence,
-                    cause: `transition result must be transferable without shared memory: ${String(cause)}`,
+                    cause: `transition result must be transferable without shared memory: ${renderUnknownCause(cause)}`,
                   }),
               }),
             ),
@@ -243,7 +274,7 @@ export const spawn = <Message, State, Event, TransitionError, Requirements>(
           const failure = new ActorTransitionFailed({
             actorId,
             sequence: signal.sequence,
-            cause: Cause.pretty(result.cause),
+            cause: renderEffectCause(result.cause),
           });
           yield* appendTrace(trace, {
             kind: "transition_failed",
@@ -300,7 +331,7 @@ export const spawn = <Message, State, Event, TransitionError, Requirements>(
                 catch: (cause) =>
                   new ActorMessageNotTransferable({
                     actorId,
-                    cause: String(cause),
+                    cause: renderUnknownCause(cause),
                   }),
               }).pipe(Effect.tapError(() => capacity.release(1)));
               const sequence = nextSequence + 1;

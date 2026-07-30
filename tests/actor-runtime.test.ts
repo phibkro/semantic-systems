@@ -37,6 +37,30 @@ const scenarioSteps: ReadonlyArray<JsonObject> = [
 
 const run = <A, E>(effect: Effect.Effect<A, E>): Promise<A> => Effect.runPromise(effect);
 
+const hostileCause = (): Error =>
+  Object.defineProperties(new Error(), {
+    name: {
+      get: () => {
+        throw new Error("hostile-name");
+      },
+    },
+    message: {
+      get: () => {
+        throw new Error("hostile-message");
+      },
+    },
+  });
+
+const hostileTransferValue = (): object =>
+  new Proxy(
+    {},
+    {
+      ownKeys: () => {
+        throw hostileCause();
+      },
+    },
+  );
+
 describe("minimal actor runtime", () => {
   test("inventory messages are receiver-FIFO and replay-equivalent to the pure realization", async () => {
     const observation = await run(
@@ -365,6 +389,43 @@ describe("minimal actor runtime", () => {
     expect(result.initialFailure).toBeInstanceOf(InvalidActorDefinition);
     expect(result.messageFailure).toBeInstanceOf(ActorMessageNotTransferable);
     expect(result.viewFailure).toBeInstanceOf(ActorMessageNotTransferable);
+  });
+
+  test("hostile transfer failures remain typed at every ownership boundary", async () => {
+    const result = await run(
+      Effect.scoped(
+        Effect.gen(function* () {
+          const initialFailure = yield* spawn<never, object, never, never, never>({
+            id: "hostile-initial",
+            initialState: hostileTransferValue(),
+            mailboxCapacity: 1,
+            transition: (_, state) => Effect.succeed([state, undefined as never] as const),
+          }).pipe(Effect.flip);
+          const messageActor = yield* spawn<object, number, number, never, never>({
+            id: "hostile-message",
+            initialState: 0,
+            mailboxCapacity: 1,
+            transition: (_, state) => Effect.succeed([state, state] as const),
+          });
+          const messageFailure = yield* messageActor.send(hostileTransferValue()).pipe(Effect.flip);
+          yield* messageActor.close;
+          const outputActor = yield* spawn<number, number, object, never, never>({
+            id: "hostile-output",
+            initialState: 0,
+            mailboxCapacity: 1,
+            transition: (message, state) =>
+              Effect.succeed([state + message, hostileTransferValue()] as const),
+          });
+          const outputFailure = yield* outputActor.send(1).pipe(Effect.flip);
+          yield* outputActor.close;
+          return { initialFailure, messageFailure, outputFailure };
+        }),
+      ),
+    );
+
+    expect(result.initialFailure).toBeInstanceOf(InvalidActorDefinition);
+    expect(result.messageFailure).toBeInstanceOf(ActorMessageNotTransferable);
+    expect(result.outputFailure).toBeInstanceOf(ActorTransitionFailed);
   });
 
   test("spawn snapshots the definition container before caller mutation", async () => {
