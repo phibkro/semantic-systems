@@ -81,50 +81,96 @@ Slices 1, 2, 5, and 7 may be explored concurrently against this contract.
 Resolver/demo integration is serialized after packet and checker interfaces are
 stable. Final integration is owned by the main agent.
 
-## Delegated implementation contract
+## Next delegated slice contract: serialized resolution claim
 
-Autonomy: A3, integration-ready implementation in an isolated worktree.
+Slice 4 is frozen against design spec 0003. Autonomy is A3:
+integration-ready implementation in one isolated worktree based on the exact
+integration head containing this plan-freeze update. It must not begin checker,
+CLI, execution-gate, model-binding, or generated-view work.
 
 Required reading:
 
-- design spec 0003;
-- design spec and completed plan 0001;
-- `src/semantic_tracer/`;
-- `tests/test_inventory_tracer.py`;
-- inventory examples;
-- current canonical inventory model files.
+- design spec 0003, especially `resolution_claim_v1`;
+- completed plan 0001;
+- `src/tracer/evidence-result.ts`, `resolver.ts`, `demo.ts`, `canonical.ts`,
+  `realization.ts`, and `json.ts`;
+- focused inventory tracer tests and inventory policy/realization fixtures;
+- rejected prior-art claim builder at `a373ae9:src/tracer/resolver.ts`, without
+  importing its rejected packet, checker, or model-binding semantics.
 
-Allowed writes:
+Owned writes:
 
-- `src/semantic_tracer/`;
-- `tests/test_resolution_checker.py`;
-- narrowly required edits to `tests/test_inventory_tracer.py`;
-- `examples/inventory/checker-cases/` if fixtures materially clarify the
-  mutation corpus.
+- new neutral `src/tracer/resolution-claim.ts`;
+- narrowly required production mapping in `src/tracer/resolver.ts`;
+- narrowly required `DemoResult`/JSON projection in `src/tracer/demo.ts`;
+- `tests/inventory-tracer.test.ts`;
+- `src/tracer/evidence-result.ts` only if a small reusable strict producer-
+  diagnostic parser is necessary.
 
 Forbidden writes:
 
 - `model/`, `generated/`, `docs/`, `decisions/`, `claims/`, `plans/`,
-  `design-specs/`;
-- inventory theory, domain semantics, transition/replay adapters;
-- evidence category or policy meaning.
+  `design-specs/`, examples, fixtures, acceptance scripts, or toolchain files;
+- checker, checker report, CLI, execution, loader, theory, realization,
+  evidence producer, domain, operation, or runtime-entrypoint semantics;
+- evidence category, policy, identity, theory, or transition meaning.
 
-Acceptance:
+Required artifact behavior:
+
+- a neutral typed `resolution_claim_v1` with fixed
+  `artifact_kind: "resolution_claim"` and schema version 1;
+- exact theory `{id, identity}`, required obligation, policy
+  `{id, content_identity}`, complete candidates, terminal status, selected
+  `{id, identity}` or null, and projected selected assumptions;
+- each candidate carries realization ID/identity, theory targeting, authored
+  realization assumptions, exactly one evidence result or producer diagnostic,
+  claimed eligibility, and a claimed reason set;
+- candidate and reason ordering is presentation-only. Emission is
+  deterministic; duplicate candidate IDs/identities and duplicate reason codes
+  fail rather than being silently collapsed;
+- selected assumptions are the deterministic unique projection of the selected
+  realization and evidence assumptions; rejected claims project `[]`;
+- construction rejects internally inconsistent selected status/subject
+  bindings instead of fabricating a claim;
+- a strict parser validates fixed literals, exact closed envelopes, nonempty
+  identifiers, candidate uniqueness, evidence/diagnostic exclusivity,
+  embedded evidence through `parseEvidenceResult`, status/selection
+  consistency, and derived selected-assumption consistency available from the
+  claim itself. Coverage against authored inputs and policy truth remains the
+  later independent checker's responsibility;
+- the neutral claim module imports neither resolver, demo, execution,
+  producer, operations, domain semantics, loader, filesystem, nor network
+  capabilities.
+
+Focused acceptance:
 
 ```bash
-nix develop --command pytest tests/test_resolution_checker.py tests/test_inventory_tracer.py
-nix develop --command ruff check .
-nix develop --command ruff format --check .
-nix develop --command pyright
+bun test tests/inventory-tracer.test.ts
+bun run typecheck
+git diff 2ed10a0..HEAD --check
 ```
+
+Required executable oracles:
+
+- positive selected and rejected claims round-trip losslessly;
+- exact policy content identity and selected realization identity are visible;
+- selected assumptions are unique and deterministic;
+- reversing candidate and reason presentation order does not change normalized
+  claim meaning;
+- wrong kind/version, unknown claim/candidate fields, empty bindings,
+  duplicate candidates/reasons, evidence-plus-diagnostic, neither payload,
+  malformed embedded evidence, inconsistent status/selected subject, and
+  stale selected-assumption projection fail with stable messages;
+- the claim module's transitive import closure satisfies the forbidden
+  capability/module boundary.
 
 Deliver:
 
-- committed integration-ready change;
+- one committed integration-ready change;
+- exact commit and bounded gate results;
 - semantic-diff note;
-- commands run and exact results;
-- checks not run;
-- independence/size measurement;
+- evaluated/reused prior art and provenance;
+- checks not run and all deviations;
 - remaining assumptions and uncertainties.
 
 ## Main-agent integration
