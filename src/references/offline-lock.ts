@@ -2,7 +2,7 @@ import { type Crypto, Effect, type FileSystem, Path, Result } from "effect";
 import type { ChildProcessSpawner } from "effect/unstable/process";
 import { lockFromLocalSibling } from "./acquire.ts";
 import { isLockable, loadCatalog } from "./catalog.ts";
-import { acquireCuratorLock, type CuratorProcess } from "./curator.ts";
+import { acquireCuratorLock, type CuratorProcess, superviseCurator } from "./curator.ts";
 import {
   CatalogError,
   type AcquisitionError,
@@ -60,36 +60,41 @@ export const lockOfflineLocalSiblings = (
 
     return yield* Effect.scoped(
       Effect.gen(function* () {
-        yield* acquireCuratorLock(paths.join(root, ".references"));
-        const lockPath = paths.join(root, "references", "sources.lock.json");
-        const lock = yield* loadLock(lockPath);
-        const entries = new Map(lock.sources);
-        const locked = new Map<string, LockEntry>();
-        const skipped: Array<string> = [];
-        const failures: Array<OfflineLockFailure> = [];
+        const curator = yield* acquireCuratorLock(paths.join(root, ".references"));
+        return yield* superviseCurator(
+          curator,
+          Effect.gen(function* () {
+            const lockPath = paths.join(root, "references", "sources.lock.json");
+            const lock = yield* loadLock(lockPath);
+            const entries = new Map(lock.sources);
+            const locked = new Map<string, LockEntry>();
+            const skipped: Array<string> = [];
+            const failures: Array<OfflineLockFailure> = [];
 
-        for (const id of selectedIds) {
-          const source = catalog.sources.get(id)!;
-          if (!isLockable(source)) {
-            skipped.push(id);
-            continue;
-          }
-          const observed = yield* Effect.result(
-            lockFromLocalSibling(source, root, lock.sources.get(id) ?? null),
-          );
-          if (Result.isFailure(observed)) {
-            failures.push({ id, error: observed.failure });
-            continue;
-          }
-          entries.set(id, observed.success);
-          locked.set(id, observed.success);
-        }
+            for (const id of selectedIds) {
+              const source = catalog.sources.get(id)!;
+              if (!isLockable(source)) {
+                skipped.push(id);
+                continue;
+              }
+              const observed = yield* Effect.result(
+                lockFromLocalSibling(source, root, lock.sources.get(id) ?? null),
+              );
+              if (Result.isFailure(observed)) {
+                failures.push({ id, error: observed.failure });
+                continue;
+              }
+              entries.set(id, observed.success);
+              locked.set(id, observed.success);
+            }
 
-        if (failures.length > 0) {
-          return { committed: false, locked, skipped, failures };
-        }
-        yield* writeLock(lockPath, { generator, sources: entries });
-        return { committed: true, locked, skipped, failures };
+            if (failures.length > 0) {
+              return { committed: false, locked, skipped, failures };
+            }
+            yield* writeLock(lockPath, { generator, sources: entries });
+            return { committed: true, locked, skipped, failures };
+          }),
+        );
       }),
     );
   });

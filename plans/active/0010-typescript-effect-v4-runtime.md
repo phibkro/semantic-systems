@@ -337,7 +337,9 @@ accepted; no new Python implementation is permitted.
   `.references/.curator.lock` inode as Python; it never truncates or writes
   that file. A readiness file is created only after `flock` atomically
   acquires the kernel lock and execs the Bun/Node holder, avoiding
-  stream-readiness and scheduler races. Scope release kills the holder and
+  stream-readiness and scheduler races. The complete mutation races against
+  unexpected holder exit, so loss of the inherited kernel-lock descriptor
+  interrupts publication; scope release then kills the healthy holder and
   waits for descriptor closure. Stable root/lock symlinks and multiply-linked
   lock inodes fail closed. The process command and allowlisted environment are
   injected capabilities; shell strings are never used. util-linux was chosen
@@ -351,9 +353,12 @@ accepted; no new Python implementation is permitted.
   this slice has no object-cache mutation to roll back. Oracles cover nested
   curator conflict/release, live Python-vs-TypeScript exclusion, preservation
   of the Python-format lock file, symlink and hardlink attacks, failed
-  two-source rollback followed by successful publication, and a real Bun lock
-  followed by a byte/inode-stable Node re-lock. The final bounded gate passed
-  57 focused tests under Bun alongside TypeScript, oxlint, formatting, and
-  diff-hygiene checks. Object-cache fallback and remote/cache publication
-  remain deferred and are stated in CLI usage. Nix and broad integration gates
-  were not run while host I/O full pressure remained above 80%.
+  two-source rollback followed by successful publication, forced loss of a
+  ready holder, and a real Node lock followed by a byte/inode-stable Bun
+  re-lock. The initial bounded gate passed 57 focused tests under Bun alongside
+  TypeScript, oxlint, formatting, and diff-hygiene checks. Exact-head review
+  then exposed the holder-supervision gap and the Node no-op oracle; their
+  corrections now pass the same static gates and 58 focused tests. Object-cache
+  fallback and remote/cache publication remain deferred and are stated in CLI
+  usage. Nix and broad integration gates were not run while host I/O full
+  pressure remained above 80%.

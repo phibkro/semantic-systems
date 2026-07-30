@@ -40,6 +40,7 @@ import {
   acquireCuratorLock,
   CuratorProcess,
   makeCuratorProcess,
+  superviseCurator,
 } from "../src/references/curator.ts";
 import {
   GitEnvironment,
@@ -539,6 +540,33 @@ describe("reference custody Effect v4 slice: curator serialization", () => {
     expect(Exit.isFailure(conflict)).toBeTrue();
 
     await runBun(Effect.scoped(acquireCuratorLock(referencesRoot)));
+  });
+
+  test("fails supervised work when a ready lock holder dies", async () => {
+    const root = await mkdtemp(join(tmpdir(), "semantic-curator-"));
+    temporaryRoots.push(root);
+    const referencesRoot = join(root, ".references");
+    let completed = false;
+
+    const exit = await runBunExit(
+      Effect.scoped(
+        Effect.gen(function* () {
+          const curator = yield* acquireCuratorLock(referencesRoot);
+          return yield* superviseCurator(
+            curator,
+            Effect.gen(function* () {
+              yield* Effect.sync(() => process.kill(curator.holderPid, "SIGKILL"));
+              yield* Effect.sleep("250 millis");
+              yield* Effect.sync(() => {
+                completed = true;
+              });
+            }),
+          );
+        }),
+      ),
+    );
+    expect(Exit.isFailure(exit)).toBeTrue();
+    expect(completed).toBeFalse();
   });
 
   test("excludes the transitional Python curator through the same kernel lock", async () => {
@@ -1181,7 +1209,7 @@ describe("reference custody Effect v4 slice: lock-only status", () => {
 });
 
 describe("reference custody Effect v4 slice: CLI parity with Python", () => {
-  test("offline local-sibling lock is executable under Bun and byte-stable under Node", async () => {
+  test("offline local-sibling lock publishes under Node and is byte-stable under Bun", async () => {
     const fixture = await localSiblingFixture();
     await mkdir(join(fixture.project, "references"));
     await writeFile(join(fixture.project, "references", "sources.toml"), fixture.sourceText);
@@ -1189,20 +1217,20 @@ describe("reference custody Effect v4 slice: CLI parity with Python", () => {
     const lockPath = join(fixture.project, "references", "sources.lock.json");
     const args = ["--root", fixture.project, "lock", "demo.repo", "--offline"];
 
-    const bun = runTsCli(args);
-    expect(bun.exitCode).toBe(0);
-    expect(bun.stderr).toBe("");
-    expect(bun.stdout.trim()).toBe(`demo.repo: locked at ${expectedCommit}`);
-    const firstBytes = await readFile(lockPath);
-    const firstStat = await stat(lockPath);
-
     const node = runNodeCli(args);
     if (node.exitCode !== 0) {
       throw new Error(`Node custody CLI failed (${node.exitCode}): ${node.stderr}`);
     }
     expect(node.exitCode).toBe(0);
     expect(node.stderr).toBe("");
-    expect(node.stdout).toBe(bun.stdout);
+    expect(node.stdout.trim()).toBe(`demo.repo: locked at ${expectedCommit}`);
+    const firstBytes = await readFile(lockPath);
+    const firstStat = await stat(lockPath);
+
+    const bun = runTsCli(args);
+    expect(bun.exitCode).toBe(0);
+    expect(bun.stderr).toBe("");
+    expect(bun.stdout).toBe(node.stdout);
     expect(await readFile(lockPath)).toEqual(firstBytes);
     expect((await stat(lockPath)).ino).toBe(firstStat.ino);
 

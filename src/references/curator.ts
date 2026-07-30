@@ -17,6 +17,16 @@ export class CuratorProcess extends Context.Service<CuratorProcess, CuratorProce
   "references/CuratorProcess",
 ) {}
 
+export interface CuratorLease {
+  readonly holderPid: number;
+  readonly lost: Effect.Effect<never, CuratorLockedError>;
+}
+
+export const superviseCurator = <A, E, R>(
+  lease: CuratorLease,
+  effect: Effect.Effect<A, E, R>,
+): Effect.Effect<A, E | CuratorLockedError, R> => Effect.raceFirst(effect, lease.lost);
+
 export const makeCuratorProcess = (
   ambient: Readonly<Record<string, string | undefined>>,
   holderExecutable: string,
@@ -121,7 +131,7 @@ const release = (handle: ChildProcessSpawner.ChildProcessHandle) =>
 export const acquireCuratorLock = (
   referencesRoot: string,
 ): Effect.Effect<
-  void,
+  CuratorLease,
   CuratorLockedError,
   | ChildProcessSpawner.ChildProcessSpawner
   | CuratorProcess
@@ -227,4 +237,19 @@ export const acquireCuratorLock = (
       return yield* lockError(lockPath, "lock holder exited after readiness");
     }
     yield* validateLockPath(lockPath);
+    return {
+      holderPid: Number(handle.pid),
+      lost: handle.exitCode.pipe(
+        Effect.mapError((cause) =>
+          lockError(lockPath, "cannot monitor the curator lock holder", cause),
+        ),
+        Effect.flatMap((exitCode) =>
+          Effect.fail(
+            new CuratorLockedError({
+              message: `curator lock holder exited unexpectedly at ${lockPath} (exit ${Number(exitCode)})`,
+            }),
+          ),
+        ),
+      ),
+    };
   });
