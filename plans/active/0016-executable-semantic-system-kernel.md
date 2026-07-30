@@ -4,8 +4,9 @@ Canonical frozen contract:
 [`design-specs/0016-executable-semantic-system-kernel.md`](../../design-specs/0016-executable-semantic-system-kernel.md).
 This mutable execution record cannot redefine that contract.
 
-Status: contract frozen; acceptance red for missing semantic-system public
-entrypoint before implementation
+Status: implementation candidate complete; exact feature acceptance green;
+awaiting independent exact-head adversarial review after dependency 0015 is
+accepted and the candidate is committed cleanly
 
 Owner: primary Semantic Systems lead
 
@@ -108,3 +109,19 @@ unsupported authority claims fail the gate.
   reuse. No upstream code has been copied.
 - 2026-07-30: exact acceptance failed before implementation for the intended
   reason: missing `src/semantic-system/index.ts`.
+- 2026-07-30: implemented the schema-backed privately constructed component
+  description, pure reaction/query kernel, exact Effect interpreter registry,
+  bounded direct driver, derived declared graph, inventory open protocol, and
+  accepted-actor adapter. Inventory domain decisions reuse
+  `prepareReferenceTransition`; actor ownership reuses `src/actor/runtime.ts`.
+  No upstream code was copied and no new dependency or scaffold was needed.
+- 2026-07-30: focused evidence passed with 25 Bun tests / 92 expectations,
+  strict typecheck and lint, plus a genuine Node test observing the same frozen
+  normalized journey bytes as Bun.
+- 2026-07-30: exact feature acceptance passed. It includes 17 focused
+  semantic-system tests / 89 expectations, genuine Node portability, inventory
+  0001 regression tests, actor 0012 and 0013 exact acceptance, typecheck,
+  strict lint, formatting, model validation, and generated-view drift checks.
+  These are runtime validation and regression evidence, not proof, language
+  soundness, OTP semantics, external exactly-once behavior, or observation
+  truth.

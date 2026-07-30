@@ -19,6 +19,7 @@ const referencesBunToml = { filename: "/repo/src/references/toml-bun.ts" };
 const referencesCuratorHolder = { filename: "/repo/src/references/curator-holder.ts" };
 const portableStm = { filename: "/repo/src/stm/model.ts" };
 const stmBunMain = { filename: "/repo/src/stm/main-bun.ts" };
+const portableSemanticSystem = { filename: "/repo/src/semantic-system/kernel.ts" };
 
 const runAmbientConsole = (
   events: ReadonlyArray<readonly [visitor: string, node: unknown]>,
@@ -266,6 +267,50 @@ describe("Semantic Systems Effect Oxlint rules", () => {
       [
         {
           message: "Use Effect Clock, Random, or Crypto services instead of ambient nondeterminism",
+        },
+      ],
+    );
+  });
+
+  test("the executable semantic-system closure rejects runtime authority", () => {
+    Testing.expectDiagnostics(
+      Testing.runRule(
+        portableRuntimeImports,
+        "ImportDeclaration",
+        Testing.importDecl("node:crypto"),
+        portableSemanticSystem,
+      ),
+      [
+        {
+          message:
+            "Portable semantic code must request Effect services; provide Bun or Node layers only in main entrypoints",
+        },
+      ],
+    );
+    Testing.expectDiagnostics(
+      Testing.runRule(
+        ambientNondeterminism,
+        "CallExpression",
+        Testing.callOfMember("Math", "random"),
+        portableSemanticSystem,
+      ),
+      [
+        {
+          message: "Use Effect Clock, Random, or Crypto services instead of ambient nondeterminism",
+        },
+      ],
+    );
+    Testing.expectDiagnostics(
+      Testing.runRule(
+        effectRuntimeBoundary,
+        "CallExpression",
+        Testing.callOfMember("Effect", "runPromise"),
+        portableSemanticSystem,
+      ),
+      [
+        {
+          message:
+            "Keep Effect programs composable; execute them only in main-bun.ts or main-node.ts",
         },
       ],
     );
