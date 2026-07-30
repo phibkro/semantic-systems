@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { resolve } from "node:path";
-import { Effect } from "effect";
+import { Console, Effect } from "effect";
 import { requireTool, runCommand, runMain } from "../lib/command.ts";
 
 const root = resolve(import.meta.dirname, "../..");
@@ -26,7 +26,7 @@ const program = Effect.gen(function* () {
   if (head.exitCode !== 0) {
     return yield* runCommand(["git", "rev-parse", "HEAD"], { cwd: root, env: environment });
   }
-  console.log(
+  yield* Console.log(
     `accept/0005: commit ${head.stdout.toString().trim()}; feature-contract fixtures, Actionlint, and policy conformance passed.`,
   );
 });

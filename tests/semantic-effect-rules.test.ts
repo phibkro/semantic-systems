@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import * as Testing from "effect-oxlint/testing";
 import {
+  ambientConsole,
   ambientNondeterminism,
   effectRuntimeBoundary,
   portableRuntimeImports,
@@ -17,7 +18,57 @@ const referencesBunMain = { filename: "/repo/src/references/main-bun.ts" };
 const referencesBunToml = { filename: "/repo/src/references/toml-bun.ts" };
 const referencesCuratorHolder = { filename: "/repo/src/references/curator-holder.ts" };
 
+const runAmbientConsole = (
+  events: ReadonlyArray<readonly [visitor: string, node: unknown]>,
+  globalReference = true,
+) => {
+  const { context, diagnostics } = Testing.createMockContext();
+  Object.defineProperty(context.sourceCode, "isGlobalReference", {
+    value: () => globalReference,
+  });
+  const visitors = ambientConsole.create(context);
+  for (const [visitor, node] of events) visitors[visitor]?.(node as never);
+  return diagnostics;
+};
+
 describe("Semantic Systems Effect Oxlint rules", () => {
+  test("ambient Console is severe in Effect-bearing code but ignores unrelated modules and shadows", () => {
+    const effectConsole = runAmbientConsole([
+      ["ImportDeclaration", Testing.importDecl("effect")],
+      ["Identifier", Testing.id("console")],
+      ["Program:exit", { type: "Program", body: [] }],
+    ]);
+    Testing.expectDiagnostics(effectConsole, [
+      {
+        message:
+          "Effect-bearing code must use Effect.log*, Console.*, or an injected service instead of the ambient console; developer-only output may use a targeted oxlint suppression with a 'dev only:' reason",
+      },
+    ]);
+
+    const globalThisConsole = runAmbientConsole([
+      ["ImportDeclaration", Testing.importDecl("effect/Effect")],
+      ["MemberExpression", Testing.memberExpr("globalThis", "console")],
+      ["Program:exit", { type: "Program", body: [] }],
+    ]);
+    expect(globalThisConsole).toHaveLength(1);
+
+    const unrelated = runAmbientConsole([
+      ["Identifier", Testing.id("console")],
+      ["Program:exit", { type: "Program", body: [] }],
+    ]);
+    Testing.expectNoDiagnostics(unrelated);
+
+    const shadowed = runAmbientConsole(
+      [
+        ["ImportDeclaration", Testing.importDecl("effect")],
+        ["Identifier", Testing.id("console")],
+        ["Program:exit", { type: "Program", body: [] }],
+      ],
+      false,
+    );
+    Testing.expectNoDiagnostics(shadowed);
+  });
+
   test("runtime imports are forbidden in portable semantic programs", () => {
     Testing.expectDiagnostics(
       Testing.runRule(
@@ -62,19 +113,6 @@ describe("Semantic Systems Effect Oxlint rules", () => {
         Testing.importDecl("@effect/platform-bun"),
         tracerBunMain,
       ),
-    );
-    Testing.expectDiagnostics(
-      Testing.runRule(
-        portableRuntimeImports,
-        "MemberExpression",
-        Testing.memberExpr("console", "log"),
-        portable,
-      ),
-      [
-        {
-          message: "Portable semantic code must not use runtime globals directly",
-        },
-      ],
     );
   });
 

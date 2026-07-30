@@ -13,6 +13,7 @@
     "no-throw-literal": "error",
     "promise/always-return": "off",
     "promise/no-multiple-resolved": "error",
+    "semantic-effect/ambient-console": "error",
     "semantic-effect/ambient-nondeterminism": "error",
     "semantic-effect/effect-runtime-boundary": "error",
     "semantic-effect/portable-runtime-imports": "error",

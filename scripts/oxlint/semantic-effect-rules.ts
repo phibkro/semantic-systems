@@ -1,6 +1,7 @@
 import { AST, Diagnostic, Plugin, Rule, RuleContext, Visitor } from "effect-oxlint";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
+import * as Ref from "effect/Ref";
 
 const portableSemanticProgram = (filename: string): boolean => {
   const normalized = filename.replaceAll("\\", "/");
@@ -81,13 +82,73 @@ export const portableRuntimeImports = Rule.define({
             Option.orElse(() =>
               AST.matchMember(node, "process", ["argv", "cwd", "env", "exit", "exitCode"]),
             ),
-            Option.orElse(() =>
-              AST.matchMember(node, "console", ["debug", "error", "info", "log", "warn"]),
-            ),
           );
           return Option.isSome(runtimeGlobal)
             ? report(ctx, node, "Portable semantic code must not use runtime globals directly")
             : Effect.void;
+        }),
+      ),
+    );
+  },
+});
+
+export const ambientConsole = Rule.define({
+  name: "ambient-console",
+  meta: Rule.meta({
+    type: "problem",
+    description: "Route console output through Effect logging or the Effect Console service",
+  }),
+  create: function* () {
+    const ctx = yield* RuleContext;
+    const importsEffect = yield* Ref.make(false);
+    const ambientReferences = yield* Ref.make<
+      ReadonlyArray<Parameters<typeof Diagnostic.make>[0]["node"]>
+    >([]);
+    const remember = (node: Parameters<typeof Diagnostic.make>[0]["node"]) =>
+      Ref.update(ambientReferences, (nodes) => [...nodes, node]);
+
+    return Visitor.merge(
+      Visitor.on("ImportDeclaration", (node) =>
+        Option.isSome(
+          AST.matchImport(
+            node,
+            (source) =>
+              source === "effect" || source.startsWith("effect/") || source.startsWith("@effect/"),
+          ),
+        )
+          ? Ref.set(importsEffect, true)
+          : Effect.void,
+      ),
+      Visitor.on("Identifier", (node) =>
+        node.name === "console" && ctx.sourceCode.isGlobalReference(node)
+          ? remember(node)
+          : Effect.void,
+      ),
+      Visitor.on("MemberExpression", (node) => {
+        if (
+          node.object.type !== "Identifier" ||
+          node.object.name !== "globalThis" ||
+          !ctx.sourceCode.isGlobalReference(node.object)
+        ) {
+          return Effect.void;
+        }
+        const namesConsole =
+          (!node.computed &&
+            node.property.type === "Identifier" &&
+            node.property.name === "console") ||
+          (node.computed && node.property.type === "Literal" && node.property.value === "console");
+        return namesConsole ? remember(node) : Effect.void;
+      }),
+      Visitor.on("Program:exit", () =>
+        Effect.gen(function* () {
+          if (!(yield* Ref.get(importsEffect))) return;
+          for (const node of yield* Ref.get(ambientReferences)) {
+            yield* report(
+              ctx,
+              node,
+              "Effect-bearing code must use Effect.log*, Console.*, or an injected service instead of the ambient console; developer-only output may use a targeted oxlint suppression with a 'dev only:' reason",
+            );
+          }
         }),
       ),
     );
@@ -235,6 +296,7 @@ export const ambientNondeterminism = Rule.define({
 export default Plugin.define({
   name: "semantic-effect",
   rules: {
+    "ambient-console": ambientConsole,
     "ambient-nondeterminism": ambientNondeterminism,
     "effect-runtime-boundary": effectRuntimeBoundary,
     "portable-runtime-imports": portableRuntimeImports,

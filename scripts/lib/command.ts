@@ -1,6 +1,6 @@
 import { stat } from "node:fs/promises";
 import { resolve } from "node:path";
-import { Data, Effect } from "effect";
+import { Console, Data, Effect } from "effect";
 
 export class ToolMissing extends Data.TaggedError("ToolMissing")<{
   readonly label: string;
@@ -87,8 +87,15 @@ export const runMain = (
   label: string,
   program: Effect.Effect<void, { readonly message: string }>,
 ): void => {
-  Effect.runPromise(program).catch((error: unknown) => {
-    console.error(error instanceof Error ? error.message : `${label}: ${String(error)}`);
-    process.exitCode = exitCodeFor(error);
-  });
+  const handled = program.pipe(
+    Effect.catch((error) =>
+      Effect.gen(function* () {
+        yield* Console.error(error instanceof Error ? error.message : `${label}: ${String(error)}`);
+        yield* Effect.sync(() => {
+          process.exitCode = exitCodeFor(error);
+        });
+      }),
+    ),
+  );
+  void Effect.runPromise(handled);
 };

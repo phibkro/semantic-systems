@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { resolve } from "node:path";
-import { Data, Effect } from "effect";
+import { Console, Data, Effect } from "effect";
 import { runMain } from "../lib/command.ts";
 
 class ClauseMissing extends Data.TaggedError("ClauseMissing")<{
@@ -38,7 +38,7 @@ const program = Effect.gen(function* () {
   for (const clause of clauses) {
     if (!contents.includes(clause)) return yield* new ClauseMissing({ clause });
   }
-  console.log("accept/0007: all reuse-first delegation clauses are present");
+  yield* Console.log("accept/0007: all reuse-first delegation clauses are present");
 });
 
 runMain("accept/0007", program);
