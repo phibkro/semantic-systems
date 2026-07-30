@@ -1,7 +1,7 @@
 import { Data, Effect, Result, Schema } from "effect";
 import { snapshotSemanticValue, type SemanticValueRejected } from "./custody.ts";
 import { requireComponent, type InvalidSemanticComponent } from "./definition.ts";
-import { observation, react, validateState, type SemanticKernelFailure } from "./kernel.ts";
+import { observation, react, SemanticKernelFailure, validateState } from "./kernel.ts";
 import type {
   ArtifactEnvelope,
   CommandEnvelope,
@@ -95,6 +95,7 @@ class RegistryImpl<
   Requirements,
 > implements InterpreterRegistry<Request, Observation, Requirements> {
   readonly #custody = true;
+  readonly #component: object;
   readonly #internals: RegistryInternals<Request, Observation, Requirements>;
   readonly componentId: string;
   readonly requestTags: ReadonlyArray<string>;
@@ -102,10 +103,12 @@ class RegistryImpl<
   constructor(
     componentId: string,
     requestTags: ReadonlyArray<string>,
+    component: object,
     internals: RegistryInternals<Request, Observation, Requirements>,
   ) {
     this.componentId = componentId;
     this.requestTags = requestTags;
+    this.#component = component;
     this.#internals = internals;
     Object.freeze(this);
   }
@@ -117,6 +120,10 @@ class RegistryImpl<
   internals(): RegistryInternals<Request, Observation, Requirements> {
     return this.#internals;
   }
+
+  isFor(component: object): boolean {
+    return this.#component === component;
+  }
 }
 
 export const requireInterpreterRegistry = <
@@ -125,19 +132,28 @@ export const requireInterpreterRegistry = <
   Requirements,
 >(
   registry: InterpreterRegistry<Request, Observation, Requirements>,
+  component?: object,
 ): Effect.Effect<
   RegistryInternals<Request, Observation, Requirements>,
   InvalidInterpreterRegistry
-> =>
-  RegistryImpl.is(registry)
-    ? Effect.succeed(
-        (registry as unknown as RegistryImpl<Request, Observation, Requirements>).internals(),
-      )
-    : Effect.fail(
-        new InvalidInterpreterRegistry({
-          reason: "interpreter registry was not constructed by defineInterpreterRegistry",
-        }),
-      );
+> => {
+  if (!RegistryImpl.is(registry)) {
+    return Effect.fail(
+      new InvalidInterpreterRegistry({
+        reason: "interpreter registry was not constructed by defineInterpreterRegistry",
+      }),
+    );
+  }
+  const guarded = registry as unknown as RegistryImpl<Request, Observation, Requirements>;
+  if (component !== undefined && !guarded.isFor(component)) {
+    return Effect.fail(
+      new InvalidInterpreterRegistry({
+        reason: "interpreter registry belongs to a different component instance",
+      }),
+    );
+  }
+  return Effect.succeed(guarded.internals());
+};
 
 export const defineInterpreterRegistry = <
   State,
@@ -200,7 +216,7 @@ export const defineInterpreterRegistry = <
       [...handlers.keys()].sort(),
       "interpreter registry tags",
     );
-    return new RegistryImpl(component.id, requestTags, {
+    return new RegistryImpl(component.id, requestTags, component, {
       handlers: new Map(handlers),
     });
   });
@@ -226,6 +242,55 @@ export interface InterpreterAttempt {
   readonly reason?: string;
 }
 
+export type DriverTraceEntry<
+  State,
+  Command extends Tagged,
+  Observation extends Tagged,
+  Event extends Tagged,
+  Artifact extends Tagged,
+  Request extends Tagged,
+> =
+  | {
+      readonly sequence: number;
+      readonly kind: "command";
+      readonly value: CommandEnvelope<Command>;
+    }
+  | {
+      readonly sequence: number;
+      readonly kind: "observation";
+      readonly value: ObservationEnvelope<Observation>;
+    }
+  | {
+      readonly sequence: number;
+      readonly kind: "domain_event";
+      readonly value: DomainEventEnvelope<Event>;
+    }
+  | {
+      readonly sequence: number;
+      readonly kind: "artifact";
+      readonly value: ArtifactEnvelope<Artifact>;
+    }
+  | {
+      readonly sequence: number;
+      readonly kind: "effect_request";
+      readonly value: EffectRequestEnvelope<Request>;
+    }
+  | {
+      readonly sequence: number;
+      readonly kind: "diagnostic";
+      readonly value: Diagnostic;
+    }
+  | {
+      readonly sequence: number;
+      readonly kind: "interpreter_attempt";
+      readonly value: InterpreterAttempt;
+    }
+  | {
+      readonly sequence: number;
+      readonly kind: "final_state";
+      readonly value: State;
+    };
+
 interface DriverResultBase<
   State,
   Command extends Tagged,
@@ -241,6 +306,9 @@ interface DriverResultBase<
   readonly observations: ReadonlyArray<ObservationEnvelope<Observation>>;
   readonly diagnostics: ReadonlyArray<Diagnostic>;
   readonly attempts: ReadonlyArray<InterpreterAttempt>;
+  readonly trace: ReadonlyArray<
+    DriverTraceEntry<State, Command, Observation, Event, Artifact, Request>
+  >;
   readonly counts: DriverCounts;
   readonly remainingInputs: ReadonlyArray<
     CommandEnvelope<Command> | ObservationEnvelope<Observation>
@@ -392,7 +460,7 @@ export const interpretEffectRequest = <
       },
       "validated interpreter effect request",
     );
-    const { handlers } = yield* requireInterpreterRegistry(registry);
+    const { handlers } = yield* requireInterpreterRegistry(registry, component);
     const handler = handlers.get(guardedRequest.payload["_tag"]);
     if (handler === undefined) {
       return yield* new InvalidInterpreterRegistry({
@@ -483,7 +551,7 @@ export const runDirect = <
         reason: "interpreter registry belongs to a different component",
       });
     }
-    yield* requireInterpreterRegistry(registry);
+    yield* requireInterpreterRegistry(registry, component);
 
     let state = yield* validateState(component, initialState);
     const inputs = [...initialInputs];
@@ -494,6 +562,9 @@ export const runDirect = <
     const observations: Array<ObservationEnvelope<Observation>> = [];
     const driverDiagnostics: Array<Diagnostic> = [];
     const attempts: Array<InterpreterAttempt> = [];
+    const trace: Array<DriverTraceEntry<State, Command, Observation, Event, Artifact, Request>> =
+      [];
+    const tracedReturnedInputs = new WeakSet<object>();
     const seenActions = new Set<string>();
     let processedInputs = 0;
     let interpretedEffects = 0;
@@ -512,6 +583,14 @@ export const runDirect = <
         observations,
         diagnostics: driverDiagnostics,
         attempts,
+        trace: [
+          ...trace,
+          {
+            sequence: trace.length,
+            kind: "final_state",
+            value: state,
+          },
+        ],
         counts: {
           processedInputs,
           interpretedEffects,
@@ -522,7 +601,10 @@ export const runDirect = <
       } as DriverResult<State, Command, Observation, Event, Artifact, Request>);
 
     if (inputs.length > bounds.maximumQueueStock) {
-      return yield* finish("suspended", "queue_stock_exhausted");
+      return yield* new SemanticKernelFailure({
+        boundary: "direct-driver.initialInputs",
+        reason: `initial queue stock ${inputs.length} exceeds maximumQueueStock ${bounds.maximumQueueStock}`,
+      });
     }
 
     while (inputs.length > 0 || pendingEffects.length > 0) {
@@ -536,29 +618,81 @@ export const runDirect = <
           state,
           input,
         );
-        state = result.state;
-        processedInputs += 1;
-        events.push(...result.events);
-        artifacts.push(...result.artifacts);
-        driverDiagnostics.push(...result.diagnostics);
-        for (const request of result.effects) {
-          if (seenActions.has(request.actionId)) {
-            driverDiagnostics.push({
-              code: "duplicate_action",
-              message: `action ${request.actionId} was emitted more than once`,
-              relatedMessageId: request.messageId,
-            });
-            return yield* finish("suspended", "duplicate_action");
-          }
-          seenActions.add(request.actionId);
+        const duplicateAction = result.effects.find((request) => seenActions.has(request.actionId));
+        if (duplicateAction !== undefined) {
+          inputs.unshift(input);
+          const diagnostic = {
+            code: "duplicate_action",
+            message: `action ${duplicateAction.actionId} was emitted more than once`,
+            relatedMessageId: duplicateAction.messageId,
+          };
+          driverDiagnostics.push(diagnostic);
+          trace.push({
+            sequence: trace.length,
+            kind: "diagnostic",
+            value: diagnostic,
+          });
+          return yield* finish("suspended", "duplicate_action");
         }
-        if (pendingEffects.length + result.effects.length > bounds.maximumQueueStock) {
-          pendingEffects.push(...result.effects);
-          effects.push(...result.effects);
+        if (
+          inputs.length + pendingEffects.length + result.effects.length >
+          bounds.maximumQueueStock
+        ) {
+          inputs.unshift(input);
           return yield* finish("suspended", "queue_stock_exhausted");
         }
-        pendingEffects.push(...result.effects);
-        effects.push(...result.effects);
+
+        state = result.state;
+        processedInputs += 1;
+        if (input.category === "command") {
+          trace.push({
+            sequence: trace.length,
+            kind: "command",
+            value: input,
+          });
+        } else if (tracedReturnedInputs.has(input)) {
+          tracedReturnedInputs.delete(input);
+        } else {
+          trace.push({
+            sequence: trace.length,
+            kind: "observation",
+            value: input,
+          });
+        }
+        for (const event of result.events) {
+          events.push(event);
+          trace.push({
+            sequence: trace.length,
+            kind: "domain_event",
+            value: event,
+          });
+        }
+        for (const artifact of result.artifacts) {
+          artifacts.push(artifact);
+          trace.push({
+            sequence: trace.length,
+            kind: "artifact",
+            value: artifact,
+          });
+        }
+        for (const request of result.effects) {
+          seenActions.add(request.actionId);
+          pendingEffects.push(request);
+          effects.push(request);
+          trace.push({
+            sequence: trace.length,
+            kind: "effect_request",
+            value: request,
+          });
+        }
+        for (const diagnostic of result.diagnostics) {
+          driverDiagnostics.push(diagnostic);
+          trace.push({
+            sequence: trace.length,
+            kind: "diagnostic",
+            value: diagnostic,
+          });
+        }
         continue;
       }
 
@@ -584,6 +718,11 @@ export const runDirect = <
           reason: interpreted.failure.reason,
         };
         attempts.push(attempt);
+        trace.push({
+          sequence: trace.length,
+          kind: "interpreter_attempt",
+          value: attempt,
+        });
         pendingEffects.unshift(request);
         return yield* finish(
           "suspended",
@@ -595,15 +734,29 @@ export const runDirect = <
 
       const returned = interpreted.success;
       observations.push(returned);
-      attempts.push({
+      const attempt: InterpreterAttempt = {
         actionId: request.actionId,
         requestMessageId: request.messageId,
         outcome: "observed",
         observationMessageId: returned.messageId,
+      };
+      attempts.push(attempt);
+      trace.push({
+        sequence: trace.length,
+        kind: "interpreter_attempt",
+        value: attempt,
       });
-      if (inputs.length + 1 > bounds.maximumQueueStock) {
-        inputs.push(returned);
-        return yield* finish("suspended", "queue_stock_exhausted");
+      trace.push({
+        sequence: trace.length,
+        kind: "observation",
+        value: returned,
+      });
+      tracedReturnedInputs.add(returned);
+      if (inputs.length + pendingEffects.length + 1 > bounds.maximumQueueStock) {
+        return yield* new SemanticKernelFailure({
+          boundary: "direct-driver.queue",
+          reason: "successful interpretation violated the queue-stock invariant",
+        });
       }
       inputs.push(returned);
     }

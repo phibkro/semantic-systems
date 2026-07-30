@@ -6,7 +6,7 @@ import {
   requireInterpreterRegistry,
   type InterpreterRegistry,
 } from "./driver.ts";
-import type { SemanticComponent, Tagged } from "./model.ts";
+import type { ProtocolDeclaration, SemanticComponent, Tagged } from "./model.ts";
 
 export interface SemanticGraphNode {
   readonly id: string;
@@ -35,7 +35,7 @@ export interface SemanticGraphEdge {
     | "interprets"
     | "observes"
     | "realizes";
-  readonly progress?: "bounded" | "persistent";
+  readonly progress?: ProtocolDeclaration["progress"];
 }
 
 export interface SemanticComponentGraph {
@@ -71,7 +71,7 @@ export const deriveComponentGraph = <
         reason: "interpreter registry belongs to a different component",
       });
     }
-    yield* requireInterpreterRegistry(registry);
+    yield* requireInterpreterRegistry(registry, component);
     const componentNode = `component:${component.id}`;
     const stateNode = `state:${component.id}:${spec.state.schemaId}`;
     const reactionHandler = nodeId(component.id, "handler", "react");
@@ -124,7 +124,7 @@ export const deriveComponentGraph = <
           source: interpreter,
           target: nodeId(component.id, "observation", observationTag),
           kind: "observes",
-          progress: protocol.progress.kind,
+          progress: protocol.progress,
         });
       }
     }

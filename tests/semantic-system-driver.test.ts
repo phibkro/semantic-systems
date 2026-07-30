@@ -165,6 +165,19 @@ describe("bounded direct semantic-system driver", () => {
     ]);
     expect(result.remainingInputs).toEqual([]);
     expect(result.remainingEffects).toEqual([]);
+    expect(result.trace.map((entry) => entry.kind)).toEqual([
+      "command",
+      "domain_event",
+      "effect_request",
+      "interpreter_attempt",
+      "observation",
+      "final_state",
+    ]);
+    expect(result.trace.map((entry) => entry.sequence)).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(result.trace.at(-1)).toMatchObject({
+      kind: "final_state",
+      value: { value: 1, confirmed: true },
+    });
 
     const graph = await run(deriveComponentGraph(component, registry));
     expect(graph.nodes.some((node) => node.id.endsWith("effect_request:Persist"))).toBeTrue();
@@ -183,12 +196,18 @@ describe("bounded direct semantic-system driver", () => {
           edge.kind === "observes" &&
           edge.source.endsWith("interpreter:Persist") &&
           edge.target.endsWith("observation:Persisted") &&
-          edge.progress === "bounded",
+          edge.progress?.kind === "bounded" &&
+          edge.progress.maximumTurns === 1,
       ),
     ).toBeTrue();
     expect(graph.nodes.some((node) => node.id.includes("StartedButGuessed"))).toBeFalse();
     expect(graph.unsupportedClaims).toContain("observation truth");
     expect(Object.isFrozen(graph.edges)).toBeTrue();
+    expect(
+      graph.edges.find(
+        (edge) => edge.kind === "observes" && edge.target.endsWith("observation:Persisted"),
+      )?.progress,
+    ).toEqual({ kind: "bounded", maximumTurns: 1 });
   });
 
   test("requires an exact privately constructed interpreter registry", async () => {
@@ -212,6 +231,28 @@ describe("bounded direct semantic-system driver", () => {
     ).rejects.toThrow("not constructed by defineInterpreterRegistry");
 
     const registry = await run(defineInterpreterRegistry(component, [successEntry]));
+    const sameIdDifferentVersion = await run(
+      defineSemanticComponent({ ...makeSpec(), version: "driver-counter.v2" }),
+    );
+    const otherVersionStart = await run(
+      command(
+        sameIdDifferentVersion,
+        { messageId: "other-version", correlationId: "journey" },
+        { _tag: "Start" },
+      ),
+    );
+    await expect(
+      run(
+        runDirect(
+          sameIdDifferentVersion,
+          registry,
+          { value: 0, confirmed: false },
+          [otherVersionStart],
+          bounds,
+        ),
+      ),
+    ).rejects.toThrow("different component instance");
+
     const reaction = await run(react(component, { value: 0, confirmed: false }, start));
     await expect(
       run(
@@ -273,5 +314,48 @@ describe("bounded direct semantic-system driver", () => {
     expect(result.reason).toBe("input_fuel_exhausted");
     expect(result.remainingInputs[0]?.category).toBe("observation");
     expect(result.counts.returnedObservations).toBe(1);
+    expect(result.trace.some((entry) => entry.kind === "observation")).toBeTrue();
+  });
+
+  test("suspends an overflowing reaction transactionally within the queue bound", async () => {
+    const burstBase = makeSpec();
+    const burstSpec: typeof burstBase = {
+      ...burstBase,
+      react: (state, input) => ({
+        state: { ...state, value: state.value + 1 },
+        events: [],
+        artifacts: [],
+        effects: [0, 1, 2].map((index) => ({
+          messageId: `${input.messageId}:request:${index}`,
+          correlationId: input.correlationId,
+          causationId: input.messageId,
+          actionId: `${input.messageId}:persist:${index}`,
+          payload: { _tag: "Persist" as const, value: state.value + 1 },
+        })),
+        diagnostics: [],
+      }),
+    };
+    const component = await run(defineSemanticComponent(burstSpec));
+    const registry = await run(defineInterpreterRegistry(component, [successEntry]));
+    const start = await run(
+      command(component, { messageId: "burst", correlationId: "journey" }, { _tag: "Start" }),
+    );
+    const result = await run(
+      runDirect(component, registry, { value: 0, confirmed: false }, [start], {
+        ...bounds,
+        maximumQueueStock: 2,
+      }),
+    );
+
+    expect(result.status).toBe("suspended");
+    if (result.status !== "suspended") throw new Error("expected suspended result");
+    expect(result.reason).toBe("queue_stock_exhausted");
+    expect(result.state).toEqual({ value: 0, confirmed: false });
+    expect(result.effects).toEqual([]);
+    expect(result.remainingEffects).toEqual([]);
+    expect(result.remainingInputs).toEqual([start]);
+    expect(result.remainingInputs.length + result.remainingEffects.length).toBeLessThanOrEqual(2);
+    expect(result.counts.processedInputs).toBe(0);
+    expect(result.trace.map((entry) => entry.kind)).toEqual(["final_state"]);
   });
 });

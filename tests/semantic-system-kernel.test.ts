@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { Effect, Schema } from "effect";
+import { Effect, Result, Schema } from "effect";
 import {
   answer,
   command,
@@ -7,6 +7,11 @@ import {
   observation,
   query,
   react,
+  SemanticKernelFailure,
+  type Diagnostic,
+  type EffectEmission,
+  type Emission,
+  type MessageIdentity,
   type SemanticComponentSpec,
 } from "../src/semantic-system/index.ts";
 
@@ -198,6 +203,130 @@ describe("executable semantic-system kernel", () => {
 
     const other = await run(defineSemanticComponent({ ...makeSpec(), id: "other-counter" }));
     await expect(run(react(other, { count: 0 }, input))).rejects.toThrow("different component");
+  });
+
+  test("constructs canonical envelopes without retaining structural overwrite fields", async () => {
+    const component = await run(defineSemanticComponent(makeSpec()));
+    const forgedIdentity = {
+      messageId: "command",
+      correlationId: "journey",
+      category: "query",
+      componentId: "forged-component",
+      schemaId: "forged-schema",
+    } satisfies MessageIdentity & {
+      readonly category: string;
+      readonly componentId: string;
+      readonly schemaId: string;
+    };
+    const input = await run(command(component, forgedIdentity, { _tag: "Increment", by: 1 }));
+    expect(input).toMatchObject({
+      category: "command",
+      componentId: "counter",
+      schemaId: "counter.command.v1",
+    });
+
+    const poisonedBase = makeSpec();
+    const poisonedSpec: typeof poisonedBase = {
+      ...poisonedBase,
+      react: (state, reactionInput) => {
+        const event = {
+          messageId: "event",
+          correlationId: reactionInput.correlationId,
+          category: "query",
+          componentId: "forged-component",
+          schemaId: "forged-schema",
+          payload: { _tag: "Incremented" as const, by: 1 },
+        } satisfies Emission<Event> & {
+          readonly category: string;
+          readonly componentId: string;
+          readonly schemaId: string;
+        };
+        const effect = {
+          messageId: "request",
+          correlationId: reactionInput.correlationId,
+          actionId: "persist",
+          category: "query",
+          componentId: "forged-component",
+          schemaId: "forged-schema",
+          payload: { _tag: "PersistCount" as const, value: 1 },
+        } satisfies EffectEmission<Request> & {
+          readonly category: string;
+          readonly componentId: string;
+          readonly schemaId: string;
+        };
+        return {
+          state,
+          events: [event],
+          artifacts: [],
+          effects: [effect],
+          diagnostics: [],
+        };
+      },
+    };
+    const poisoned = await run(defineSemanticComponent(poisonedSpec));
+    const poisonedInput = await run(
+      command(
+        poisoned,
+        { messageId: "poisoned-command", correlationId: "journey" },
+        { _tag: "Increment", by: 1 },
+      ),
+    );
+    const result = await run(react(poisoned, { count: 0 }, poisonedInput));
+    expect(result.events[0]).toMatchObject({
+      category: "domain_event",
+      componentId: "counter",
+      schemaId: "counter.event.v1",
+    });
+    expect(result.effects[0]).toMatchObject({
+      category: "effect_request",
+      componentId: "counter",
+      schemaId: "counter.request.v1",
+    });
+  });
+
+  test("keeps malformed provenance and diagnostics in the typed failure channel", async () => {
+    const component = await run(defineSemanticComponent(makeSpec()));
+    const malformedObservation = observation(
+      component,
+      {
+        messageId: "observation",
+        correlationId: "journey",
+        provenance: null,
+      } as unknown as MessageIdentity & {
+        readonly provenance: { readonly sourceId: string; readonly basis: string };
+      },
+      { _tag: "ResetObserved", to: 1 },
+    );
+    const observationFailure = await run(Effect.result(malformedObservation));
+    expect(Result.isFailure(observationFailure)).toBeTrue();
+    if (Result.isFailure(observationFailure)) {
+      expect(observationFailure.failure).toBeInstanceOf(SemanticKernelFailure);
+    }
+
+    const malformedBase = makeSpec();
+    const malformedSpec: typeof malformedBase = {
+      ...malformedBase,
+      react: (state) => ({
+        state,
+        events: [],
+        artifacts: [],
+        effects: [],
+        diagnostics: [null] as unknown as ReadonlyArray<Diagnostic>,
+      }),
+    };
+    const malformed = await run(defineSemanticComponent(malformedSpec));
+    const input = await run(
+      command(
+        malformed,
+        { messageId: "command", correlationId: "journey" },
+        { _tag: "Increment", by: 1 },
+      ),
+    );
+    const diagnosticFailure = await run(Effect.result(react(malformed, { count: 0 }, input)));
+    expect(Result.isFailure(diagnosticFailure)).toBeTrue();
+    if (Result.isFailure(diagnosticFailure)) {
+      expect(diagnosticFailure.failure).toBeInstanceOf(SemanticKernelFailure);
+    }
   });
 
   test("rejects duplicate or overlapping declarations and malformed progress bounds", async () => {

@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import * as Testing from "effect-oxlint/testing";
 import {
   ambientConsole,
@@ -398,5 +400,49 @@ describe("Semantic Systems Effect Oxlint rules", () => {
         portableReferences,
       ),
     );
+  });
+
+  test("the semantic-system transitive import closure reaches no runtime authority", () => {
+    const root = resolve(import.meta.dirname, "..");
+    const entrypoint = resolve(root, "src/semantic-system/index.ts");
+    const scanner = new Bun.Transpiler({ loader: "ts" });
+    const visited = new Set<string>();
+    const bareImports = new Set<string>();
+    const visit = (path: string): void => {
+      if (visited.has(path)) return;
+      visited.add(path);
+      const source = readFileSync(path, "utf8");
+      for (const imported of scanner.scanImports(source)) {
+        if (!imported.path.startsWith(".")) {
+          bareImports.add(imported.path);
+          continue;
+        }
+        const candidate = resolve(dirname(path), imported.path);
+        const resolved = existsSync(candidate)
+          ? candidate
+          : existsSync(`${candidate}.ts`)
+            ? `${candidate}.ts`
+            : resolve(candidate, "index.ts");
+        expect(existsSync(resolved)).toBeTrue();
+        visit(resolved);
+      }
+    };
+
+    visit(entrypoint);
+
+    const forbiddenBare = [...bareImports].filter(
+      (specifier) =>
+        specifier === "bun" ||
+        specifier.startsWith("node:") ||
+        specifier.startsWith("@effect/platform-bun") ||
+        specifier.startsWith("@effect/platform-node"),
+    );
+    const runtimeFiles = [...visited].filter((path) =>
+      /(?:main-(?:bun|node)|toml-(?:bun|node)|curator-holder)\.ts$/.test(path),
+    );
+    expect(forbiddenBare).toEqual([]);
+    expect(runtimeFiles).toEqual([]);
+    expect([...visited].some((path) => path.endsWith("/src/actor/runtime.ts"))).toBeTrue();
+    expect([...visited].some((path) => path.endsWith("/src/tracer/domain.ts"))).toBeTrue();
   });
 });

@@ -8,7 +8,7 @@
 | artifact | 6 |
 | assumption | 4 |
 | claim | 5 |
-| component | 20 |
+| component | 21 |
 | decision | 6 |
 | deployment | 3 |
 | domain_machine | 1 |
@@ -26,7 +26,7 @@
 | responsibility | 2 |
 | runtime | 8 |
 | theory | 12 |
-| work_item | 26 |
+| work_item | 27 |
 
 - [System map](01-system-map.md)
 - [Theory-realization map](02-theory-realization.md)

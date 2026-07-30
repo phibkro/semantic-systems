@@ -66,6 +66,7 @@ export type {
   DriverCounts,
   DriverResult,
   DriverSuspended,
+  DriverTraceEntry,
   InterpreterAttempt,
   InterpreterEntry,
   InterpreterObservationDraft,

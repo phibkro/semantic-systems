@@ -11,6 +11,7 @@ Ready parallel work items: **7**.
 | Establish the autonomous development control loop | implementation | in_progress | yes | 83 | delegate with review |  |
 | Implement core checker | implementation | planned | no | 65 | delegate with review | Specify minimal kernel calculus |
 | Design deterministic concurrency simulator | design | planned | no | 68 | delegate with review | Specify STM effect and handler laws |
+| Build the executable semantic system kernel | validation | in_progress | yes | 72 | delegate with review |  |
 | Specify explorer query contract | design | ready | yes | 94 | delegate directly |  |
 | Implement inventory actor realization | validation | complete | no | 94 | delegate directly |  |
 | Complete inventory domain contract | design | complete | no | 82 | delegate with review |  |

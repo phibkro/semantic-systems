@@ -4,9 +4,8 @@ Canonical frozen contract:
 [`design-specs/0016-executable-semantic-system-kernel.md`](../../design-specs/0016-executable-semantic-system-kernel.md).
 This mutable execution record cannot redefine that contract.
 
-Status: implementation candidate complete; exact feature acceptance green;
-awaiting independent exact-head adversarial review after dependency 0015 is
-accepted and the candidate is committed cleanly
+Status: first independent review rejected; semantic counterexamples under
+correction before dependency integration and exact-head re-review
 
 Owner: primary Semantic Systems lead
 
@@ -132,3 +131,38 @@ unsupported authority claims fail the gate.
   unsupported-claim disclosures. The empty actor-normalization case is
   excluded by a nonempty tuple rather than an ambient throw. Exact acceptance
   remained green after the correction.
+- 2026-07-30: independent read-only review rejected exact head `0df09da`.
+  Concrete executions showed that a mismatched observation could settle a
+  pending inventory request, command replay could repeat a completed external
+  effect, a genuine registry could cross between same-ID component versions,
+  structural extras could overwrite canonical envelope fields, and several
+  validation throws became Effect defects rather than typed failures. The
+  driver retained an overflowing effect batch beyond its queue-stock bound and
+  omitted the promised causal trace; graph edges erased exact progress bounds;
+  the portable-authority gate lacked transitive closure evidence; and no 0016
+  project-model frontier existed. Exact acceptance and the full 351-test suite
+  passed, demonstrating that the registered oracle was incomplete rather than
+  that the findings were regressions.
+- 2026-07-31: the correction binds observations to the exact pending request
+  correlation and causation, retains completed command identities, binds
+  registries to the exact privately constructed component instance,
+  reconstructs canonical envelopes rather than spreading untrusted fields,
+  and translates every validation failure into the typed Effect channel. The
+  direct driver stages reaction batches transactionally within the queue bound
+  and emits one causal trace; derived graphs preserve exact progress
+  declarations. The authority test now walks the transitive import closure.
+- 2026-07-31: project-model declarations for the component and executable
+  frontier were added and all eight generated projections were regenerated
+  from those canonical sources. Additional custody probes reject raw
+  accessors, functions, classes, cycles, and hostile proxies before schema
+  decoding can observe them; inherited object-property names cannot impersonate
+  pending action identities. No new dependency or upstream code was needed.
+- 2026-07-31: corrected exact acceptance passed with 30 focused tests/164
+  expectations, genuine Node parity, inherited inventory and actor gates,
+  typecheck, severe lint, formatting, model validation at 122 entities/177
+  relations, and eight generated views. Full integration passed with 356 Bun
+  tests/1,844 expectations, zero Effect diagnostics, and 68 transitional Python
+  custody checks. This head remains provisional because it is descended from a
+  rejected 0015 candidate; it must be reconstructed on the independently
+  accepted and integrated 0015 head, rerun, committed at a clean head, and
+  independently reviewed before 0016 integration.

@@ -119,6 +119,38 @@ describe("semantic-system value and definition custody", () => {
       run(command(component, { messageId: "cyclic", correlationId: "journey" }, cyclic)),
     ).rejects.toThrow();
 
+    let getterReads = 0;
+    const accessorPayload = { _tag: "Append" };
+    Object.defineProperty(accessorPayload, "value", {
+      enumerable: true,
+      get() {
+        getterReads += 1;
+        return 1;
+      },
+    });
+    await expect(
+      run(command(component, { messageId: "accessor", correlationId: "journey" }, accessorPayload)),
+    ).rejects.toThrow("accessors");
+    expect(getterReads).toBe(0);
+
+    await expect(
+      run(
+        command(
+          component,
+          { messageId: "function", correlationId: "journey" },
+          { _tag: "Append", value: 1, callback: () => undefined },
+        ),
+      ),
+    ).rejects.toThrow("unsupported semantic value function");
+
+    class ClassPayload {
+      readonly _tag = "Append";
+      readonly value = 1;
+    }
+    await expect(
+      run(command(component, { messageId: "class", correlationId: "journey" }, new ClassPayload())),
+    ).rejects.toThrow("only arrays and plain records");
+
     const hostile = new Proxy(
       { _tag: "Append", value: 1 },
       {

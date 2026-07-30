@@ -79,6 +79,12 @@ describe("inventory authored as an open semantic system", () => {
     expect(projectInventoryReferenceState(completed.state)).toEqual(referenceState);
     expect(projectInventoryReferenceEvent(completed.events[0]!.payload)).toEqual(referenceEvent);
     expect(completed.state.pending).toEqual({});
+
+    const replayed = await run(react(component, completed.state, reserve));
+    expect(replayed.effects).toEqual([]);
+    expect(replayed.events).toEqual([]);
+    expect(replayed.diagnostics[0]?.code).toBe("duplicate_command");
+    expect(projectInventoryReferenceState(replayed.state)).toEqual(referenceState);
   });
 
   test("runs the complete request-observation slice directly and matches the accepted oracle", async () => {
@@ -157,6 +163,7 @@ describe("inventory authored as an open semantic system", () => {
         {
           messageId: "observation",
           correlationId: "journey",
+          causationId: requested.effects[0]!.messageId,
           actionId: requested.effects[0]!.actionId,
           provenance: { sourceId: "fixture", basis: "allocated" },
         },
@@ -188,6 +195,77 @@ describe("inventory authored as an open semantic system", () => {
       projectInventoryReferenceState(first.state),
     );
     expect(ignored.diagnostics[0]?.code).toBe("unknown_action");
+
+    for (const [index, actionId] of ["__proto__", "constructor", "toString"].entries()) {
+      const inheritedName = await run(
+        observation(
+          component,
+          {
+            messageId: `inherited-name-${index}`,
+            correlationId: "journey",
+            actionId,
+            provenance: { sourceId: "fixture", basis: "pathological foreign action" },
+          },
+          { _tag: "FreshIdentifierAllocated", identifier: `reservation-${index + 3}` },
+        ),
+      );
+      const inheritedIgnored = await run(react(component, first.state, inheritedName));
+      expect(projectInventoryReferenceState(inheritedIgnored.state)).toEqual(
+        projectInventoryReferenceState(first.state),
+      );
+      expect(inheritedIgnored.diagnostics[0]?.code).toBe("unknown_action");
+    }
+  });
+
+  test("requires exact correlation and causation before applying an observation", async () => {
+    const component = await run(inventorySemanticComponent);
+    const reserve = await run(
+      command(
+        component,
+        { messageId: "reserve", correlationId: "journey" },
+        { _tag: "Reserve", item: "widget", quantity: 1 },
+      ),
+    );
+    const requested = await run(react(component, inventorySemanticState(initial), reserve));
+    const request = requested.effects[0]!;
+
+    const wrongCorrelation = await run(
+      observation(
+        component,
+        {
+          messageId: "wrong-correlation",
+          correlationId: "foreign-journey",
+          causationId: request.messageId,
+          actionId: request.actionId,
+          provenance: { sourceId: "untrusted", basis: "foreign observation" },
+        },
+        { _tag: "FreshIdentifierAllocated", identifier: "attacker-id" },
+      ),
+    );
+    const correlationRejected = await run(react(component, requested.state, wrongCorrelation));
+    expect(correlationRejected.diagnostics[0]?.code).toBe("correlation_mismatch");
+    expect(correlationRejected.state.pending[request.actionId]).toBeDefined();
+    expect(projectInventoryReferenceState(correlationRejected.state)).toEqual(initial);
+
+    const wrongCausation = await run(
+      observation(
+        component,
+        {
+          messageId: "wrong-causation",
+          correlationId: "journey",
+          causationId: "foreign-request",
+          actionId: request.actionId,
+          provenance: { sourceId: "untrusted", basis: "foreign observation" },
+        },
+        { _tag: "FreshIdentifierAllocated", identifier: "attacker-id" },
+      ),
+    );
+    const causationRejected = await run(
+      react(component, correlationRejected.state, wrongCausation),
+    );
+    expect(causationRejected.diagnostics[0]?.code).toBe("causation_mismatch");
+    expect(causationRejected.state.pending[request.actionId]).toBeDefined();
+    expect(projectInventoryReferenceState(causationRejected.state)).toEqual(initial);
   });
 
   test("unknown and unavailable outcomes remain distinct and queries are pure artifacts", async () => {
@@ -206,6 +284,7 @@ describe("inventory authored as an open semantic system", () => {
         {
           messageId: "unknown",
           correlationId: "journey",
+          causationId: requested.effects[0]!.messageId,
           actionId: requested.effects[0]!.actionId,
           provenance: { sourceId: "fixture", basis: "deadline elapsed without response" },
         },
@@ -253,6 +332,7 @@ describe("inventory authored as an open semantic system", () => {
         {
           messageId: "unavailable",
           correlationId: "journey-2",
+          causationId: pendingUnavailable.effects[0]!.messageId,
           actionId: pendingUnavailable.effects[0]!.actionId,
           provenance: { sourceId: "fixture", basis: "explicit rejection" },
         },

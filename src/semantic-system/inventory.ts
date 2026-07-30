@@ -29,19 +29,21 @@ const StockSchema = Schema.Record(Schema.String, Schema.Int);
 const ReservationsSchema = Schema.Record(Schema.String, ReservationSchema);
 const PendingReservationSchema = Schema.Struct({
   commandMessageId: Schema.String,
+  requestMessageId: Schema.String,
   correlationId: Schema.String,
   item: Schema.String,
   quantity: Schema.Int,
 });
 const PendingReservationsSchema = Schema.Record(Schema.String, PendingReservationSchema);
-const ProcessedObservationsSchema = Schema.Record(Schema.String, Schema.Literal(true));
+const ProcessedIdentitiesSchema = Schema.Record(Schema.String, Schema.Literal(true));
 
 export const InventorySemanticStateSchema = Schema.Struct({
   stock: StockSchema,
   reservations: ReservationsSchema,
   pending: PendingReservationsSchema,
   unknown: PendingReservationsSchema,
-  processedObservations: ProcessedObservationsSchema,
+  processedCommands: ProcessedIdentitiesSchema,
+  processedObservations: ProcessedIdentitiesSchema,
 });
 
 const ReserveSchema = Schema.TaggedStruct("Reserve", {
@@ -135,6 +137,11 @@ const withoutAction = (
   return next;
 };
 
+const ownValue = <Value>(
+  values: Readonly<Record<string, Value>>,
+  key: string,
+): Value | undefined => (Object.hasOwn(values, key) ? values[key] : undefined);
+
 const referenceState = (state: InventorySemanticState): ReferenceState => ({
   stock: state.stock,
   reservations: state.reservations,
@@ -145,6 +152,7 @@ export const inventorySemanticState = (state: ReferenceState): InventorySemantic
   reservations: state.reservations,
   pending: {},
   unknown: {},
+  processedCommands: {},
   processedObservations: {},
 });
 
@@ -250,6 +258,22 @@ const reactCommand = (
   InventoryArtifact,
   InventoryEffectRequest
 > => {
+  if (ownValue(state.processedCommands, input.messageId) === true) {
+    return noOutput(state, [
+      {
+        code: "duplicate_command",
+        message: `command ${input.messageId} was already processed`,
+        relatedMessageId: input.messageId,
+      },
+    ]);
+  }
+  const acceptedState = {
+    ...state,
+    processedCommands: {
+      ...state.processedCommands,
+      [input.messageId]: true as const,
+    },
+  };
   const message: ReferenceMessage =
     input.payload["_tag"] === "Reserve"
       ? {
@@ -261,11 +285,15 @@ const reactCommand = (
           kind: "Release",
           reservationId: input.payload.reservationId,
         };
-  const prepared = prepareReferenceTransition(message, referenceState(state));
+  const prepared = prepareReferenceTransition(message, referenceState(acceptedState));
   if (prepared.kind === "complete") {
     const [next, event] = prepared.result;
     return {
-      state: { ...state, stock: next.stock, reservations: next.reservations },
+      state: {
+        ...acceptedState,
+        stock: next.stock,
+        reservations: next.reservations,
+      },
       events: [emittedEvent(input, semanticEvent(event))],
       artifacts: [],
       effects: [],
@@ -273,7 +301,7 @@ const reactCommand = (
     };
   }
   if (input.payload["_tag"] !== "Reserve") {
-    return noOutput(state, [
+    return noOutput(acceptedState, [
       {
         code: "invalid_transition",
         message: "release unexpectedly requested a fresh identifier",
@@ -283,8 +311,11 @@ const reactCommand = (
   }
 
   const actionId = `${input.messageId}:fresh-identifier`;
-  if (state.pending[actionId] !== undefined || state.unknown[actionId] !== undefined) {
-    return noOutput(state, [
+  if (
+    ownValue(acceptedState.pending, actionId) !== undefined ||
+    ownValue(acceptedState.unknown, actionId) !== undefined
+  ) {
+    return noOutput(acceptedState, [
       {
         code: "duplicate_action",
         message: `fresh identifier action ${actionId} already exists`,
@@ -294,14 +325,15 @@ const reactCommand = (
   }
   const pending = {
     commandMessageId: input.messageId,
+    requestMessageId: `${input.messageId}:fresh-identifier-request`,
     correlationId: input.correlationId,
     item: input.payload.item,
     quantity: input.payload.quantity,
   };
   return {
     state: {
-      ...state,
-      pending: { ...state.pending, [actionId]: pending },
+      ...acceptedState,
+      pending: { ...acceptedState.pending, [actionId]: pending },
     },
     events: [],
     artifacts: [],
@@ -341,7 +373,7 @@ const reactObservation = (
   InventoryArtifact,
   InventoryEffectRequest
 > => {
-  if (state.processedObservations[input.messageId] === true) {
+  if (ownValue(state.processedObservations, input.messageId) === true) {
     return noOutput(state, [
       diagnosticForObservation(
         input,
@@ -359,13 +391,32 @@ const reactObservation = (
       diagnosticForObservation(input, "missing_action", "effect outcome has no action identity"),
     ]);
   }
-  const pending = state.pending[input.actionId] ?? state.unknown[input.actionId];
+  const pending =
+    ownValue(state.pending, input.actionId) ?? ownValue(state.unknown, input.actionId);
   if (pending === undefined) {
     return noOutput({ ...state, processedObservations }, [
       diagnosticForObservation(
         input,
         "unknown_action",
         `action ${input.actionId} is not pending or unknown`,
+      ),
+    ]);
+  }
+  if (input.correlationId !== pending.correlationId) {
+    return noOutput({ ...state, processedObservations }, [
+      diagnosticForObservation(
+        input,
+        "correlation_mismatch",
+        `observation correlation does not match action ${input.actionId}`,
+      ),
+    ]);
+  }
+  if (input.causationId !== pending.requestMessageId) {
+    return noOutput({ ...state, processedObservations }, [
+      diagnosticForObservation(
+        input,
+        "causation_mismatch",
+        `observation causation does not match request ${pending.requestMessageId}`,
       ),
     ]);
   }

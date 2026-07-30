@@ -34,19 +34,41 @@ type KernelError = SemanticKernelFailure | SemanticValueRejected | InvalidSemant
 const failure = (boundary: string, reason: string): SemanticKernelFailure =>
   new SemanticKernelFailure({ boundary, reason });
 
-const nonempty = (value: string | undefined, field: string): void => {
-  if (value === undefined || value.trim().length === 0) {
-    throw failure(field, "must be nonempty");
-  }
-};
+const nonempty = (
+  value: unknown,
+  boundary: string,
+): Effect.Effect<string, SemanticKernelFailure> =>
+  typeof value === "string" && value.trim().length > 0
+    ? Effect.succeed(value)
+    : Effect.fail(failure(boundary, "must be nonempty"));
 
-const validateIdentity = (identity: MessageIdentity, boundary: string): void => {
-  nonempty(identity.messageId, `${boundary}.messageId`);
-  nonempty(identity.correlationId, `${boundary}.correlationId`);
-  if (identity.causationId !== undefined) {
-    nonempty(identity.causationId, `${boundary}.causationId`);
-  }
-};
+const record = (
+  value: unknown,
+  boundary: string,
+): Effect.Effect<Readonly<Record<string, unknown>>, SemanticKernelFailure> =>
+  typeof value === "object" && value !== null && !Array.isArray(value)
+    ? Effect.succeed(value as Readonly<Record<string, unknown>>)
+    : Effect.fail(failure(boundary, "must be a record"));
+
+const validateIdentity = (
+  value: unknown,
+  boundary: string,
+): Effect.Effect<MessageIdentity, SemanticKernelFailure | SemanticValueRejected> =>
+  Effect.gen(function* () {
+    const owned = yield* snapshotSemanticValue(value, boundary);
+    const fields = yield* record(owned, boundary);
+    const messageId = yield* nonempty(fields["messageId"], `${boundary}.messageId`);
+    const correlationId = yield* nonempty(fields["correlationId"], `${boundary}.correlationId`);
+    const causationId =
+      fields["causationId"] === undefined
+        ? undefined
+        : yield* nonempty(fields["causationId"], `${boundary}.causationId`);
+    return {
+      messageId,
+      correlationId,
+      ...(causationId === undefined ? {} : { causationId }),
+    };
+  });
 
 const decode = <Value>(
   schema: Schema.Decoder<Value, never>,
@@ -54,9 +76,10 @@ const decode = <Value>(
   boundary: string,
 ): Effect.Effect<Value, SemanticKernelFailure | SemanticValueRejected> =>
   Effect.gen(function* () {
+    const ownedInput = yield* snapshotSemanticValue(value, `${boundary}.source`);
     const decoded = yield* Schema.decodeUnknownEffect(schema, {
       onExcessProperty: "error",
-    })(value).pipe(
+    })(ownedInput).pipe(
       Effect.mapError(
         (cause) =>
           new SemanticKernelFailure({
@@ -103,13 +126,7 @@ const makeInput = <Category extends "command" | "observation" | "query", Payload
   SemanticKernelFailure | SemanticValueRejected
 > =>
   Effect.gen(function* () {
-    yield* Effect.try({
-      try: () => validateIdentity(identity, category),
-      catch: (cause) =>
-        cause instanceof SemanticKernelFailure
-          ? cause
-          : new SemanticKernelFailure({ boundary: category, reason: "invalid identity" }),
-    });
+    const validatedIdentity = yield* validateIdentity(identity, category);
     const decoded = yield* decode(schema, payload, `${category}.payload`);
     yield* validateTag(decoded, tags, `${category}.payload`);
     return yield* snapshotSemanticValue(
@@ -117,7 +134,11 @@ const makeInput = <Category extends "command" | "observation" | "query", Payload
         category,
         componentId,
         schemaId,
-        ...identity,
+        messageId: validatedIdentity.messageId,
+        correlationId: validatedIdentity.correlationId,
+        ...(validatedIdentity.causationId === undefined
+          ? {}
+          : { causationId: validatedIdentity.causationId }),
         payload: decoded,
       },
       `${category}.envelope`,
@@ -168,9 +189,17 @@ export const observation = <
 ): Effect.Effect<ObservationEnvelope<Observation>, KernelError> =>
   Effect.gen(function* () {
     const { spec } = yield* requireComponent(component);
-    nonempty(identity.provenance.sourceId, "observation.provenance.sourceId");
-    nonempty(identity.provenance.basis, "observation.provenance.basis");
-    if (identity.actionId !== undefined) nonempty(identity.actionId, "observation.actionId");
+    const ownedIdentity = yield* snapshotSemanticValue(identity, "observation.identity");
+    const identityFields = yield* record(ownedIdentity, "observation");
+    const provenanceFields = yield* record(identityFields["provenance"], "observation.provenance");
+    const provenance = {
+      sourceId: yield* nonempty(provenanceFields["sourceId"], "observation.provenance.sourceId"),
+      basis: yield* nonempty(provenanceFields["basis"], "observation.provenance.basis"),
+    };
+    const actionId =
+      identityFields["actionId"] === undefined
+        ? undefined
+        : yield* nonempty(identityFields["actionId"], "observation.actionId");
     const input = yield* makeInput(
       "observation",
       component.id,
@@ -183,8 +212,8 @@ export const observation = <
     return yield* snapshotSemanticValue(
       {
         ...input,
-        provenance: identity.provenance,
-        ...(identity.actionId === undefined ? {} : { actionId: identity.actionId }),
+        provenance,
+        ...(actionId === undefined ? {} : { actionId }),
       },
       "observation.envelope",
     );
@@ -238,11 +267,24 @@ const diagnostics = (
   boundary: string,
 ): Effect.Effect<ReadonlyArray<Diagnostic>, SemanticValueRejected | SemanticKernelFailure> =>
   Effect.gen(function* () {
-    for (const [index, entry] of value.entries()) {
-      nonempty(entry.code, `${boundary}[${index}].code`);
-      nonempty(entry.message, `${boundary}[${index}].message`);
-    }
-    return yield* snapshotSemanticValue(value, boundary);
+    const canonical = yield* Effect.forEach(value, (entry, index) =>
+      Effect.gen(function* () {
+        const owned = yield* snapshotSemanticValue(entry, `${boundary}[${index}]`);
+        const fields = yield* record(owned, `${boundary}[${index}]`);
+        const code = yield* nonempty(fields["code"], `${boundary}[${index}].code`);
+        const message = yield* nonempty(fields["message"], `${boundary}[${index}].message`);
+        const relatedMessageId =
+          fields["relatedMessageId"] === undefined
+            ? undefined
+            : yield* nonempty(fields["relatedMessageId"], `${boundary}[${index}].relatedMessageId`);
+        return {
+          code,
+          message,
+          ...(relatedMessageId === undefined ? {} : { relatedMessageId }),
+        };
+      }),
+    );
+    return yield* snapshotSemanticValue(canonical, boundary);
   });
 
 const validateReactionDraft = <
@@ -307,15 +349,19 @@ const envelopeEmissions = <Payload extends Tagged, Category extends "domain_even
 > =>
   Effect.forEach(emissions, (emission, index) =>
     Effect.gen(function* () {
-      validateIdentity(emission, `${category}[${index}]`);
-      const payload = yield* decode(schema, emission.payload, `${category}[${index}].payload`);
+      const owned = yield* snapshotSemanticValue(emission, `${category}[${index}]`);
+      const fields = yield* record(owned, `${category}[${index}]`);
+      const identity = yield* validateIdentity(fields, `${category}[${index}]`);
+      const payload = yield* decode(schema, fields["payload"], `${category}[${index}].payload`);
       yield* validateTag(payload, tags, `${category}[${index}].payload`);
       return yield* snapshotSemanticValue(
         {
           category,
           componentId,
           schemaId,
-          ...emission,
+          messageId: identity.messageId,
+          correlationId: identity.correlationId,
+          ...(identity.causationId === undefined ? {} : { causationId: identity.causationId }),
           payload,
         },
         `${category}[${index}].envelope`,
@@ -344,23 +390,32 @@ const effectEmissions = <Request extends Tagged>(
     const actionIds = new Set<string>();
     return yield* Effect.forEach(emissions, (emission, index) =>
       Effect.gen(function* () {
-        validateIdentity(emission, `effect_request[${index}]`);
-        nonempty(emission.actionId, `effect_request[${index}].actionId`);
-        if (actionIds.has(emission.actionId)) {
+        const owned = yield* snapshotSemanticValue(emission, `effect_request[${index}]`);
+        const fields = yield* record(owned, `effect_request[${index}]`);
+        const identity = yield* validateIdentity(fields, `effect_request[${index}]`);
+        const actionId = yield* nonempty(fields["actionId"], `effect_request[${index}].actionId`);
+        if (actionIds.has(actionId)) {
           return yield* new SemanticKernelFailure({
             boundary: `effect_request[${index}].actionId`,
             reason: "duplicate action identity in one reaction",
           });
         }
-        actionIds.add(emission.actionId);
-        const payload = yield* decode(schema, emission.payload, `effect_request[${index}].payload`);
+        actionIds.add(actionId);
+        const payload = yield* decode(
+          schema,
+          fields["payload"],
+          `effect_request[${index}].payload`,
+        );
         yield* validateTag(payload, tags, `effect_request[${index}].payload`);
         return yield* snapshotSemanticValue(
           {
             category: "effect_request" as const,
             componentId,
             schemaId,
-            ...emission,
+            messageId: identity.messageId,
+            correlationId: identity.correlationId,
+            ...(identity.causationId === undefined ? {} : { causationId: identity.causationId }),
+            actionId,
             payload,
           },
           `effect_request[${index}].envelope`,
@@ -384,25 +439,38 @@ export const react = <
 ): Effect.Effect<Reaction<State, Event, Artifact, Request>, KernelError> =>
   Effect.gen(function* () {
     const { spec } = yield* requireComponent(component);
-    if (input.componentId !== component.id) {
+    const ownedInput = yield* snapshotSemanticValue(input, "react.input");
+    const inputFields = yield* record(ownedInput, "react.input");
+    if (inputFields["componentId"] !== component.id) {
       return yield* new SemanticKernelFailure({
         boundary: "react.input.componentId",
         reason: "input belongs to a different component",
       });
     }
-    if (input.category !== "command" && input.category !== "observation") {
+    if (inputFields["category"] !== "command" && inputFields["category"] !== "observation") {
       return yield* failure("react.input.category", "react accepts commands or observations only");
     }
     const expectedSchemaId =
-      input.category === "command" ? spec.commands.schemaId : spec.observations.schemaId;
-    if (input.schemaId !== expectedSchemaId) {
+      inputFields["category"] === "command" ? spec.commands.schemaId : spec.observations.schemaId;
+    if (inputFields["schemaId"] !== expectedSchemaId) {
       return yield* failure("react.input.schemaId", "input schema identity does not match");
     }
     const decodedState = yield* decode(spec.state.schema, state, "react.state");
     const guardedInput =
-      input.category === "command"
-        ? yield* command(component, input, input.payload)
-        : yield* observation(component, input, input.payload);
+      inputFields["category"] === "command"
+        ? yield* command(
+            component,
+            inputFields as unknown as MessageIdentity,
+            inputFields["payload"],
+          )
+        : yield* observation(
+            component,
+            inputFields as unknown as MessageIdentity & {
+              readonly provenance: ObservationProvenance;
+              readonly actionId?: string;
+            },
+            inputFields["payload"],
+          );
     const authoredDraft = yield* Effect.try({
       try: () => spec.react(decodedState, guardedInput),
       catch: (cause) =>
@@ -411,7 +479,10 @@ export const react = <
           reason: cause instanceof Error ? cause.message : "handler threw an unknown value",
         }),
     });
-    const draft = yield* validateReactionDraft<State, Event, Artifact, Request>(authoredDraft);
+    const draft = yield* snapshotSemanticValue(
+      yield* validateReactionDraft<State, Event, Artifact, Request>(authoredDraft),
+      "react.draft",
+    );
     const nextState = yield* decode(spec.state.schema, draft.state, "react.nextState");
     const events = yield* envelopeEmissions(
       "domain_event",
@@ -467,20 +538,26 @@ export const answer = <
 ): Effect.Effect<Answer<Artifact>, KernelError> =>
   Effect.gen(function* () {
     const { spec } = yield* requireComponent(component);
-    if (input.componentId !== component.id) {
+    const ownedInput = yield* snapshotSemanticValue(input, "answer.input");
+    const inputFields = yield* record(ownedInput, "answer.input");
+    if (inputFields["componentId"] !== component.id) {
       return yield* new SemanticKernelFailure({
         boundary: "answer.input.componentId",
         reason: "query belongs to a different component",
       });
     }
-    if (input.category !== "query") {
+    if (inputFields["category"] !== "query") {
       return yield* failure("answer.input.category", "answer accepts queries only");
     }
-    if (input.schemaId !== spec.queries.schemaId) {
+    if (inputFields["schemaId"] !== spec.queries.schemaId) {
       return yield* failure("answer.input.schemaId", "query schema identity does not match");
     }
     const decodedState = yield* decode(spec.state.schema, state, "answer.state");
-    const guardedQuery = yield* query(component, input, input.payload);
+    const guardedQuery = yield* query(
+      component,
+      inputFields as unknown as MessageIdentity,
+      inputFields["payload"],
+    );
     const authoredDraft = yield* Effect.try({
       try: () => spec.answer(decodedState, guardedQuery),
       catch: (cause) =>
@@ -489,7 +566,10 @@ export const answer = <
           reason: cause instanceof Error ? cause.message : "handler threw an unknown value",
         }),
     });
-    const draft = yield* validateAnswerDraft<Artifact>(authoredDraft);
+    const draft = yield* snapshotSemanticValue(
+      yield* validateAnswerDraft<Artifact>(authoredDraft),
+      "answer.draft",
+    );
     const artifacts = yield* envelopeEmissions(
       "artifact",
       component.id,
