@@ -348,6 +348,15 @@ validity.
 
 ## Progress log
 
+- 2026-07-30: completed the final frozen declarative shared-policy experiment.
+  Its exhaustive recorded measurement rejected the architecture at 764/489
+  (156.2%). Fresh Fable 5 review reproduced every gate and accepted the commit
+  only as counterevidence. Review found missing aggregate, payload-kind, and
+  diagnostic-content checks plus a 41-line asymmetric production exclusion;
+  the conservative corrected ratio is still 764/530 (144.2%), and the missing
+  checker work would only increase the numerator. Integrated the experiment as
+  `219ee7c` and its explicit review limitations as `1d30fcf`. No production
+  checker was selected and CLM-0002 remains unsupported.
 - 2026-07-29: Independent read-only analysis compared the frozen tracer,
   implementation, tests, and adversarial review.
 - 2026-07-29: Main agent froze design spec 0003 before implementation
@@ -522,6 +531,8 @@ validity.
 
 ## Completion state
 
-Open. Complete only after the visible checker-gated scenario, mutation corpus,
-independence/size gate, canonical graph integration, independent review, and
-full repository validation pass.
+Stopped under the frozen contract. The resolving experiment and canonical
+negative result are complete, but the production checker is not. Resume only
+after an explicit reviewed design revision replaces the incompatible 70%
+size/trust claim or freezes a materially different architecture. Do not reopen
+incremental checker implementation against the current contract.

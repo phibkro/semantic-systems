@@ -19,10 +19,8 @@ Owner: main integration agent
   selected TypeScript, Unicorn, Import, and Promise rules. Effect-aware
   `@effect/tsgo` diagnostics and the local architecture plugin remain
   dependency-gated.
-- Remaining Python surface: reference custody's remote acquisition and remote
-  materialization; online/general `lock`, history-fallback `materialize`, and
-  the transitional differential test module; plus transitional
-  Nix/fast/integration wiring.
+- Remaining Python surface: the transitional reference-custody differential
+  test module plus transitional Nix/fast/integration wiring.
   Catalog/lock parsing, atomic lock writing, the interoperable curator guard,
   transactional offline locking from local siblings or managed object caches,
   atomic offline materialization, checkout verification, and both network-free
@@ -64,13 +62,12 @@ Other active feature worktrees and their owned files remain forbidden.
    before eligibility, and the resolver's transitive closure cannot reach the
    producer, execution, or I/O. The serialized `resolution_claim_v1` is
    integrated and independently reviewed as `310c4dd`, `b2772ef`, and
-   `bd0e6c3`. The independent checker remains blocked pending the declarative
-   shared-policy experiment under the recut design spec 0003.
-   Uncertainty 0004's partial three-way screen found that every current
-   prototype failed even its configured lower-bound size gate, while
-   exact-head review found incomplete frozen artifacts, presentation-order
-   defects, and a misplaced canonical adapter. Observation authentication is
-   outside the frozen contract.**
+   `bd0e6c3`. The final declarative shared-policy experiment is complete and
+   rejected. Its recorded ratio was 156.2%; exact-head review found missing
+   checker responsibilities and a conservative corrected ratio of 144.2%,
+   still far above the 70% gate. No production checker is selected. The
+   frontier is stopped pending explicit design revision; observation
+   authentication remains outside the frozen contract.**
 6. Implement reference custody with explicit Git/filesystem/lock services.
    **Catalog/lock/offline-lock/offline-materialize/full-status boundary
    complete**
@@ -79,13 +76,14 @@ Other active feature worktrees and their owned files remain forbidden.
    catalog digests, atomic lock writing, offline local-sibling and managed-cache
    Git observation, an interoperable kernel curator guard, all-or-nothing
    offline lock publication, offline atomic materialization, checkout
-   verification, and both network-free status modes now run on Effect v4 under
-   Bun and Node. The
-   parsing/status/writer suite remains differential against the Python oracle;
-   Git security boundaries use adversarial fixtures and deliberately exceed
-   Python where review exposed shared defects. Remote acquisition, remote and
-   history-fallback materialization, and the remaining online CLI surface
-   remain Python and are the rest of this item.
+   verification, both network-free status modes, online remote locking, and
+   exact/ref/explicit-history remote materialization now run on Effect v4 under
+   Bun and Node. The parsing/status/writer suite remains differential against
+   the Python oracle; Git security boundaries use adversarial fixtures and
+   deliberately exceed Python where review exposed shared defects. Remote
+   publication is interruption-atomic across cache and canonical lock.
+   Annotated-tag peeling and a reserved cache-ref namespace remain localized
+   fail-closed follow-ups.
 7. Migrate development-control and policy tests to Bun. **Complete for
    development-control and reuse-first governance; custody tests remain with
    their owning implementation slice.**
@@ -279,6 +277,15 @@ accepted; no new Python implementation is permitted.
 
 ## Log
 
+- 2026-07-30: integrated remote reference lock/materialization as `f77fbe3`.
+  The focused corpus passes 143 tests and 617 assertions under bounded
+  local-Git fixtures, with typecheck, severe lint, formatting, and Bun/Node
+  parity green. Independent review found that external interruption could
+  bypass rollback between cache rename and lock write; the accepted amendment
+  makes the short network-free publication transaction uninterruptible and
+  adds a discriminating interruption oracle. Exact amended-head review
+  confirmed the defect closed. Annotated tags and a possible
+  `refs/heads/custody` namespace collision remain fail-closed follow-ups.
 - 2026-07-30: operator selected TypeScript, Bun, and specifically Effect v4.
 - 2026-07-30: npm registry independently reported `beta` as
   `4.0.0-beta.102`; exact dependency installed.

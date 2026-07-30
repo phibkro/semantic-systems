@@ -1,6 +1,25 @@
 # Uncertainty 0004: recutting the independent resolution checker
 
-## Current hypothesis
+## Resolution
+
+Resolved negatively for the frozen design-0003 contract on 2026-07-30.
+
+The final declarative shared-policy experiment recorded a checker surface of
+764 included lines against 489 production lines (156.2%). Independent review
+found an asymmetric 41-line production exclusion and several missing checker
+validations. Counting all 41 lines yields a conservative 764/530 = 144.2%;
+adding the missing checker responsibilities can only increase that ratio. Both
+values remain far above the unchanged 70% gate.
+
+The experiment is integrated only as rejected counterevidence at `219ee7c`;
+its exact-head mutation and measurement limitations are recorded at `1d30fcf`
+and in `research/independent-checker-shared-policy-experiment.md`. No
+production checker option is selected and CLM-0002 is not established. The
+checker implementation frontier is stopped until an explicit reviewed design
+revision changes the size/trust claim or provides a materially different
+architecture.
+
+## Former hypothesis
 
 A compact declarative policy contract may remove duplicated eligibility and
 reason branches from independently compiled production and checker evaluators.
@@ -10,11 +29,9 @@ packet coverage, evidence aggregate derivation, terminal recomputation,
 selected-assumption projection, deterministic violations, or capability
 separation.
 
-It remains unknown whether that architecture can satisfy the unchanged
-symmetric 70% checker-to-production adjudication gate. Every current disposable
-prototype already exceeds the gate under conservative configured lower bounds.
-The next experiment must classify the complete validity-affecting executable
-surface rather than optimize an annotation-selected subset.
+It was unknown whether that architecture could satisfy the unchanged symmetric
+70% checker-to-production adjudication gate. Every disposable prototype
+exceeded the gate under conservative configured lower bounds.
 
 ## Supporting evidence
 
@@ -70,11 +87,10 @@ surface rather than optimize an annotation-selected subset.
 - future package and deployment verification;
 - any attempt to present resolution consistency as independently checked.
 
-## Resolving experiment
+## Completed resolving experiment
 
-The reviewed authority recut is complete. The remaining resolving experiment is
-one declarative shared-policy contract with two independently compiled or
-generated evaluators:
+The reviewed authority recut and final declarative shared-policy experiment are
+complete. The experiment used two independently authored evaluators:
 
 1. represent the frozen policy predicates and reason vocabulary as bounded
    typed data;
@@ -99,7 +115,7 @@ authentication into the generic checker.
 Observation custody remains a separate future authority extension. It is not a
 prerequisite or repair for design spec 0003.
 
-## Decision criteria
+## Applied decision criteria
 
 Select the declarative architecture only if it satisfies the full behavioral
 and mutation corpus, preserves typed evidence meanings and separated
@@ -107,6 +123,6 @@ authorities, and meets the frozen 70% gate without measurement gaming.
 Otherwise stop the checker implementation frontier and reopen the size/trust
 claim through another explicit reviewed design-spec revision.
 
-The current prototypes remain rejected because even their configured
-lower-bound surfaces fail the size gate and their behavioral gaps fail the
-frozen contract. No implementation option is selected.
+The current prototypes and final experiment are rejected because even the
+review-corrected conservative surface fails the size gate and the behavioral
+gaps fail the frozen contract. No implementation option is selected.
