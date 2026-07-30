@@ -265,6 +265,26 @@ state, and unrelated project-model changes.
   338 Bun tests/1,737 expectations, zero Effect diagnostics, and 68
   transitional Python custody checks. Clean-head custody and re-review remain
   pending.
+- 2026-07-31: eighth independent review rejected exact clean head `e0be50c`.
+  Six malformed `var()`, `env()`, and `attr()` argument lists still received
+  the property-grammar waiver. Chromium 150 discarded those later
+  declarations and retained the earlier `display:none`; the gate instead
+  counted their hidden prose as visible. All inherited matrices, production
+  range replay, exact acceptance, and full integration passed independently,
+  again identifying an incomplete oracle rather than a registered regression.
+- 2026-07-31: the waiver now requires every arbitrary-substitution function in
+  the declaration to satisfy its own argument grammar. CSS Tree validates
+  custom-property names and the current `env()` grammar; the `attr()` syntax is
+  supplied from the current CSS Values Level 5 grammar, including custom
+  identifier units that CSS Tree's bundled attr-unit vocabulary does not yet
+  admit. Focused positive and negative cases cover fallbacks, environment
+  indices, units, empty arguments, malformed names/types, strings, URLs, and
+  nested function discovery. The focused suite passes with 15 tests/103
+  expectations. Exact acceptance passed with the unchanged 24 control-loop
+  tests/250 expectations, typecheck, severe lint, formatting, model validation,
+  and eight generated views. Full integration passed with 338 Bun tests/1,753
+  expectations, zero Effect diagnostics, and 68 transitional Python custody
+  checks. Clean-head custody and re-review remain pending.
 
 ## Acceptance command
 

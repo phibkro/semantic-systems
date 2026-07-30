@@ -19,6 +19,7 @@ import {
   walk as walkCss,
   type Declaration,
   type DeclarationList,
+  type FunctionNode,
 } from "css-tree";
 import { fromMarkdown } from "mdast-util-from-markdown";
 import type { Heading, Nodes, RootContent } from "mdast";
@@ -233,6 +234,38 @@ const NONVISIBLE_HTML_ELEMENTS = new Set([
   "video",
 ]);
 
+const validDeferredFunction = (node: FunctionNode): boolean => {
+  const name = cssIdentifier.decode(node.name).toLowerCase();
+  if (name === "var") {
+    const children = node.children.toArray();
+    const customProperty = children[0];
+    if (
+      customProperty === undefined ||
+      cssLexer.matchType("custom-property-name", customProperty).error !== null
+    ) {
+      return false;
+    }
+    if (children.length === 1) return true;
+    const comma = children[1];
+    return comma?.type === "Operator" && comma.value === ",";
+  }
+  if (name === "env") {
+    return (
+      cssLexer.match("env( <custom-ident> <integer [0,∞]>* , <declaration-value>? )", node)
+        .error === null
+    );
+  }
+  if (name === "attr") {
+    return (
+      cssLexer.match(
+        "attr( <attr-name> [ type( <syntax> ) | raw-string | number | <custom-ident> ]? , <declaration-value>? )",
+        node,
+      ).error === null
+    );
+  }
+  return false;
+};
+
 const directStyleHides = (style: string): boolean => {
   let declarationList: DeclarationList;
   try {
@@ -252,16 +285,19 @@ const directStyleHides = (style: string): boolean => {
     const value = cssIdentifier.decode(generateCss(declaration.value).trim()).toLowerCase();
     const grammar = cssLexer.matchProperty(property, value);
     let hasDeferredSubstitution = false;
+    let hasInvalidDeferredSubstitution = false;
     walkCss(declaration.value, {
       visit: "Function",
       enter(node) {
         const functionName = cssIdentifier.decode(node.name).toLowerCase();
         if (functionName === "attr" || functionName === "env" || functionName === "var") {
           hasDeferredSubstitution = true;
+          if (!validDeferredFunction(node)) hasInvalidDeferredSubstitution = true;
         }
       },
     });
-    if (grammar.error !== null && !hasDeferredSubstitution) continue;
+    const defersPropertyGrammar = hasDeferredSubstitution && !hasInvalidDeferredSubstitution;
+    if (grammar.error !== null && !defersPropertyGrammar) continue;
     const important = Boolean(declaration.important);
     const previous = cascaded.get(property);
     if (previous?.important === true && !important) continue;
