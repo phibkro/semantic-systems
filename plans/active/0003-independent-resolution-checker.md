@@ -37,17 +37,20 @@ and kill criteria are frozen in design spec 0003.
   concern that the corrected uncertainty experiment later separated from this
   contract's fixed-input consistency claim. No evidence from that experiment
   establishes CLM-0002.
-- The uncertainty-0004 resolving experiment is complete. Three disposable
-  TypeScript recuts produced honest checker/production adjudication ratios of
+- The first uncertainty-0004 prototype screen is complete, but the resolving
+  experiment remains open. Configured checker/production lower bounds were
   406.2% (declarative rule table), 449.3% (minimal certificate), and 429.2%
-  (structural/semantic recut), including every discovered validity-affecting
-  structural and identity region. All checker closures avoided forbidden
-  capabilities. All options rejected four producer-rederived stale authored
-  identities and the strongest fully re-derived rebound through the canonical
-  broken-result binding of `7/9` and its two named counterexamples. The
-  certificate nevertheless accepted three refreshed semantic lies. Every
-  option fails the honest size gate, no option is selected, and no result
-  establishes CLM-0002. The exact bounded evidence is recorded in
+  (structural/semantic recut). Exact-head review showed that the
+  annotation-dependent numerator oracle is not exhaustive, the reduced
+  claim/report omit frozen fields, presentation-only ordering is mishandled,
+  and canonical inventory binding is not a separate adapter. All options still
+  reject four producer-rederived stale authored identities and the strongest
+  fully re-derived rebound through the canonical broken-result binding of
+  `7/9` and its two named counterexamples; the certificate accepts three
+  refreshed semantic lies. These are partial lower-bound and example-test
+  results, not complete frozen-contract coverage. No current prototype is
+  selected and no result establishes CLM-0002. The bounded evidence is recorded
+  in
   `research/independent-checker-recut-experiment.md`.
 
 ## Contract-owned implementation slices
@@ -173,18 +176,22 @@ validity.
   nine-case canonical fixture. A second exact-head review rejected that
   correction because stored authored identities were still trusted and
   validity-affecting structural decoding was omitted from the numerator.
-- 2026-07-30: completed the final bounded correction. Seventeen focused tests
+- 2026-07-30: completed a second bounded correction. Seventeen focused tests
   and 233 assertions exercise the positive path, 25 refreshed semantic
   mutations, all four producer-rederived stale authored identities, transitive
   forbidden-capability closure, executable witnesses for all seven
   responsibilities, an eight-region numerator-composition oracle with a
   negative omission regression, and the strongest fully re-derived rebound.
-  All options reject the rebound through canonical-model disagreement. The two
-  responsibility-complete options measure 406.2% and 429.2%; the 449.3%
-  certificate covers only 5/7 responsibilities and accepts three refreshed
-  semantic lies. No option met the 70% gate, and no production checker code was
-  integrated. The frontier now requires a reviewed design treatment of the
-  size asymmetry or an explicit recut of the checked claim.
+  All options reject the rebound through canonical-model disagreement.
+- 2026-07-30: a third fresh exact-head review reproduced all configured values
+  but rejected their complete-contract interpretation. It found that the
+  numerator oracle cannot detect unmarked runtime validity code, the reduced
+  artifacts omit frozen claim/report fields, presentation-only ordering is
+  rejected, and model binding is inside the generic checker. The prior ratios
+  are retained only as configured lower bounds and the lab-local mutation and
+  responsibility scores as partial example tests. No production checker code
+  was integrated. The next experiment must faithfully implement the frozen
+  artifacts and adapter boundary or explicitly revise the design spec.
 
 ## Decisions and deviations
 

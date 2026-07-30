@@ -57,11 +57,12 @@ Other active feature worktrees and their owned files remain forbidden.
    Python package and test suite were removed after exact result differential
    parity and a final pinned Python oracle pass.**
 5. Recut the independent checker against the accepted TypeScript resolver.
-   **Blocked on an explicit design-spec 0003 revision after uncertainty 0004's
-   corrected three-way experiment found that every option failed the honest
-   size gate and the certificate also trusted acceptance-critical fields. The
-   next design step must address the size asymmetry or explicitly recut the
-   checked claim; observation authentication is outside the frozen contract.**
+   **Blocked on a faithful design-spec 0003 prototype or explicit reviewed
+   revision. Uncertainty 0004's partial three-way screen found that every
+   current prototype failed even its configured lower-bound size gate, while
+   exact-head review found incomplete frozen artifacts, presentation-order
+   defects, and a misplaced canonical adapter. Observation authentication is
+   outside the frozen contract.**
 6. Implement reference custody with explicit Git/filesystem/lock services.
    **Catalog/lock/offline-lock/offline-materialize/full-status boundary
    complete**
@@ -557,11 +558,12 @@ accepted; no new Python implementation is permitted.
   diff hygiene pass. The custody corpus is now 122 tests. Broad and Nix gates
   remain deferred under severe host I/O PSI despite a nearly idle direct NVMe
   sample and zero Btrfs device errors.
-- 2026-07-30: finalized uncertainty 0004's corrected disposable checker
-  experiment after a second exact-head review exposed trusted authored
-  identities and omitted validity-decoding lines. Seventeen focused tests and
-  233 assertions now cover 25 refreshed semantic mutations, four
-  producer-rederived stale authored identities, executable responsibility
-  witnesses, and an independent numerator-composition oracle. Honest ratios
-  are 406.2%, 449.3%, and 429.2%; no option is selected and no result
+- 2026-07-30: uncertainty 0004's partial disposable checker screen reached 17
+  focused tests and 233 assertions after correcting stale authored-identity and
+  structural-count omissions. A third fresh exact-head review reproduced the
+  configured 406.2%, 449.3%, and 429.2% ratios but rejected their complete
+  interpretation: the annotation oracle is not exhaustive, frozen claim/report
+  fields are absent, presentation-only ordering is rejected, and the canonical
+  adapter is folded into the generic checker. The ratios are retained as lower
+  bounds for the current prototypes. No option is selected and no result
   establishes CLM-0002.

@@ -1,4 +1,4 @@
-# Corrected independent resolution-checker recut experiment
+# Partial independent resolution-checker recut screen
 
 Date: 2026-07-30
 
@@ -6,53 +6,29 @@ Contract: `design-specs/0003-independent-resolution-checker.md`
 
 Uncertainty: `uncertainties/0004-independent-checker-recut.md`
 
-Corrected source inspected read-only:
-`2d9935159bd264620f677ca9955d19dadddd1b37`
+Exact source reviewed read-only:
+`916918b2107d7595add3266a55696f4cc136b93c`
 
 Rejected prior implementation: `a373ae955bae3b986ef028571cc14b79fc19f4ae`
 
-## Correction
+## Status
 
-The first version of this experiment was rejected by exact-head adversarial
-review because it answered a stronger question than frozen design spec 0003
-asks.
+This disposable TypeScript lab is a partial architecture screen, not a
+completed resolving experiment and not an implementation of frozen design
+spec 0003.
 
-It treated a self-consistent observation rebound as an authenticity challenge
-and silently required independent `ObservationCustody`. Spec 0003 instead fixes
-the authored inputs and canonical project-model bindings, checks consistency
-against those inputs, and explicitly disclaims truth or authenticity of
-producer observations.
+It is useful counterevidence against the three concrete prototypes as written.
+It does not establish exhaustive checker sizes, complete mutation or
+responsibility coverage, impossibility of any recut, or CLM-0002.
 
-The first lab also:
+No option is selected.
 
-- compressed the canonical nine-case result to two cases;
-- omitted the canonical broken-result binding of `7/9` and the
-  `insufficient-stock` and `missing-stock-is-zero` counterexamples;
-- credited stale certificate digests as semantic mutation rejection; and
-- used a tautological arithmetic assertion as its symmetry oracle.
+## Question screened
 
-A second exact-head review then found that the first correction still trusted
-stored authored theory, realization, recipe, and policy identities while
-claiming complete responsibility coverage. It also excluded
-validity-determining structural decoding from the checker numerator.
+Do the current disposable implementations of uncertainty 0004's three
+prescribed recuts show enough promise to continue unchanged?
 
-The final corrected experiment includes the existing correlated canonical
-evidence, reissues certificates after producer-controlled semantic changes,
-recomputes all four authored identity classes, separates a digest-only control,
-derives responsibility coverage from executable witnesses, and independently
-discovers every validity-affecting region that the checker numerator must
-contain.
-
-`ObservationCustody` may be a future authority extension. It is not a
-prerequisite for design spec 0003.
-
-## Question and options
-
-Can any of uncertainty 0004's three prescribed recuts satisfy the frozen
-mutation corpus, forbidden-capability closure, checker responsibilities, and
-honest 70% checker-to-production adjudication size gate?
-
-The disposable TypeScript lab compared:
+The lab compared:
 
 1. a shared declarative rule table with independently written evaluators;
 2. a minimal resolution certificate with exact whole-input binding; and
@@ -62,167 +38,172 @@ The disposable TypeScript lab compared:
 The decision cores are ordinary total TypeScript. Effect was not added because
 the lab contains no capability boundary.
 
-## Exact corrected result
+## Review history
 
-| Option | Production | Checker | Ratio | Semantic mutations | Responsibilities | Rebound | 70% gate |
+The first report was rejected because it silently strengthened design spec
+0003's fixed-input consistency claim into observation authentication,
+compressed the canonical nine cases to two, omitted the canonical broken
+binding of `7/9`, credited stale certificate digests as semantic rejection, and
+used a tautological arithmetic assertion as a symmetry oracle.
+
+The first correction restored the canonical evidence and refreshed semantic
+mutations. Exact-head review then found that it trusted stored authored theory,
+realization, recipe, and policy identities and excluded validity-affecting
+structural decoding from the checker numerator.
+
+The second correction added authored-identity probes, executable lab-local
+responsibility witnesses, and annotated-region composition checks. A fresh
+exact-head review reproduced every configured count but found four remaining
+frozen-contract gaps:
+
+1. the numerator oracle discovers only pre-annotated regions and cannot detect
+   validity-affecting runtime code omitted from both annotations and
+   configuration;
+2. the reduced claim and report omit required frozen fields, so the lab corpus
+   is not complete contract coverage;
+3. rule-table and recut reject presentation-only candidate or reason
+   permutations; and
+4. canonical inventory-model binding is folded into the generic checkers
+   instead of a separate thin adapter.
+
+The integrating agent therefore stopped extending the disposable lab and
+downgraded its evidence rather than letting a measurement prototype become an
+unbounded implementation side quest.
+
+## Reproduced configured results
+
+| Option | Production | Configured checker | Configured ratio | Lab semantic corpus | Lab responsibility witnesses | Rebound | 70% gate |
 |---|---:|---:|---:|---:|---:|---|---|
 | Declarative rule table | 81 | 329 | 406.2% | 25/25 rejected | 7/7 | rejected | fail |
 | Minimal certificate | 67 | 301 | 449.3% | 22/25 rejected | 5/7 | rejected | fail |
 | Structural/semantic recut | 72 | 309 | 429.2% | 25/25 rejected | 7/7 | rejected | fail |
 
-Counts are nonblank, noncomment physical lines inside explicit marked regions.
-Production denominators include policy decisions, terminal selection, exact
-selected identity, and assumption projection. No serializer, reporter, model
-adapter, fixture, test, measurement code, or structural decoder enlarges a
-denominator.
+These checker totals include every annotated validity region configured by the
+lab, including structural decoding and 47 lines of authored-identity
+recomputation. They omit shared canonical JSON/SHA-256/equality runtime code
+and cannot demonstrate that no unannotated validity path exists.
 
-Checker numerators include every validity-affecting checker-side region:
-structural decoding, exact packet and authored-identity recomputation,
-canonical evidence agreement, candidate coverage, semantic comparison,
-terminal checks, and selected identity/assumption checks. Explanations are
-reported separately because checker acceptance does not call them.
+The values are therefore conservative configured lower bounds for these
+prototypes, not exhaustive ratios for conforming implementations.
 
-The measurement oracle discovers marked validity regions through each
-checker's dependency closure and compares that set with the numerator. It
-finds eight discovered and eight included regions for every option, with no
-missing, extraneous, duplicate, overlapping, or double-counted regions. Its
-negative regression removes one packet-decoding region and detects the exact
-omission.
+All three lower bounds already exceed the frozen 70% gate. That falsifies the
+current implementations; it does not prove that a substantially redesigned
+implementation of an option cannot pass.
 
-The rule table has an additional 19-line correlated semantic contract. Even
-counting it symmetrically gives `(329 + 19) / (81 + 19) = 348%`; the size gate
-still fails.
+The rule table also has a separately reported 19-line shared semantic contract.
+Even adding that contract symmetrically gives
+`(329 + 19) / (81 + 19) = 348%`.
 
-## Corrected canonical rebound
+## Evidence retained
 
-The strongest rebound copies all nine passing observations from the pure
-packet to the authored broken subject, updates every represented
-producer-controlled binding, recomputes the packet identity, and lets each
-producer re-derive the complete claim or certificate.
+### Canonical rebound
 
-Both packets then appear eligible, so every producer consistently derives the
-terminal resolution `rejected: ambiguous_candidates`. Every checker still
-returns invalid because the forged broken packet derives `9/9` with no
-counterexamples while the fixed canonical adapter input binds that exact
-subject to:
+The fixture carries all nine canonical case IDs and binds the authored broken
+realization to:
 
 ```text
 7/9:insufficient-stock,missing-stock-is-zero
 ```
 
-The stable violation is `model_evidence_mismatch`.
+The strongest rebound copies all nine passing pure observations to the broken
+subject, refreshes producer-controlled fields and packet identity, and lets
+each producer rederive its artifact. Every producer emits
+`rejected: ambiguous_candidates`. Every checker then rejects the forged broken
+packet with `model_evidence_mismatch`.
 
-This detects inconsistency with a correlated canonical runtime-validation
-record. It does not establish that either the canonical summary or producer
-observations are true, authentic, independently witnessed, signed, or current.
-That limitation is already explicit in frozen spec 0003.
+This is consistency with a correlated canonical runtime-validation record. It
+does not establish that either observation is true, authentic, independently
+witnessed, signed, or current. Frozen spec 0003 already disclaims those
+properties; `ObservationCustody` is not its prerequisite.
 
-## Mutation classification
+### Refreshed mutation classifications
 
-The corrected 25-case semantic corpus refreshes packet identities and
-certificate bindings after producer-controlled changes. A separate control
-changes only the certificate digest and is classified as
-`digest_only_rejection`; it is excluded from the semantic score.
+The reduced 25-case lab corpus refreshes producer-controlled packet and
+certificate bindings after semantic changes. It includes four
+producer-rederived stale authored-identity probes. Every option rejects those
+four with the corresponding recomputed identity violation.
 
-The recomputing rule-table and recut checkers reject every semantic mutation,
-including:
+A separate certificate-digest-only control is classified
+`digest_only_rejection` and excluded from the semantic score.
 
-- recipe/result substitution and category relabeling;
-- changed case truth, subject, eligibility, reasons, terminal fields, and
-  assumptions;
-- candidate omission and duplication;
-- policy and canonical-model drift;
-- foreign packets, wrong obligations, unsupported ambiguity, and duplicate
-  authored candidates;
-- producer-rederived theory, realization, recipe, and policy content with stale
-  authored identities;
-- a reissued producer eligibility lie; and
-- the fully re-derived all-passing rebound.
+The certificate still accepts three refreshed semantic lies:
 
-The certificate accepts three refreshed producer lies:
+- changed candidate reasons;
+- omitted selected assumption; and
+- self-consistent eligibility manipulation.
 
-- a changed reason set;
-- an omitted selected assumption; and
-- a self-consistent eligibility manipulation.
+The `25/25`, `22/25`, and `25/25` scores describe this reduced lab corpus only.
+They are not the frozen mutation corpus because the reduced claim/report omit
+required fields.
 
-Its other 22 rejections contain independently recomputed semantic or canonical
-violations, rather than only stale-digest failures. The certificate therefore
-remains disqualified both by trusted acceptance-critical fields and by size.
+### Capability closure
 
-## Responsibility and closure checks
+The deterministic dependency scanner follows current relative imports,
+including type-only imports. No lab checker closure imports a production
+evaluator, certificate issuer, evidence runner, operation registry, domain
+transition, execution module, demo, filesystem, network, subprocess, plugin
+loader, mutation capability, or source worktree.
 
-Every counted region must have one ordered start/end pair and not overlap
-another region in the same numerator or denominator. Region labels describe
-ownership but do not earn coverage. Coverage comes from executable semantic
-mutations that must report the expected independently recomputed violation.
-The seven responsibilities are:
+All options share lab-local canonical JSON and SHA-256. That is a visible
+correlated-TCB assumption, not independent proof.
 
-1. exact artifact bindings;
-2. complete unique candidate coverage;
-3. derived evidence truth and counts;
-4. candidate eligibility and reasons;
-5. terminal result;
-6. selected identity and assumption projection; and
-7. canonical-model agreement.
+## Contract gaps that remain open
 
-Rule table and recut cover 7/7 through executable witnesses. The certificate
-covers 5/7 because refreshed reason, selected-assumption, and self-consistent
-eligibility lies remain accepted. A hard assertion prevents it from being
-reported responsibility-complete.
+The disposable artifacts do not faithfully implement:
 
-The deterministic dependency scanner follows every current relative import,
-including type-only imports. Manual review confirmed that no checker closure
-imports a production evaluator, certificate issuer, evidence runner, operation
-registry, domain transition, execution module, demo, filesystem, network,
-subprocess, plugin loader, mutation capability, or source-worktree module.
+- exact theory ID, obligation, and policy ID in the claim;
+- candidate theory targeting, realization assumptions, and embedded evidence
+  result or producer diagnostics;
+- a checker report containing recomputed terminal selection and separate
+  model-binding status;
+- presentation-only candidate and reason ordering; or
+- a thin inventory binding adapter outside the generic checker.
 
-All three share a lab-local canonical JSON and SHA-256 helper. That is an
-explicit correlated-TCB assumption. Measurement filesystem reads remain
-outside every checker closure.
+The annotated numerator audit also cannot discover runtime code lacking a
+marker. A future measurement must classify every executable checker-closure
+region as counted or explicitly excluded and demonstrate that an unmarked
+validity path fails the oracle.
 
 ## Conclusion
 
-Select no option under frozen design spec 0003.
+Reject all three current prototypes.
 
-The rule-table and recut options satisfy the corrected mutation,
-responsibility, and capability gates but independently fail the 70% size gate.
-The certificate additionally trusts acceptance-critical producer fields.
-Option 3 is the smallest responsibility-complete checker surface, but it is
-still 429.2% of its production adjudication surface.
+Uncertainty 0004 remains open. The next bounded step is either:
 
-No result establishes CLM-0002. The next design work must address the honest
-size asymmetry or explicitly recut the checked claim through a reviewed spec
-revision. It must not use observation authenticity as an unapproved reason to
-change the current contract.
+1. a faithful claim/report prototype with a separate canonical adapter,
+   positive ordering oracles, and exhaustive executable-region
+   classification; or
+2. an explicit reviewed recut of the checked claim and size criterion.
+
+No production checker code was integrated. No result establishes CLM-0002.
 
 ## Reuse and evidence limits
 
-The corrected lab reused its disposable architecture implementations,
-mutation runner, marked-region measurement, closure scanner, and canonical
-identity helper. It adapted, without importing:
+The lab reused its disposable prototype structure, mutation runner,
+marked-region measurement, closure scanner, and canonical identity helper. It
+adapted, without importing:
 
 - canonical `9/9` and `7/9` evidence summaries from
   `model/evidence/inventory-tracer.json`;
 - nine case IDs from `examples/inventory/evidence/conformance-v0.json`; and
 - aggregate derivation patterns from `src/tracer/evidence.ts`.
 
-No external dependency, generator, schema library, Effect layer, or new
-infrastructure was needed. No network or external code was used.
+No external dependency, generator, schema library, Effect layer, network, or
+external source code was used.
 
-The focused mutations are example tests. Executing the checkers and matrix is
-bounded runtime validation and source measurement, not proof.
+The focused mutations are `example_test` evidence. Executing the checkers and
+matrix is bounded `runtime_validation` and source measurement, not proof.
 
 ## Bounded validation
 
-The integrating agent independently reran:
+The integrating agent and fresh exact-head reviewer independently reran:
 
 ```bash
 bun test /tmp/semantic-checker-recut-lab
 bun /tmp/semantic-checker-recut-lab/matrix.ts
 ```
 
-Observed: 17 tests passed, 0 failed, 233 assertions. The matrix reproduced the
-exact ratios, mutation classifications, responsibility coverage, canonical
-rebound violation, complete numerator composition, and clean forbidden
-closures above. No Pagu, network, Nix, hydration, broad tests, fuzzing, or
-model checking was used.
+Observed: 17 tests passed, 0 failed, 233 assertions. The configured matrix
+reproduced the exact lower bounds and reduced-corpus results above. No Pagu,
+network, Nix, hydration, broad repository tests, fuzzing, or model checking was
+used.

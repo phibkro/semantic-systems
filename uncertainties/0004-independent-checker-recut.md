@@ -7,9 +7,10 @@ for a non-executing checker to reject the strongest fully re-derived rebound as
 a fixed-input inconsistency. They do not authenticate producer observations,
 and frozen design spec 0003 does not require them to do so.
 
-The unresolved obstacle is the honest size asymmetry: all three prescribed
-recuts exceed the 70% checker-to-production adjudication limit. The certificate
-also trusts acceptance-critical producer fields.
+The unresolved obstacle is a combination of size asymmetry and faithful
+contract coverage. All three current disposable prototypes exceed the 70%
+checker-to-production adjudication limit even under configured lower-bound
+counts. The certificate also trusts acceptance-critical producer fields.
 
 ## Supporting evidence
 
@@ -42,14 +43,20 @@ also trusts acceptance-critical producer fields.
   interpreters are separate.
 - A certificate can become a disguised producer assertion unless the checker
   derives every acceptance-critical field from independently available inputs.
-- The corrected bounded TypeScript resolving experiment compared all three
-  prescribed recuts. Honest checker/production adjudication ratios, including
-  all validity-affecting structural and identity regions, were 406.2% for the
-  declarative table, 449.3% for the certificate, and 429.2% for the
-  structural/semantic recut. All rejected four producer-rederived stale
-  authored-identity probes and the fully re-derived rebound through
-  canonical-model disagreement. The certificate accepted refreshed reason-set,
-  selected-assumption, and eligibility lies. See
+- The partial bounded TypeScript screen compared current implementations of
+  all three prescribed recuts. Configured checker/production lower bounds were
+  406.2% for the declarative table, 449.3% for the certificate, and 429.2% for
+  the structural/semantic recut. The annotation-dependent numerator oracle
+  cannot establish exhaustive counting.
+- All prototypes rejected four producer-rederived stale authored-identity
+  probes and the fully re-derived rebound through canonical-model
+  disagreement. The certificate accepted refreshed reason-set,
+  selected-assumption, and eligibility lies.
+- Exact-head review found that the reduced claim/report omit frozen fields,
+  rule-table and recut reject presentation-only permutations, and the canonical
+  inventory adapter is folded into the generic checkers. The lab mutation and
+  responsibility scores are therefore partial, not frozen-contract coverage.
+  See
   `research/independent-checker-recut-experiment.md`.
 
 ## Dependent work
@@ -61,7 +68,8 @@ also trusts acceptance-critical producer fields.
 
 ## Resolving experiment
 
-The disposable, read-only prototype comparison is complete:
+The first disposable prototype screen is complete, but the resolving
+experiment remains open:
 
 1. one declarative rule table with two independently implemented evaluators;
 2. one minimal certificate format with a checker that validates only the
@@ -76,11 +84,13 @@ Reject any option that passes by enlarging the production denominator,
 excluding semantic checker branches, sharing an adjudication implementation,
 or trusting producer-owned eligibility fields.
 
-No option met the decision criteria. The next resolving design work must
-address the honest checker/production size asymmetry or explicitly recut the
-checked claim through a reviewed design-spec revision. Observation custody may
-be explored as a separate future authority extension, but it is not a
-prerequisite or a repair for frozen design spec 0003.
+No current prototype met the decision criteria. The next resolving work is
+either a faithful claim/report prototype with a separate canonical adapter,
+positive presentation-order oracles, and exhaustive executable-region
+classification, or an explicit recut of the checked claim through a reviewed
+design-spec revision. Observation custody may be explored as a separate future
+authority extension, but it is not a prerequisite or a repair for frozen
+design spec 0003.
 
 ## Decision criteria
 
@@ -89,6 +99,7 @@ corpus, preserves typed evidence meanings, and meets the frozen 70% gate without
 measurement gaming. Otherwise reopen the semantic claim itself through an
 explicit design-spec revision.
 
-The “otherwise” branch is now active because every complete recut fails the
-size gate and the certificate also fails semantic mutation and responsibility
-coverage. No implementation option is selected.
+The “otherwise” branch is not yet justified as a claim recut: the current
+prototypes are incomplete. They are nevertheless rejected because even their
+configured lower-bound surfaces fail the size gate and their behavioral gaps
+fail the frozen contract. No implementation option is selected.
