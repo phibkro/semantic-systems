@@ -56,7 +56,7 @@ export class ActorMessageNotTransferable extends Data.TaggedError("ActorMessageN
   readonly cause: string;
 }> {
   override get message(): string {
-    return `message for actor ${this.actorId} is not structured-cloneable: ${this.cause}`;
+    return `message for actor ${this.actorId} is not transferable without shared memory: ${this.cause}`;
   }
 }
 
@@ -85,6 +85,45 @@ type MailboxSignal<Message, Event> = Envelope<Message, Event> | CloseSignal;
 const appendTrace = (trace: Ref.Ref<ReadonlyArray<ActorTrace>>, entry: ActorTrace) =>
   Ref.update(trace, (entries) => [...entries, entry]);
 
+const containsSharedMemory = (root: unknown): boolean => {
+  const pending: Array<unknown> = [root];
+  const visited = new Set<object>();
+  while (pending.length > 0) {
+    const value = pending.pop();
+    if (value instanceof SharedArrayBuffer) return true;
+    if (typeof value !== "object" || value === null || visited.has(value)) continue;
+    visited.add(value);
+    if (ArrayBuffer.isView(value)) {
+      pending.push(value.buffer);
+      continue;
+    }
+    if (value instanceof ArrayBuffer || value instanceof Date || value instanceof RegExp) continue;
+    if (value instanceof Map) {
+      for (const [key, entry] of value) pending.push(key, entry);
+      continue;
+    }
+    if (value instanceof Set) {
+      for (const entry of value) pending.push(entry);
+      continue;
+    }
+    for (const descriptor of Object.values(Object.getOwnPropertyDescriptors(value))) {
+      if ("value" in descriptor) pending.push(descriptor.value);
+    }
+  }
+  return false;
+};
+
+const cloneActorValue = <Value>(value: Value): Value => {
+  if (containsSharedMemory(value)) {
+    throw new TypeError("SharedArrayBuffer-backed values cannot cross an actor boundary");
+  }
+  const cloned = structuredClone(value);
+  if (containsSharedMemory(cloned)) {
+    throw new TypeError("SharedArrayBuffer-backed values cannot cross an actor boundary");
+  }
+  return cloned;
+};
+
 /**
  * Spawn one scoped actor.
  *
@@ -99,27 +138,31 @@ export const spawn = <Message, State, Event, TransitionError, Requirements>(
   definition: ActorDefinition<Message, State, Event, TransitionError, Requirements>,
 ): Effect.Effect<ActorRef<Message, Event>, InvalidActorDefinition, Requirements | Scope.Scope> =>
   Effect.gen(function* () {
-    if (definition.id.trim().length === 0) {
+    const actorId = definition.id;
+    const mailboxCapacity = definition.mailboxCapacity;
+    const transition = definition.transition;
+    const initialState = definition.initialState;
+    if (actorId.trim().length === 0) {
       return yield* new InvalidActorDefinition({ message: "actor id must be nonempty" });
     }
-    if (!Number.isSafeInteger(definition.mailboxCapacity) || definition.mailboxCapacity <= 0) {
+    if (!Number.isSafeInteger(mailboxCapacity) || mailboxCapacity <= 0) {
       return yield* new InvalidActorDefinition({
         message: "mailbox capacity must be a positive safe integer",
       });
     }
 
     const mailbox = yield* Queue.unbounded<MailboxSignal<Message, Event>>();
-    const capacity = yield* Semaphore.make(definition.mailboxCapacity);
+    const capacity = yield* Semaphore.make(mailboxCapacity);
     const acceptanceGate = yield* Semaphore.make(1);
     const trace = yield* Ref.make<ReadonlyArray<ActorTrace>>([]);
     const closed = yield* Deferred.make<ReadonlyArray<ActorTrace>>();
     let accepting: "open" | "closing" | "transition_failed" = "open";
     let nextSequence = 0;
     let privateState = yield* Effect.try({
-      try: () => structuredClone(definition.initialState),
+      try: () => cloneActorValue(initialState),
       catch: (cause) =>
         new InvalidActorDefinition({
-          message: `initial state must be structured-cloneable: ${String(cause)}`,
+          message: `initial state must be transferable without shared memory: ${String(cause)}`,
         }),
     });
 
@@ -129,7 +172,7 @@ export const spawn = <Message, State, Event, TransitionError, Requirements>(
       if (!alreadyClosed) {
         yield* appendTrace(trace, {
           kind: "closed",
-          actorId: definition.id,
+          actorId,
           acceptedCount: nextSequence,
         });
       }
@@ -147,7 +190,7 @@ export const spawn = <Message, State, Event, TransitionError, Requirements>(
               yield* Deferred.fail(
                 signal.receipt,
                 new ActorTransitionFailed({
-                  actorId: definition.id,
+                  actorId,
                   sequence: signal.sequence,
                   cause: `not processed because ${failure.message}`,
                 }),
@@ -168,31 +211,29 @@ export const spawn = <Message, State, Event, TransitionError, Requirements>(
 
         yield* appendTrace(trace, {
           kind: "started",
-          actorId: definition.id,
+          actorId,
           sequence: signal.sequence,
         });
         const result = yield* Effect.exit(
           Effect.try({
-            try: () => structuredClone(privateState),
+            try: () => cloneActorValue(privateState),
             catch: (cause) =>
               new ActorTransitionFailed({
-                actorId: definition.id,
+                actorId,
                 sequence: signal.sequence,
                 cause: `private state could not cross the transition boundary: ${String(cause)}`,
               }),
           }).pipe(
-            Effect.flatMap((transitionState) =>
-              definition.transition(signal.message, transitionState),
-            ),
+            Effect.flatMap((transitionState) => transition(signal.message, transitionState)),
             Effect.flatMap(([nextState, event]) =>
               Effect.try({
                 try: () =>
-                  [structuredClone(nextState), structuredClone(event)] as readonly [State, Event],
+                  [cloneActorValue(nextState), cloneActorValue(event)] as readonly [State, Event],
                 catch: (cause) =>
                   new ActorTransitionFailed({
-                    actorId: definition.id,
+                    actorId,
                     sequence: signal.sequence,
-                    cause: `transition result must be structured-cloneable: ${String(cause)}`,
+                    cause: `transition result must be transferable without shared memory: ${String(cause)}`,
                   }),
               }),
             ),
@@ -200,13 +241,13 @@ export const spawn = <Message, State, Event, TransitionError, Requirements>(
         );
         if (Exit.isFailure(result)) {
           const failure = new ActorTransitionFailed({
-            actorId: definition.id,
+            actorId,
             sequence: signal.sequence,
             cause: Cause.pretty(result.cause),
           });
           yield* appendTrace(trace, {
             kind: "transition_failed",
-            actorId: definition.id,
+            actorId,
             sequence: signal.sequence,
             cause: failure.cause,
           });
@@ -225,11 +266,11 @@ export const spawn = <Message, State, Event, TransitionError, Requirements>(
         privateState = result.value[0];
         yield* appendTrace(trace, {
           kind: "committed",
-          actorId: definition.id,
+          actorId,
           sequence: signal.sequence,
         });
         yield* Deferred.succeed(signal.receipt, {
-          actorId: definition.id,
+          actorId,
           sequence: signal.sequence,
           event: result.value[1],
         });
@@ -250,15 +291,15 @@ export const spawn = <Message, State, Event, TransitionError, Requirements>(
               if (accepting !== "open") {
                 yield* capacity.release(1);
                 return yield* new ActorClosed({
-                  actorId: definition.id,
+                  actorId,
                   reason: accepting === "transition_failed" ? "transition_failed" : "closed",
                 });
               }
               const ownedMessage = yield* Effect.try({
-                try: () => structuredClone(message),
+                try: () => cloneActorValue(message),
                 catch: (cause) =>
                   new ActorMessageNotTransferable({
-                    actorId: definition.id,
+                    actorId,
                     cause: String(cause),
                   }),
               }).pipe(Effect.tapError(() => capacity.release(1)));
@@ -273,7 +314,7 @@ export const spawn = <Message, State, Event, TransitionError, Requirements>(
               nextSequence = sequence;
               yield* appendTrace(trace, {
                 kind: "accepted",
-                actorId: definition.id,
+                actorId,
                 sequence,
               });
               if (!Queue.offerUnsafe(mailbox, envelope)) {
@@ -305,8 +346,8 @@ export const spawn = <Message, State, Event, TransitionError, Requirements>(
     yield* Effect.addFinalizer(() => close.pipe(Effect.asVoid));
 
     return {
-      id: definition.id,
-      mailboxCapacity: definition.mailboxCapacity,
+      id: actorId,
+      mailboxCapacity,
       send: (message) =>
         accept(message).pipe(Effect.flatMap((envelope) => Deferred.await(envelope.receipt))),
       close,

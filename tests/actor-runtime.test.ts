@@ -5,6 +5,7 @@ import {
   FreshIdentifier,
   inventoryActorDefinition,
 } from "../src/actor/inventory.ts";
+import { prepareActorScenarioInputs } from "../src/actor/journey.ts";
 import {
   ActorClosed,
   ActorMessageNotTransferable,
@@ -323,8 +324,118 @@ describe("minimal actor runtime", () => {
 
     expect(failure).toBeInstanceOf(InvalidActorDefinition);
     expect((failure as InvalidActorDefinition).message).toContain(
-      "initial state must be structured-cloneable",
+      "initial state must be transferable without shared memory",
     );
+  });
+
+  test("shared-memory values are rejected even when the host can structured-clone them", async () => {
+    const result = await run(
+      Effect.scoped(
+        Effect.gen(function* () {
+          const initialFailure = yield* spawn<
+            never,
+            { readonly buffer: SharedArrayBuffer },
+            never,
+            never,
+            never
+          >({
+            id: "shared-initial",
+            initialState: { buffer: new SharedArrayBuffer(4) },
+            mailboxCapacity: 1,
+            transition: (_, state) => Effect.succeed([state, undefined as never] as const),
+          }).pipe(Effect.flip);
+          const actor = yield* spawn<unknown, number, number, never, never>({
+            id: "shared-message",
+            initialState: 0,
+            mailboxCapacity: 1,
+            transition: (_, state) => Effect.succeed([state, state] as const),
+          });
+          const messageFailure = yield* actor
+            .send({ buffer: new SharedArrayBuffer(4) })
+            .pipe(Effect.flip);
+          const viewFailure = yield* actor
+            .send({ nested: { view: new Uint8Array(new SharedArrayBuffer(4)) } })
+            .pipe(Effect.flip);
+          yield* actor.close;
+          return { initialFailure, messageFailure, viewFailure };
+        }),
+      ),
+    );
+
+    expect(result.initialFailure).toBeInstanceOf(InvalidActorDefinition);
+    expect(result.messageFailure).toBeInstanceOf(ActorMessageNotTransferable);
+    expect(result.viewFailure).toBeInstanceOf(ActorMessageNotTransferable);
+  });
+
+  test("spawn snapshots the definition container before caller mutation", async () => {
+    const definition = {
+      id: "definition-original",
+      initialState: 0,
+      mailboxCapacity: 1,
+      transition: (message: number, state: number) =>
+        Effect.succeed([state + message, state + message] as const),
+    };
+    const result = await run(
+      Effect.scoped(
+        Effect.gen(function* () {
+          const actor = yield* spawn(definition);
+          definition.id = "definition-mutated";
+          definition.mailboxCapacity = 99;
+          definition.transition = (message, state) =>
+            Effect.succeed([state - message, state - message] as const);
+          const receipt = yield* actor.send(1);
+          const trace = yield* actor.close;
+          return { actor, receipt, trace };
+        }),
+      ),
+    );
+
+    expect(result.actor.id).toBe("definition-original");
+    expect(result.actor.mailboxCapacity).toBe(1);
+    expect(result.receipt).toEqual({
+      actorId: "definition-original",
+      sequence: 1,
+      event: 1,
+    });
+    expect(result.trace.every((entry) => entry.actorId === "definition-original")).toBe(true);
+  });
+
+  test("actor freshness inputs exclude guarded reservations that cannot request an identifier", async () => {
+    const scenario: JsonObject = {
+      initial_state: initialState as unknown as JsonObject,
+      steps: [
+        {
+          message: { kind: "Reserve", item: "apple", quantity: 0 },
+          fresh_id: "r-unused-invalid",
+        },
+        {
+          message: { kind: "Reserve", item: "apple", quantity: 99 },
+          fresh_id: "r-unused-insufficient",
+        },
+        {
+          message: { kind: "Reserve", item: "apple", quantity: 1 },
+          fresh_id: "r-used",
+        },
+      ],
+    };
+    const inputs = await run(prepareActorScenarioInputs(scenario));
+    const actorEvents = await run(
+      Effect.scoped(
+        Effect.gen(function* () {
+          const actor = yield* spawn(
+            inventoryActorDefinition("fresh-alignment", inputs.initialState, 1),
+          );
+          const events: Array<Event> = [];
+          for (const message of inputs.messages) events.push((yield* actor.send(message)).event);
+          yield* actor.close;
+          return events;
+        }).pipe(Effect.provide(deterministicFreshIdentifierLayer(inputs.freshIdentifiers))),
+      ),
+    );
+    const [pureEvents] = runSteps(initialState, inputs.steps, referenceTransition);
+
+    expect(inputs.freshIdentifiers).toEqual(["r-used"]);
+    expect([...actorEvents]).toEqual([...pureEvents]);
   });
 
   test("non-transferable transition output stops the actor as a transition failure", async () => {

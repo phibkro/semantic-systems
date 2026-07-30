@@ -113,6 +113,7 @@ const normalizeRuntime = (observation: JsonObject): JsonObject => ({
 const program = Effect.gen(function* () {
   for (const command of [
     ["bun", "test", "tests/actor-runtime.test.ts"],
+    [nodeExecutable, "--test", "tests/actor-runtime-node.test.ts"],
     ["bun", "run", "typecheck"],
     ["bun", "run", "lint"],
     [
@@ -121,6 +122,7 @@ const program = Effect.gen(function* () {
       "--check",
       "src/actor",
       "tests/actor-runtime.test.ts",
+      "tests/actor-runtime-node.test.ts",
       "scripts/accept/0012-minimal-actor-runtime.ts",
     ],
     ["bun", "test", "tests/inventory-tracer.test.ts"],

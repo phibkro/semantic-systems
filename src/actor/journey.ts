@@ -3,6 +3,7 @@ import { canonicalJson, contentIdentity, jsonEqual } from "../tracer/canonical.t
 import {
   parseMessage,
   parseState,
+  prepareReferenceTransition,
   referenceTransition,
   replay,
   runSteps,
@@ -63,33 +64,47 @@ export interface ActorJourneyObservation {
   readonly unsupported_guarantees: ReadonlyArray<string>;
 }
 
-interface ScenarioInputs {
+export interface ActorScenarioInputs {
   readonly initialState: ReturnType<typeof parseState>;
   readonly steps: ReadonlyArray<JsonObject>;
   readonly messages: ReadonlyArray<ReturnType<typeof parseMessage>>;
   readonly freshIdentifiers: ReadonlyArray<string>;
 }
 
-const scenarioInputs = (scenario: JsonObject): Effect.Effect<ScenarioInputs, DocumentError> =>
+export const prepareActorScenarioInputs = (
+  scenario: JsonObject,
+): Effect.Effect<ActorScenarioInputs, DocumentError> =>
   Effect.try({
     try: () => {
       const initialState = parseState(
         requireObject(requireKey(scenario, "initial_state", "scenario"), "scenario.initial_state"),
       );
       const steps = requireObjectList(requireKey(scenario, "steps", "scenario"), "scenario.steps");
+      let scenarioState = initialState;
+      const messages: Array<ReturnType<typeof parseMessage>> = [];
+      const freshIdentifiers: Array<string> = [];
+      for (const [index, step] of steps.entries()) {
+        const message = parseMessage(
+          requireObject(requireKey(step, "message", `step[${index}]`), `step[${index}].message`),
+        );
+        messages.push(message);
+        const prepared = prepareReferenceTransition(message, scenarioState);
+        if (prepared.kind === "complete") {
+          scenarioState = prepared.result[0];
+          continue;
+        }
+        const freshIdentifier = requireString(
+          requireKey(step, "fresh_id", `step[${index}]`),
+          `step[${index}].fresh_id`,
+        );
+        freshIdentifiers.push(freshIdentifier);
+        scenarioState = prepared.complete(freshIdentifier)[0];
+      }
       return {
         initialState,
         steps,
-        messages: steps.map((step, index) =>
-          parseMessage(
-            requireObject(requireKey(step, "message", `step[${index}]`), `step[${index}].message`),
-          ),
-        ),
-        freshIdentifiers: steps.flatMap((step, index) => {
-          const value = step.fresh_id;
-          if (value === undefined || value === null) return [];
-          return [requireString(value, `step[${index}].fresh_id`)];
-        }),
+        messages,
+        freshIdentifiers,
       };
     },
     catch: (cause) =>
@@ -132,7 +147,7 @@ export const runInventoryActorJourney = (
     const absoluteScenario = path.resolve(scenarioPath);
     const inventoryRoot = path.dirname(path.dirname(absoluteScenario));
     const fixture = yield* loadInventory(inventoryRoot, "development");
-    const inputs = yield* scenarioInputs(fixture.scenario);
+    const inputs = yield* prepareActorScenarioInputs(fixture.scenario);
     const theory = yield* normalizeTheory(fixture.theory);
     const theoryId = yield* Effect.try({
       try: () => requireString(requireKey(fixture.theory, "id", "theory"), "theory.id"),

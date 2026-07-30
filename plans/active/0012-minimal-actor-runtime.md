@@ -4,7 +4,7 @@ Canonical problem contract:
 [`design-specs/0012-minimal-actor-runtime.md`](../../design-specs/0012-minimal-actor-runtime.md).
 This mutable execution record must not redefine the frozen contract.
 
-Status: implementation green locally; ownership revision awaiting independent review
+Status: revision 2 green locally; fresh exact-head review required
 
 Owner: main integration agent
 
@@ -29,7 +29,8 @@ Owner: main integration agent
 - `scripts/oxlint/semantic-effect-rules.ts` only to add the actor portable
   closure and its two composition-root exclusions;
 - `src/actor/**`;
-- `tests/actor-runtime.test.ts`;
+- `tests/actor-runtime.test.ts` and
+  `tests/actor-runtime-node.test.ts`;
 - the smallest inventory-domain refactor required to expose the existing
   fresh-identifier seam;
 - `package.json` command additions;
@@ -143,3 +144,18 @@ paths, acceptance commands, expected deliverables, and this posture:
   structured-clone transfer. Twelve focused tests (33 expectations),
   TypeScript, and Oxlint are green; exact acceptance and independent review
   must be rerun before integration.
+- 2026-07-30: independent exact-head review rejected `e67686d`. Node preserved
+  `SharedArrayBuffer` backing where Bun copied it; invalid scenario steps
+  shifted the actor's deterministic freshness sequence; and the worker retained
+  the caller-mutable actor-definition container. Revision 2 excludes shared
+  memory, derives freshness from `prepareReferenceTransition`, snapshots
+  definition fields, and adds genuine-Node plus adversarial Bun gates. The
+  rejected head remains runtime-validation evidence only and is not
+  integrable.
+- 2026-07-30: revision 2 passes 15 focused Bun tests (42 expectations), one
+  genuine-Node shared-memory test, TypeScript, Oxlint, formatting, all 64
+  neighboring inventory tests (429 expectations), the semantic lint suite,
+  model validation, generated-view drift, Bun/Node demo parity, and the
+  guarded-freshness equivalence counterexample. These are local test,
+  static-analysis, and runtime-validation results; a fresh independent review
+  is still required.

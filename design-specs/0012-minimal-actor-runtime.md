@@ -12,6 +12,13 @@ requires structured-clone transfer for initial state, accepted messages,
 committed state, and receipt events. This strengthens the stated ownership
 claim without changing inventory semantics, mailbox order, or runtime support.
 
+Revision 2: exact-head review invalidated unrestricted structured-clone
+transfer because Node preserves `SharedArrayBuffer` backing while Bun copies it.
+Shared-memory values are now outside the v0 value subset. Spawn also snapshots
+the validated definition fields instead of retaining the caller's definition
+container. Scenario freshness inputs are derived from the prepared transition
+seam, not from every authored step.
+
 Semantic frontier: isolated state ownership, typed actor messaging, mailbox
 ordering, and inventory-realization equivalence
 
@@ -83,10 +90,19 @@ clone of current state rather than the actor's stored state. Successful
 transition state and event values are cloned separately before commit,
 preventing either the transition closure or receipt holder from retaining a
 mutable alias to actor state.
-Non-cloneable initial state is an invalid definition. Non-cloneable transition
-output is a typed transition failure and stops that actor. This deliberately
-limits v0 state, message, and event values to the structured-cloneable subset;
-it is runtime validation of confinement, not proof of affine ownership.
+Non-cloneable or shared-memory initial state is an invalid definition.
+Non-cloneable or shared-memory messages fail before acceptance. Equivalent
+transition output is a typed transition failure and stops that actor. This
+deliberately limits v0 values to the structured-cloneable subset excluding
+`SharedArrayBuffer` and views backed by it; it is runtime validation of
+confinement, not proof of affine ownership.
+
+Spawn reads and validates actor identity, mailbox capacity, transition
+function, and initial state once before its first suspension. The worker keeps
+those actor-owned field snapshots and never rereads the mutable definition
+container. The runtime cannot prevent a transition function from closing over
+external mutable values; such captures are explicit actor-definition
+assumptions rather than actor-state ownership.
 
 ### Mailbox semantics
 
@@ -153,7 +169,11 @@ Fresh reservation identifiers are supplied through a replaceable
 `FreshIdentifier` Effect capability. An identifier is requested only after the
 inventory guards establish that a reservation could otherwise succeed, matching
 the frozen inventory rule that invalid quantities do not request freshness.
-The bounded scenario supplies a deterministic identifier sequence.
+The bounded scenario supplies a deterministic identifier sequence derived in
+step order by `prepareReferenceTransition`. An authored `fresh_id` attached to
+a guarded invalid or insufficient reservation is ignored because that step
+cannot request freshness; the next eligible reservation receives its own
+authored identifier.
 
 The adapter must not copy the inventory transition rules into the actor
 runtime. A small refactor may expose the existing transition's
@@ -187,18 +207,22 @@ Before implementation, executable tests must observe red for:
 
 1. two sends completing without a real mailbox worker;
 2. reversed, duplicated, or skipped accepted sequence numbers;
-3. a public state getter or any retained mutable alias to initial state,
-   accepted messages, committed state, or returned events;
-4. non-transferable actor values crossing a boundary without the declared
+3. a public state getter, retained mutable definition container, or retained
+   alias to initial state, accepted messages, committed state, or returned
+   events;
+4. shared-memory or otherwise non-transferable actor values crossing a
+   boundary without the declared
    typed failure;
 5. post-close send acceptance or nontermination;
 6. close discarding an already accepted envelope;
 7. transition failure being rendered as a domain rejection;
 8. a caller interruption after acceptance cancelling actor-owned work;
 9. requesting a fresh identifier for an invalid reservation;
-10. actor events or replayed state diverging from the pure oracle;
-11. runtime-specific authority imported by the portable actor closure; and
-12. Bun and Node producing different normalized observations.
+10. invalid or insufficient scenario steps shifting the deterministic
+    identifier received by a later eligible reservation;
+11. actor events or replayed state diverging from the pure oracle;
+12. runtime-specific authority imported by the portable actor closure; and
+13. Bun and Node producing different normalized observations.
 
 Each oracle must fail for its intended semantic reason before the conforming
 implementation is accepted.
@@ -221,24 +245,29 @@ The first actor tracer is accepted only when:
 9. invalid inventory reservations do not consume a fresh identifier;
 10. initial state, accepted messages, committed state, and returned events do
     not share caller-mutable aliases;
-11. non-transferable values fail at their declared typed boundaries;
-12. the inventory actor event sequence equals the pure reference sequence;
-13. replay of actor events equals both actor and pure final observations;
-14. the trace states only the frozen ordering, delivery, and lifecycle
+11. actor definition fields are captured once and later container mutation
+    cannot change identity, capacity, or transition behavior;
+12. shared-memory and otherwise non-transferable values fail at their declared
+    typed boundaries under both Bun and Node;
+13. the inventory actor event sequence equals the pure reference sequence,
+    including a guarded-reservation freshness-alignment counterexample;
+14. replay of actor events equals both actor and pure final observations;
+15. the trace states only the frozen ordering, delivery, and lifecycle
     guarantees;
-15. Bun and Node live layers produce byte-equivalent normalized bounded
+16. Bun and Node live layers produce byte-equivalent normalized bounded
     observations;
-16. the portable actor core's transitive imports contain no concrete runtime
+17. the portable actor core's transitive imports contain no concrete runtime
     or ambient platform authority;
-17. existing inventory resolution, evidence, execution, and generated-view
+18. existing inventory resolution, evidence, execution, and generated-view
     oracles remain green; and
-18. no output upgrades tests, runtime validation, static analysis, or review
+19. no output upgrades tests, runtime validation, static analysis, or review
     into proof.
 
 ## Executable acceptance commands
 
 ```bash
 bun test tests/actor-runtime.test.ts
+node --test tests/actor-runtime-node.test.ts
 bun run typecheck
 bun run lint
 bunx oxfmt --check src/actor tests/actor-runtime.test.ts scripts/accept/0012-minimal-actor-runtime.ts
@@ -301,3 +330,10 @@ v0 accepts only structured-cloneable actor values and copies them at every
 ownership boundary. The initial opaque-reference contract and its earlier
 tests are invalidated as sufficient ownership evidence; the mutable-alias
 counterexamples and exact-head review must be rerun.
+
+Revision 2 narrows that subset to exclude shared memory, snapshots the actor
+definition container, and aligns deterministic freshness with the same
+prepared transition seam used by the actor adapter. The reviewed `e67686d`
+implementation and its demo-only parity result are invalidated; a fresh exact
+head must demonstrate the shared-memory and guarded-freshness counterexamples
+under the declared runtimes.
