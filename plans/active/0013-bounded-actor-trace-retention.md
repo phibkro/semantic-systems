@@ -19,6 +19,8 @@ Owner: main research and integration agent
 - A QEffect candidate located the same trace path, but its first exact-head
   review rejected its own evidence custody. The source counterexample stands
   independently; no QEffect claim is treated as authority.
+- Contract revision 1 advances the actor journey schema to version 2 rather
+  than silently changing the version 1 trace field shape.
 
 ## Owned paths
 
@@ -78,3 +80,24 @@ git diff --check
 
 - 2026-07-30: source counterexample independently confirmed; contract frozen
   for a representation-only correction.
+- 2026-07-30: evaluated Effect v4 `Chunk` append/drop and the existing
+  immutable-array actor pattern. No upstream code was copied. A capacity-capped
+  immutable array is smaller for this tracer, keeps the portable dependency
+  surface unchanged, and limits post-warm-up copying to the declared capacity
+  rather than lifetime history; a specialized ring remains a measured future
+  optimization, not a prerequisite.
+- 2026-07-30: implemented a required snapshotted trace capacity, deeply
+  immutable version-2 snapshots, exact total/eviction/completeness counters,
+  and a revised realization identity. The focused result is 23 Bun tests (182
+  expectations) plus two genuine-Node ownership tests.
+- 2026-07-30: exact 0013 acceptance passed, including the full exact 0012
+  acceptance, 64 inventory tests (429 expectations), seven semantic Effect
+  lint-rule tests, type checking, lint, formatting, model validation,
+  generated-view drift, portable-import inspection, and normalized Bun/Node
+  actor journey parity. These remain test, static-analysis, and
+  runtime-validation evidence; independent exact-head review is still
+  required.
+- 2026-07-30: the repository integration loop passed 320 Bun tests (1,618
+  expectations), Effect diagnostics with zero findings, and 68 Python
+  compatibility tests. The compatibility suite is retained migration
+  evidence, not new Python source or authority.

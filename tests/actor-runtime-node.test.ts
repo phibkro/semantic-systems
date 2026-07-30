@@ -45,12 +45,14 @@ test("Node rejects shared memory at actor ownership boundaries", async () => {
           id: "node-shared-initial",
           initialState: { buffer: new SharedArrayBuffer(4) },
           mailboxCapacity: 1,
+          traceCapacity: 64,
           transition: (_, state) => Effect.succeed([state, undefined as never] as const),
         }).pipe(Effect.flip);
         const actor = yield* spawn<unknown, number, number, never, never>({
           id: "node-shared-message",
           initialState: 0,
           mailboxCapacity: 1,
+          traceCapacity: 64,
           transition: (_, state) => Effect.succeed([state, state] as const),
         });
         const messageFailure = yield* actor
@@ -78,12 +80,14 @@ test("Node keeps hostile transfer failures in the typed channel", async () => {
           id: "node-hostile-initial",
           initialState: hostileTransferValue(),
           mailboxCapacity: 1,
+          traceCapacity: 64,
           transition: (_, state) => Effect.succeed([state, undefined as never] as const),
         }).pipe(Effect.flip);
         const actor = yield* spawn<object, number, number, never, never>({
           id: "node-hostile-message",
           initialState: 0,
           mailboxCapacity: 1,
+          traceCapacity: 64,
           transition: (_, state) => Effect.succeed([state, state] as const),
         });
         const messageFailure = yield* actor.send(hostileTransferValue()).pipe(Effect.flip);

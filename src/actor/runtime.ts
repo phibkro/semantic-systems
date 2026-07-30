@@ -22,6 +22,7 @@ export interface ActorDefinition<Message, State, Event, TransitionError, Require
   readonly id: string;
   readonly initialState: State;
   readonly mailboxCapacity: number;
+  readonly traceCapacity: number;
   readonly transition: (
     message: Message,
     state: State,
@@ -66,7 +67,16 @@ export interface ActorRef<Message, Event> {
   readonly id: string;
   readonly mailboxCapacity: number;
   readonly send: (message: Message) => Effect.Effect<DeliveryReceipt<Event>, ActorSendError>;
-  readonly close: Effect.Effect<ReadonlyArray<ActorTrace>>;
+  readonly close: Effect.Effect<ActorTraceSnapshot>;
+}
+
+export interface ActorTraceSnapshot {
+  readonly capacity: number;
+  readonly entries: ReadonlyArray<ActorTrace>;
+  readonly totalObserved: number;
+  readonly evicted: number;
+  readonly acceptedCount: number;
+  readonly completeHistory: boolean;
 }
 
 interface Envelope<Message, Event> {
@@ -82,8 +92,42 @@ interface CloseSignal {
 
 type MailboxSignal<Message, Event> = Envelope<Message, Event> | CloseSignal;
 
-const appendTrace = (trace: Ref.Ref<ReadonlyArray<ActorTrace>>, entry: ActorTrace) =>
-  Ref.update(trace, (entries) => [...entries, entry]);
+interface ActorTraceState {
+  readonly entries: ReadonlyArray<ActorTrace>;
+  readonly totalObserved: number;
+}
+
+const appendTrace = (
+  trace: Ref.Ref<ActorTraceState>,
+  capacity: number,
+  entry: ActorTrace,
+): Effect.Effect<void> =>
+  Ref.update(trace, (state) => ({
+    entries:
+      state.entries.length < capacity
+        ? [...state.entries, entry]
+        : [...state.entries.slice(1), entry],
+    totalObserved: state.totalObserved + 1,
+  }));
+
+const traceSnapshot = (
+  state: ActorTraceState,
+  capacity: number,
+  acceptedCount: number,
+): ActorTraceSnapshot => {
+  const entries = Object.freeze(
+    state.entries.map((entry) => Object.freeze({ ...entry }) as ActorTrace),
+  );
+  const evicted = state.totalObserved - entries.length;
+  return Object.freeze({
+    capacity,
+    entries,
+    totalObserved: state.totalObserved,
+    evicted,
+    acceptedCount,
+    completeHistory: evicted === 0,
+  });
+};
 
 const containsSharedMemory = (root: unknown): boolean => {
   const pending: Array<unknown> = [root];
@@ -171,6 +215,7 @@ export const spawn = <Message, State, Event, TransitionError, Requirements>(
   Effect.gen(function* () {
     const actorId = definition.id;
     const mailboxCapacity = definition.mailboxCapacity;
+    const traceCapacity = definition.traceCapacity;
     const transition = definition.transition;
     const initialState = definition.initialState;
     if (actorId.trim().length === 0) {
@@ -181,12 +226,17 @@ export const spawn = <Message, State, Event, TransitionError, Requirements>(
         message: "mailbox capacity must be a positive safe integer",
       });
     }
+    if (!Number.isSafeInteger(traceCapacity) || traceCapacity <= 0) {
+      return yield* new InvalidActorDefinition({
+        message: "trace capacity must be a positive safe integer",
+      });
+    }
 
     const mailbox = yield* Queue.unbounded<MailboxSignal<Message, Event>>();
     const capacity = yield* Semaphore.make(mailboxCapacity);
     const acceptanceGate = yield* Semaphore.make(1);
-    const trace = yield* Ref.make<ReadonlyArray<ActorTrace>>([]);
-    const closed = yield* Deferred.make<ReadonlyArray<ActorTrace>>();
+    const trace = yield* Ref.make<ActorTraceState>({ entries: [], totalObserved: 0 });
+    const closed = yield* Deferred.make<ActorTraceSnapshot>();
     let accepting: "open" | "closing" | "transition_failed" = "open";
     let nextSequence = 0;
     let privateState = yield* Effect.try({
@@ -198,16 +248,19 @@ export const spawn = <Message, State, Event, TransitionError, Requirements>(
     });
 
     const finishClosed = Effect.gen(function* () {
-      const entries = yield* Ref.get(trace);
+      const entries = (yield* Ref.get(trace)).entries;
       const alreadyClosed = entries.some((entry) => entry.kind === "closed");
       if (!alreadyClosed) {
-        yield* appendTrace(trace, {
+        yield* appendTrace(trace, traceCapacity, {
           kind: "closed",
           actorId,
           acceptedCount: nextSequence,
         });
       }
-      yield* Deferred.succeed(closed, yield* Ref.get(trace));
+      yield* Deferred.succeed(
+        closed,
+        traceSnapshot(yield* Ref.get(trace), traceCapacity, nextSequence),
+      );
     });
 
     const failPending = (failure: ActorTransitionFailed): Effect.Effect<void> =>
@@ -240,7 +293,7 @@ export const spawn = <Message, State, Event, TransitionError, Requirements>(
           return;
         }
 
-        yield* appendTrace(trace, {
+        yield* appendTrace(trace, traceCapacity, {
           kind: "started",
           actorId,
           sequence: signal.sequence,
@@ -276,7 +329,7 @@ export const spawn = <Message, State, Event, TransitionError, Requirements>(
             sequence: signal.sequence,
             cause: renderEffectCause(result.cause),
           });
-          yield* appendTrace(trace, {
+          yield* appendTrace(trace, traceCapacity, {
             kind: "transition_failed",
             actorId,
             sequence: signal.sequence,
@@ -295,7 +348,7 @@ export const spawn = <Message, State, Event, TransitionError, Requirements>(
         }
 
         privateState = result.value[0];
-        yield* appendTrace(trace, {
+        yield* appendTrace(trace, traceCapacity, {
           kind: "committed",
           actorId,
           sequence: signal.sequence,
@@ -343,7 +396,7 @@ export const spawn = <Message, State, Event, TransitionError, Requirements>(
                 receipt,
               };
               nextSequence = sequence;
-              yield* appendTrace(trace, {
+              yield* appendTrace(trace, traceCapacity, {
                 kind: "accepted",
                 actorId,
                 sequence,

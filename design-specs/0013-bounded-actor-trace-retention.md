@@ -6,6 +6,11 @@ Date: 2026-07-30
 
 Problem owner: main research and integration agent
 
+Revision 1: the actor journey schema version advances from 1 to 2 because the
+trace field changes from a lifetime array to a bounded snapshot object. Keeping
+version 1 would make an externally observable incompatible shape change
+indistinguishable from the accepted 0012 document.
+
 Supersedes one representation choice in design spec 0012: actor lifecycle
 observations are retained in a declared bounded window rather than an
 append-only lifetime array. It does not change mailbox ordering, delivery,
@@ -143,7 +148,8 @@ Its identity input gains:
 
 The observable actor journey includes the declared capacity, snapshot
 counters, and `completeHistory`. Runtime identity normalization remains
-presentation-only.
+presentation-only. Its `schema_version` is 2; version 1 remains the accepted
+0012 append-only observation shape and is not emitted by this realization.
 
 Tests and bounded executions are not upgraded to proof. A future accepted
 resource analyzer may report the corrected steady state as runtime-checked or

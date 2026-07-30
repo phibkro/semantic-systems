@@ -71,6 +71,7 @@ describe("minimal actor runtime", () => {
       definition_custody: "snapshot_fields_at_spawn.v1",
       transfer_failures: "typed_with_total_cause_rendering.v1",
       failure_stop: "linearized_before_current_receipt.v1",
+      trace_retention: "declared_bounded_window_with_exact_eviction_counters.v1",
     });
   });
 
@@ -78,7 +79,9 @@ describe("minimal actor runtime", () => {
     const observation = await run(
       Effect.scoped(
         Effect.gen(function* () {
-          const actor = yield* spawn(inventoryActorDefinition("inventory-actor", initialState, 2));
+          const actor = yield* spawn(
+            inventoryActorDefinition("inventory-actor", initialState, 2, 16),
+          );
           const receipts = [];
           for (const message of messages) receipts.push(yield* actor.send(message));
           const trace = yield* actor.close;
@@ -93,7 +96,7 @@ describe("minimal actor runtime", () => {
     expect(actorEvents).toEqual([...pureEvents]);
     expect(stateToJson(replay(initialState, actorEvents))).toEqual(stateToJson(pureState));
     expect(
-      observation.trace
+      observation.trace.entries
         .filter((entry) => entry.kind === "committed")
         .map((entry) => entry.sequence),
     ).toEqual([1, 2]);
@@ -118,7 +121,7 @@ describe("minimal actor runtime", () => {
           });
           const result = yield* Effect.gen(function* () {
             const actor = yield* spawn(
-              inventoryActorDefinition("inventory-freshness", initialState, 1),
+              inventoryActorDefinition("inventory-freshness", initialState, 1, 16),
             );
             const invalid = yield* actor.send({
               kind: "Reserve",
@@ -158,6 +161,7 @@ describe("minimal actor runtime", () => {
             id: "backpressure",
             initialState,
             mailboxCapacity: 1,
+            traceCapacity: 64,
             transition: (message, state) =>
               Effect.gen(function* () {
                 yield* Deferred.succeed(started, undefined);
@@ -186,10 +190,10 @@ describe("minimal actor runtime", () => {
     );
 
     expect(
-      trace.filter((entry) => entry.kind === "accepted").map((entry) => entry.sequence),
+      trace.entries.filter((entry) => entry.kind === "accepted").map((entry) => entry.sequence),
     ).toEqual([1]);
     expect(
-      trace.filter((entry) => entry.kind === "committed").map((entry) => entry.sequence),
+      trace.entries.filter((entry) => entry.kind === "committed").map((entry) => entry.sequence),
     ).toEqual([1]);
   });
 
@@ -203,6 +207,7 @@ describe("minimal actor runtime", () => {
             id: "owned-envelope",
             initialState: 0,
             mailboxCapacity: 1,
+            traceCapacity: 64,
             transition: (message, state) =>
               Effect.gen(function* () {
                 yield* Deferred.succeed(started, undefined);
@@ -219,7 +224,7 @@ describe("minimal actor runtime", () => {
       ),
     );
 
-    expect(trace.map((entry) => entry.kind)).toEqual([
+    expect(trace.entries.map((entry) => entry.kind)).toEqual([
       "accepted",
       "started",
       "committed",
@@ -239,6 +244,7 @@ describe("minimal actor runtime", () => {
             id: "value-boundary",
             initialState: mutableInitial,
             mailboxCapacity: 1,
+            traceCapacity: 64,
             transition: (message, state) =>
               Effect.gen(function* () {
                 yield* Deferred.succeed(started, undefined);
@@ -270,6 +276,7 @@ describe("minimal actor runtime", () => {
             id: "event-boundary",
             initialState: [],
             mailboxCapacity: 1,
+            traceCapacity: 64,
             transition: (message, state) => {
               const next = [...state, message];
               return Effect.succeed([next, next] as const);
@@ -296,6 +303,7 @@ describe("minimal actor runtime", () => {
             id: "transition-boundary",
             initialState: { count: 0 },
             mailboxCapacity: 1,
+            traceCapacity: 64,
             transition: (message, state) => {
               retainedState = state;
               state.count += message;
@@ -329,6 +337,7 @@ describe("minimal actor runtime", () => {
             id: "message-transfer",
             initialState: 0,
             mailboxCapacity: 1,
+            traceCapacity: 64,
             transition: (_, state) => Effect.succeed([state, state] as const),
           });
           const failure = yield* actor.send({ callback: () => undefined }).pipe(Effect.flip);
@@ -341,7 +350,7 @@ describe("minimal actor runtime", () => {
 
     expect(result.failure).toBeInstanceOf(ActorMessageNotTransferable);
     expect(result.postClose).toBeInstanceOf(ActorClosed);
-    expect(result.trace).toEqual([
+    expect(result.trace.entries).toEqual([
       { kind: "closed", actorId: "message-transfer", acceptedCount: 0 },
     ]);
   });
@@ -353,6 +362,7 @@ describe("minimal actor runtime", () => {
           id: "state-transfer",
           initialState: { callback: () => undefined },
           mailboxCapacity: 1,
+          traceCapacity: 64,
           transition: (_, state) => Effect.succeed([state, undefined as never] as const),
         }).pipe(Effect.flip),
       ),
@@ -378,12 +388,14 @@ describe("minimal actor runtime", () => {
             id: "shared-initial",
             initialState: { buffer: new SharedArrayBuffer(4) },
             mailboxCapacity: 1,
+            traceCapacity: 64,
             transition: (_, state) => Effect.succeed([state, undefined as never] as const),
           }).pipe(Effect.flip);
           const actor = yield* spawn<unknown, number, number, never, never>({
             id: "shared-message",
             initialState: 0,
             mailboxCapacity: 1,
+            traceCapacity: 64,
             transition: (_, state) => Effect.succeed([state, state] as const),
           });
           const messageFailure = yield* actor
@@ -411,12 +423,14 @@ describe("minimal actor runtime", () => {
             id: "hostile-initial",
             initialState: hostileTransferValue(),
             mailboxCapacity: 1,
+            traceCapacity: 64,
             transition: (_, state) => Effect.succeed([state, undefined as never] as const),
           }).pipe(Effect.flip);
           const messageActor = yield* spawn<object, number, number, never, never>({
             id: "hostile-message",
             initialState: 0,
             mailboxCapacity: 1,
+            traceCapacity: 64,
             transition: (_, state) => Effect.succeed([state, state] as const),
           });
           const messageFailure = yield* messageActor.send(hostileTransferValue()).pipe(Effect.flip);
@@ -425,6 +439,7 @@ describe("minimal actor runtime", () => {
             id: "hostile-output",
             initialState: 0,
             mailboxCapacity: 1,
+            traceCapacity: 64,
             transition: (message, state) =>
               Effect.succeed([state + message, hostileTransferValue()] as const),
           });
@@ -445,6 +460,7 @@ describe("minimal actor runtime", () => {
       id: "definition-original",
       initialState: 0,
       mailboxCapacity: 1,
+      traceCapacity: 64,
       transition: (message: number, state: number) =>
         Effect.succeed([state + message, state + message] as const),
     };
@@ -470,7 +486,9 @@ describe("minimal actor runtime", () => {
       sequence: 1,
       event: 1,
     });
-    expect(result.trace.every((entry) => entry.actorId === "definition-original")).toBe(true);
+    expect(result.trace.entries.every((entry) => entry.actorId === "definition-original")).toBe(
+      true,
+    );
   });
 
   test("actor freshness inputs exclude guarded reservations that cannot request an identifier", async () => {
@@ -496,7 +514,7 @@ describe("minimal actor runtime", () => {
       Effect.scoped(
         Effect.gen(function* () {
           const actor = yield* spawn(
-            inventoryActorDefinition("fresh-alignment", inputs.initialState, 1),
+            inventoryActorDefinition("fresh-alignment", inputs.initialState, 1, 16),
           );
           const events: Array<Event> = [];
           for (const message of inputs.messages) events.push((yield* actor.send(message)).event);
@@ -525,6 +543,7 @@ describe("minimal actor runtime", () => {
             id: "result-transfer",
             initialState: 0,
             mailboxCapacity: 1,
+            traceCapacity: 64,
             transition: (message, state) =>
               Effect.succeed([state + message, { callback: () => undefined }] as const),
           });
@@ -538,7 +557,7 @@ describe("minimal actor runtime", () => {
 
     expect(result.failure).toBeInstanceOf(ActorTransitionFailed);
     expect(result.future).toBeInstanceOf(ActorClosed);
-    expect(result.trace.some((entry) => entry.kind === "committed")).toBe(false);
+    expect(result.trace.entries.some((entry) => entry.kind === "committed")).toBe(false);
   });
 
   test("graceful close is idempotent and later sends fail visibly", async () => {
@@ -549,6 +568,7 @@ describe("minimal actor runtime", () => {
             id: "close",
             initialState: 0,
             mailboxCapacity: 1,
+            traceCapacity: 64,
             transition: (message, state) => Effect.succeed([state + message, message] as const),
           });
           const receipt = yield* actor.send(1);
@@ -574,6 +594,7 @@ describe("minimal actor runtime", () => {
             id: "failure",
             initialState: 0,
             mailboxCapacity: 2,
+            traceCapacity: 64,
             transition: () => Effect.fail("transition-defect" as const),
           });
           const first = yield* actor.send(1).pipe(Effect.flip);
@@ -589,12 +610,16 @@ describe("minimal actor runtime", () => {
     expect(result.second).toBeInstanceOf(ActorClosed);
     expect(result.future).toBeInstanceOf(ActorClosed);
     expect((result.future as ActorClosed).reason).toBe("transition_failed");
-    expect(result.trace.some((entry: ActorTrace) => entry.kind === "transition_failed")).toBe(true);
     expect(
-      result.trace.filter((entry) => entry.kind === "accepted").map((entry) => entry.sequence),
+      result.trace.entries.some((entry: ActorTrace) => entry.kind === "transition_failed"),
+    ).toBe(true);
+    expect(
+      result.trace.entries
+        .filter((entry) => entry.kind === "accepted")
+        .map((entry) => entry.sequence),
     ).toEqual([1]);
     expect(
-      result.trace.some(
+      result.trace.entries.some(
         (entry: ActorTrace) =>
           entry.kind === "committed" &&
           entry.sequence === (result.first as ActorTransitionFailed).sequence,
@@ -612,6 +637,7 @@ describe("minimal actor runtime", () => {
             id: "preaccepted-failure",
             initialState: 0,
             mailboxCapacity: 2,
+            traceCapacity: 64,
             transition: () =>
               Effect.gen(function* () {
                 yield* Deferred.succeed(started, undefined);
@@ -637,10 +663,12 @@ describe("minimal actor runtime", () => {
     expect(result.second).toBeInstanceOf(ActorTransitionFailed);
     expect(result.future).toBeInstanceOf(ActorClosed);
     expect(
-      result.trace.filter((entry) => entry.kind === "accepted").map((entry) => entry.sequence),
+      result.trace.entries
+        .filter((entry) => entry.kind === "accepted")
+        .map((entry) => entry.sequence),
     ).toEqual([1, 2]);
-    expect(result.trace.some((entry) => entry.kind === "started" && entry.sequence === 2)).toBe(
-      false,
-    );
+    expect(
+      result.trace.entries.some((entry) => entry.kind === "started" && entry.sequence === 2),
+    ).toBe(false);
   });
 });

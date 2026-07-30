@@ -25,7 +25,7 @@ import { deterministicFreshIdentifierLayer, inventoryActorDefinition } from "./i
 import {
   ActorRuntime,
   type ActorSendError,
-  type ActorTrace,
+  type ActorTraceSnapshot,
   type DeliveryReceipt,
   type InvalidActorDefinition,
 } from "./runtime.ts";
@@ -34,7 +34,7 @@ export type ActorRuntimeLayer = "bun" | "node";
 export type ActorJourneyError = DocumentError | InvalidActorDefinition | ActorSendError;
 
 export interface ActorJourneyObservation {
-  readonly schema_version: 1;
+  readonly schema_version: 2;
   readonly kind: "actor_runtime_observation";
   readonly runtime_layer: ActorRuntimeLayer;
   readonly actor_runtime_identity: string;
@@ -49,7 +49,7 @@ export interface ActorJourneyObservation {
   readonly accepted_order: ReadonlyArray<number>;
   readonly completed_order: ReadonlyArray<number>;
   readonly receipts: ReadonlyArray<DeliveryReceipt<Event>>;
-  readonly trace: ReadonlyArray<ActorTrace>;
+  readonly trace: ActorTraceSnapshot;
   readonly actor_events: ReadonlyArray<Event>;
   readonly pure_events: ReadonlyArray<Event>;
   readonly replayed_final_state: JsonObject;
@@ -75,6 +75,7 @@ export const actorRuntimeRealizationContract = {
   definition_custody: "snapshot_fields_at_spawn.v1",
   transfer_failures: "typed_with_total_cause_rendering.v1",
   failure_stop: "linearized_before_current_receipt.v1",
+  trace_retention: "declared_bounded_window_with_exact_eviction_counters.v1",
 } as const;
 
 export interface ActorScenarioInputs {
@@ -175,12 +176,18 @@ export const runInventoryActorJourney = (
       theoryId,
     );
     const mailboxCapacity = 2;
+    const traceCapacity = 16;
     const actorRuntimeIdentity = yield* contentIdentity(actorRuntimeRealizationContract);
 
     const actorResult = yield* Effect.scoped(
       Effect.gen(function* () {
         const actor = yield* ActorRuntime.spawn(
-          inventoryActorDefinition("actor.inventory.single", inputs.initialState, mailboxCapacity),
+          inventoryActorDefinition(
+            "actor.inventory.single",
+            inputs.initialState,
+            mailboxCapacity,
+            traceCapacity,
+          ),
         );
         const receipts: Array<DeliveryReceipt<Event>> = [];
         for (const message of inputs.messages) receipts.push(yield* actor.send(message));
@@ -206,7 +213,7 @@ export const runInventoryActorJourney = (
     const pureFinalState = stateToJson(pureState);
 
     return {
-      schema_version: 1,
+      schema_version: 2,
       kind: "actor_runtime_observation",
       runtime_layer: runtimeLayer,
       actor_runtime_identity: actorRuntimeIdentity,
@@ -218,7 +225,7 @@ export const runInventoryActorJourney = (
         delivery: "at_most_once_in_process",
         backpressure: "suspend_interruptibly_before_acceptance",
       },
-      accepted_order: actorResult.trace
+      accepted_order: actorResult.trace.entries
         .filter((entry) => entry.kind === "accepted")
         .map((entry) => entry.sequence),
       completed_order: actorResult.receipts.map((receipt) => receipt.sequence),

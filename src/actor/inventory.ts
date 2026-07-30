@@ -48,10 +48,12 @@ export const inventoryActorDefinition = (
   id: string,
   initialState: State,
   mailboxCapacity: number,
+  traceCapacity: number,
 ): ActorDefinition<Message, State, Event, FreshIdentifierExhausted, FreshIdentifier> => ({
   id,
   initialState,
   mailboxCapacity,
+  traceCapacity,
   transition: (message, state) =>
     Effect.gen(function* () {
       const prepared = prepareReferenceTransition(message, state);
