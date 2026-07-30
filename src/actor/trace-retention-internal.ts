@@ -43,11 +43,13 @@ export interface ActorTraceSnapshot {
 export interface ActorTraceState {
   readonly entries: ReadonlyArray<ActorTrace>;
   readonly totalObserved: bigint;
+  readonly acceptedCount: bigint;
 }
 
 export const emptyActorTraceState: ActorTraceState = Object.freeze({
   entries: Object.freeze([]),
   totalObserved: 0n,
+  acceptedCount: 0n,
 });
 
 /** @internal The only constructor for the opaque public counter value. */
@@ -57,31 +59,77 @@ export const actorExactCounter = (value: bigint): ActorExactCounter => {
 };
 
 /**
- * @internal Pure transition shared by the live Ref update and the MAX_SAFE
- * boundary oracle. Work and retained stock are bounded by capacity, never
- * lifetime.
+ * @internal Non-acceptance observation transition shared by the live Ref
+ * update and the MAX_SAFE boundary oracle. Work and retained stock are bounded
+ * by capacity, never lifetime.
  */
-export const appendActorTrace = (
+export const appendActorObservation = (
   state: ActorTraceState,
   capacity: number,
-  entry: ActorTrace,
+  entry: Exclude<ActorTrace, { readonly kind: "accepted" } | { readonly kind: "closed" }>,
 ): ActorTraceState => ({
   entries:
     state.entries.length < capacity
       ? [...state.entries, entry]
       : [...state.entries.slice(1), entry],
   totalObserved: state.totalObserved + 1n,
+  acceptedCount: state.acceptedCount,
 });
 
-/** @internal */
+/**
+ * @internal One accepted-envelope transition. The accepted observation and
+ * exact accepted count advance together under the live actor's Ref update.
+ */
+export const acceptActorEnvelope = (
+  state: ActorTraceState,
+  capacity: number,
+  actorId: string,
+  sequence: number,
+): ActorTraceState => {
+  const acceptedCount = state.acceptedCount + 1n;
+  const entry: ActorTrace = { kind: "accepted", actorId, sequence };
+  return {
+    entries:
+      state.entries.length < capacity
+        ? [...state.entries, entry]
+        : [...state.entries.slice(1), entry],
+    totalObserved: state.totalObserved + 1n,
+    acceptedCount,
+  };
+};
+
+/** @internal One closed observation derived from actor-owned counter state. */
+export const closeActorTrace = (
+  state: ActorTraceState,
+  capacity: number,
+  actorId: string,
+): ActorTraceState => {
+  const entry: ActorTrace = {
+    kind: "closed",
+    actorId,
+    acceptedCount: actorExactCounter(state.acceptedCount),
+  };
+  return {
+    entries:
+      state.entries.length < capacity
+        ? [...state.entries, entry]
+        : [...state.entries.slice(1), entry],
+    totalObserved: state.totalObserved + 1n,
+    acceptedCount: state.acceptedCount,
+  };
+};
+
+/** @internal Snapshot projection derived only from actor-owned counter state. */
 export const snapshotActorTrace = (
   state: ActorTraceState,
   capacity: number,
-  acceptedCount: bigint,
 ): ActorTraceSnapshot => {
   const retainedCount = BigInt(state.entries.length);
   if (state.totalObserved < retainedCount) {
     throw new RangeError("actor trace total cannot be smaller than its retained entry count");
+  }
+  if (state.acceptedCount < 0n || state.acceptedCount > state.totalObserved) {
+    throw new RangeError("actor accepted count must be non-negative and no greater than its trace");
   }
   const entries = Object.freeze(
     state.entries.map((entry) => Object.freeze({ ...entry }) as ActorTrace),
@@ -92,7 +140,7 @@ export const snapshotActorTrace = (
     entries,
     totalObserved: actorExactCounter(state.totalObserved),
     evicted: actorExactCounter(evicted),
-    acceptedCount: actorExactCounter(acceptedCount),
+    acceptedCount: actorExactCounter(state.acceptedCount),
     completeHistory: evicted === 0n,
   });
 };

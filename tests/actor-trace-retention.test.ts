@@ -8,8 +8,10 @@ import {
   type ActorTrace,
 } from "../src/actor/runtime.ts";
 import {
+  acceptActorEnvelope,
   actorExactCounter,
-  appendActorTrace,
+  appendActorObservation,
+  closeActorTrace,
   snapshotActorTrace,
   type ActorTraceState,
 } from "../src/actor/trace-retention-internal.ts";
@@ -78,7 +80,7 @@ describe("bounded actor trace retention", () => {
     expect(snapshot.completeHistory).toBe(false);
   });
 
-  test("keeps counters exact across the Number.MAX_SAFE_INTEGER boundary", () => {
+  test("the production accepted transition stays exact and distinct from observations", () => {
     const maximumSafe = BigInt(Number.MAX_SAFE_INTEGER);
     const injected: ActorTraceState = {
       entries: [
@@ -89,30 +91,35 @@ describe("bounded actor trace retention", () => {
         },
       ],
       totalObserved: maximumSafe,
+      acceptedCount: maximumSafe,
     };
-    const atBoundaryPlusOne = appendActorTrace(injected, 1, {
+    const afterObservation = appendActorObservation(injected, 2, {
       kind: "committed",
       actorId: "exact-boundary",
-      sequence: Number.MAX_SAFE_INTEGER,
+      sequence: 1,
     });
-    const afterBoundary = appendActorTrace(atBoundaryPlusOne, 1, {
-      kind: "closed",
-      actorId: "exact-boundary",
-      acceptedCount: actorExactCounter(maximumSafe + 2n),
-    });
-    const snapshot = snapshotActorTrace(afterBoundary, 1, maximumSafe + 2n);
+    expect(afterObservation.acceptedCount).toBe(maximumSafe);
+
+    const afterFirstAcceptance = acceptActorEnvelope(afterObservation, 2, "exact-boundary", 1);
+    expect(afterFirstAcceptance.acceptedCount).toBe(maximumSafe + 1n);
+    const afterSecondAcceptance = acceptActorEnvelope(afterFirstAcceptance, 2, "exact-boundary", 2);
+    expect(afterSecondAcceptance.acceptedCount).toBe(maximumSafe + 2n);
+
+    const afterClose = closeActorTrace(afterSecondAcceptance, 2, "exact-boundary");
+    const snapshot = snapshotActorTrace(afterClose, 2);
 
     expect(snapshot).toEqual({
-      capacity: 1,
+      capacity: 2,
       entries: [
+        { kind: "accepted", actorId: "exact-boundary", sequence: 2 },
         {
           kind: "closed",
           actorId: "exact-boundary",
           acceptedCount: exact(9_007_199_254_740_993n),
         },
       ],
-      totalObserved: exact(9_007_199_254_740_993n),
-      evicted: exact(9_007_199_254_740_992n),
+      totalObserved: exact(9_007_199_254_740_995n),
+      evicted: exact(9_007_199_254_740_993n),
       acceptedCount: exact(9_007_199_254_740_993n),
       completeHistory: false,
     });

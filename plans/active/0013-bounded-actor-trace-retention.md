@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0013-bounded-actor-trace-retention.md`](../../design-specs/0013-bounded-actor-trace-retention.md).
 This mutable plan records execution state and cannot redefine that contract.
 
-Status: exact-counter correction complete; independent exact-head re-review pending
+Status: accepted-counter custody correction complete; independent exact-head re-review pending
 
 Owner: main research and integration agent
 
@@ -138,3 +138,20 @@ git diff --check
   observes exact `9007199254740993` counters plus an ordinary-JSON round trip.
   This is bounded test/runtime-validation evidence, not proof of an unbounded
   actor execution.
+- 2026-07-30: independent exact-head review rejected `c7997cb` because
+  production held `acceptedCount` in a separate local bigint while the boundary
+  oracle supplied an independently manufactured value to snapshot projection.
+  The result was exact arithmetic but not evidence that production acceptance
+  increments the count exactly once. Correction moves the count into the pure
+  trace state: the live `Ref` and boundary oracle now share one
+  accepted-envelope transition, while generic observations cannot increment
+  accepted count and close/snapshot receive no separately authored count.
+- 2026-07-30: corrected exact 0013 acceptance passed 24 focused Bun tests (190
+  expectations), two genuine-Node ownership tests, exact 0012 regression
+  acceptance, inventory and semantic-lint regressions, type checking, strict
+  lint, formatting, model validation, generated-view drift, portable import
+  inspection, and normalized Bun/Node journey parity. The full integration loop
+  passed 321 Bun tests (1,626 expectations), Effect diagnostics with zero
+  findings, and 68 compatibility tests. This is bounded test,
+  static-analysis, and runtime-validation evidence; fresh independent
+  exact-head review remains required.

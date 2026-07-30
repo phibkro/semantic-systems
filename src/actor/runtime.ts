@@ -1,7 +1,8 @@
 import { Cause, Data, Deferred, Effect, Exit, Queue, Ref, Semaphore, type Scope } from "effect";
 import {
-  actorExactCounter,
-  appendActorTrace,
+  acceptActorEnvelope,
+  appendActorObservation,
+  closeActorTrace,
   emptyActorTraceState,
   snapshotActorTrace,
   type ActorTrace,
@@ -89,8 +90,17 @@ type MailboxSignal<Message, Event> = Envelope<Message, Event> | CloseSignal;
 const appendTrace = (
   trace: Ref.Ref<ActorTraceState>,
   capacity: number,
-  entry: ActorTrace,
-): Effect.Effect<void> => Ref.update(trace, (state) => appendActorTrace(state, capacity, entry));
+  entry: Exclude<ActorTrace, { readonly kind: "accepted" } | { readonly kind: "closed" }>,
+): Effect.Effect<void> =>
+  Ref.update(trace, (state) => appendActorObservation(state, capacity, entry));
+
+const acceptTrace = (
+  trace: Ref.Ref<ActorTraceState>,
+  capacity: number,
+  actorId: string,
+  sequence: number,
+): Effect.Effect<void> =>
+  Ref.update(trace, (state) => acceptActorEnvelope(state, capacity, actorId, sequence));
 
 const containsSharedMemory = (root: unknown): boolean => {
   const pending: Array<unknown> = [root];
@@ -202,7 +212,6 @@ export const spawn = <Message, State, Event, TransitionError, Requirements>(
     const closed = yield* Deferred.make<ActorTraceSnapshot>();
     let accepting: "open" | "closing" | "transition_failed" = "open";
     let nextSequence = 0;
-    let acceptedCount = 0n;
     let privateState = yield* Effect.try({
       try: () => cloneActorValue(initialState),
       catch: (cause) =>
@@ -215,16 +224,9 @@ export const spawn = <Message, State, Event, TransitionError, Requirements>(
       const entries = (yield* Ref.get(trace)).entries;
       const alreadyClosed = entries.some((entry) => entry.kind === "closed");
       if (!alreadyClosed) {
-        yield* appendTrace(trace, traceCapacity, {
-          kind: "closed",
-          actorId,
-          acceptedCount: actorExactCounter(acceptedCount),
-        });
+        yield* Ref.update(trace, (state) => closeActorTrace(state, traceCapacity, actorId));
       }
-      yield* Deferred.succeed(
-        closed,
-        snapshotActorTrace(yield* Ref.get(trace), traceCapacity, acceptedCount),
-      );
+      yield* Deferred.succeed(closed, snapshotActorTrace(yield* Ref.get(trace), traceCapacity));
     });
 
     const failPending = (failure: ActorTransitionFailed): Effect.Effect<void> =>
@@ -360,12 +362,7 @@ export const spawn = <Message, State, Event, TransitionError, Requirements>(
                 receipt,
               };
               nextSequence = sequence;
-              acceptedCount += 1n;
-              yield* appendTrace(trace, traceCapacity, {
-                kind: "accepted",
-                actorId,
-                sequence,
-              });
+              yield* acceptTrace(trace, traceCapacity, actorId, sequence);
               if (!Queue.offerUnsafe(mailbox, envelope)) {
                 return yield* Effect.die(
                   new Error("unbounded actor implementation queue rejected an accepted envelope"),

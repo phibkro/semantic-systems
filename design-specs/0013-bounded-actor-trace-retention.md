@@ -126,6 +126,14 @@ Repeated close returns the same settled snapshot. Scope finalization uses the
 same close path. Callers receive immutable values and cannot mutate the
 actor-owned retention state.
 
+`acceptedCount` is held in the same actor-private trace state as
+`totalObserved`. Acceptance performs one pure atomic state transition that
+appends exactly one `accepted` observation, increments `totalObserved` once,
+and increments `acceptedCount` once. Generic lifecycle observation transitions
+increment `totalObserved` but never `acceptedCount`. The final `closed` entry
+and public snapshot both derive their accepted count from that state; neither
+receives a separately authored counter.
+
 ### Retention semantics
 
 The private representation may be an immutable bounded sequence or ring
@@ -233,7 +241,9 @@ The feature is accepted only when:
 12. the portable actor import closure remains free of concrete runtime and
     ambient platform authority; and
 13. a bounded injected-state oracle crosses the safe-integer boundary through
-    the same pure counter transition used by the runtime and remains exact; and
+    the same pure accepted-envelope transition used exactly once per production
+    acceptance, distinguishes generic observation from acceptance, and makes a
+    missing or double accepted-count increment fail; and
 14. reports distinguish test, static analysis, runtime validation, analyzer
     output, review, and assumption.
 
