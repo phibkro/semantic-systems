@@ -18,6 +18,7 @@ import {
   mkdtemp,
   readFile,
   readdir,
+  readlink,
   rm,
   stat,
   symlink,
@@ -25,7 +26,17 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { Cause, Effect, Exit, FileSystem, Layer, Option, type Crypto, type Path } from "effect";
+import {
+  Cause,
+  Effect,
+  Exit,
+  FileSystem,
+  Layer,
+  Option,
+  PlatformError,
+  type Crypto,
+  type Path,
+} from "effect";
 import type { ChildProcessSpawner } from "effect/unstable/process";
 import { lockFromLocalSibling } from "../src/references/acquire.ts";
 import {
@@ -334,11 +345,39 @@ const installObjectCache = async (
   project: string,
   sibling: string,
   sourceId = "demo.repo",
+  origin = "https://example.com/demo.git",
 ): Promise<string> => {
   const cache = join(project, ".references", sourceId, ".git-cache");
   await mkdir(join(project, ".references", sourceId), { recursive: true });
   runCommand(["git", "clone", "--bare", "--quiet", sibling, cache], project);
+  runCommand(["git", "-C", cache, "remote", "set-url", "origin", origin], project);
   return cache;
+};
+
+const directoryByteSnapshot = async (root: string, relative = ""): Promise<string> => {
+  const directory = join(root, relative);
+  const entries = await readdir(directory, { withFileTypes: true });
+  entries.sort((left, right) => left.name.localeCompare(right.name));
+  const records: Array<string> = [];
+  for (const entry of entries) {
+    const child = relative === "" ? entry.name : join(relative, entry.name);
+    const absolute = join(root, child);
+    if (entry.isDirectory()) {
+      records.push(`directory ${child}`);
+      records.push(await directoryByteSnapshot(root, child));
+    } else if (entry.isFile()) {
+      const bytes = await readFile(absolute);
+      const mode = (await stat(absolute)).mode;
+      records.push(
+        `file ${child} ${mode.toString(8)} ${createHash("sha256").update(bytes).digest("hex")}`,
+      );
+    } else if (entry.isSymbolicLink()) {
+      records.push(`symlink ${child} ${await readlink(absolute)}`);
+    } else {
+      records.push(`other ${child}`);
+    }
+  }
+  return records.join("\n");
 };
 
 const BASE_CATALOG = `
@@ -851,6 +890,25 @@ describe("reference custody Effect v4 slice: managed offline object cache", () =
     expect(result.locked.get("demo.repo")?.commit).toBe(cachedCommit);
   });
 
+  test("rejects a managed cache whose raw origin differs from the catalog", async () => {
+    const fixture = await localSiblingFixture();
+    const cache = await installObjectCache(fixture.project, fixture.sibling);
+    runCommand(
+      ["git", "-C", cache, "remote", "set-url", "origin", "https://example.com/wrong.git"],
+      fixture.project,
+    );
+    await mkdir(join(fixture.project, "references"));
+    await writeFile(join(fixture.project, "references", "sources.toml"), fixture.sourceText);
+
+    const result = await runBun(
+      lockOfflineSources(fixture.project, ["demo.repo"], "semantic-systems/0.0.0"),
+    );
+    expect(result.committed).toBeFalse();
+    expect(result.failures).toHaveLength(1);
+    expect(result.failures[0]?.error).toBeInstanceOf(AcquisitionError);
+    expect(result.failures[0]?.error.message).toContain("does not match declared origin");
+  });
+
   test("falls back to the declared sibling when the cache lacks the selector", async () => {
     const fixture = await localSiblingFixture();
     const expectedCommit = runCommand(["git", "rev-parse", "HEAD"], fixture.sibling);
@@ -865,6 +923,68 @@ describe("reference custody Effect v4 slice: managed offline object cache", () =
     expect(result.committed).toBeTrue();
     expect(result.locked.get("demo.repo")?.acquisition).toBe("local-sibling");
     expect(result.locked.get("demo.repo")?.commit).toBe(expectedCommit);
+  });
+
+  test("does not fall back to the sibling for an operational cache failure", async () => {
+    const fixture = await localSiblingFixture();
+    const cache = join(fixture.project, ".references", "demo.repo", ".git-cache");
+    await mkdir(cache, { recursive: true });
+    runCommand(["git", "init", "--bare", "--quiet", cache], fixture.project);
+    runCommand(
+      ["git", "-C", cache, "remote", "add", "origin", "https://example.com/demo.git"],
+      fixture.project,
+    );
+    await mkdir(join(cache, "refs", "heads"), { recursive: true });
+    await writeFile(join(cache, "refs", "heads", "main"), `${"f".repeat(40)}\n`);
+    await mkdir(join(fixture.project, "references"));
+    await writeFile(join(fixture.project, "references", "sources.toml"), fixture.sourceText);
+
+    const result = await runBun(
+      lockOfflineSources(fixture.project, ["demo.repo"], "semantic-systems/0.0.0"),
+    );
+    expect(result.committed).toBeFalse();
+    expect(result.failures).toHaveLength(1);
+    expect(result.failures[0]?.error).toBeInstanceOf(AcquisitionError);
+    expect(result.failures[0]?.error.message).toContain("rev-parse --verify");
+  });
+
+  test("fails closed when no-follow inspection itself fails", async () => {
+    const fixture = await localSiblingFixture();
+    await installObjectCache(fixture.project, fixture.sibling);
+    const referencesRoot = join(fixture.project, ".references");
+
+    const exit = await Effect.runPromiseExit(
+      Effect.gen(function* () {
+        const live = yield* FileSystem.FileSystem;
+        const faulty = FileSystem.make({
+          ...live,
+          readLink: (path) =>
+            path.endsWith(".git-cache")
+              ? Effect.fail(
+                  PlatformError.systemError({
+                    _tag: "PermissionDenied",
+                    module: "FileSystem",
+                    method: "readLink",
+                    pathOrDescriptor: path,
+                    cause: Object.assign(new Error("injected readLink failure"), {
+                      code: "EACCES",
+                    }),
+                  }),
+                )
+              : live.readLink(path),
+        });
+        return yield* inspectObjectCache(referencesRoot, "demo.repo").pipe(
+          Effect.provideService(FileSystem.FileSystem, faulty),
+        );
+      }).pipe(Effect.provide([BunFileSystem.layer, BunPath.layer])),
+    );
+    expect(Exit.isFailure(exit)).toBeTrue();
+    if (!Exit.isFailure(exit)) throw new Error("expected no-follow inspection failure");
+    const failure = Cause.findErrorOption(exit.cause);
+    expect(Option.isSome(failure)).toBeTrue();
+    if (!Option.isSome(failure)) throw new Error("expected typed no-follow inspection failure");
+    expect(failure.value).toBeInstanceOf(AcquisitionError);
+    expect(failure.value.message).toContain("without following links");
   });
 
   for (const symlinkPosition of ["source-root", "object-cache"] as const) {
@@ -951,6 +1071,15 @@ describe("reference custody Effect v4 slice: managed offline object cache", () =
         "process.exit(1);\n",
     );
     await chmod(helper, 0o755);
+    runCommand(["git", "-C", cache, "remote", "rename", "origin", "promisor"], fixture.project);
+    runCommand(
+      ["git", "-C", cache, "update-ref", "-d", "refs/remotes/promisor/main"],
+      fixture.project,
+    );
+    runCommand(
+      ["git", "-C", cache, "symbolic-ref", "-d", "refs/remotes/promisor/HEAD"],
+      fixture.project,
+    );
     runCommand(
       [
         "git",
@@ -958,11 +1087,45 @@ describe("reference custody Effect v4 slice: managed offline object cache", () =
         cache,
         "remote",
         "set-url",
-        "origin",
+        "promisor",
         `custodyprobe::file://${fixture.sibling}`,
       ],
       fixture.project,
     );
+    runCommand(
+      ["git", "-C", cache, "remote", "add", "origin", "https://example.com/demo.git"],
+      fixture.project,
+    );
+    const licenseOid = runCommand(
+      ["git", "-C", cache, "ls-tree", "HEAD", "--", "LICENSE"],
+      fixture.project,
+    ).split(/\s+/)[2];
+    if (licenseOid === undefined) throw new Error("partial cache did not retain the license tree");
+    const probeEnvironment: Record<string, string | undefined> = {
+      ...process.env,
+      PATH: `${bin}:${process.env.PATH ?? ""}`,
+    };
+    delete probeEnvironment.GIT_NO_LAZY_FETCH;
+    const missingCheck = Bun.spawnSync({
+      cmd: ["git", "-C", cache, "cat-file", "-e", `${licenseOid}^{blob}`],
+      cwd: fixture.project,
+      env: { ...probeEnvironment, GIT_NO_LAZY_FETCH: "1" },
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    expect(missingCheck.exitCode).not.toBe(0);
+    expect(await Bun.file(marker).exists()).toBeFalse();
+    const positiveControl = Bun.spawnSync({
+      cmd: ["git", "-C", cache, "cat-file", "blob", licenseOid],
+      cwd: fixture.project,
+      env: probeEnvironment,
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    expect(positiveControl.exitCode).not.toBe(0);
+    expect(await Bun.file(marker).exists()).toBeTrue();
+    await rm(marker);
+    const cacheBefore = await directoryByteSnapshot(cache);
     await mkdir(join(fixture.project, "references"));
     await writeFile(
       join(fixture.project, "references", "sources.toml"),
@@ -984,7 +1147,10 @@ describe("reference custody Effect v4 slice: managed offline object cache", () =
     );
     expect(result.committed).toBeFalse();
     expect(result.failures).toHaveLength(1);
+    expect(result.failures[0]?.error).toBeInstanceOf(AcquisitionError);
+    expect(result.failures[0]?.error.message).toContain('invalid ls-tree size for "LICENSE"');
     expect(await Bun.file(marker).exists()).toBeFalse();
+    expect(await directoryByteSnapshot(cache)).toBe(cacheBefore);
   });
 });
 
@@ -1534,10 +1700,15 @@ describe("reference custody Effect v4 slice: CLI parity with Python", () => {
     }
     expect(node.stderr).toBe("");
     expect(node.stdout.trim()).toBe(`demo.repo: locked at ${expectedCommit}`);
+    const nodeLock = await runBun(loadLock(lockPath));
+    const nodeEntry = nodeLock.sources.get("demo.repo");
+    if (nodeEntry === undefined) throw new Error("Node did not publish the cache lock entry");
+    const distinctiveTimestamp = "2001-02-03T04:05:06Z";
+    const sources = new Map(nodeLock.sources);
+    sources.set("demo.repo", { ...nodeEntry, retrievedAt: distinctiveTimestamp });
+    await runBun(writeLock(lockPath, { generator: nodeLock.generator, sources }));
     const firstBytes = await readFile(lockPath);
     const firstStat = await stat(lockPath);
-    const lock = await runBun(loadLock(lockPath));
-    expect(lock.sources.get("demo.repo")?.acquisition).toBe("local-object-cache");
 
     const bun = runTsCli(args);
     expect(bun.exitCode).toBe(0);
@@ -1545,6 +1716,9 @@ describe("reference custody Effect v4 slice: CLI parity with Python", () => {
     expect(bun.stdout).toBe(node.stdout);
     expect(await readFile(lockPath)).toEqual(firstBytes);
     expect((await stat(lockPath)).ino).toBe(firstStat.ino);
+    const lock = await runBun(loadLock(lockPath));
+    expect(lock.sources.get("demo.repo")?.acquisition).toBe("local-object-cache");
+    expect(lock.sources.get("demo.repo")?.retrievedAt).toBe(distinctiveTimestamp);
   });
 
   test("catalog-check on the real repository catalog is byte-identical to Python", () => {

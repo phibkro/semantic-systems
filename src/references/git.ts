@@ -278,6 +278,43 @@ export const resolveCommit = (repository: string, revision: string) =>
     Effect.map((result) => text(result).trim()),
   );
 
+/**
+ * Resolve a commit selector, returning `null` only for Git's quiet
+ * selector-absent result. Operational, repository, and object failures remain
+ * typed acquisition errors and must not be mistaken for cache absence.
+ */
+export const resolveCommitIfPresent = (
+  repository: string,
+  revision: string,
+): Effect.Effect<
+  string | null,
+  AcquisitionError,
+  ChildProcessSpawner.ChildProcessSpawner | GitEnvironment
+> =>
+  rejectOptionLike("revision", revision).pipe(
+    Effect.andThen(
+      runGit(["-C", repository, "rev-parse", "--verify", "--quiet", revision], {
+        check: false,
+      }),
+    ),
+    Effect.flatMap((probe) => {
+      const object = text(probe).trim();
+      if (probe.exitCode === 1 && object.length === 0 && probe.stderr.trim().length === 0) {
+        return Effect.succeed(null);
+      }
+      if (probe.exitCode !== 0 || object.length === 0) {
+        return Effect.fail(
+          new AcquisitionError({
+            message:
+              `cannot probe commit selector ${JSON.stringify(revision)} in ` +
+              `${JSON.stringify(repository)} (exit ${probe.exitCode}): ${probe.stderr.trim()}`,
+          }),
+        );
+      }
+      return resolveCommit(repository, revision);
+    }),
+  );
+
 export const treeOfCommit = (repository: string, commit: string) =>
   rejectOptionLike("commit", commit).pipe(
     Effect.andThen(runGit(["-C", repository, "rev-parse", "--verify", `${commit}^{tree}`])),

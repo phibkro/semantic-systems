@@ -366,10 +366,13 @@ accepted; no new Python implementation is permitted.
 - 2026-07-30: ported read-only offline fallback to the existing managed
   `.references/<id>/.git-cache`. The implementation first inspects the custody
   root, source root, and cache as real directories without following stable
-  symlinks; a present unsafe or non-directory component fails closed. A cache
-  that resolves the requested selector is preferred, matching the transitional
-  Python oracle; an absent cache or one lacking that selector falls back to the
-  declared origin-matched sibling. Both acquisition kinds share one committed
+  symlinks; only concrete `ENOENT`/`EINVAL` read-link results continue, while
+  other inspection failures and any unsafe or non-directory component fail
+  closed. A cache must expose exactly one raw `remote.origin.url` equal to the
+  declared origin; catalog aliases remain sibling-only. A cache that resolves
+  the requested selector is preferred. Only a typed selector-absent probe
+  falls back to the declared origin-matched sibling; repository, object, and
+  process failures remain visible. Both acquisition kinds share one committed
   object, concrete-ref, tree, and license-blob observer and the same
   transport-denying Git capability. No cache bytes are created or mutated.
   The prior Python path helper and resolver order were evaluated and adapted;
@@ -378,9 +381,17 @@ accepted; no new Python implementation is permitted.
   Oracles cover cache-only custody, cache preference over a newer sibling,
   selector fallback, source/cache symlink escape, a non-directory cache, and a
   real partial-promisor cache whose missing license blob must fail without
-  invoking its executable transport canary. A fresh cache-backed mutation runs
-  under Node followed by a byte/inode-stable Bun re-lock. TypeScript, oxlint,
-  formatting, diff hygiene, and all 67 focused custody tests pass. Remote cache
-  construction/publication and materialization remain deferred. Nix and broad
-  integration gates were not run while host I/O full pressure remained above
-  80%.
+  invoking its executable transport canary; a positive control first proves
+  the blob is absent and that the same read can reach and execute that helper
+  when offline denial is absent. The rejected production read preserves a
+  recursive cache byte/mode snapshot. Additional oracles reject cache-origin
+  mismatch, distinguish selector absence from operational failure, and inject
+  a no-follow inspection failure. A fresh cache-backed mutation runs under
+  Node; the Bun re-lock preserves a distinctive historical timestamp plus the
+  exact bytes and inode, proving content reuse rather than same-second
+  coincidence. Initial exact-head review of `defdf08` exposed the cache
+  identity, fallback, no-follow, and evidence gaps; the corrections pass
+  TypeScript, oxlint, formatting, diff hygiene, and all 70 focused custody
+  tests. Remote cache construction/publication and materialization remain
+  deferred. Nix and broad integration gates were not run while host I/O full
+  pressure remained above 80%.

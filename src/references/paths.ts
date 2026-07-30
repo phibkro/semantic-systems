@@ -1,4 +1,4 @@
-import { Effect, Exit, FileSystem, Path } from "effect";
+import { Effect, FileSystem, Path } from "effect";
 import { isValidSourceId } from "./catalog.ts";
 import { AcquisitionError } from "./errors.ts";
 
@@ -8,14 +8,33 @@ const pathError = (message: string, cause?: unknown) =>
     ...(cause === undefined ? {} : { cause }),
   });
 
+const errnoCode = (cause: unknown): string | null => {
+  if (typeof cause !== "object" || cause === null || !("reason" in cause)) return null;
+  const reason = cause.reason;
+  if (typeof reason !== "object" || reason === null || !("cause" in reason)) return null;
+  const original = reason.cause;
+  if (typeof original !== "object" || original === null || !("code" in original)) return null;
+  return typeof original.code === "string" ? original.code : null;
+};
+
 const inspectDirectory = (
   path: string,
   label: string,
 ): Effect.Effect<string | null, AcquisitionError, FileSystem.FileSystem> =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
-    const link = yield* fs.readLink(path).pipe(Effect.exit);
-    if (Exit.isSuccess(link)) {
+    const link = yield* fs.readLink(path).pipe(
+      Effect.map((target) => ({ linked: true as const, target })),
+      Effect.catch((cause) => {
+        const code = errnoCode(cause);
+        return code === "EINVAL" || code === "ENOENT"
+          ? Effect.succeed({ linked: false as const })
+          : Effect.fail(
+              pathError(`cannot inspect ${label} ${path} without following links`, cause),
+            );
+      }),
+    );
+    if (link.linked) {
       return yield* pathError(`${label} ${path} is an unsafe symlink`);
     }
     const exists = yield* fs

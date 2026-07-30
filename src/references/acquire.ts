@@ -1,4 +1,4 @@
-import { Clock, Effect, FileSystem, Path, Result, type Crypto } from "effect";
+import { Clock, Effect, FileSystem, Path, type Crypto } from "effect";
 import type { ChildProcessSpawner } from "effect/unstable/process";
 import { catalogDigest, type CatalogSource, isLockable } from "./catalog.ts";
 import { AcquisitionError, NotLockableError, type CatalogError } from "./errors.ts";
@@ -11,6 +11,7 @@ import {
   rawLocalRemoteUrl,
   requireFullObjectId,
   resolveCommit,
+  resolveCommitIfPresent,
   treeOfCommit,
 } from "./git.ts";
 import { lockEntryContentEqual, type LicenseObservation, type LockEntry } from "./lockfile.ts";
@@ -237,8 +238,17 @@ export const lockOfflineSource = (
     const referencesRoot = paths.join(paths.resolve(projectRoot), ".references");
     const cache = yield* inspectObjectCache(referencesRoot, source.id);
     if (cache !== null) {
-      const cacheCommit = yield* Effect.result(resolveCommit(cache, source.track));
-      if (Result.isSuccess(cacheCommit)) {
+      const observedOrigin = yield* rawLocalRemoteUrl(cache);
+      if (observedOrigin !== source.origin) {
+        return yield* new AcquisitionError({
+          message:
+            `source ${JSON.stringify(source.id)}: managed object cache origin ` +
+            `${JSON.stringify(observedOrigin)} does not match declared origin ` +
+            `${JSON.stringify(source.origin)}`,
+        });
+      }
+      const cacheCommit = yield* resolveCommitIfPresent(cache, source.track);
+      if (cacheCommit !== null) {
         return yield* observeOfflineRepository(source, cache, "local-object-cache", existingEntry);
       }
     }
