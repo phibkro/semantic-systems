@@ -301,11 +301,14 @@ accepted; no new Python implementation is permitted.
   an injected `GitEnvironment` capability that reconstructs Git's environment
   from an allowlist. Shell execution, inherited Git configuration, prompts,
   helpers, SSH/scp spellings, and every offline transport scheme are denied.
+  Replacement refs are disabled so a local repository cannot substitute a
+  different tree or license blob while the lock records the original commit
+  ID.
   The lock is derived exclusively from the selected commit/tree and regular
   committed license blobs; dirty working-tree bytes are irrelevant, and a
   byte-identical observation retains the prior custody timestamp. Four new
   adversarial tests cover environment poisoning, transport syntax, committed
-  object custody/stable reuse, and remote-origin mismatch, raising the focused
-  suite to 44 passing tests. This slice deliberately does not expose the
+  object custody/stable reuse, remote-origin mismatch, and replacement-ref
+  substitution, raising the focused suite to 45 passing tests. This slice deliberately does not expose the
   mutating `lock` CLI: publication must remain serialized until the curator
   lock and multi-source transaction are ported.

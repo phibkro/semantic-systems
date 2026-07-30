@@ -28,6 +28,7 @@ const FIXED_ENVIRONMENT: Readonly<Record<string, string>> = {
   GIT_CONFIG_NOSYSTEM: "1",
   GIT_CONFIG_GLOBAL: "/dev/null",
   GIT_ATTR_NOSYSTEM: "1",
+  GIT_NO_REPLACE_OBJECTS: "1",
   LC_ALL: "C",
   TZ: "UTC",
 };

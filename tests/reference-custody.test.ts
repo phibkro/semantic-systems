@@ -497,6 +497,7 @@ describe("reference custody Effect v4 slice: offline Git observation", () => {
     expect(offline.HOME).toBe("/test/home");
     expect(offline.GIT_TERMINAL_PROMPT).toBe("0");
     expect(offline.GIT_CONFIG_GLOBAL).toBe("/dev/null");
+    expect(offline.GIT_NO_REPLACE_OBJECTS).toBe("1");
     expect(offline.GIT_NO_LAZY_FETCH).toBe("1");
     expect(offline).not.toHaveProperty("GIT_CONFIG_COUNT");
     expect(offline).not.toHaveProperty("GIT_CONFIG_KEY_0");
@@ -571,6 +572,39 @@ describe("reference custody Effect v4 slice: offline Git observation", () => {
     const source = catalog.sources.get("demo.repo")!;
     const exit = await runBunExit(lockFromLocalSibling(source, fixture.project, null));
     expect(Exit.isFailure(exit)).toBeTrue();
+  });
+
+  test("replacement refs cannot substitute another tree for the recorded commit", async () => {
+    const fixture = await localSiblingFixture();
+    const originalCommit = runCommand(["git", "rev-parse", "HEAD"], fixture.sibling);
+    const originalTree = runCommand(["git", "rev-parse", "HEAD^{tree}"], fixture.sibling);
+    const originalLicenseHash = createHash("sha256").update(fixture.license).digest("hex");
+
+    await writeFile(join(fixture.sibling, "LICENSE"), "replacement license bytes\n");
+    runCommand(["git", "add", "LICENSE"], fixture.sibling);
+    runCommand(
+      [
+        "git",
+        "-c",
+        "user.name=Semantic Custody Test",
+        "-c",
+        "user.email=custody@example.invalid",
+        "commit",
+        "-m",
+        "test: replacement object",
+      ],
+      fixture.sibling,
+    );
+    const replacementCommit = runCommand(["git", "rev-parse", "HEAD"], fixture.sibling);
+    runCommand(["git", "replace", originalCommit, replacementCommit], fixture.sibling);
+    runCommand(["git", "update-ref", "refs/heads/main", originalCommit], fixture.sibling);
+
+    const catalog = await runBun(parseCatalogText(fixture.sourceText));
+    const source = catalog.sources.get("demo.repo")!;
+    const entry = await runBun(lockFromLocalSibling(source, fixture.project, null));
+    expect(entry.commit).toBe(originalCommit);
+    expect(entry.tree).toBe(originalTree);
+    expect(entry.licenses.get("LICENSE")?.sha256).toBe(originalLicenseHash);
   });
 });
 
