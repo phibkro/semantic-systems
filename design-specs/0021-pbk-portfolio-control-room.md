@@ -235,6 +235,12 @@ This slice does not write priorities from the browser. A future authenticated
 command can request a new assertion, but it must return a separate accepted,
 rejected, or unknown effect observation.
 
+The trusted workflow invokes the exact command surface of the pinned Alchemy
+v2 package. It does not reconstruct confirmation options from another release.
+Deploy and preview cleanup both pass an explicit stage and no unsupported
+confirmation flag. A provider process exit remains only an intermediate
+observation. The served snapshot and live target still establish deployment.
+
 ### Components and orthogonal structures
 
 `src/portfolio-model` owns row assembly, decoding, cross-reference validation,
@@ -355,6 +361,8 @@ without changing node, edge, priority, receipt, or snapshot meaning.
   ordered-list fallback at a phone viewport.
 - Clicking research, design, definition of done, journeys, evidence, preview,
   and snapshot details preserves exact revision or digest context.
+- An option absent from the pinned Alchemy deploy or destroy command cannot
+  enter the trusted workflow. The workflow check rejects it before merge.
 
 Each counterexample must first fail for the intended semantic reason.
 
@@ -380,7 +388,10 @@ Feature 0021 is accepted only when one clean head:
 10. passes TypeScript 7, Effect diagnostics, Oxfmt, Oxlint, project-model, and
     full repository gates; and
 11. receives independent review of semantic drift, history rewriting,
-    dependency direction, priority force, hostile rendering, and phone use.
+    dependency direction, priority force, hostile rendering, and phone use;
+    and
+12. checks the trusted deploy and cleanup commands against the pinned Alchemy
+    v2 noninteractive option contract.
 
 The exact command is:
 
@@ -416,3 +427,7 @@ semantic-zoom Mosaic alternate to the primary dependency graph, and makes the
 work-definition to accepted-artifact transition explicit. Existing Semantic
 project facts, scheduler readiness, evidence categories, Control Room
 freshness, deployment custody, and provider authority remain unchanged.
+
+The 2026-07-31 provider correction removes an option unsupported by the pinned
+Alchemy v2 CLI. It adds an executable command-shape counterexample. Artifact
+custody and post-effect deployment observation remain unchanged.
