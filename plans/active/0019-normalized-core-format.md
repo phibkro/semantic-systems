@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0019-normalized-core-format.md`](../../design-specs/0019-normalized-core-format.md).
 This mutable record cannot change that contract.
 
-Status: frozen design checkpoint. Awaiting independent review before implementation
+Status: corrected frozen design checkpoint. Awaiting independent rereview before implementation
 
 Owner: primary Semantic Systems language lane
 
@@ -45,6 +45,9 @@ No upstream source was copied during contract work.
 - future `src/normalized-core/**`
 - future `tests/normalized-core-*.test.ts`
 - one bounded fixture family under future `examples/normalized-core/`
+- `scripts/oxlint/semantic-effect-rules.ts`
+- the normalized-core rule and closure cases in
+  `tests/semantic-effect-rules.test.ts`
 - the `work.normalized-core-format` model entry
 - the `artifact.normalized-core` model entry
 - generated projections from those canonical model changes
@@ -84,7 +87,8 @@ deployment behavior, hand-edited generated views, and user `AGENTS.md`.
 7. Implement entity, semantic, and artifact identity derivation.
 8. Implement canonical UTF-8 bytes and strict byte decoding.
 9. Implement identity verification and independent 0018 recheck.
-10. Add mutation, forged-input, bounds, source, and alpha-stability oracles.
+10. Add mutation, forged-input, bounds, source, alpha-stability, portable-lint,
+    and transitive-closure oracles.
 11. Run exact acceptance and full integration at one clean head.
 12. Commission independent implementation and API review.
 13. Correct each rejected exact head before integration.
@@ -114,3 +118,10 @@ downgraded to a warning.
   attributed source correspondence, strict bounds, and fail-closed versioning.
 - 2026-07-31: no implementation, provider, network, filesystem, deployment, or
   external repository effect occurred during contract work.
+- 2026-07-31: independent review rejected `e02b9d3` because the term grammar,
+  signed-integer policy, metadata inputs, assumption semantics, portable lint
+  scope, and resource accounting were incomplete. The recut enumerates the
+  complete accepted 0018 grammar, preserves signed safe integers and `-0`,
+  makes assumptions inert metadata, defines identity-free input and strict
+  source-pointer resolution, adds normalized core to the portable lint domain,
+  and freezes exact traversal and failure precedence. No implementation began.

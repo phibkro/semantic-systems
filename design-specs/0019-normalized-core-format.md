@@ -74,8 +74,8 @@ runtime closure, schema object, Effect service, or host object identity.
 The normalizer accepts:
 
 - a privately custodied 0018 `CheckedProgram`;
-- unknown source metadata for bounded decoding; and
-- unknown imported-assumption records for bounded decoding.
+- one unknown `EmissionMetadataInput` for bounded decoding; and
+- public bounds that can only narrow the version 1 defaults.
 
 The checked program is execution authority already minted by 0018. Feature
 0019 may inspect its private internals inside the repository module boundary,
@@ -86,9 +86,10 @@ identifies bytes reported by the caller. It does not establish that the bytes
 exist or produced the checked program. A source range states an asserted
 correspondence to one normalized node path.
 
-An imported assumption states a proposition that the checker accepts as an
-input premise. Its identity establishes only its exact normalized record.
-It is not proof or evidence that the proposition is true.
+An imported assumption is an inert attributed assertion or dependency carried
+by the artifact. The 0018 checker does not receive, interpret, or validate it.
+Its identity establishes only its exact normalized record. It is not a checker
+premise, proof, or evidence that the statement is true.
 
 The decoder also accepts unknown in-memory values or candidate UTF-8 bytes.
 Unknown input establishes no schema, identity, acyclicity, or checker
@@ -173,22 +174,95 @@ input under explicit depth, node, string, collection, and byte bounds.
 
 ### Bounded autonomy and resources
 
-Version 1 uses these public default maxima:
+Version 1 uses these public maxima:
 
 - 1,048,576 input or output bytes;
 - depth 64;
-- 4,096 total object, array, and semantic nodes;
+- 4,096 total JSON value occurrences;
 - 4,096 UTF-8 bytes per string;
 - 256 operations;
 - 256 imported assumptions;
 - 256 source units;
 - 1,024 source correspondences; and
-- 4,096 entries in any general collection.
+- 4,096 entries in each array or object.
 
-All integer fields are nonnegative safe integers. The decoder tracks objects
-by identity and rejects cycles and repeated mutable aliases. It rejects
-accessors, symbol keys, non-enumerable properties, exotic prototypes, sparse
-arrays, and excess properties.
+The exact public bounds record is:
+
+```text
+{
+  "maximumBytes": 1048576,
+  "maximumDepth": 64,
+  "maximumNodes": 4096,
+  "maximumStringBytes": 4096,
+  "maximumCollectionLength": 4096,
+  "maximumOperations": 256,
+  "maximumAssumptions": 256,
+  "maximumSourceUnits": 256,
+  "maximumCorrespondences": 1024
+}
+```
+
+The node counter starts at zero. Visiting any JSON value occurrence increments
+it once before visiting children. Scalars, arrays, and objects each count one.
+A semantic term or type node is its underlying object occurrence and does not
+increment a second counter. Object keys do not count as nodes. Each property
+value or array element is one child occurrence.
+
+The root has depth zero. Every property value or array element has parent depth
+plus one. A value at depth greater than 64 is rejected. Each array length and
+each object's count of own enumerable string keys must be at most 4,096.
+Specialized operation, assumption, source-unit, and correspondence maxima also
+apply.
+
+The string limit counts strict UTF-8 bytes for every property key and string
+value after lone-surrogate rejection. The input-byte limit counts the complete
+candidate byte array. The output-byte limit counts the complete canonical
+artifact, including its final line feed. Unknown-object decoding has no input
+bytes, so it applies the output limit after canonical encoding.
+
+Signed integer literals are safe integers. Indices, ranges, byte lengths,
+versions, and bounds are nonnegative safe integers. The decoder tracks every
+array or object by identity and rejects its second occurrence, whether it is
+mutable or frozen. This repeated-reference rule detects both cycles and
+acyclic aliases. It rejects accessors, symbol keys, non-enumerable properties,
+exotic prototypes, sparse arrays, and excess properties.
+
+Public bounds are exact records containing every version 1 bound. Each value
+must be a positive safe integer and cannot exceed its default. Bounds are
+validated before any candidate or checked program is inspected.
+
+Each public operation starts fresh counters. Metadata decoding counts the
+complete metadata input. Unknown-artifact decoding counts the complete
+artifact candidate. Emission separately counts the complete projected artifact
+after all normalized program and metadata fields are present. Thus a large
+custodied 0018 program can be rejected by the 0019 output depth, node, string,
+collection, or byte bound even though 0018 accepted it.
+
+Unknown-object decoding visits values in preorder. It visits object properties
+in Unicode code-point key order and arrays in increasing index order. It
+reports only the first diagnostic. At each value it checks depth, node budget,
+prior object identity, object or array shape, collection length, key and value
+string bounds, then children. Schema and cross-field checks follow the same
+canonical field and array order.
+
+Byte decoding has this failure precedence:
+
+1. bounds;
+2. input byte length;
+3. strict UTF-8;
+4. JSON grammar and duplicate keys;
+5. generic JSON traversal bounds;
+6. byte-for-byte canonical re-encoding;
+7. exact artifact schema and cross-field references;
+8. entity identities;
+9. semantic identity;
+10. artifact identity; and
+11. independent 0018 recheck.
+
+Emission checks bounds, 0018 custody, metadata shape, metadata references,
+structural projection, entity identities, semantic identity, artifact
+identity, then output byte length. A failure returns one stable
+`{code, path, message}` diagnostic and no partial artifact.
 
 Emission snapshots every caller-owned input before the first digest. Returned
 objects and nested arrays are deeply immutable. Later input mutation cannot
@@ -204,6 +278,14 @@ bound behavior. Exact byte fixtures establish Bun and genuine Node agreement
 for selected inputs. Mutation tests establish selected snapshot and identity
 sensitivity cases. Rechecking establishes only acceptance by the 0018
 algorithmic checker.
+
+The repository's semantic Effect lint classifies every
+`src/normalized-core/**` file as portable. A focused rule test establishes that
+direct runtime imports, ambient nondeterminism, and Effect execution are
+rejected there. The implementation acceptance must also traverse the
+normalized-core entry point's relative-import closure and reject runtime
+adapters or forbidden bare imports. These are static observations over the
+checked closure, not proof that an indirect dependency has no hidden effect.
 
 SHA-256 collision resistance is an imported cryptographic assumption. Domain
 separation prevents accidental cross-kind reuse under that assumption. Tests
@@ -240,9 +322,9 @@ The only accepted top-level shape is:
   "semantic_identity": Identity,
   "artifact_identity": Identity,
   "signature": [NormalizedOperation...],
-  "term": NormalizedComputation,
+  "term": ComputationTerm,
   "summary": {
-    "type": NormalizedComputationType,
+    "type": ComputationType,
     "effects": [Label...],
     "usage": [Grade...]
   },
@@ -286,27 +368,60 @@ ComputationType :=
    "effects":[Label...],"result":ComputationType}
 ```
 
-The value and computation term variants are an exact snake-case projection of
-the 0018 AST. Each object has a required `tag`. Child fields preserve the 0018
-left-to-right structural order.
-
-Ordinary variables use:
+The complete normalized value grammar is:
 
 ```text
-{"tag":"bound-value","distance":NonnegativeSafeInteger}
+ValueTerm :=
+  {"tag":"bound-value","distance":NonnegativeSafeInteger}
+  {"tag":"unit"}
+  {"tag":"bool","value":Boolean}
+  {"tag":"int","value":SignedSafeInteger}
+  {"tag":"pair","first":ValueTerm,"second":ValueTerm}
+  {"tag":"thunk","body":ComputationTerm}
 ```
 
-The distance is the 0018 de Bruijn index. Handler resumptions use:
+The complete normalized computation and clause grammar is:
 
 ```text
-{"tag":"resume","resumption_distance":NonnegativeSafeInteger,"value":ValueTerm}
+ComputationTerm :=
+  {"tag":"return","grade":Grade,"value":ValueTerm}
+  {"tag":"let","bound":ComputationTerm,"body":ComputationTerm}
+  {"tag":"force","value":ValueTerm}
+  {"tag":"lambda","parameter_type":ValueType,"grade":Grade,
+   "body":ComputationTerm}
+  {"tag":"apply","computation":ComputationTerm,"argument":ValueTerm}
+  {"tag":"operation","grade":Grade,"label":String,"operation":String,
+   "argument":ValueTerm}
+  {"tag":"handle","label":String,"computation":ComputationTerm,
+   "return_clause":ReturnClause,
+   "operation_clauses":[OperationClause...]}
+  {"tag":"resume","resumption_distance":NonnegativeSafeInteger,
+   "value":ValueTerm}
+
+ReturnClause :=
+  {"body":ComputationTerm}
+
+OperationClause :=
+  {"operation":String,"body":ComputationTerm}
 ```
 
-A resumption is not a value and has no general reference form. No source
-binder name appears in the semantic payload. The normalized representation is
-therefore stable for 0018 programs that differ only by external binder
-spellings and produce the same de Bruijn term. Version 1 makes no broader
-alpha-equivalence claim.
+Every object has exactly the shown fields. A `SignedSafeInteger` is any integer
+from `-9007199254740991` through `9007199254740991`, including negative zero as
+a distinct accepted 0018 number. Canonical bytes encode negative zero as
+`-0`; they encode positive zero as `0`. Identity therefore distinguishes them.
+This preserves 0018 values that an external operation argument can observe
+with host negative-zero semantics.
+
+`distance` is the exact 0018 de Bruijn index. Ordinary binders and resumption
+binders each have their own context and distance. A resumption is not a value
+and has no general reference form. The raw 0018 AST's `resumption` value
+variant has no normalized variant because the 0018 checker always rejects it
+with `resumption.escape`; no custodied accepted program can contain it.
+
+No source binder name appears in the semantic payload. The normalized
+representation is therefore stable for 0018 programs that differ only by
+external binder spellings and produce the same de Bruijn term. Version 1 makes
+no broader alpha-equivalence claim.
 
 Effect rows are sorted by Unicode code-point order and contain no duplicates.
 Operation signatures are sorted by `(label, operation)` in the same order.
@@ -333,6 +448,57 @@ The summary is the exact 0018 inferred computation type, sorted effect row,
 and usage vector. It is a checked claim inside emitted artifacts. Validation
 reruns 0018 and rejects any mismatch.
 
+### Emission metadata input
+
+The caller supplies exactly this identity-free input:
+
+```text
+EmissionMetadataInput := {
+  "assumptions": [ImportedAssumptionInput...],
+  "source": {
+    "units": [SourceUnitInput...],
+    "correspondence": [SourceCorrespondenceInput...]
+  }
+}
+
+ImportedAssumptionInput := {
+  "kind": "declared",
+  "statement": String
+}
+
+SourceUnitInput := {
+  "source_key": String,
+  "uri": String,
+  "content_identity": Identity,
+  "byte_length": NonnegativeSafeInteger
+}
+
+SourceCorrespondenceInput := {
+  "node_path": JsonPointer,
+  "source_key": String,
+  "role": "definition" | "expression" | "type" | "generated",
+  "start_byte": NonnegativeSafeInteger,
+  "end_byte": NonnegativeSafeInteger
+}
+```
+
+All fields are required and exact. Callers never supply an operation,
+assumption, source-unit, semantic, or artifact identity that the normalizer
+owns.
+
+`source_key` is a nonempty caller-local correlation key. Input source keys must
+be unique. Every correspondence source key must name one input source unit.
+The normalizer derives each source identity, replaces correspondence source
+keys with those identities, and omits source keys from the artifact. Renaming a
+source key and updating its references cannot change artifact bytes.
+
+Input arrays can have any order. The normalizer decodes and snapshots them,
+derives identities, resolves keys and paths, rejects duplicates, and emits the
+contract-defined output order.
+
+Assumption statements and source URIs must be nonempty. URIs are opaque scalar
+sequences: the normalizer does not parse, resolve, case-fold, or fetch them.
+
 ### Imported assumptions
 
 Each imported assumption is:
@@ -347,11 +513,14 @@ Each imported assumption is:
 
 The identity is derived from `kind` and `statement`. Assumptions are sorted by
 identity and must be unique. A statement is inert text with a maximum of 4,096
-UTF-8 bytes. Changing any assumption changes semantic identity.
+UTF-8 bytes and at least one Unicode scalar. Changing any assumption changes
+semantic identity.
 
 The operation signature is declared semantic input, not proof and not an
-imported assumption. Version 1 has no evidence reference field because it
-cannot validate an evidence vocabulary without expanding this feature.
+imported assumption. The 0018 checker validates only the signature and term.
+It neither consumes nor validates this assumptions array. Version 1 has no
+evidence reference field because it cannot validate an evidence vocabulary
+without expanding this feature.
 
 ### Source correspondence
 
@@ -382,9 +551,28 @@ Each correspondence is:
 }
 ```
 
-`node_path` is a JSON Pointer into `term`, `signature`, `summary`, or
-`assumptions`. The pointer must resolve to an exact node. A range must satisfy
-`start_byte <= end_byte <= byte_length` for its source unit.
+`node_path` is the RFC 6901 JSON Pointer string form with this strict subset:
+
+- it must start with `/term`, `/signature`, `/summary`, or `/assumptions`;
+- each token begins with `/`;
+- `~0` decodes to `~`, `~1` decodes to `/`, and every other `~` sequence is
+  rejected;
+- an array token is `0` or a nonzero ASCII decimal digit followed by zero or
+  more ASCII decimal digits;
+- leading zeroes, signs, whitespace, `-`, unsafe indices, and out-of-range
+  indices are rejected; and
+- object tokens must equal one exact schema field after escape decoding.
+
+Resolution occurs after term, signature, summary, assumptions, their entity
+identities, and their contract-defined array order are complete, but before
+the `source` object is created. The pointer root is the identity-bearing
+semantic payload object. Only a resolved object value qualifies as a semantic
+node. The semantic root, arrays, scalar fields, and identity strings do not
+qualify. The normalizer owns structural resolution; the caller owns the
+assertion that the selected source range corresponds to that node.
+
+A range must satisfy
+`start_byte <= end_byte <= byte_length` for its resolved source unit.
 
 Source units are sorted by source identity. Correspondences are sorted by
 `(node_path, source_identity, role, start_byte, end_byte)`. Exact duplicates
@@ -399,7 +587,9 @@ order. Strings use double quotes, escape quote and reverse solidus, use the
 short escapes for backspace, tab, line feed, form feed, and carriage return,
 and use lowercase `\u00xx` for other U+0000 through U+001F scalars. All other
 Unicode scalar values use their shortest UTF-8 encoding. Integers use base-10
-digits with no sign for zero and no leading zero.
+digits with no leading zero. Negative integers use one leading `-`. Negative
+zero uses the exact token `-0`; positive zero uses `0`. No plus sign, decimal
+point, exponent, or alternate number form is accepted.
 
 The digest input is:
 
@@ -423,8 +613,10 @@ The semantic payload is the top-level document without `semantic_identity`,
 assumption identities. The artifact payload is the complete document without
 `artifact_identity`. It includes `semantic_identity` and `source`.
 
-The byte decoder parses strict UTF-8 and JSON, validates the exact schema, and
-re-encodes the value. Input bytes must equal the canonical bytes exactly.
+The byte decoder uses a bounded JSON parser that reports duplicate keys before
+building an object. It parses strict UTF-8 and JSON, validates generic JSON
+bounds, and re-encodes the value. Input bytes must equal the canonical bytes
+exactly.
 Therefore duplicate keys, alternative escapes, alternate ordering, trailing
 data, a missing final line feed, or extra whitespace fail closed.
 
@@ -457,7 +649,9 @@ The entry point will not export:
 - Rust, Lean, MLIR, or Wasm types.
 
 The implementation uses TypeScript 7, Bun, Effect v4, Oxfmt, and Oxlint.
-One genuine Node entry point must produce the same bytes and observations.
+One genuine Node test process must import the same portable entry point and
+produce the same bytes and observations. There is no normalized-core runtime
+adapter exemption.
 
 ## Oracle-first counterexamples
 
@@ -478,16 +672,24 @@ The implementation must retain focused rejection observations for:
 13. a correspondence to an unknown source or unresolved node path;
 14. a source range outside its declared byte length;
 15. a cyclic object;
-16. a repeated mutable alias;
+16. a repeated object or array alias, whether mutable or frozen;
 17. an accessor, symbol key, exotic prototype, or sparse array;
-18. input over each byte, depth, node, string, and collection bound;
+18. input over each byte, depth, node, string, general collection, and
+    specialized collection bound;
 19. a lone surrogate or malformed UTF-8 sequence;
 20. noncanonical JSON bytes, duplicate keys, whitespace, or trailing data;
 21. a summary whose type, effects, or usage differs from the 0018 checker;
 22. a later caller mutation changing a prior artifact;
 23. a source-only change altering semantic identity;
 24. a semantic change preserving semantic identity; and
-25. Bun and Node emitting different bytes.
+25. Bun and Node emitting different bytes;
+26. `-0` collapsing to `0` or a negative safe integer being rejected;
+27. a source key surviving into artifact bytes or failing deterministic
+    identity replacement;
+28. a malformed, scalar-targeting, pre-normalization, or out-of-range JSON
+    Pointer being accepted; and
+29. normalized-core code reaching a runtime adapter through its transitive
+    import closure.
 
 Positive observations must include:
 
@@ -504,7 +706,10 @@ Positive observations must include:
 10. changed semantic and artifact identities after a term, grade, effect,
     operation type, or assumption change;
 11. round-trip byte equality through strict decoding; and
-12. byte-identical Bun and genuine Node reports.
+12. byte-identical Bun and genuine Node reports;
+13. exact round trips for negative safe integers and distinct `-0`;
+14. identity-free metadata input deriving all owned identities; and
+15. a source-key rename with matching references preserving artifact bytes.
 
 ## Acceptance
 
@@ -525,7 +730,8 @@ Feature 0019 is accepted only when:
 12. later input mutation cannot change prior bytes or observations;
 13. decoded artifacts are independently rechecked by 0018;
 14. Bun and genuine Node emit byte-identical artifacts and reports;
-15. the portable closure has no forbidden ambient authority or backend type;
+15. normalized-core lint and transitive-closure tests find no forbidden
+    ambient authority, runtime adapter, or backend type;
 16. the full 0018 exact acceptance remains green;
 17. typecheck, strict lint, formatting, project-model, and generated-view gates
     pass; and

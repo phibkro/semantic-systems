@@ -20,6 +20,8 @@ const requiredArtifacts = [
   "tests/normalized-core-custody.test.ts",
   "tests/normalized-core-node.test.ts",
   "examples/normalized-core/handled-program.expected.json",
+  "scripts/oxlint/semantic-effect-rules.ts",
+  "tests/semantic-effect-rules.test.ts",
 ] as const;
 
 const requireArtifacts = Effect.forEach(requiredArtifacts, (relativePath) =>
@@ -56,6 +58,8 @@ const program = Effect.gen(function* () {
       "tests/normalized-core-node.test.ts",
       "examples/normalized-core",
       "scripts/accept/0019-normalized-core-format.ts",
+      "scripts/oxlint/semantic-effect-rules.ts",
+      "tests/semantic-effect-rules.test.ts",
     ],
     ["bun", "test", "tests/semantic-effect-rules.test.ts"],
     ["bun", "run", "semproj", "--", "validate"],
