@@ -149,10 +149,11 @@ failure is not a warning.
   record indexes with fixed-point rollback, without a second traversal or
   conclusion parsing.
 - 2026-07-31 (third correction): independent review falsified the envelope
-  bounds with an accepted input — 300 thunk leaves × 256 unique labels, a
-  605,557-byte document with 79,811 JSON value occurrences whose rejection
-  carries 76,800 distinct labels — verified and reduced against the real
-  0018 checker (the mechanism reproduces at 2 leaves × 3 labels; the old
+  bounds with a byte-legal input — 300 thunk leaves × 256 unique labels, a
+  complete 605,672-byte `KernelDocument` with 79,816 JSON value occurrences
+  whose program's rejection carries 76,800 distinct labels — verified and
+  reduced against the real 0018 checker (the mechanism reproduces at 2
+  leaves × 3 labels; the old
   65,536 label cap breaks at 257 leaves; the old raw node cap 65,536 also
   rejected the byte-legal input itself). Raw-input and observation-envelope
   bounds are now separate named families: raw `maximumNodes` = 524,288
@@ -161,10 +162,10 @@ failure is not a warning.
   (simple byte-bound ceiling; tight lemma 349,525 at three bytes per
   distinct spelling), `maximumObservationNodes` = 4,194,304 (proven worst
   case 3,569,047), `maximumObservationCollectionLength` = 1,048,576, and
-  `maximumObservationBytes` kept at 33,554,432 (proven worst case
-  24,911,871). The counterexample and every bound derivation are committed
-  as `tests/kernel-json-observation-bounds.test.ts`, aligned with the
-  schema constants.
+  `maximumObservationBytes` kept at 33,554,432 (proven worst case later
+  corrected to 25,108,480). The counterexample and every bound derivation
+  are committed as `tests/kernel-json-observation-bounds.test.ts`, aligned
+  with the schema constants.
 - 2026-07-31 (fourth correction): primary review rejected the false claim
   that every JSON value occurrence consumes two bytes and the stronger-than-
   observed claim that arithmetic tests exercised runtime envelope rejection.
@@ -174,3 +175,13 @@ failure is not a warning.
   produces 1,048,577 bytes and 524,289 nodes. The design checkpoint claims
   arithmetic and grammar evidence only; real decoder/encoder fitting and
   rejection cases remain mandatory implementation acceptance work.
+- 2026-07-31 (fifth correction): Luna-max review found that the counterexample
+  test measured only the nested term while calling it a full document and
+  that the byte derivation used a 64-byte estimate smaller than a valid
+  maximal function-node wrapper. The generated fixture now measures the
+  complete canonical-order `KernelDocument`: 605,672 bytes and 79,816 JSON
+  value occurrences. It claims only raw arithmetic plus accepted 0018 program
+  decoding until the 0020 decoder exists. The type-node derivation now
+  serializes the exact 1,871-byte maximal function node and includes table
+  brackets and separators, yielding a corrected rejected-observation worst
+  case of 25,108,480 bytes under the unchanged 32 MiB ceiling.

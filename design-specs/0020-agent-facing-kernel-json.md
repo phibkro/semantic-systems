@@ -839,9 +839,9 @@ bounds. They are different facts: raw bounds limit what a caller may hand
 the decoder; envelope bounds limit what the authoritative check run is
 entitled to produce, and they are derived from the raw bounds so that every
 default-bound rejection is representable. Reusing the raw collection and
-node limits for observations was falsified by an accepted input — the
-label-bound counterexample below — whose rejection carries 76,800 distinct
-labels.
+node limits for observations was falsified by a byte-legal full document —
+the label-bound counterexample below — whose program is accepted by the 0018
+term decoder and whose checker rejection carries 76,800 distinct labels.
 
 The `semantic.kernel-json` raw-input defaults are:
 
@@ -909,11 +909,14 @@ zeroes is 1,048,575 bytes and has 524,288 occurrences; adding one zero makes
 1,048,577 bytes and 524,289 occurrences, crossing the byte limit. This
 dense array witnesses the generic JSON byte/node relation only; the raw
 collection-length limit rejects it independently. The label-bound
-counterexample's 605,557-byte document holds 79,811 occurrences — over the
-previous 65,536 raw cap, which therefore also strangled byte-legal input,
-and comfortably under the derived cap. On the object path, which has no
-input bytes, `maximumNodes` is the working traversal bound and the
-canonical-encoding byte check completes the equivalence.
+counterexample's complete `KernelDocument` is 605,672 bytes and holds 79,816
+occurrences — over the previous 65,536 raw cap, which therefore also
+strangled byte-legal input, and comfortably under the derived cap. The
+design checkpoint proves that raw arithmetic and the accepted 0018 program
+decode; the 0020 implementation must add the fitting full-document decoder
+observation. On the object path, which has no input bytes, `maximumNodes` is
+the working traversal bound and the canonical-encoding byte check completes
+the equivalence.
 
 Envelope derivations, each tied to an exact raw or 0018 bound:
 
@@ -945,12 +948,14 @@ Envelope derivations, each tied to an exact raw or 0018 bound:
   and contexts 256, premises 4,096).
 - `maximumObservationBytes` = 33,554,432: serialized labels cost at most
   their raw input spellings plus three bytes each of quoting and
-  separation, at most 1,048,576 + 3 × 349,525 = 2,097,151 bytes; the type
-  table costs at most 12,288 × 1,856 = 22,806,528 bytes, because a full
-  256-entry row of at-most-six-digit label indexes with separators is at
-  most 1,792 bytes and node overhead at most 64; envelope and diagnostic
-  cost at most 8,192. The total, 24,911,871, leaves a twenty-five percent
-  margin under 32 MiB.
+  separation, at most 1,048,576 + 3 × 349,525 = 2,097,151 bytes. An exact
+  compact serialization of the widest reachable function-node shape — 256
+  distinct six-digit label indexes, two five-digit child indexes, and
+  grade `omega` — is 1,871 bytes. Including the type-table brackets and
+  separators, applying that per-entry ceiling to all 12,288 reachable table
+  entries costs at most 23,003,137 bytes. Envelope and diagnostic cost at
+  most 8,192. The total, 25,108,480, leaves a twenty-five percent margin
+  under 32 MiB.
 
 Rejected observations are therefore always representable under the default
 envelope: one diagnostic, at most two type facts, tables bounded by the
@@ -1047,12 +1052,14 @@ The implementation must retain focused rejection observations for:
     partial view;
 20. the label-bound counterexample: a balanced value type with 300 thunk
     leaves, each carrying 256 unique labels, inside a lambda applied to
-    unit — a 605,557-byte document with 79,811 JSON value occurrences and
-    76,800 distinct labels that decodes under the default raw bounds,
-    rejects with `type.argument-mismatch`, and must produce its complete
-    bounded rejection observation (its labels alone falsified the previous
-    65,536 caps); generated compactly in TypeScript, never as a checked-in
-    giant JSON;
+    unit — a complete 605,672-byte `KernelDocument` with 79,816 JSON value
+    occurrences and 76,800 distinct labels. The frozen-design checkpoint
+    proves that it fits the raw arithmetic and that its program decodes
+    through 0018 and rejects with `type.argument-mismatch`; implementation
+    acceptance must additionally observe the full document decode through
+    0020 and its complete bounded rejection observation (its labels alone
+    falsified the previous 65,536 caps). It is generated compactly in
+    TypeScript, never as a checked-in giant JSON;
 21. a boundary case at every envelope maximum — `maximumLabels`,
     `maximumTypeNodes`, `maximumObservationNodes`,
     `maximumObservationCollectionLength`, `maximumObservationBytes` — and

@@ -40,6 +40,7 @@ const MAXIMUM_OBSERVATION_BYTES = 33_554_432;
 const KERNEL_0018_MAXIMUM_NODES = 4_096;
 const KERNEL_0018_MAXIMUM_ROW_LABELS = 256;
 const WIDEST_TYPE_NODE_OCCURRENCES = 262;
+const MAXIMUM_REJECTION_TYPE_NODES = 3 * KERNEL_0018_MAXIMUM_NODES;
 
 interface LabelBoundCounterexample {
   readonly distinctLabels: number;
@@ -110,20 +111,27 @@ describe("0020 label-bound counterexample", () => {
     expect(checked.diagnostics[0]?.code).toBe("type.argument-mismatch");
   });
 
-  test("review scale: 76,800 labels decode under raw bounds and reject normally", () => {
+  test("review scale: the full KernelDocument fits raw arithmetic and its 0018 program rejects normally", () => {
     const full = buildLabelBoundCounterexample(300, 256);
     expect(full.distinctLabels).toBe(76_800);
 
-    const termJson = JSON.stringify(full.term);
-    expect(utf8Bytes(termJson)).toBe(605_557);
-    expect(utf8Bytes(termJson)).toBeLessThanOrEqual(RAW_MAXIMUM_BYTES);
+    const documentJson = JSON.stringify({
+      format: "semantic.kernel-json",
+      kernel: "semantic.kernel-calculus/0018/v1",
+      program: full.term,
+      signature: [],
+      version: 1,
+    });
+    expect(utf8Bytes(documentJson)).toBe(605_672);
+    expect(utf8Bytes(documentJson)).toBeLessThanOrEqual(RAW_MAXIMUM_BYTES);
 
-    const occurrences = jsonValueOccurrences(JSON.parse(termJson));
-    expect(occurrences).toBe(79_811);
+    const parsedDocument = JSON.parse(documentJson) as { readonly program: unknown };
+    const occurrences = jsonValueOccurrences(parsedDocument);
+    expect(occurrences).toBe(79_816);
     expect(occurrences).toBeGreaterThan(PREVIOUS_RAW_MAXIMUM_NODES);
     expect(occurrences).toBeLessThanOrEqual(RAW_MAXIMUM_NODES);
 
-    const decoded = decodeComputationTerm(JSON.parse(termJson));
+    const decoded = decodeComputationTerm(parsedDocument.program);
     expect(decoded.status).toBe("decoded");
     if (decoded.status !== "decoded") return;
     const checked = check(operationSignature([]), decoded.value);
@@ -197,11 +205,27 @@ describe("0020 bound derivations", () => {
 
   test("maximumObservationBytes dominates the rejected-observation worst case", () => {
     const labelTableBytes = RAW_MAXIMUM_BYTES + 3 * TIGHT_LABEL_LEMMA;
-    const rowBytes = KERNEL_0018_MAXIMUM_ROW_LABELS * 7;
-    const typeTableBytes = 3 * KERNEL_0018_MAXIMUM_NODES * (rowBytes + 64);
+    const widestFunctionNode = JSON.stringify({
+      effects: Array.from(
+        { length: KERNEL_0018_MAXIMUM_ROW_LABELS },
+        (_, offset) => TIGHT_LABEL_LEMMA - KERNEL_0018_MAXIMUM_ROW_LABELS + offset,
+      ),
+      grade: "omega",
+      parameter: MAXIMUM_REJECTION_TYPE_NODES - 1,
+      result: MAXIMUM_REJECTION_TYPE_NODES - 1,
+      tag: "function",
+    });
+    const widestFunctionNodeBytes = utf8Bytes(widestFunctionNode);
+    expect(widestFunctionNodeBytes).toBe(1_871);
+
+    const typeTableBytes =
+      2 +
+      MAXIMUM_REJECTION_TYPE_NODES * widestFunctionNodeBytes +
+      (MAXIMUM_REJECTION_TYPE_NODES - 1);
     const envelopeAndDiagnosticBytes = 8_192;
     const worstCase = labelTableBytes + typeTableBytes + envelopeAndDiagnosticBytes;
-    expect(worstCase).toBe(24_911_871);
+    expect(typeTableBytes).toBe(23_003_137);
+    expect(worstCase).toBe(25_108_480);
     expect(worstCase).toBeLessThanOrEqual(MAXIMUM_OBSERVATION_BYTES);
   });
 
