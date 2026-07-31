@@ -68,6 +68,8 @@ export type EffectAssertionResult =
   | { readonly status: "accepted"; readonly effects: EffectRow }
   | CheckRejected;
 
+const checkResultCustody = new WeakSet<object>();
+
 interface CheckedProgramInternals {
   readonly signature: OperationSignature;
   readonly term: ComputationTerm;
@@ -111,6 +113,15 @@ const frozen = <Value>(value: Value): Value => {
   for (const child of Object.values(value)) frozen(child);
   return Object.freeze(value);
 };
+
+const observedCheckResult = <Result extends CheckResult>(result: Result): Result => {
+  const observation = frozen(result);
+  checkResultCustody.add(observation);
+  return observation;
+};
+
+export const isCheckResult = (result: unknown): result is CheckResult =>
+  typeof result === "object" && result !== null && checkResultCustody.has(result);
 
 const diagnostic = (
   code: string,
@@ -842,7 +853,10 @@ export const check = (
     const signature = operationSignature(signatureInput.operations);
     const invalidSignature = validateSignature(signature);
     if (invalidSignature !== undefined) {
-      return frozen({ status: "rejected", diagnostics: frozen([invalidSignature]) });
+      return observedCheckResult({
+        status: "rejected",
+        diagnostics: frozen([invalidSignature]),
+      });
     }
     const term = cloneComputationTerm(termInput);
     const checker = new AlgorithmicChecker(signature);
@@ -854,7 +868,7 @@ export const check = (
       term,
       checker.valueTypes,
     );
-    return frozen({
+    return observedCheckResult({
       status: "accepted",
       type: checked.type,
       effects: checked.effects,
@@ -864,9 +878,12 @@ export const check = (
     });
   } catch (cause) {
     if (cause instanceof CheckFailure) {
-      return frozen({ status: "rejected", diagnostics: frozen([cause.diagnostic]) });
+      return observedCheckResult({
+        status: "rejected",
+        diagnostics: frozen([cause.diagnostic]),
+      });
     }
-    return frozen({
+    return observedCheckResult({
       status: "rejected",
       diagnostics: frozen([
         diagnostic(

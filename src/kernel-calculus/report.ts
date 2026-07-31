@@ -1,23 +1,20 @@
-import { Schema } from "effect";
+import { Exit, Schema } from "effect";
 import { canonicalJson } from "../tracer/canonical.ts";
 import type { JsonObject, JsonValue } from "../tracer/json.ts";
 import {
-  isCheckedProgram,
-  type CheckedProgram,
+  isCheckResult,
   type CheckResult,
   type Derivation,
   type KernelDiagnostic,
 } from "./checker.ts";
 import {
-  isExternalSuspension,
+  isEvaluationResult,
   isMachineSnapshot,
   isRuntimeResult,
   isRuntimeValue,
   type EvaluationResult,
-  type ExternalSuspension,
   type MachineSnapshot,
   type MachineTraceEntry,
-  type RuntimeResult,
   type RuntimeValue,
 } from "./machine.ts";
 import type { ComputationType, ValueType } from "./ast.ts";
@@ -127,18 +124,13 @@ export const DerivationSchema: Schema.Codec<Derivation> = Schema.suspend(() =>
   }),
 );
 
-const CheckedProgramSchema = Schema.declare<CheckedProgram>(isCheckedProgram, {
-  identifier: "CustodiedCheckedProgram",
-});
-
-export const CheckResultSchema = Schema.Union([
+const NormalizedCheckResultShapeSchema = Schema.Union([
   Schema.Struct({
     status: Schema.Literal("accepted"),
     type: ComputationTypeSchema,
     effects: EffectRowSchema,
     usage: Schema.Array(GradeSchema),
     derivation: DerivationSchema,
-    program: CheckedProgramSchema,
   }),
   Schema.Struct({
     status: Schema.Literal("rejected"),
@@ -146,12 +138,12 @@ export const CheckResultSchema = Schema.Union([
   }),
 ]);
 
-export const RuntimeValueSchema = Schema.declare<RuntimeValue>(isRuntimeValue, {
-  identifier: "RuntimeValue",
+export const CheckResultSchema = Schema.declare<CheckResult>(isCheckResult, {
+  identifier: "CustodiedCoherentCheckResult",
 });
 
-const RuntimeResultSchema = Schema.declare<RuntimeResult>(isRuntimeResult, {
-  identifier: "RuntimeResult",
+export const RuntimeValueSchema = Schema.declare<RuntimeValue>(isRuntimeValue, {
+  identifier: "RuntimeValue",
 });
 
 export const MachineTraceEntrySchema: Schema.Codec<MachineTraceEntry> = Schema.Struct({
@@ -174,30 +166,71 @@ export const OperationRequestSchema = Schema.Struct({
   resultType: ValueTypeSchema,
 });
 
-const ExternalSuspensionSchema = Schema.declare<ExternalSuspension>(isExternalSuspension, {
-  identifier: "CustodiedExternalSuspension",
-});
-
 export const MachineSnapshotSchema = Schema.declare<MachineSnapshot>(isMachineSnapshot, {
   identifier: "ExactMachineSnapshot",
 });
 
-export const EvaluationResultSchema = Schema.Union([
+export const EvaluationResultSchema = Schema.declare<EvaluationResult>(isEvaluationResult, {
+  identifier: "CustodiedCoherentEvaluationResult",
+});
+
+type NormalizedRuntimeValue =
+  | { readonly kind: "unit" | "thunk" }
+  | { readonly kind: "bool"; readonly value: boolean }
+  | { readonly kind: "int"; readonly value: number }
+  | {
+      readonly kind: "pair";
+      readonly first: NormalizedRuntimeValue;
+      readonly second: NormalizedRuntimeValue;
+    };
+
+const NormalizedRuntimeValueShapeSchema: Schema.Codec<NormalizedRuntimeValue> = Schema.suspend(() =>
+  Schema.Union([
+    Schema.Struct({ kind: Schema.Literals(["unit", "thunk"]) }),
+    Schema.Struct({ kind: Schema.Literal("bool"), value: Schema.Boolean }),
+    Schema.Struct({
+      kind: Schema.Literal("int"),
+      value: Schema.Finite.pipe(Schema.check(Schema.isInt())),
+    }),
+    Schema.Struct({
+      kind: Schema.Literal("pair"),
+      first: NormalizedRuntimeValueShapeSchema,
+      second: NormalizedRuntimeValueShapeSchema,
+    }),
+  ]),
+);
+
+const NormalizedRuntimeResultShapeSchema = Schema.Union([
+  NormalizedRuntimeValueShapeSchema,
+  Schema.Struct({ kind: Schema.Literal("function") }),
+]);
+
+const NormalizedMachineSnapshotShapeSchema = Schema.Struct({
+  format: Schema.Literal("kernel-machine-v1"),
+  state: Schema.String,
+});
+
+const NormalizedEvaluationResultShapeSchema = Schema.Union([
   Schema.Struct({
     status: Schema.Literal("returned"),
-    value: RuntimeResultSchema,
+    value: NormalizedRuntimeResultShapeSchema,
     trace: Schema.Array(MachineTraceEntrySchema),
   }),
   Schema.Struct({
     status: Schema.Literal("suspended"),
-    request: OperationRequestSchema,
-    oneShotToken: ExternalSuspensionSchema,
+    request: Schema.Struct({
+      label: Schema.String,
+      operation: Schema.String,
+      argument: NormalizedRuntimeValueShapeSchema,
+      resultType: ValueTypeSchema,
+    }),
+    resumption: Schema.String,
     trace: Schema.Array(MachineTraceEntrySchema),
   }),
   Schema.Struct({
     status: Schema.Literal("exhausted"),
     reason: Schema.Literals(["fuel", "trace"]),
-    machineSnapshot: MachineSnapshotSchema,
+    machineSnapshot: NormalizedMachineSnapshotShapeSchema,
     trace: Schema.Array(MachineTraceEntrySchema),
   }),
   Schema.Struct({
@@ -206,6 +239,30 @@ export const EvaluationResultSchema = Schema.Union([
     trace: Schema.Array(MachineTraceEntrySchema),
   }),
 ]);
+
+const isExactNormalizedCheckResult = (input: unknown): input is JsonObject =>
+  Exit.isSuccess(
+    Schema.decodeUnknownExit(NormalizedCheckResultShapeSchema, {
+      onExcessProperty: "error",
+    })(input),
+  );
+
+const isExactNormalizedEvaluationResult = (input: unknown): input is JsonObject =>
+  Exit.isSuccess(
+    Schema.decodeUnknownExit(NormalizedEvaluationResultShapeSchema, {
+      onExcessProperty: "error",
+    })(input),
+  );
+
+export const NormalizedCheckResultSchema = Schema.declare<JsonObject>(
+  isExactNormalizedCheckResult,
+  { identifier: "ExactNormalizedCheckResult" },
+);
+
+export const NormalizedEvaluationResultSchema = Schema.declare<JsonObject>(
+  isExactNormalizedEvaluationResult,
+  { identifier: "ExactNormalizedEvaluationResult" },
+);
 
 const normalizeValueType = (type: ValueType): JsonObject => {
   switch (type.kind) {

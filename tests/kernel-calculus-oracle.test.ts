@@ -1,4 +1,6 @@
-import { resolve } from "node:path";
+import { mkdtempSync, rmSync, symlinkSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { describe, expect, test } from "bun:test";
 import {
   addGrades,
@@ -19,6 +21,15 @@ import {
   finiteOracleTypes,
   langBangOracleProvenance,
 } from "../examples/kernel-calculus/oracle.ts";
+
+const requireSuccessfulProcess = (
+  label: string,
+  result: ReturnType<typeof Bun.spawnSync>,
+): void => {
+  if (result.exitCode === 0) return;
+  const output = `${result.stdout?.toString() ?? ""}\n${result.stderr?.toString() ?? ""}`.trim();
+  throw new Error(`${label} failed with exit ${result.exitCode}: ${output.slice(-4_000)}`);
+};
 
 describe("finite calculus law and differential oracles", () => {
   test("grade tables are exhaustive, closed, associative, and distributive", () => {
@@ -116,44 +127,136 @@ describe("finite calculus law and differential oracles", () => {
       license: "Apache-2.0",
       method: "independent execution of the pinned Source.eval oracle; no source copied",
     });
-    const root = process.env.LANG_BANG_ORACLE_ROOT ?? langBangOracleProvenance.defaultRoot;
-    const head = Bun.spawnSync(["git", "-C", root, "rev-parse", "HEAD"]);
-    expect(head.exitCode).toBe(0);
+    const sourceRoot = process.env.LANG_BANG_ORACLE_ROOT ?? langBangOracleProvenance.defaultRoot;
+    const head = Bun.spawnSync(["git", "-C", sourceRoot, "rev-parse", "HEAD"]);
+    requireSuccessfulProcess("pinned oracle head inspection", head);
     expect(head.stdout.toString().trim()).toBe(langBangOracleProvenance.commit);
-    const sourceStatus = Bun.spawnSync([
-      "git",
-      "-C",
-      root,
-      "diff",
-      "--quiet",
-      "HEAD",
-      "--",
-      ...langBangOracleProvenance.cleanSourcePaths,
-    ]);
-    expect(sourceStatus.exitCode).toBe(0);
-    expect(await Bun.file(resolve(root, "LICENSE")).text()).toContain(
-      "Apache License\n                           Version 2.0",
-    );
 
-    const fixture = resolve(
-      import.meta.dirname,
-      "../examples/kernel-calculus/lang-bang-overlap.bang",
-    );
-    const expected = (
-      await Bun.file(
-        resolve(import.meta.dirname, "../examples/kernel-calculus/lang-bang-overlap.expected.txt"),
-      ).text()
-    ).trim();
-    const observation = Bun.spawnSync([
-      resolve(root, langBangOracleProvenance.executable),
-      "run",
-      "--engine=oracle",
-      "--no-typecheck",
-      fixture,
-    ]);
-    expect(observation.exitCode).toBe(0);
-    expect(observation.stderr.toString()).toBe("");
-    expect(observation.stdout.toString().trim()).toBe(expected);
+    const lakeExecutable =
+      process.env.LANG_BANG_LAKE_BIN ?? langBangOracleProvenance.defaultLakeExecutable;
+    const offlineBuildEnvironment = {
+      ...process.env,
+      GIT_CONFIG_NOSYSTEM: "1",
+      GIT_CONFIG_GLOBAL: "/dev/null",
+      GIT_CONFIG_COUNT: "1",
+      GIT_CONFIG_KEY_0: "protocol.allow",
+      GIT_CONFIG_VALUE_0: "never",
+      http_proxy: "http://127.0.0.1:1",
+      https_proxy: "http://127.0.0.1:1",
+      ALL_PROXY: "http://127.0.0.1:1",
+      NO_PROXY: "",
+    };
+    const cleanRoot = mkdtempSync(join(tmpdir(), "semantic-0018-lang-bang-"));
+    let worktreeAdded = false;
+    try {
+      const addWorktree = Bun.spawnSync([
+        "git",
+        "-C",
+        sourceRoot,
+        "worktree",
+        "add",
+        "--detach",
+        cleanRoot,
+        langBangOracleProvenance.commit,
+      ]);
+      requireSuccessfulProcess("clean pinned oracle worktree creation", addWorktree);
+      worktreeAdded = true;
+
+      const cleanHead = Bun.spawnSync(["git", "-C", cleanRoot, "rev-parse", "HEAD"]);
+      requireSuccessfulProcess("clean oracle head inspection", cleanHead);
+      expect(cleanHead.stdout.toString().trim()).toBe(langBangOracleProvenance.commit);
+      const cleanStatus = Bun.spawnSync([
+        "git",
+        "-C",
+        cleanRoot,
+        "status",
+        "--porcelain=v1",
+        "--untracked-files=all",
+      ]);
+      requireSuccessfulProcess("clean oracle checkout inspection", cleanStatus);
+      expect(cleanStatus.stdout.toString()).toBe("");
+      expect(await Bun.file(resolve(cleanRoot, "LICENSE")).text()).toContain(
+        "Apache License\n                           Version 2.0",
+      );
+      expect((await Bun.file(resolve(cleanRoot, "lean-toolchain")).text()).trim()).toBe(
+        langBangOracleProvenance.toolchain,
+      );
+      symlinkSync(resolve(sourceRoot, ".lake"), resolve(cleanRoot, ".lake"), "dir");
+
+      const build = Bun.spawnSync(
+        [lakeExecutable, `--dir=${cleanRoot}`, "--rehash", "--no-cache", "build", "bang"],
+        { env: offlineBuildEnvironment },
+      );
+      requireSuccessfulProcess("offline pinned oracle build", build);
+      const freshness = Bun.spawnSync(
+        [
+          lakeExecutable,
+          `--dir=${cleanRoot}`,
+          "--rehash",
+          "--no-cache",
+          "--no-build",
+          "build",
+          "bang",
+        ],
+        { env: offlineBuildEnvironment },
+      );
+      requireSuccessfulProcess("pinned oracle freshness check", freshness);
+
+      const postBuildStatus = Bun.spawnSync([
+        "git",
+        "-C",
+        cleanRoot,
+        "status",
+        "--porcelain=v1",
+        "--untracked-files=all",
+        "--",
+        ".",
+        ":(exclude).lake",
+      ]);
+      requireSuccessfulProcess("post-build oracle checkout inspection", postBuildStatus);
+      expect(postBuildStatus.stdout.toString()).toBe("");
+      expect(langBangOracleProvenance.buildArtifactPolicy).toContain(
+        "may refresh only shared ignored .lake/build outputs",
+      );
+
+      const fixture = resolve(
+        import.meta.dirname,
+        "../examples/kernel-calculus/lang-bang-overlap.bang",
+      );
+      const expected = (
+        await Bun.file(
+          resolve(
+            import.meta.dirname,
+            "../examples/kernel-calculus/lang-bang-overlap.expected.txt",
+          ),
+        ).text()
+      ).trim();
+      const observation = Bun.spawnSync([
+        resolve(cleanRoot, langBangOracleProvenance.executable),
+        "run",
+        "--engine=oracle",
+        "--no-typecheck",
+        fixture,
+      ]);
+      requireSuccessfulProcess("pinned Source.eval observation", observation);
+      expect(observation.stderr.toString()).toBe("");
+      expect(observation.stdout.toString().trim()).toBe(expected);
+    } finally {
+      if (worktreeAdded) {
+        const removeWorktree = Bun.spawnSync([
+          "git",
+          "-C",
+          sourceRoot,
+          "worktree",
+          "remove",
+          "--force",
+          cleanRoot,
+        ]);
+        requireSuccessfulProcess("pinned oracle worktree cleanup", removeWorktree);
+      } else {
+        rmSync(cleanRoot, { recursive: true, force: true });
+      }
+    }
 
     expect(finiteOracleTypes).toEqual({
       unit: { kind: "unit" },

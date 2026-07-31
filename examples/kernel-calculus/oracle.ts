@@ -15,8 +15,11 @@ export const langBangOracleProvenance = Object.freeze({
   license: "Apache-2.0",
   method: "independent execution of the pinned Source.eval oracle; no source copied",
   defaultRoot: "/srv/share/projects/lang-bang",
+  defaultLakeExecutable: "/home/nori/.elan/toolchains/leanprover--lean4---v4.30.0/bin/lake",
+  toolchain: "leanprover/lean4:v4.30.0",
   executable: ".lake/build/bin/bang",
-  cleanSourcePaths: Object.freeze(["Main.lean", "Bang", "lakefile.toml", "lean-toolchain"]),
+  buildArtifactPolicy:
+    "a clean detached pinned worktree may refresh only shared ignored .lake/build outputs derived from its exact source",
 });
 
 export const finiteOracleTypes = Object.freeze({

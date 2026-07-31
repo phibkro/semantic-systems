@@ -155,3 +155,18 @@ authority, Node divergence, model drift, or an unrun required tool.
   tests and 68 Python tests. The pre-existing unsupported kernel-safety warning
   remains visible. No provider, network, deployment, or external repository
   mutation occurred.
+- 2026-07-31: final rejection correction made raw check and evaluation schemas
+  whole-observation custody gates. Copies that recombine genuine programs,
+  tokens, or snapshots with forged fields are not observations. Separately
+  named normalized-report schemas validate exact structural keys and reject
+  retained authority. Runtime-value predicates now reject cycles, excessive
+  depth, and excessive node counts without defects.
+- 2026-07-31: the pinned `lang-bang` test now materializes a clean detached Git
+  worktree at the exact commit and verifies its head, whole-worktree
+  cleanliness, license, and Lean toolchain. It links only the local ignored
+  Lake cache, then runs Lake with `--rehash --no-cache`, followed by a
+  `--no-build` freshness check, before executing `Source.eval`. Network
+  protocols and proxies are denied for the build process. Lake can refresh
+  only shared ignored `.lake/build` artifacts; those are declared derived local
+  oracle output, not source or project evidence mutations. The temporary
+  worktree is removed after the observation.

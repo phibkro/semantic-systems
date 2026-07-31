@@ -244,11 +244,22 @@ export interface RuntimeRejected {
 
 export type EvaluationResult = Returned | Suspended | Exhausted | RuntimeRejected;
 
+const evaluationResultCustody = new WeakSet<object>();
+
 const freeze = <Value>(value: Value): Value => {
   if (typeof value !== "object" || value === null || Object.isFrozen(value)) return value;
   for (const child of Object.values(value)) freeze(child);
   return Object.freeze(value);
 };
+
+const observedEvaluationResult = <Result extends EvaluationResult>(result: Result): Result => {
+  const observation = freeze(result);
+  evaluationResultCustody.add(observation);
+  return observation;
+};
+
+export const isEvaluationResult = (result: unknown): result is EvaluationResult =>
+  typeof result === "object" && result !== null && evaluationResultCustody.has(result);
 
 export const runtimeUnit = (): RuntimeValue => freeze({ kind: "unit" });
 export const runtimeBool = (value: boolean): RuntimeValue => freeze({ kind: "bool", value });
@@ -282,7 +293,7 @@ const rejected = (
   expected?: unknown,
   actual?: unknown,
 ): RuntimeRejected =>
-  freeze({
+  observedEvaluationResult({
     status: "runtime-rejected",
     diagnostic: runtimeDiagnostic(code, rule, path, message, expected, actual),
     trace,
@@ -564,7 +575,7 @@ const transition = (machine: Machine): Transition => {
     const frame = machine.frames.at(-1);
     if (frame === undefined) {
       return {
-        terminal: freeze({
+        terminal: observedEvaluationResult({
           status: "returned",
           value: control.result,
           trace: freeze([]),
@@ -842,7 +853,7 @@ const transition = (machine: Machine): Transition => {
           trace: freeze([]),
         });
         return {
-          terminal: freeze({
+          terminal: observedEvaluationResult({
             status: "suspended",
             request: freeze({
               label: term.label,
@@ -1036,7 +1047,7 @@ const runMachine = (
   const trace = [...initialTrace];
   while (true) {
     if (fuel === 0) {
-      return freeze({
+      return observedEvaluationResult({
         status: "exhausted",
         reason: "fuel",
         machineSnapshot: machineSnapshot(machine),
@@ -1044,7 +1055,7 @@ const runMachine = (
       });
     }
     if (trace.length >= bounds.maximumTraceEntries) {
-      return freeze({
+      return observedEvaluationResult({
         status: "exhausted",
         reason: "trace",
         machineSnapshot: machineSnapshot(machine),
@@ -1063,7 +1074,7 @@ const runMachine = (
     fuel -= 1;
     if (next.terminal !== undefined) {
       if (next.terminal.status === "returned") {
-        return freeze({ ...next.terminal, trace: freeze(trace) });
+        return observedEvaluationResult({ ...next.terminal, trace: freeze(trace) });
       }
       if (next.terminal.status === "suspended") {
         const token = next.terminal.oneShotToken;
@@ -1071,10 +1082,10 @@ const runMachine = (
         if (state !== undefined) {
           externalState.set(token, { machine: state.machine, trace: freeze(trace) });
         }
-        return freeze({ ...next.terminal, trace: freeze(trace) });
+        return observedEvaluationResult({ ...next.terminal, trace: freeze(trace) });
       }
       if (next.terminal.status === "runtime-rejected") {
-        return freeze({ ...next.terminal, trace: freeze(trace) });
+        return observedEvaluationResult({ ...next.terminal, trace: freeze(trace) });
       }
       return next.terminal;
     }
@@ -1135,7 +1146,7 @@ export const resume = (
   const state = externalState.get(token)!;
   let ownedValue: RuntimeValue | undefined;
   try {
-    ownedValue = snapshotRuntimeValue(value);
+    ownedValue = isRuntimeValue(value) ? snapshotRuntimeValue(value) : undefined;
   } catch {
     ownedValue = undefined;
   }
@@ -1194,8 +1205,19 @@ const exactDataFields = (
   }
 };
 
-export const isRuntimeValue = (value: unknown): value is RuntimeValue => {
+interface RuntimeValueInspection {
+  readonly active: WeakSet<object>;
+  nodes: number;
+}
+
+const isRuntimeValueWithinBounds = (
+  value: unknown,
+  inspection: RuntimeValueInspection,
+  depth: number,
+): value is RuntimeValue => {
   if (typeof value !== "object" || value === null) return false;
+  inspection.nodes += 1;
+  if (inspection.nodes > 4_096 || depth > 64 || inspection.active.has(value)) return false;
   let kindDescriptor: PropertyDescriptor | undefined;
   try {
     kindDescriptor = Object.getOwnPropertyDescriptor(value, "kind");
@@ -1216,11 +1238,13 @@ export const isRuntimeValue = (value: unknown): value is RuntimeValue => {
     }
     case "pair": {
       const fields = exactDataFields(value, ["kind", "first", "second"]);
-      return (
-        fields !== undefined &&
-        isRuntimeValue(fields["first"]!.value) &&
-        isRuntimeValue(fields["second"]!.value)
-      );
+      if (fields === undefined) return false;
+      inspection.active.add(value);
+      const valid =
+        isRuntimeValueWithinBounds(fields["first"]!.value, inspection, depth + 1) &&
+        isRuntimeValueWithinBounds(fields["second"]!.value, inspection, depth + 1);
+      inspection.active.delete(value);
+      return valid;
     }
     case "thunk":
       return exactDataFields(value, ["kind"]) !== undefined && thunkCustody.has(value);
@@ -1228,6 +1252,9 @@ export const isRuntimeValue = (value: unknown): value is RuntimeValue => {
       return false;
   }
 };
+
+export const isRuntimeValue = (value: unknown): value is RuntimeValue =>
+  isRuntimeValueWithinBounds(value, { active: new WeakSet<object>(), nodes: 0 }, 0);
 
 export const isRuntimeThunk = (value: unknown): value is RuntimeThunk =>
   typeof value === "object" &&

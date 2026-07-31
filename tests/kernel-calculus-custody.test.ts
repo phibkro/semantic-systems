@@ -7,10 +7,22 @@ import {
   EvaluationResultSchema,
   evaluate,
   int,
+  intType,
+  isRuntimeValue,
+  normalizeCheckResult,
+  normalizeEvaluationResult,
+  NormalizedCheckResultSchema,
+  NormalizedEvaluationResultSchema,
+  operation,
   operationSignature,
+  resume,
   returnTerm,
+  runtimeBool,
+  RuntimeValueSchema,
+  unit,
+  unitType,
 } from "../src/kernel-calculus/index.ts";
-import type { CheckedProgram } from "../src/kernel-calculus/index.ts";
+import type { CheckedProgram, RuntimeValue } from "../src/kernel-calculus/index.ts";
 
 describe("minimal kernel calculus custody and decode bounds", () => {
   test("counterexample 15: malformed and over-bound unknown input never becomes a decoded term", () => {
@@ -184,8 +196,137 @@ describe("minimal kernel calculus custody and decode bounds", () => {
     const checked = check(operationSignature([]), returnTerm("1", int(1)));
     expect(() => Schema.decodeUnknownSync(CheckResultSchema)(checked)).not.toThrow();
     if (checked.status !== "accepted") throw new Error("expected accepted");
+    const rejectedCheck = check(
+      operationSignature([]),
+      operation("1", "missing", "operation", unit()),
+    );
+    expect(rejectedCheck.status).toBe("rejected");
+    expect(() => Schema.decodeUnknownSync(CheckResultSchema)(rejectedCheck)).not.toThrow();
+    const returned = evaluate(checked.program);
+    expect(() => Schema.decodeUnknownSync(EvaluationResultSchema)(returned)).not.toThrow();
+
     expect(() =>
-      Schema.decodeUnknownSync(EvaluationResultSchema)(evaluate(checked.program)),
+      Schema.decodeUnknownSync(CheckResultSchema)({
+        ...checked,
+        type: { kind: "return", grade: "1", value: { kind: "bool" } },
+      }),
+    ).toThrow();
+    expect(() =>
+      Schema.decodeUnknownSync(CheckResultSchema)({
+        ...checked,
+        authority: "ambient",
+      }),
+    ).toThrow();
+    expect(() =>
+      Schema.decodeUnknownSync(EvaluationResultSchema)({
+        ...returned,
+        trace: [],
+      }),
+    ).toThrow();
+
+    const effectSignature = operationSignature([
+      {
+        label: "probe",
+        operation: "receive",
+        argumentType: unitType(),
+        resultType: intType(),
+      },
+    ]);
+    const request = check(effectSignature, operation("1", "probe", "receive", unit()));
+    if (request.status !== "accepted") throw new Error("expected accepted request");
+    const suspended = evaluate(request.program);
+    if (suspended.status !== "suspended") throw new Error("expected suspension");
+    expect(() => Schema.decodeUnknownSync(EvaluationResultSchema)(suspended)).not.toThrow();
+    expect(() =>
+      Schema.decodeUnknownSync(EvaluationResultSchema)({
+        ...suspended,
+        request: { ...suspended.request, label: "forged" },
+      }),
+    ).toThrow();
+
+    const exhausted = evaluate(checked.program, { fuel: 0, maximumTraceEntries: 1 });
+    if (exhausted.status !== "exhausted") throw new Error("expected exhaustion");
+    expect(() => Schema.decodeUnknownSync(EvaluationResultSchema)(exhausted)).not.toThrow();
+    expect(() =>
+      Schema.decodeUnknownSync(EvaluationResultSchema)({
+        ...exhausted,
+        machineSnapshot: exhausted.machineSnapshot,
+        authority: "ambient",
+      }),
+    ).toThrow();
+
+    const normalizedCheck = normalizeCheckResult(checked);
+    const normalizedRejectedCheck = normalizeCheckResult(rejectedCheck);
+    const normalizedReturned = normalizeEvaluationResult(returned);
+    const normalizedSuspended = normalizeEvaluationResult(suspended);
+    const normalizedExhausted = normalizeEvaluationResult(exhausted);
+    const rejectedResume = resume(suspended.oneShotToken, runtimeBool(true));
+    expect(rejectedResume.status).toBe("runtime-rejected");
+    expect(() => Schema.decodeUnknownSync(EvaluationResultSchema)(rejectedResume)).not.toThrow();
+    const normalizedRejectedResume = normalizeEvaluationResult(rejectedResume);
+    expect(() =>
+      Schema.decodeUnknownSync(NormalizedCheckResultSchema)(normalizedCheck),
     ).not.toThrow();
+    expect(() =>
+      Schema.decodeUnknownSync(NormalizedCheckResultSchema)(normalizedRejectedCheck),
+    ).not.toThrow();
+    expect(() =>
+      Schema.decodeUnknownSync(NormalizedEvaluationResultSchema)(normalizedReturned),
+    ).not.toThrow();
+    for (const normalized of [normalizedSuspended, normalizedExhausted, normalizedRejectedResume]) {
+      expect(() =>
+        Schema.decodeUnknownSync(NormalizedEvaluationResultSchema)(normalized),
+      ).not.toThrow();
+    }
+    expect(() =>
+      Schema.decodeUnknownSync(NormalizedCheckResultSchema)({
+        ...normalizedCheck,
+        authority: "ambient",
+      }),
+    ).toThrow();
+    expect(() =>
+      Schema.decodeUnknownSync(NormalizedEvaluationResultSchema)({
+        ...normalizedReturned,
+        value: { kind: "int", value: 1, authority: "ambient" },
+      }),
+    ).toThrow();
+  });
+
+  test("runtime-value guards reject cyclic and over-bound pairs without defects", () => {
+    const cyclic: Record<string, unknown> = { kind: "pair" };
+    cyclic["first"] = cyclic;
+    cyclic["second"] = { kind: "unit" };
+    expect(isRuntimeValue(cyclic)).toBeFalse();
+    let schemaFailure: unknown;
+    try {
+      Schema.decodeUnknownSync(RuntimeValueSchema)(cyclic);
+    } catch (cause) {
+      schemaFailure = cause;
+    }
+    expect(schemaFailure).toBeDefined();
+    expect(schemaFailure).not.toBeInstanceOf(RangeError);
+
+    let deep: RuntimeValue = { kind: "unit" };
+    for (let index = 0; index < 70; index += 1) {
+      deep = { kind: "pair", first: deep, second: { kind: "unit" } };
+    }
+    expect(isRuntimeValue(deep)).toBeFalse();
+
+    const signature = operationSignature([
+      {
+        label: "probe",
+        operation: "receive",
+        argumentType: unitType(),
+        resultType: intType(),
+      },
+    ]);
+    const checked = check(signature, operation("1", "probe", "receive", unit()));
+    if (checked.status !== "accepted") throw new Error("expected accepted");
+    const suspended = evaluate(checked.program);
+    if (suspended.status !== "suspended") throw new Error("expected suspension");
+    expect(resume(suspended.oneShotToken, cyclic as RuntimeValue)).toMatchObject({
+      status: "runtime-rejected",
+      diagnostic: { code: "resumption.result-type-mismatch" },
+    });
   });
 });
