@@ -2,7 +2,7 @@
 
 <!-- Generated. Edit model sources, not this file. -->
 
-Ready parallel work items: **13**.
+Ready parallel work items: **14**.
 
 | Work item | Phase | Status | Ready | Score | Recommendation | Blockers |
 |---|---|---|---:|---:|---|---|
@@ -21,6 +21,7 @@ Ready parallel work items: **13**.
 | Implement pure inventory realization | implementation | complete | no | 97 | delegate directly |  |
 | Complete inventory evidence-resolution tracer | validation | complete | no | 87 | delegate with review |  |
 | Implement inventory STM realization | implementation | planned | no | 94 | delegate directly | Implement minimal STM runtime |
+| Establish the kernel reference interpreter | design | in_progress | yes | 87 | delegate with review |  |
 | Specify minimal kernel calculus | validation | complete | no | 53 | bounded spike |  |
 | Specify Lean evidence adapter | research | planned | yes | 60 | delegate with review |  |
 | Design lossless incremental frontend | design | planned | yes | 75 | delegate with review |  |

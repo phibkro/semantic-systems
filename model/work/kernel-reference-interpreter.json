@@ -1,0 +1,50 @@
+{
+  "entities": [
+    {
+      "id": "work.kernel-reference-interpreter",
+      "kind": "work_item",
+      "name": "Establish the kernel reference interpreter",
+      "summary": "Compose the stable kernel JSON boundary, authoritative checker, and bounded CBPV machine into one implementation-neutral execution observation that becomes the optimized compiler's differential oracle.",
+      "status": "in_progress",
+      "tags": ["language", "kernel", "interpreter", "cbpv", "property-testing"],
+      "attributes": {
+        "phase": "design",
+        "effort": 8,
+        "design_spec": "design-specs/0022-kernel-reference-interpreter.md",
+        "plan": "plans/active/0022-kernel-reference-interpreter.md",
+        "acceptance": [
+          "Agent-facing kernel JSON runs through one documented reference interpreter",
+          "Invalid representation and semantic programs remain in their owning rejection phase",
+          "Runtime observations exclude implementation-specific traces and token identities",
+          "Property generators are seeded, shrinking, bounded, and grammar-aware",
+          "Future compiler acceptance requires canonical differential agreement"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 5,
+          "testability": 5,
+          "reversibility": 5,
+          "integration_independence": 4,
+          "blast_radius": 3,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source": "work.kernel-reference-interpreter",
+      "target": "work.agent-facing-kernel-json",
+      "kind": "requires",
+      "summary": "The interpreter consumes the frozen recursive JSON document and checked view.",
+      "attributes": {}
+    },
+    {
+      "source": "work.kernel-reference-interpreter",
+      "target": "component.kernel",
+      "kind": "implements",
+      "summary": "The accepted bounded abstract machine becomes the reference operational backend.",
+      "attributes": {}
+    }
+  ]
+}
