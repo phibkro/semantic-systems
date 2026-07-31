@@ -1,6 +1,6 @@
 import { BunCrypto } from "@effect/platform-bun";
 import { describe, expect, test } from "bun:test";
-import { Effect, Result, type Crypto } from "effect";
+import { Crypto, Effect, Layer, Result } from "effect";
 import { check, int, operationSignature, returnTerm } from "../src/kernel-calculus/index.ts";
 import {
   AuthoredNameAbsent,
@@ -14,19 +14,19 @@ import {
 } from "../src/language-build/index.ts";
 import {
   emitNormalizedCore,
+  NormalizedCoreDigestFailure,
   type EmissionMetadataInput,
-  type NormalizedCoreDigestFailure,
 } from "../src/normalized-core/index.ts";
 
 const contentIdentity = `sha256:${"7".repeat(64)}` as const;
 
-const metadata = (endByte: number): EmissionMetadataInput => ({
+const metadata = (endByte: number, uri = "memory:main"): EmissionMetadataInput => ({
   assumptions: [],
   source: {
     units: [
       {
         source_key: "main",
-        uri: "memory:main",
+        uri,
         content_identity: contentIdentity,
         byte_length: 8,
       },
@@ -46,11 +46,12 @@ const metadata = (endByte: number): EmissionMetadataInput => ({
 const artifactBytes = (
   value: number,
   endByte: number,
+  uri?: string,
 ): Effect.Effect<Uint8Array, NormalizedCoreDigestFailure, Crypto.Crypto> =>
   Effect.gen(function* () {
     const checked = check(operationSignature([]), returnTerm("1", int(value)));
     if (checked.status !== "accepted") throw new Error("test program must check");
-    const emitted = yield* emitNormalizedCore(checked.program, metadata(endByte));
+    const emitted = yield* emitNormalizedCore(checked.program, metadata(endByte, uri));
     if (emitted.status !== "emitted") throw new Error(emitted.diagnostics[0].message);
     return emitted.bytes;
   });
@@ -250,6 +251,42 @@ describe("language-build semantic store", () => {
     } else throw new Error("forged snapshot must fail");
   });
 
+  test("rejects a lone-surrogate snapshot string instead of normalizing its bytes", async () => {
+    const result = await runStore(
+      Effect.gen(function* () {
+        const store = yield* SemanticStore;
+        yield* store.insert(yield* artifactBytes(1, 1, "memory:\uFFFD"));
+        const before = yield* store.snapshot;
+        const semanticValue = before.semantic_values[0]!;
+        const artifact = semanticValue.artifacts[0]!;
+        const candidate = {
+          ...before,
+          semantic_values: [
+            {
+              ...semanticValue,
+              artifacts: [
+                {
+                  ...artifact,
+                  canonical_bytes: artifact.canonical_bytes.replace("\uFFFD", "\uD800"),
+                },
+              ],
+            },
+          ],
+        };
+        const replay = yield* store.replay(candidate).pipe(Effect.result);
+        return { before, after: yield* store.snapshot, candidate, replay };
+      }),
+    );
+
+    expect(result.candidate.semantic_values[0]!.artifacts[0]!.canonical_bytes).not.toBe(
+      result.before.semantic_values[0]!.artifacts[0]!.canonical_bytes,
+    );
+    expect(result.after).toEqual(result.before);
+    if (Result.isFailure(result.replay)) {
+      expect(result.replay.failure).toBeInstanceOf(SemanticStoreSnapshotRejected);
+    } else throw new Error("lone-surrogate snapshot text must fail");
+  });
+
   test("orders semantic values, artifact variants, and authored names deterministically", async () => {
     const snapshot = await runStore(
       Effect.gen(function* () {
@@ -286,6 +323,7 @@ describe("language-build semantic store", () => {
         const semanticValue = source.semantic_values[0]!;
         const artifact = semanticValue.artifacts[0]!;
         const absentIdentity = `sha256:${"f".repeat(64)}`;
+        const forgedIdentity = `sha256:${"0".repeat(64)}`;
         const revoked = Proxy.revocable({}, {});
         revoked.revoke();
         const throwing = new Proxy(
@@ -299,6 +337,19 @@ describe("language-build semantic store", () => {
 
         const candidates: ReadonlyArray<unknown> = [
           { ...source, semantic_values: [semanticValue, semanticValue] },
+          {
+            ...source,
+            semantic_values: [{ ...semanticValue, semantic_identity: forgedIdentity }],
+          },
+          {
+            ...source,
+            semantic_values: [
+              {
+                ...semanticValue,
+                artifacts: [{ ...artifact, artifact_identity: forgedIdentity }],
+              },
+            ],
+          },
           {
             ...source,
             semantic_values: [{ ...semanticValue, artifacts: [artifact, artifact] }],
@@ -354,7 +405,7 @@ describe("language-build semantic store", () => {
       }),
     );
 
-    expect(result.attempts).toHaveLength(10);
+    expect(result.attempts).toHaveLength(12);
     for (const attempt of result.attempts) {
       expect(attempt.after).toEqual(attempt.before);
       expect(attempt.after).toEqual(result.source);
@@ -393,5 +444,160 @@ describe("language-build semantic store", () => {
     if (Result.isFailure(result.resolve)) {
       expect(result.resolve.failure).toBeInstanceOf(NameBindingInputRejected);
     } else throw new Error("hostile name lookup input must fail");
+  });
+
+  test("rejects an oversized sparse replay before reading array elements", async () => {
+    let elementReads = 0;
+    const sparseTarget: unknown[] = [];
+    sparseTarget.length = semanticStoreReplayBounds.semanticValues + 1;
+    const sparse = new Proxy(sparseTarget, {
+      get: (target, key, receiver) => {
+        elementReads += 1;
+        return Reflect.get(target, key, receiver);
+      },
+    });
+    const result = await runStore(
+      Effect.gen(function* () {
+        const store = yield* SemanticStore;
+        const stored = yield* store.insert(yield* artifactBytes(1, 1));
+        const before = yield* store.snapshot;
+        const replay = yield* store
+          .replay({
+            format: before.format,
+            version: before.version,
+            semantic_values: sparse,
+            name_bindings: [{ name: "main", semantic_identity: stored.semantic_identity }],
+          })
+          .pipe(Effect.result);
+        return { before, after: yield* store.snapshot, replay };
+      }),
+    );
+
+    expect(elementReads).toBe(0);
+    expect(result.after).toEqual(result.before);
+    if (Result.isFailure(result.replay)) {
+      expect(result.replay.failure).toBeInstanceOf(SemanticStoreSnapshotRejected);
+    } else throw new Error("oversized sparse snapshot must fail");
+  });
+
+  test("alternate insertion orders produce one equal deeply immutable snapshot", async () => {
+    const populate = (reverse: boolean) =>
+      runStore(
+        Effect.gen(function* () {
+          const store = yield* SemanticStore;
+          const first = yield* artifactBytes(1, 1);
+          const firstVariant = yield* artifactBytes(1, 2);
+          const second = yield* artifactBytes(2, 1);
+          const bytes = reverse ? [second, firstVariant, first] : [first, firstVariant, second];
+          yield* Effect.forEach(bytes, store.insert);
+          const beforeNames = yield* store.snapshot;
+          const firstSemantic = beforeNames.semantic_values.find(
+            (semanticValue) => semanticValue.artifacts.length === 2,
+          )!;
+          const secondSemantic = beforeNames.semantic_values.find(
+            (semanticValue) => semanticValue.artifacts.length === 1,
+          )!;
+          yield* store.bindName({
+            name: "z",
+            semantic_identity: secondSemantic.semantic_identity,
+          });
+          yield* store.bindName({
+            name: "a",
+            semantic_identity: firstSemantic.semantic_identity,
+          });
+          return yield* store.snapshot;
+        }),
+      );
+
+    const forward = await populate(false);
+    const reverse = await populate(true);
+    expect(reverse).toEqual(forward);
+    for (const semanticValue of forward.semantic_values) {
+      expect(Object.isFrozen(semanticValue)).toBeTrue();
+      expect(Object.isFrozen(semanticValue.artifacts)).toBeTrue();
+      expect(semanticValue.artifacts.every(Object.isFrozen)).toBeTrue();
+    }
+    const artifact = forward.semantic_values[0]!.artifacts[0]!;
+    expect(Reflect.set(artifact, "canonical_bytes", "changed")).toBeFalse();
+    expect(reverse).toEqual(forward);
+  });
+
+  test("concurrent inserts and bindings linearize through complete transitions", async () => {
+    const result = await runStore(
+      Effect.gen(function* () {
+        const store = yield* SemanticStore;
+        const original = yield* artifactBytes(1, 1);
+        const variant = yield* artifactBytes(1, 2);
+        const other = yield* artifactBytes(2, 1);
+        const inserts = yield* Effect.all([store.insert(original), store.insert(variant)], {
+          concurrency: "unbounded",
+        });
+        const otherReceipt = yield* store.insert(other);
+        const bindings = yield* Effect.all(
+          [
+            store.bindName({ name: "main", semantic_identity: inserts[0].semantic_identity }),
+            store.bindName({ name: "main", semantic_identity: otherReceipt.semantic_identity }),
+          ],
+          { concurrency: "unbounded" },
+        );
+        return { inserts, bindings, snapshot: yield* store.snapshot };
+      }),
+    );
+
+    expect(result.inserts.map((receipt) => receipt.status).sort()).toEqual([
+      "semantic-hit",
+      "stored",
+    ]);
+    expect(result.bindings.map((receipt) => receipt.status).sort()).toEqual(["bound", "rebound"]);
+    expect(result.snapshot.semantic_values).toHaveLength(2);
+    expect(result.snapshot.semantic_values.map((value) => value.artifacts.length).sort()).toEqual([
+      1, 2,
+    ]);
+    const resolved = result.snapshot.name_bindings[0]!.semantic_identity;
+    expect(result.bindings.some((receipt) => receipt.semantic_identity === resolved)).toBeTrue();
+  });
+
+  test("a digest failure during replay leaves prior state byte-for-byte unchanged", async () => {
+    const sourceSnapshot = await runStore(
+      Effect.gen(function* () {
+        const store = yield* SemanticStore;
+        yield* store.insert(yield* artifactBytes(1, 1));
+        yield* store.insert(yield* artifactBytes(2, 1));
+        return yield* store.snapshot;
+      }),
+    );
+    let digestCalls = 0;
+    const failingCrypto = Layer.succeed(
+      Crypto.Crypto,
+      Crypto.make({
+        randomBytes: (size) => new Uint8Array(size),
+        digest: (_algorithm, bytes) => {
+          digestCalls += 1;
+          return Effect.succeed(
+            digestCalls === 2
+              ? Uint8Array.of(0)
+              : new Bun.CryptoHasher("sha256").update(bytes).digest(),
+          );
+        },
+      }),
+    );
+    const result = await Effect.runPromise(
+      Effect.gen(function* () {
+        const store = yield* SemanticStore;
+        const prior = yield* artifactBytes(9, 1).pipe(Effect.provide(BunCrypto.layer));
+        yield* store.insert(prior).pipe(Effect.provide(BunCrypto.layer));
+        const before = yield* store.snapshot;
+        const replay = yield* store
+          .replay(sourceSnapshot)
+          .pipe(Effect.provide(failingCrypto), Effect.result);
+        return { before, after: yield* store.snapshot, replay };
+      }).pipe(Effect.provide(SemanticStoreLayer)),
+    );
+
+    expect(digestCalls).toBe(2);
+    expect(result.after).toEqual(result.before);
+    if (Result.isFailure(result.replay)) {
+      expect(result.replay.failure).toBeInstanceOf(NormalizedCoreDigestFailure);
+    } else throw new Error("digest failure during replay must fail");
   });
 });

@@ -7,6 +7,7 @@
  */
 import { Context, Data, Effect, Layer, Ref, Schema, type Crypto } from "effect";
 import {
+  defaultNormalizedCoreBounds,
   validateNormalizedCoreBytes,
   type Identity,
   type NormalizedCoreDiagnostic,
@@ -26,7 +27,12 @@ export const NameLookupInputSchema = Schema.Struct({
 
 const SnapshotArtifactSchema = Schema.Struct({
   artifact_identity: IdentitySchema,
-  canonical_bytes: Schema.String,
+  canonical_bytes: Schema.String.pipe(
+    Schema.check(
+      Schema.isMaxLength(defaultNormalizedCoreBounds.maximumBytes),
+      Schema.isPattern(/^[^\uD800-\uDFFF]*$/u),
+    ),
+  ),
 });
 
 const SnapshotSemanticValueSchema = Schema.Struct({
@@ -77,6 +83,74 @@ export class SemanticStoreSnapshotRejected extends Data.TaggedError(
 )<{
   readonly reason: string;
 }> {}
+
+const dataProperty = (
+  descriptors: Readonly<Record<string, PropertyDescriptor | undefined>>,
+  key: string,
+): unknown | undefined => {
+  const descriptor = descriptors[key];
+  if (descriptor === undefined) return undefined;
+  if (!("value" in descriptor)) throw new TypeError(`${key} must be a data property`);
+  return descriptor.value;
+};
+
+const arrayLength = (value: unknown): number | undefined => {
+  if (!Array.isArray(value)) return undefined;
+  const descriptor = Object.getOwnPropertyDescriptor(value, "length");
+  if (descriptor === undefined || !("value" in descriptor)) {
+    throw new TypeError("array length must be a data property");
+  }
+  return descriptor.value as number;
+};
+
+const inspectSnapshotBounds = (input: unknown): string | undefined => {
+  if (typeof input !== "object" || input === null) return undefined;
+  const root = Object.getOwnPropertyDescriptors(input);
+  const semanticValues = dataProperty(root, "semantic_values");
+  const nameBindings = dataProperty(root, "name_bindings");
+  const semanticValueCount = arrayLength(semanticValues);
+  const nameBindingCount = arrayLength(nameBindings);
+  if (
+    semanticValueCount !== undefined &&
+    semanticValueCount > semanticStoreReplayBounds.semanticValues
+  ) {
+    return `snapshot exceeds ${semanticStoreReplayBounds.semanticValues} semantic values`;
+  }
+  if (nameBindingCount !== undefined && nameBindingCount > semanticStoreReplayBounds.nameBindings) {
+    return `snapshot exceeds ${semanticStoreReplayBounds.nameBindings} authored-name bindings`;
+  }
+  if (semanticValueCount === undefined || !Array.isArray(semanticValues)) return undefined;
+
+  const semanticValueDescriptors = Object.getOwnPropertyDescriptors(semanticValues);
+  let artifactCount = 0;
+  for (let index = 0; index < semanticValueCount; index += 1) {
+    const semanticValue = dataProperty(semanticValueDescriptors, String(index));
+    if (typeof semanticValue !== "object" || semanticValue === null) continue;
+    const artifacts = dataProperty(Object.getOwnPropertyDescriptors(semanticValue), "artifacts");
+    const count = arrayLength(artifacts);
+    if (count === undefined) continue;
+    artifactCount += count;
+    if (artifactCount > semanticStoreReplayBounds.artifacts) {
+      return `snapshot exceeds ${semanticStoreReplayBounds.artifacts} artifact variants`;
+    }
+  }
+  return undefined;
+};
+
+const preflightSnapshotBounds = (
+  input: unknown,
+): Effect.Effect<void, SemanticStoreSnapshotRejected> =>
+  Effect.try({
+    try: () => inspectSnapshotBounds(input),
+    catch: () =>
+      new SemanticStoreSnapshotRejected({ reason: "snapshot input could not be inspected" }),
+  }).pipe(
+    Effect.flatMap((reason) =>
+      reason === undefined
+        ? Effect.void
+        : Effect.fail(new SemanticStoreSnapshotRejected({ reason })),
+    ),
+  );
 
 export type StoreStatus = "stored" | "artifact-hit" | "semantic-hit";
 
@@ -199,6 +273,7 @@ const prepareSnapshot = (
   Crypto.Crypto
 > =>
   Effect.gen(function* () {
+    yield* preflightSnapshotBounds(input);
     const snapshot = yield* Schema.decodeUnknownEffect(SemanticStoreSnapshotSchema, {
       onExcessProperty: "error",
     })(input).pipe(

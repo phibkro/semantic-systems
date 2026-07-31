@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0027-semantic-artifact-store.md`](../../design-specs/0027-semantic-artifact-store.md).
 This execution record cannot redefine that contract.
 
-Status: hostile-input correction candidate; exact reacceptance and review pending
+Status: review-correction candidate; exact reacceptance and follow-up review pending
 
 Owner: primary Semantic Systems language lead
 
@@ -94,6 +94,21 @@ bun scripts/accept/0027-semantic-artifact-store.ts
   defects to the existing typed errors. Focused regressions now cover revoked
   and throwing proxies and prove state preservation. Exact reacceptance and
   follow-up review are pending.
+- 2026-08-01: independent review of pre-correction head `1ae3810` reproduced
+  the hostile-proxy defect and found two more boundary failures. A lone UTF-16
+  surrogate in snapshot `canonical_bytes` encoded as U+FFFD and could replay
+  successfully into text unequal to the accepted candidate. Replay collection
+  limits also ran after Effect Schema traversed the arrays. The correction:
+  - restricts artifact text to the 0019 byte-limit-sized Unicode-scalar domain;
+  - performs a defect-contained descriptor and array-length preflight before
+    deep Schema decoding, while retaining the post-decode checks; and
+  - preserves exact regressions for surrogate normalization and an oversized
+    sparse proxy whose elements must never be read.
+- 2026-08-01: review-driven coverage now also checks forged outer semantic and
+  artifact identities, equal snapshots under alternate insertion order, nested
+  immutability, concurrent insert/bind linearization, and a digest failure after
+  replay validation begins. The focused suite passes 12 journeys and 101
+  assertions; exact acceptance and corrected-head review remain pending.
 
 ## Open review questions
 
