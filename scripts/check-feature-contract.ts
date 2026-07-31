@@ -599,6 +599,7 @@ const validatePreLensLineage = (
 
 const validateSupersededDesign = (
   root: string,
+  base: string,
   changedPaths: ReadonlyArray<string>,
   featureId: string,
   migration: string,
@@ -618,6 +619,25 @@ const validateSupersededDesign = (
   if (required.some((pattern) => !pattern.test(contents))) {
     throw new Error(
       `${supersededPath} must record Status: superseded, Superseded-By: ${featureId}, and a nonempty Invalidation statement`,
+    );
+  }
+  const historicalPath = `design-specs/${migration}.md`;
+  const historical = fileAtRevision(root, base, historicalPath);
+  if (historical === undefined) {
+    throw new Error(`${supersededPath} cannot preserve missing PR-base contract ${historicalPath}`);
+  }
+  const statusLines = [...historical.matchAll(/^Status:\s*.*$/gm)];
+  const invalidation = /^Invalidation:\s*(\S.*)$/m.exec(contents)?.[1];
+  if (statusLines.length !== 1 || invalidation === undefined) {
+    throw new Error(`${supersededPath} cannot derive one retained historical contract record`);
+  }
+  const retained = historical.replace(
+    statusLines[0]![0],
+    `Status: superseded\n\nSuperseded-By: ${featureId}\n\nInvalidation: ${invalidation}`,
+  );
+  if (contents.trimEnd() !== retained.trimEnd()) {
+    throw new Error(
+      `${supersededPath} must preserve the exact PR-base contract body outside supersession metadata`,
     );
   }
 };
@@ -686,7 +706,7 @@ export const validatePullRequestEvent = (root: string, eventPath: string): Featu
     if (!changedPaths.includes(changedDesignPath)) continue;
     const absoluteDesignPath = resolve(root, changedDesignPath);
     if (!existsSync(absoluteDesignPath)) {
-      validateSupersededDesign(root, changedPaths, featureId, changedFeatureId);
+      validateSupersededDesign(root, base, changedPaths, featureId, changedFeatureId);
       continue;
     }
     if (migrationDeclarations.preLens.includes(changedFeatureId)) continue;

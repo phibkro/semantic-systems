@@ -141,7 +141,7 @@ const run = (mode: Mode, root: string, args: Map<string, string>): void => {
       return;
     }
     const contractIds = featureIdsFromContractPaths(changedPaths);
-    const migrations = new Set<string>();
+    const migrationEdges = new Map<string, string[]>();
     for (const featureId of featureIds) {
       const declaredMigrations = contractMigrationsFor(root, featureId);
       const designPath = `design-specs/${featureId}.md`;
@@ -156,24 +156,58 @@ const run = (mode: Mode, root: string, args: Map<string, string>): void => {
         }
         continue;
       }
+      const admitted: string[] = [];
       for (const migrated of declaredMigrations) {
         if (!contractIds.includes(migrated)) {
           throw new Error(
             `feature ${featureId} declares unchanged contract migration ${migrated} in range`,
           );
         }
-        if (
-          migrations.has(migrated) ||
-          (featureIds.includes(migrated) && contractMigrationsFor(root, migrated).length > 0)
-        ) {
-          throw new Error(`contract migration ${migrated} has ambiguous range ownership`);
-        }
-        migrations.add(migrated);
+        admitted.push(migrated);
       }
+      migrationEdges.set(featureId, admitted);
     }
+    const migrations = new Set([...migrationEdges.values()].flat());
     const owners = featureIds.filter((featureId) => !migrations.has(featureId));
     if (owners.length === 0) {
       throw new Error("range contract migrations have no owning feature");
+    }
+    const parents = new Map<string, Set<string>>();
+    for (const [owner, migratedIds] of migrationEdges) {
+      for (const migrated of migratedIds) {
+        const current = parents.get(migrated) ?? new Set<string>();
+        current.add(owner);
+        parents.set(migrated, current);
+      }
+    }
+    const roots = new Map<string, Set<string>>();
+    const rootsFor = (featureId: string, visiting: ReadonlySet<string>): Set<string> => {
+      const cached = roots.get(featureId);
+      if (cached !== undefined) return cached;
+      if (visiting.has(featureId)) {
+        throw new Error(`contract migration graph contains a cycle at ${featureId}`);
+      }
+      const directParents = parents.get(featureId);
+      if (directParents === undefined || directParents.size === 0) {
+        const result = new Set([featureId]);
+        roots.set(featureId, result);
+        return result;
+      }
+      const nextVisiting = new Set(visiting).add(featureId);
+      const result = new Set<string>();
+      for (const parent of directParents) {
+        for (const rootOwner of rootsFor(parent, nextVisiting)) result.add(rootOwner);
+      }
+      roots.set(featureId, result);
+      return result;
+    };
+    for (const migrated of migrations) {
+      const rootOwners = rootsFor(migrated, new Set());
+      if (rootOwners.size !== 1) {
+        throw new Error(
+          `contract migration ${migrated} has ambiguous range ownership: ${[...rootOwners].sort().join(", ")}`,
+        );
+      }
     }
     if (migrations.size > 0) {
       console.log(

@@ -147,7 +147,16 @@ retroactive lens rewrite, but deleting its root file requires a changed
 `design-specs/superseded/<id>.md` record with `Status: superseded`, the exact
 `Superseded-By:` owner, and a nonempty `Invalidation:` statement. Both classes
 remain exact, single-use scope declarations and replay only the owning
-acceptance program.
+acceptance program. The superseded record must preserve the PR-base contract
+body exactly outside the replaced status and inserted supersession metadata;
+a metadata-only tombstone is not historical retention.
+
+Range replay treats migrations as a directed ownership graph rather than a
+flat list. Historical migration declarations can therefore nest under a later
+carrier. Replay runs only ultimate changed owners. Multiple declarations for
+one migrated identity are permitted only when they converge on the same
+ultimate owner; unrelated roots, cycles, missing owners, stale declarations,
+and unchanged declarations fail closed.
 
 ### Feedback ladder
 

@@ -398,6 +398,72 @@ describe("autonomous development control loop", () => {
     expect(text(stale)).toContain("cannot reuse contract migrations");
   });
 
+  test("collapses nested migration history to one ultimate range owner", async () => {
+    const fixture = await featureFixture();
+    const addOwner = async (
+      featureId: string,
+      migrations: string,
+      acceptanceBody: string,
+    ): Promise<void> => {
+      await Bun.write(
+        join(fixture.repo, "design-specs", `${featureId}.md`),
+        `${completeDesignLens(featureId)}\nMigrates-Feature-IDs: ${migrations}\n`,
+      );
+      await Bun.write(join(fixture.repo, "plans", "active", `${featureId}.md`), "# owner\n");
+      const acceptance = join(fixture.repo, "scripts", "accept", `${featureId}.ts`);
+      await Bun.write(acceptance, `#!/usr/bin/env bun\n${acceptanceBody}\n`);
+      await Bun.spawn(["chmod", "+x", acceptance]).exited;
+    };
+    await addOwner("0010-middle", "0005-fixture", "process.exit(29);");
+    await addOwner(
+      "0021-root",
+      "0005-fixture, 0010-middle",
+      'console.log("ultimate root accepted");',
+    );
+    const head = commit(fixture.repo, "test: build nested migration history");
+    const replay = runFeatureTool(
+      FEATURE_RUNNER,
+      fixture.repo,
+      "--mode",
+      "range",
+      "--base",
+      fixture.base,
+      "--head",
+      head,
+    );
+    expect(replay.exitCode).toBe(0);
+    expect(text(replay)).toContain("contract migrations owned by 0021-root");
+    expect(text(replay)).toContain("ultimate root accepted");
+    expect(text(replay)).not.toContain("fixture accepted");
+  });
+
+  test("rejects one migrated contract claimed by unrelated range roots", async () => {
+    const fixture = await featureFixture();
+    for (const featureId of ["0010-left", "0011-right"]) {
+      await Bun.write(
+        join(fixture.repo, "design-specs", `${featureId}.md`),
+        `${completeDesignLens(featureId)}\nMigrates-Feature-IDs: 0005-fixture\n`,
+      );
+      await Bun.write(join(fixture.repo, "plans", "active", `${featureId}.md`), "# owner\n");
+      const acceptance = join(fixture.repo, "scripts", "accept", `${featureId}.ts`);
+      await Bun.write(acceptance, "#!/usr/bin/env bun\nprocess.exit(0);\n");
+      await Bun.spawn(["chmod", "+x", acceptance]).exited;
+    }
+    const head = commit(fixture.repo, "test: create unrelated migration roots");
+    const replay = runFeatureTool(
+      FEATURE_RUNNER,
+      fixture.repo,
+      "--mode",
+      "range",
+      "--base",
+      fixture.base,
+      "--head",
+      head,
+    );
+    expect(replay.exitCode).not.toBe(0);
+    expect(text(replay)).toContain("ambiguous range ownership: 0010-left, 0011-right");
+  });
+
   test("rejects a newly added low-number contract as invented pre-lens lineage", async () => {
     const fixture = await featureFixture();
     const ownerDesign = join(fixture.repo, "design-specs", "0005-fixture.md");
@@ -423,7 +489,10 @@ describe("autonomous development control loop", () => {
     const fixture = await featureFixture();
     const ownerDesign = join(fixture.repo, "design-specs", "0005-fixture.md");
     const carrierDesign = join(fixture.repo, "design-specs", "0006-carrier.md");
-    await Bun.write(carrierDesign, "# historical pre-lens carrier\n");
+    await Bun.write(
+      carrierDesign,
+      "# historical pre-lens carrier\n\nStatus: frozen\n\nIrreplaceable semantic term: retained-history-value.\n",
+    );
     const historicalBase = commit(fixture.repo, "docs: accept historical carrier");
     await Bun.write(
       ownerDesign,
@@ -443,9 +512,19 @@ describe("autonomous development control loop", () => {
     await mkdir(join(fixture.repo, "design-specs", "superseded"), { recursive: true });
     await Bun.write(
       superseded,
-      "# historical pre-lens carrier\n\nStatus: superseded\n\nSuperseded-By: 0005-fixture\n\nInvalidation: The owner replaces this contract while retaining its historical record.\n",
+      "Status: superseded\n\nSuperseded-By: 0005-fixture\n\nInvalidation: Metadata alone cannot stand in for retained history.\n",
     );
     payload.pull_request.head.sha = commit(fixture.repo, "docs: retain superseded carrier");
+    await Bun.write(fixture.event, JSON.stringify(payload));
+    const truncated = runFeatureTool(FEATURE_POLICY, fixture.repo, "--event", fixture.event);
+    expect(truncated.exitCode).not.toBe(0);
+    expect(text(truncated)).toContain("must preserve the exact PR-base contract body");
+
+    await Bun.write(
+      superseded,
+      "# historical pre-lens carrier\n\nStatus: superseded\n\nSuperseded-By: 0005-fixture\n\nInvalidation: The owner replaces this contract while retaining its historical record.\n\nIrreplaceable semantic term: retained-history-value.\n",
+    );
+    payload.pull_request.head.sha = commit(fixture.repo, "docs: preserve superseded carrier");
     await Bun.write(fixture.event, JSON.stringify(payload));
     const retained = runFeatureTool(FEATURE_POLICY, fixture.repo, "--event", fixture.event);
     if (retained.exitCode !== 0) throw new Error(text(retained));
