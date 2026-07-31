@@ -11,11 +11,13 @@ const portableSemanticProgram = (filename: string): boolean => {
     "/src/references/",
     "/src/actor/",
     "/src/stm/",
+    "/src/semantic-system/",
     "src/project-model/",
     "src/tracer/",
     "src/references/",
     "src/actor/",
     "src/stm/",
+    "src/semantic-system/",
   ].some((fragment) => normalized.includes(fragment) || normalized.startsWith(fragment));
   const runtimeAdapter = [
     "/main-bun.ts",

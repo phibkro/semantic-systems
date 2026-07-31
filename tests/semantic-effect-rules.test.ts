@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import * as Testing from "effect-oxlint/testing";
 import {
   ambientConsole,
@@ -19,6 +21,7 @@ const referencesBunToml = { filename: "/repo/src/references/toml-bun.ts" };
 const referencesCuratorHolder = { filename: "/repo/src/references/curator-holder.ts" };
 const portableStm = { filename: "/repo/src/stm/model.ts" };
 const stmBunMain = { filename: "/repo/src/stm/main-bun.ts" };
+const portableSemanticSystem = { filename: "/repo/src/semantic-system/kernel.ts" };
 
 const runAmbientConsole = (
   events: ReadonlyArray<readonly [visitor: string, node: unknown]>,
@@ -271,6 +274,50 @@ describe("Semantic Systems Effect Oxlint rules", () => {
     );
   });
 
+  test("the executable semantic-system closure rejects runtime authority", () => {
+    Testing.expectDiagnostics(
+      Testing.runRule(
+        portableRuntimeImports,
+        "ImportDeclaration",
+        Testing.importDecl("node:crypto"),
+        portableSemanticSystem,
+      ),
+      [
+        {
+          message:
+            "Portable semantic code must request Effect services; provide Bun or Node layers only in main entrypoints",
+        },
+      ],
+    );
+    Testing.expectDiagnostics(
+      Testing.runRule(
+        ambientNondeterminism,
+        "CallExpression",
+        Testing.callOfMember("Math", "random"),
+        portableSemanticSystem,
+      ),
+      [
+        {
+          message: "Use Effect Clock, Random, or Crypto services instead of ambient nondeterminism",
+        },
+      ],
+    );
+    Testing.expectDiagnostics(
+      Testing.runRule(
+        effectRuntimeBoundary,
+        "CallExpression",
+        Testing.callOfMember("Effect", "runPromise"),
+        portableSemanticSystem,
+      ),
+      [
+        {
+          message:
+            "Keep Effect programs composable; execute them only in main-bun.ts or main-node.ts",
+        },
+      ],
+    );
+  });
+
   test("Effect execution is confined to composition entrypoints while internal composition remains open", () => {
     Testing.expectDiagnostics(
       Testing.runRule(
@@ -353,5 +400,49 @@ describe("Semantic Systems Effect Oxlint rules", () => {
         portableReferences,
       ),
     );
+  });
+
+  test("the semantic-system transitive import closure reaches no runtime-specific adapter", () => {
+    const root = resolve(import.meta.dirname, "..");
+    const entrypoint = resolve(root, "src/semantic-system/index.ts");
+    const scanner = new Bun.Transpiler({ loader: "ts" });
+    const visited = new Set<string>();
+    const bareImports = new Set<string>();
+    const visit = (path: string): void => {
+      if (visited.has(path)) return;
+      visited.add(path);
+      const source = readFileSync(path, "utf8");
+      for (const imported of scanner.scanImports(source)) {
+        if (!imported.path.startsWith(".")) {
+          bareImports.add(imported.path);
+          continue;
+        }
+        const candidate = resolve(dirname(path), imported.path);
+        const resolved = existsSync(candidate)
+          ? candidate
+          : existsSync(`${candidate}.ts`)
+            ? `${candidate}.ts`
+            : resolve(candidate, "index.ts");
+        expect(existsSync(resolved)).toBeTrue();
+        visit(resolved);
+      }
+    };
+
+    visit(entrypoint);
+
+    const forbiddenBare = [...bareImports].filter(
+      (specifier) =>
+        specifier === "bun" ||
+        specifier.startsWith("node:") ||
+        specifier.startsWith("@effect/platform-bun") ||
+        specifier.startsWith("@effect/platform-node"),
+    );
+    const runtimeFiles = [...visited].filter((path) =>
+      /(?:main-(?:bun|node)|toml-(?:bun|node)|curator-holder)\.ts$/.test(path),
+    );
+    expect(forbiddenBare).toEqual([]);
+    expect(runtimeFiles).toEqual([]);
+    expect([...visited].some((path) => path.endsWith("/src/actor/runtime.ts"))).toBeTrue();
+    expect([...visited].some((path) => path.endsWith("/src/tracer/domain.ts"))).toBeTrue();
   });
 });

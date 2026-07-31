@@ -12,6 +12,7 @@ flowchart LR
     work_autonomous_development_loop["Establish the autonomous development control loop"]
     work_core_checker["Implement core checker"]
     work_deterministic_simulator_spec["Design deterministic concurrency simulator"]
+    work_executable_semantic_system_kernel["Build the executable semantic system kernel"]
     work_explorer_query_contract["Specify explorer query contract"]
     work_inventory_actor["Implement inventory actor realization"]
     work_inventory_design["Complete inventory domain contract"]
@@ -33,6 +34,7 @@ flowchart LR
     work_translation_validation_spec["Specify translation-validation seams"]
     work_wasm_contract_mapping["Research semantic contracts to WIT mapping"]
     decision_gated_autonomous_merges -->|informs| work_autonomous_development_loop
+    work_executable_semantic_system_kernel -->|blocks| work_actor_runtime
     work_inventory_resolution_tracer -->|requires| decision_theory_identity
     work_normalized_core_format -->|blocks| work_kernel_spec
     work_lossless_frontend_spec -->|blocks| work_normalized_core_format

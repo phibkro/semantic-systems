@@ -1,0 +1,40 @@
+{
+  "entities": [
+    {
+      "id": "component.semantic-system-kernel",
+      "kind": "component",
+      "name": "Executable semantic system kernel",
+      "summary": "Portable open-system descriptions, pure reactions and queries, bounded causal execution, and derived protocol graphs.",
+      "status": "prototype",
+      "tags": ["semantic-system", "effects", "actors"],
+      "attributes": {
+        "responsibilities": [
+          "semantic protocol description",
+          "pure reaction and query dispatch",
+          "bounded causal execution",
+          "effect request interpretation",
+          "derived graph generation"
+        ],
+        "public_entrypoint": "src/semantic-system/index.ts",
+        "design_spec": "design-specs/0016-executable-semantic-system-kernel.md",
+        "evidence_limit": "Executable tracer and selected runtime validation; not language soundness, observation truth, OTP semantics, or external exactly-once behavior"
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source": "component.project",
+      "target": "component.semantic-system-kernel",
+      "kind": "contains",
+      "summary": "The project contains the provisional executable authoring kernel.",
+      "attributes": {}
+    },
+    {
+      "source": "component.semantic-system-kernel",
+      "target": "component.runtime",
+      "kind": "extends",
+      "summary": "The tracer adds an explicit semantic protocol and bounded-driver layer without redefining runtime authority.",
+      "attributes": {}
+    }
+  ]
+}
