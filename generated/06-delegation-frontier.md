@@ -22,7 +22,7 @@ Ready parallel work items: **11**.
 | Implement inventory STM realization | implementation | planned | no | 94 | delegate directly | Implement minimal STM runtime |
 | Specify minimal kernel calculus | validation | complete | no | 53 | bounded spike |  |
 | Specify Lean evidence adapter | research | planned | yes | 60 | delegate with review |  |
-| Design lossless incremental frontend | design | in_progress | yes | 75 | delegate with review |  |
+| Design agent-facing kernel JSON | design | in_progress | yes | 75 | delegate with review |  |
 | Specify normalized core artifact | validation | complete | no | 45 | bounded spike |  |
 | Implement package and evidence resolver | implementation | in_progress | no | 72 | delegate with review | Define normalized theory identity |
 | Define relational fact export | design | ready | yes | 94 | delegate directly |  |

@@ -39,20 +39,20 @@
     {
       "id": "work.lossless-frontend-spec",
       "kind": "work_item",
-      "name": "Design lossless incremental frontend",
-      "summary": "Specify immutable source trees, stable identities, recovery, query invalidation, and source-to-core provenance.",
+      "name": "Design agent-facing kernel JSON",
+      "summary": "Freeze recursive JSON as the stable agent-facing kernel interface: raw documents, an explicit checked observation, one JSON Schema, strict boundaries, and storage independence.",
       "status": "in_progress",
       "tags": ["compiler", "tooling"],
       "attributes": {
         "phase": "design",
         "effort": 8,
-        "design_spec": "design-specs/0020-lossless-kernel-source.md",
-        "plan": "plans/active/0020-lossless-kernel-source.md",
+        "design_spec": "design-specs/0020-agent-facing-kernel-json.md",
+        "plan": "plans/active/0020-agent-facing-kernel-json.md",
         "acceptance": [
-          "Formatting and malformed source remain representable",
-          "Typed views do not become the canonical source tree",
-          "Incremental query inputs and invalidation rules are explicit",
-          "Diagnostics trace through elaboration to source ranges"
+          "Raw documents carry no inferred fact and no storage detail",
+          "The checked view makes binder context and judgments explicit",
+          "The strict decoder and the 0018 checker remain the authorities",
+          "Any internal storage change is observationally invisible"
         ],
         "delegation": {
           "specification_completeness": 4,

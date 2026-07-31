@@ -1,9 +1,15 @@
-# Active plan 0020: lossless kernel source
+# Superseded plan 0020: lossless kernel source
+
+Superseded on 2026-07-31 by operator decision. The active 0020 plan is
+[`plans/active/0020-agent-facing-kernel-json.md`](../active/0020-agent-facing-kernel-json.md).
+The S-expression checkpoint is preserved at commit
+`ee13bffec46ac4df9fa73874b8bf7a17cf6d2496`; this plan is retained as history
+only and its acceptance script was removed with the recut.
 
 ## Contract
 
-The frozen contract is
-[`design-specs/0020-lossless-kernel-source.md`](../../design-specs/0020-lossless-kernel-source.md).
+The superseded contract is
+[`design-specs/superseded/0020-lossless-kernel-source.md`](../../design-specs/superseded/0020-lossless-kernel-source.md).
 
 ## Goal
 

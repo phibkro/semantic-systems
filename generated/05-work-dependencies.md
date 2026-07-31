@@ -22,7 +22,7 @@ flowchart LR
     work_inventory_stm["Implement inventory STM realization"]
     work_kernel_spec["Specify minimal kernel calculus"]
     work_lean_evidence_adapter["Specify Lean evidence adapter"]
-    work_lossless_frontend_spec["Design lossless incremental frontend"]
+    work_lossless_frontend_spec["Design agent-facing kernel JSON"]
     work_normalized_core_format["Specify normalized core artifact"]
     work_package_resolver["Implement package and evidence resolver"]
     work_relational_fact_schema["Define relational fact export"]

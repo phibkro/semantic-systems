@@ -1,0 +1,601 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/semantic.kernel-json.v1.schema.json",
+  "title": "Semantic agent-facing kernel JSON v1",
+  "description": "Complete structural contract for the two frozen agent-facing documents of design spec 0020: the raw recursive semantic.kernel-json KernelDocument and the semantic.kernel-check KernelCheckObservation. Schema validity is a structural courtesy pre-check only. This schema CANNOT enforce: de Bruijn scope validity of distance or resumption_distance; agreement between operation terms, handler clauses, and the declared signature; typing, effect rows, usage discipline, or handler completeness; sorted array order and duplicate-free rows; total node and depth bounds; strict UTF-8, duplicate-key rejection, or the negative-zero distinction; occurrence-path resolvability, premise-link well-foundedness, or agreement between the inferred summary and judgment 0; or that an observation was produced by the authoritative checker. The strict decoder and the accepted 0018 checker remain the sole authorities for those judgments.",
+  "oneOf": [{ "$ref": "#/$defs/kernel_document" }, { "$ref": "#/$defs/kernel_check_observation" }],
+  "$defs": {
+    "grade": {
+      "description": "Quantitative usage grade from the 0018 calculus: \"0\" permits no use, \"1\" permits at most one use, \"omega\" permits any finite use.",
+      "enum": ["0", "1", "omega"]
+    },
+    "kernel_name": {
+      "description": "Nonempty effect label or operation name. Exact Unicode scalar sequence; no normalization is applied; the decoder additionally rejects lone surrogates.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "safe_integer": {
+      "description": "Signed safe integer. The decoder additionally rejects fractions, exponents, plus signs, and leading zeroes, and preserves -0 as distinct from 0; JSON Schema cannot express that distinction.",
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+    },
+    "nonnegative_safe_integer": {
+      "description": "Nonnegative safe integer used for de Bruijn distances and judgment indexes.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "effect_row": {
+      "description": "Finite effect row: labels sorted by Unicode code-point order with no duplicates. The decoder rejects unsorted or duplicated rows; this schema can express only uniqueness.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/kernel_name" },
+      "uniqueItems": true,
+      "maxItems": 256
+    },
+    "value_type": {
+      "description": "0018 value type. A closed tagged record; unknown tags and extra fields are rejected.",
+      "oneOf": [
+        {
+          "type": "object",
+          "description": "Unit value type.",
+          "properties": { "tag": { "const": "unit" } },
+          "required": ["tag"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Boolean value type.",
+          "properties": { "tag": { "const": "bool" } },
+          "required": ["tag"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Safe-integer value type.",
+          "properties": { "tag": { "const": "int" } },
+          "required": ["tag"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Pair of two value types.",
+          "properties": {
+            "tag": { "const": "pair" },
+            "first": { "$ref": "#/$defs/value_type" },
+            "second": { "$ref": "#/$defs/value_type" }
+          },
+          "required": ["tag", "first", "second"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Thunk type U(effects, computation): forcing it runs the computation with the recorded latent effect row.",
+          "properties": {
+            "tag": { "const": "thunk" },
+            "effects": { "$ref": "#/$defs/effect_row" },
+            "computation": { "$ref": "#/$defs/computation_type" }
+          },
+          "required": ["tag", "effects", "computation"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "computation_type": {
+      "description": "0018 computation type: a graded returner F[q] A or a computation-level function.",
+      "oneOf": [
+        {
+          "type": "object",
+          "description": "Returner type F[grade] value: the computation returns one value whose consumer demand is the grade.",
+          "properties": {
+            "tag": { "const": "return" },
+            "grade": { "$ref": "#/$defs/grade" },
+            "value": { "$ref": "#/$defs/value_type" }
+          },
+          "required": ["tag", "grade", "value"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Function type parameter ->[grade] (effects, result): applying it produces the result computation with the recorded latent effect row; the argument has the recorded usage grade.",
+          "properties": {
+            "tag": { "const": "function" },
+            "parameter": { "$ref": "#/$defs/value_type" },
+            "grade": { "$ref": "#/$defs/grade" },
+            "effects": { "$ref": "#/$defs/effect_row" },
+            "result": { "$ref": "#/$defs/computation_type" }
+          },
+          "required": ["tag", "parameter", "grade", "effects", "result"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "value_term": {
+      "description": "Raw 0018 value term. bound-value references an ordinary value binder by de Bruijn distance; the raw resumption variant is structurally representable and always semantically rejected by the checker because a resumption is not a value.",
+      "oneOf": [
+        {
+          "type": "object",
+          "description": "Reference to the ordinary value binder introduced `distance` value-binder positions outward. Scope validity is a checker judgment, not a schema judgment.",
+          "properties": {
+            "tag": { "const": "bound-value" },
+            "distance": { "$ref": "#/$defs/nonnegative_safe_integer" }
+          },
+          "required": ["tag", "distance"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Unit value.",
+          "properties": { "tag": { "const": "unit" } },
+          "required": ["tag"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Boolean value.",
+          "properties": {
+            "tag": { "const": "bool" },
+            "value": { "type": "boolean" }
+          },
+          "required": ["tag", "value"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Safe-integer value; -0 is preserved as distinct from 0.",
+          "properties": {
+            "tag": { "const": "int" },
+            "value": { "$ref": "#/$defs/safe_integer" }
+          },
+          "required": ["tag", "value"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Pair of two values.",
+          "properties": {
+            "tag": { "const": "pair" },
+            "first": { "$ref": "#/$defs/value_term" },
+            "second": { "$ref": "#/$defs/value_term" }
+          },
+          "required": ["tag", "first", "second"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Suspended computation. Forcing the thunk runs the body.",
+          "properties": {
+            "tag": { "const": "thunk" },
+            "body": { "$ref": "#/$defs/computation_term" }
+          },
+          "required": ["tag", "body"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Raw 0018 spelling of a resumption reference in value position. The checker rejects every occurrence (resumption.escape or a scope diagnostic): a resumption cannot enter a pair, thunk, return value, operation argument, or result.",
+          "properties": {
+            "tag": { "const": "resumption" },
+            "distance": { "$ref": "#/$defs/nonnegative_safe_integer" }
+          },
+          "required": ["tag", "distance"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "computation_term": {
+      "description": "Raw 0018 computation term. Binder-introducing positions: lambda body (argument), let body (bound result), handle return-clause body (handled value), handle operation-clause body (operation argument plus one one-shot resumption binder).",
+      "oneOf": [
+        {
+          "type": "object",
+          "description": "Return a value with consumer-demand grade; type F[grade] A with the empty effect row.",
+          "properties": {
+            "tag": { "const": "return" },
+            "grade": { "$ref": "#/$defs/grade" },
+            "value": { "$ref": "#/$defs/value_term" }
+          },
+          "required": ["tag", "grade", "value"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Sequence two computations. The body binds the bound computation's returned value at value distance 0; its usage limit is q1 * atLeastOnce(q2).",
+          "properties": {
+            "tag": { "const": "let" },
+            "bound": { "$ref": "#/$defs/computation_term" },
+            "body": { "$ref": "#/$defs/computation_term" }
+          },
+          "required": ["tag", "bound", "body"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Force a thunk value, exposing its latent effect row.",
+          "properties": {
+            "tag": { "const": "force" },
+            "value": { "$ref": "#/$defs/value_term" }
+          },
+          "required": ["tag", "value"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Computation-level function. The body binds the argument at value distance 0 with the declared parameter type and usage grade.",
+          "properties": {
+            "tag": { "const": "lambda" },
+            "parameter_type": { "$ref": "#/$defs/value_type" },
+            "grade": { "$ref": "#/$defs/grade" },
+            "body": { "$ref": "#/$defs/computation_term" }
+          },
+          "required": ["tag", "parameter_type", "grade", "body"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Apply a function computation to an argument value.",
+          "properties": {
+            "tag": { "const": "apply" },
+            "computation": { "$ref": "#/$defs/computation_term" },
+            "argument": { "$ref": "#/$defs/value_term" }
+          },
+          "required": ["tag", "computation", "argument"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Perform one declared operation. Agreement with the declared signature is a checker judgment; the row contributed is exactly {label}.",
+          "properties": {
+            "tag": { "const": "operation" },
+            "grade": { "$ref": "#/$defs/grade" },
+            "label": { "$ref": "#/$defs/kernel_name" },
+            "operation": { "$ref": "#/$defs/kernel_name" },
+            "argument": { "$ref": "#/$defs/value_term" }
+          },
+          "required": ["tag", "grade", "label", "operation", "argument"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Deep handler for one label. Clauses are sorted by operation name with no duplicates (decoder-enforced); exact agreement with the signature's operations under the label is a checker judgment.",
+          "properties": {
+            "tag": { "const": "handle" },
+            "label": { "$ref": "#/$defs/kernel_name" },
+            "computation": { "$ref": "#/$defs/computation_term" },
+            "return_clause": { "$ref": "#/$defs/return_clause" },
+            "operation_clauses": {
+              "type": "array",
+              "description": "One clause per declared operation under the handled label, sorted by operation name.",
+              "items": { "$ref": "#/$defs/operation_clause" },
+              "maxItems": 256
+            }
+          },
+          "required": ["tag", "label", "computation", "return_clause", "operation_clauses"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Consume the one-shot resumption binder introduced `resumption_distance` operation-clause bodies outward, supplying a value of the declared operation result type.",
+          "properties": {
+            "tag": { "const": "resume" },
+            "resumption_distance": { "$ref": "#/$defs/nonnegative_safe_integer" },
+            "value": { "$ref": "#/$defs/value_term" }
+          },
+          "required": ["tag", "resumption_distance", "value"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "return_clause": {
+      "type": "object",
+      "description": "Handler return clause. The body binds the handled result value at value distance 0.",
+      "properties": {
+        "body": { "$ref": "#/$defs/computation_term" }
+      },
+      "required": ["body"],
+      "additionalProperties": false
+    },
+    "operation_clause": {
+      "type": "object",
+      "description": "Handler operation clause. The body binds the operation argument at value distance 0 and one one-shot resumption binder at resumption distance 0.",
+      "properties": {
+        "operation": { "$ref": "#/$defs/kernel_name" },
+        "body": { "$ref": "#/$defs/computation_term" }
+      },
+      "required": ["operation", "body"],
+      "additionalProperties": false
+    },
+    "signature_operation": {
+      "type": "object",
+      "description": "One declared operation: (label, operation) maps to one argument type and one result type. The signature array is sorted by (label, operation) with no duplicate pairs (decoder-enforced).",
+      "properties": {
+        "label": { "$ref": "#/$defs/kernel_name" },
+        "operation": { "$ref": "#/$defs/kernel_name" },
+        "argument_type": { "$ref": "#/$defs/value_type" },
+        "result_type": { "$ref": "#/$defs/value_type" }
+      },
+      "required": ["label", "operation", "argument_type", "result_type"],
+      "additionalProperties": false
+    },
+    "kernel_document": {
+      "type": "object",
+      "description": "Raw agent-facing kernel document: one declared operation signature and one program term. It carries no inferred fact and no identity, hash, node reference, cache, store, or bundle detail of any kind.",
+      "properties": {
+        "format": { "const": "semantic.kernel-json" },
+        "version": { "const": 1 },
+        "kernel": { "const": "semantic.kernel-calculus/0018/v1" },
+        "signature": {
+          "type": "array",
+          "description": "Declared operation signature, sorted by (label, operation).",
+          "items": { "$ref": "#/$defs/signature_operation" },
+          "maxItems": 256
+        },
+        "program": { "$ref": "#/$defs/computation_term" }
+      },
+      "required": ["format", "version", "kernel", "signature", "program"],
+      "additionalProperties": false
+    },
+    "occurrence_path": {
+      "description": "Strict RFC 6901 JSON Pointer into the checked KernelDocument, rooted at /program or /signature. Revision-scoped: meaningful only against the exact document supplied to the check call that produced the observation. Resolvability is decoder- and checker-territory; the pattern is structural only.",
+      "type": "string",
+      "pattern": "^/(program|signature)(/(0|[1-9][0-9]*|[a-z][a-z0-9_]*))*$",
+      "maxLength": 4096
+    },
+    "usage_vector": {
+      "description": "Inferred usage grades aligned index-for-index with a binder context: index i records the use of the binder at de Bruijn distance i.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/grade" },
+      "maxItems": 256
+    },
+    "value_binder_entry": {
+      "type": "object",
+      "description": "One ordinary value binder in scope, at the de Bruijn distance equal to its context index (innermost first).",
+      "properties": {
+        "binder_origin": { "$ref": "#/$defs/occurrence_path" },
+        "origin_kind": {
+          "description": "Which binder-introducing position created this binder.",
+          "enum": [
+            "lambda-parameter",
+            "let-result",
+            "return-clause-result",
+            "operation-clause-argument"
+          ]
+        },
+        "value_type": { "$ref": "#/$defs/value_type" },
+        "usage_limit": {
+          "$ref": "#/$defs/grade",
+          "description": "Exact 0018 usage limit: the declared grade for lambda-parameter, q1 * atLeastOnce(q2) for let-result, the handled result grade for return-clause-result, omega for operation-clause-argument."
+        }
+      },
+      "required": ["binder_origin", "origin_kind", "value_type", "usage_limit"],
+      "additionalProperties": false
+    },
+    "resumption_binder_entry": {
+      "type": "object",
+      "description": "One one-shot resumption binder in scope, at the resumption de Bruijn distance equal to its context index (innermost first). Always has usage limit \"1\".",
+      "properties": {
+        "binder_origin": { "$ref": "#/$defs/occurrence_path" },
+        "origin_kind": { "const": "operation-clause-resumption" },
+        "label": { "$ref": "#/$defs/kernel_name" },
+        "operation": { "$ref": "#/$defs/kernel_name" },
+        "result_type": {
+          "$ref": "#/$defs/value_type",
+          "description": "Declared operation result type: the value a resume must supply."
+        },
+        "continuation_type": {
+          "$ref": "#/$defs/computation_type",
+          "description": "Computation type produced by resuming: the handler's return-clause result type."
+        },
+        "continuation_effects": {
+          "$ref": "#/$defs/effect_row",
+          "description": "Effect row produced by resuming under the same deep handler."
+        },
+        "usage_limit": { "const": "1" }
+      },
+      "required": [
+        "binder_origin",
+        "origin_kind",
+        "label",
+        "operation",
+        "result_type",
+        "continuation_type",
+        "continuation_effects",
+        "usage_limit"
+      ],
+      "additionalProperties": false
+    },
+    "judgment_rule": {
+      "description": "Closed 0018 derivation rule name for a successful judgment.",
+      "enum": [
+        "value.variable",
+        "value.unit",
+        "value.bool",
+        "value.int",
+        "value.pair",
+        "value.thunk",
+        "computation.return",
+        "computation.let",
+        "computation.force",
+        "computation.lambda",
+        "computation.apply",
+        "computation.operation",
+        "computation.resume",
+        "handler.deep"
+      ]
+    },
+    "premise_links": {
+      "description": "Indexes of the judgment's immediate subderivations in the judgments table, in 0018 derivation order. Every premise index is strictly greater than the judgment's own index (preorder table), which this schema cannot verify.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/nonnegative_safe_integer" },
+      "maxItems": 4096
+    },
+    "value_judgment": {
+      "type": "object",
+      "description": "One accepted value-term occurrence: its exact contexts, inferred value type, and aligned usage vectors.",
+      "properties": {
+        "tag": { "const": "value-judgment" },
+        "occurrence_path": { "$ref": "#/$defs/occurrence_path" },
+        "rule": { "$ref": "#/$defs/judgment_rule" },
+        "value_context": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/value_binder_entry" },
+          "maxItems": 256
+        },
+        "resumption_context": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/resumption_binder_entry" },
+          "maxItems": 256
+        },
+        "value_type": { "$ref": "#/$defs/value_type" },
+        "usage": { "$ref": "#/$defs/usage_vector" },
+        "resumption_usage": { "$ref": "#/$defs/usage_vector" },
+        "premises": { "$ref": "#/$defs/premise_links" }
+      },
+      "required": [
+        "tag",
+        "occurrence_path",
+        "rule",
+        "value_context",
+        "resumption_context",
+        "value_type",
+        "usage",
+        "resumption_usage",
+        "premises"
+      ],
+      "additionalProperties": false
+    },
+    "computation_judgment": {
+      "type": "object",
+      "description": "One accepted computation-term occurrence: its exact contexts, inferred computation type, effect row, and aligned usage vectors. signature_origin is present exactly when the rule is computation.operation or handler.deep and points at the consulted /signature/N declaration.",
+      "properties": {
+        "tag": { "const": "computation-judgment" },
+        "occurrence_path": { "$ref": "#/$defs/occurrence_path" },
+        "rule": { "$ref": "#/$defs/judgment_rule" },
+        "value_context": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/value_binder_entry" },
+          "maxItems": 256
+        },
+        "resumption_context": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/resumption_binder_entry" },
+          "maxItems": 256
+        },
+        "computation_type": { "$ref": "#/$defs/computation_type" },
+        "effects": { "$ref": "#/$defs/effect_row" },
+        "usage": { "$ref": "#/$defs/usage_vector" },
+        "resumption_usage": { "$ref": "#/$defs/usage_vector" },
+        "premises": { "$ref": "#/$defs/premise_links" },
+        "signature_origin": { "$ref": "#/$defs/occurrence_path" }
+      },
+      "required": [
+        "tag",
+        "occurrence_path",
+        "rule",
+        "value_context",
+        "resumption_context",
+        "computation_type",
+        "effects",
+        "usage",
+        "resumption_usage",
+        "premises"
+      ],
+      "additionalProperties": false
+    },
+    "inferred_summary": {
+      "type": "object",
+      "description": "Root inferred facts for the closed program. Must agree exactly with judgment 0; that agreement is decoder-enforced, not schema-enforceable.",
+      "properties": {
+        "type": { "$ref": "#/$defs/computation_type" },
+        "effects": { "$ref": "#/$defs/effect_row" },
+        "usage": { "$ref": "#/$defs/usage_vector" }
+      },
+      "required": ["type", "effects", "usage"],
+      "additionalProperties": false
+    },
+    "check_diagnostic": {
+      "type": "object",
+      "description": "Stable typed rejection diagnostic surfaced verbatim from the 0018 checker, whose closed code list is the single source of truth. Bind to code and occurrence_path; message is presentation text.",
+      "properties": {
+        "code": {
+          "description": "Stable 0018 diagnostic code, for example usage.affine-duplicated or scope.variable-out-of-range.",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*\\.[a-z0-9-]+$",
+          "minLength": 3,
+          "maxLength": 256
+        },
+        "rule": {
+          "description": "0018 rule or rule family in force when the check failed.",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9.-]*$",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "occurrence_path": { "$ref": "#/$defs/occurrence_path" },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "expected": {
+          "description": "Optional inert JSON value describing the expected fact; bounded by the decoder, not by this schema."
+        },
+        "actual": {
+          "description": "Optional inert JSON value describing the observed fact; bounded by the decoder, not by this schema."
+        }
+      },
+      "required": ["code", "rule", "occurrence_path", "message"],
+      "additionalProperties": false
+    },
+    "check_accepted": {
+      "type": "object",
+      "description": "Accepted observation: the root inferred summary plus the preorder judgments table, one judgment per checked term occurrence with explicit binder contexts and premise links.",
+      "properties": {
+        "tag": { "const": "accepted" },
+        "inferred": { "$ref": "#/$defs/inferred_summary" },
+        "judgments": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              { "$ref": "#/$defs/value_judgment" },
+              { "$ref": "#/$defs/computation_judgment" }
+            ]
+          },
+          "minItems": 1,
+          "maxItems": 16384
+        }
+      },
+      "required": ["tag", "inferred", "judgments"],
+      "additionalProperties": false
+    },
+    "check_rejected": {
+      "type": "object",
+      "description": "Rejected observation: stable typed diagnostics. A rejection is a successful observation of the check, not a transport failure.",
+      "properties": {
+        "tag": { "const": "rejected" },
+        "diagnostics": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/check_diagnostic" },
+          "minItems": 1,
+          "maxItems": 1024
+        }
+      },
+      "required": ["tag", "diagnostics"],
+      "additionalProperties": false
+    },
+    "kernel_check_observation": {
+      "type": "object",
+      "description": "Checked view of one KernelDocument revision, produced through the accepted 0018 checker. Decoding this shape warrants representation validity only, never checker provenance. It embeds no document identity: occurrence paths bind it to the exact document supplied to the producing check call.",
+      "properties": {
+        "format": { "const": "semantic.kernel-check" },
+        "version": { "const": 1 },
+        "kernel": { "const": "semantic.kernel-calculus/0018/v1" },
+        "observation": {
+          "oneOf": [{ "$ref": "#/$defs/check_accepted" }, { "$ref": "#/$defs/check_rejected" }]
+        }
+      },
+      "required": ["format", "version", "kernel", "observation"],
+      "additionalProperties": false
+    }
+  }
+}

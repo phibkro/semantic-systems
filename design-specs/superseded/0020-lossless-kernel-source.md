@@ -2,6 +2,13 @@
 
 ## Status
 
+Superseded on 2026-07-31 by operator decision. The active 0020 contract is
+[`design-specs/0020-agent-facing-kernel-json.md`](../0020-agent-facing-kernel-json.md):
+recursive JSON, not this S-expression format, is the stable user and
+agent-facing kernel interface. This checkpoint is preserved unchanged below
+and at commit `ee13bffec46ac4df9fa73874b8bf7a17cf6d2496`; it is not an active
+contract and has no acceptance script.
+
 This contract freezes one source format for the accepted 0018 kernel.
 
 The first version is `semantic.kernel-source` version 1.

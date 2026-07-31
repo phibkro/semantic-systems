@@ -1,0 +1,18 @@
+{
+  "format": "semantic.kernel-check",
+  "kernel": "semantic.kernel-calculus/0018/v1",
+  "observation": {
+    "diagnostics": [
+      {
+        "actual": "omega",
+        "code": "usage.affine-duplicated",
+        "expected": "1",
+        "message": "one-shot resumption binder is used more than once",
+        "occurrence_path": "/program/operation_clauses/0/body",
+        "rule": "handler.operation"
+      }
+    ],
+    "tag": "rejected"
+  },
+  "version": 1
+}
