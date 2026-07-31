@@ -10,6 +10,7 @@ export {
   interpretKernelJsonBytes,
   type KernelInterpreterBounds,
 } from "./observe.ts";
+export { toPortableFact } from "./portable-fact.ts";
 export {
   isKernelRunObservation,
   KernelRunObservationSchema,
