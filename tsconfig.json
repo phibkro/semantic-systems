@@ -65,5 +65,6 @@
       }
     ]
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts", "scripts/**/*.ts", "commitlint.config.ts"]
+  "include": ["src/**/*.ts", "tests/**/*.ts", "scripts/**/*.ts", "commitlint.config.ts"],
+  "exclude": ["apps/control-room"]
 }

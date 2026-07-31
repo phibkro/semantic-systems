@@ -22,6 +22,9 @@ const requiredArtifacts = [
   "apps/control-room/alchemy.run.ts",
   "apps/control-room/playwright.config.ts",
   ".github/workflows/control-room-alchemy.yml",
+  ".github/workflows/control-room-alchemy-trusted.yml",
+  "apps/control-room/tooling/deploy-static.run.ts",
+  "apps/control-room/tooling/workflow-run-custody.ts",
 ] as const;
 
 const requireArtifacts = Effect.forEach(requiredArtifacts, (relativePath) =>
@@ -40,7 +43,8 @@ const program = Effect.gen(function* () {
   for (const command of [
     ["bun", "test", "tests/public-export.test.ts"],
     ["bun", "run", "--cwd", "apps/control-room", "check"],
-    ["bun", "run", "--cwd", "apps/control-room", "test:browser"],
+    ["nix", "develop", "--command", "bun", "run", "--cwd", "apps/control-room", "test:browser"],
+    ["bun", "run", "--cwd", "apps/control-room", "scan"],
     ["bun", "run", "typecheck"],
     ["bun", "run", "lint"],
     [
@@ -55,7 +59,14 @@ const program = Effect.gen(function* () {
     ],
     ["bun", "run", "semproj", "--", "validate"],
     ["bun", "run", "semproj", "--", "generate", "--check"],
-    ["bun", "scripts/accept/0016-executable-semantic-system-kernel.ts"],
+    [
+      "nix",
+      "develop",
+      "--command",
+      "bun",
+      "scripts/accept/0016-executable-semantic-system-kernel.ts",
+    ],
+    ["nix", "develop", "--command", "just", "check"],
   ] as const) {
     yield* runCommand(command, { cwd: root });
   }
