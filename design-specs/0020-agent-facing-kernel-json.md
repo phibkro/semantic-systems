@@ -407,7 +407,17 @@ structurally equal, so sharing is maximal and exponential inline duplication
 is unrepresentable; and entries appear in first-encounter postorder under
 the frozen traversal — `inferred.type` first, then each judgment in table
 order (context entries before the judged type), then each diagnostic's
-`expected` before `actual` — so the table is deterministic. These indexes
+`expected` before `actual` — so the table is deterministic. Within a
+diagnostic fact the traversal descends arrays in element order and open
+fact records in Unicode code-point key order — the same `compareCodePoints`
+order the canonical encoding serializes object keys in — never host
+insertion order. This key-order rule is a clarification, not a semantic
+change: the frozen canonical byte grammar already writes open-record keys
+in code-point order, and value and byte representations must agree, so
+code-point-order traversal is the only reading under which an accepted
+value's own canonical bytes replay the same first-encounter order; an
+insertion-order reading was never expressible in the canonical bytes at
+all. These indexes
 are observation-scoped semantic sharing, not node identities: they carry no
 storage, hash, cache, or bundle meaning.
 
@@ -564,7 +574,12 @@ bound. Fact record keys are a deliberate open vocabulary — they mirror the
 checker's fact records, which name expected and actual features per rule —
 but every key, scalar, array, and record is bounded and inert, and the strict
 decoder enforces every one of these limits. No other JSON value form
-(fractions, exponents, unsafe integers) is accepted inside a fact.
+(fractions, exponents, unsafe integers) is accepted inside a fact. Open fact
+record fields are traversed and materialized in Unicode code-point key order
+(`compareCodePoints`, the canonical encoding's own key order), so table
+references nested under open keys register with the first-encounter
+traversal authority in the exact order the canonical bytes replay them;
+agents must not infer host insertion order anywhere in a fact.
 
 Fact values are closed under these frozen kind rules, which is what makes the
 bounds provable rather than aspirational:

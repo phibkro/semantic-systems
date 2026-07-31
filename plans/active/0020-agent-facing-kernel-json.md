@@ -185,3 +185,52 @@ failure is not a warning.
   serializes the exact 1,871-byte maximal function node and includes table
   brackets and separators, yielding a corrected rejected-observation worst
   case of 25,108,480 bytes under the unchanged 32 MiB ceiling.
+- 2026-07-31 (sixth correction, slice 0024): independent review reproduced a
+  blocker at integration head 87c532e. `checkKernelDocument` correctly emits
+  the frozen reserved diagnostic facts `{"type_index": n}` with a nonempty
+  shared type table for `type.argument-mismatch`, but the observation
+  decoder treated the reserved shapes as generic open-vocabulary records:
+  it never registered them with the `typeIndex`/`labelIndexRow` authority,
+  so `verifyTraversalOrder` rejected every such observation with
+  `decode.type-table-order`, while a dangling or malformed
+  `type_index`/`label_indexes` reference decoded silently. The decoder now
+  routes exactly the two reserved shapes from the contract's fact kind rules
+  through the existing table authorities — index range, sorted-row
+  discipline, and the frozen first-encounter traversal order included — and
+  rejects a reserved key carried next to sibling keys with
+  `decode.reserved-fact-shape`. Every other fact record key remains the
+  deliberate open vocabulary. No second checker was added; traversal,
+  maximal-sharing, range, and kind checks are unweakened.
+  `tests/kernel-json-diagnostic-fact-custody.test.ts` holds the round-trip
+  regression (value and byte-exact canonical paths) and the
+  dangling/malformed negative oracles, and joins the 0020 acceptance run.
+- 2026-07-31 (seventh correction, slice 0025): the 0024 residual was a real
+  frozen-interface failure, reproduced independently. A representation-valid
+  rejected observation with types `[bool,int]` and diagnostic `expected =
+  {"z":{"type_index":0},"a":{"type_index":1}}` in `z`-then-`a` insertion
+  order decoded as a value (traversal authority encountered types 0 then 1),
+  but its own canonical bytes sort the keys `a`,`z`, so byte decoding
+  encountered 1 before 0 and rejected `decode.type-table-order` at
+  `$/observation/types`: an accepted value did not survive its canonical
+  encoding. Root cause: `diagnosticFact` traversed open fact records in host
+  insertion order while `canonicalJson` serializes keys in
+  `compareCodePoints` order. Decision — recorded in the frozen contract's
+  table-discipline and fact-grammar sections: within a diagnostic fact the
+  frozen traversal descends arrays in element order and open fact records in
+  Unicode code-point key order, the canonical encoding's own key order,
+  never insertion order. This is a clarification, not a semantic version
+  change: the frozen canonical byte grammar already fixes open-record key
+  order to code-point order, and the value/byte agreement requirement makes
+  code-point traversal the only self-consistent reading — insertion order
+  was never expressible in canonical bytes. `diagnosticFact` (decode) and
+  `translateFact` (observe seam) now traverse and materialize open-record
+  keys with the already-imported `compareCodePoints`; reserved singleton
+  shapes stay exact, closed structures are untouched, and no table-order,
+  range, sharing, bounds, reserved-shape, or kind check is weakened.
+  `tests/kernel-json-diagnostic-fact-custody.test.ts` pins the residual
+  counterexample (now rejected identically in both representations), the
+  corrected table order end-to-end (value decode → canonical encode → byte
+  decode → byte-identical re-encode), nested `type_index`/`label_indexes`
+  under open keys, materialized-key order, and exotic keys (U+FF5A vs
+  U+1D400) where UTF-16 order and code-point order disagree, so the
+  comparator authority itself is pinned.

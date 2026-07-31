@@ -1111,8 +1111,42 @@ class ObservationDecoder extends Decoder {
     const keys = Object.keys(fields);
     if (keys.length > 256)
       this.fail("decode.collection-exceeded", path, "maximum fact record length exceeded");
+    // The frozen fact kind rules reserve exactly two record shapes as table
+    // references: {"type_index": TypeIndex} and {"label_indexes":
+    // [LabelIndex...]}. They must register through the same typeIndex /
+    // labelIndexRow authority as every other table reference, so range
+    // custody and the frozen first-encounter traversal order hold. A record
+    // carrying a reserved key next to anything else is neither the reserved
+    // shape nor an open record.
+    if (keys.includes("type_index") || keys.includes("label_indexes")) {
+      if (keys.length !== 1) {
+        this.fail(
+          "decode.reserved-fact-shape",
+          path,
+          'a reserved "type_index" or "label_indexes" fact record holds exactly that one key',
+        );
+      }
+      if (keys[0] === "type_index") {
+        return freeze({
+          type_index: this.typeIndex(fields["type_index"], `${path}/type_index`, depth + 1),
+        });
+      }
+      return freeze({
+        label_indexes: this.labelIndexRow(
+          fields["label_indexes"],
+          `${path}/label_indexes`,
+          depth + 1,
+        ),
+      });
+    }
+    // Open-record fields are traversed and materialized in Unicode
+    // code-point key order — the same compareCodePoints order the canonical
+    // encoding serializes keys in — never JS insertion order. Table
+    // references nested under open keys therefore register with the
+    // first-encounter authority in the order the canonical bytes replay
+    // them, so a value and its own canonical encoding agree.
     const output: Record<string, DiagnosticFact> = {};
-    for (const key of keys) {
+    for (const key of [...keys].sort(compareCodePoints)) {
       if (utf8Bytes(key) > 4_096)
         this.fail("decode.string-exceeded", `${path}/${key}`, "fact key too long");
       output[key] = this.diagnosticFact(fields[key], `${path}/${key}`, depth + 1);

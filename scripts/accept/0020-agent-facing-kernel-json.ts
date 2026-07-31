@@ -45,6 +45,7 @@ const implementationArtifacts = [
   "tests/kernel-json-format.test.ts",
   "tests/kernel-json-check-view.test.ts",
   "tests/kernel-json-custody.test.ts",
+  "tests/kernel-json-diagnostic-fact-custody.test.ts",
   "tests/kernel-json-node.test.ts",
 ] as const;
 
@@ -118,6 +119,7 @@ const program = Effect.gen(function* () {
       "tests/kernel-json-format.test.ts",
       "tests/kernel-json-check-view.test.ts",
       "tests/kernel-json-custody.test.ts",
+      "tests/kernel-json-diagnostic-fact-custody.test.ts",
     ],
     [nodeExecutable, "--test", "tests/kernel-json-node.test.ts"],
     ["bun", "run", "typecheck"],
@@ -130,6 +132,7 @@ const program = Effect.gen(function* () {
       "tests/kernel-json-format.test.ts",
       "tests/kernel-json-check-view.test.ts",
       "tests/kernel-json-custody.test.ts",
+      "tests/kernel-json-diagnostic-fact-custody.test.ts",
       "tests/kernel-json-node.test.ts",
       "tests/kernel-json-observation-bounds.test.ts",
       "examples/kernel-json",

@@ -120,3 +120,51 @@ Exact feature acceptance and independent review remain before integration.
     entry point; the fixes above are internal to it, and the tested unit
     extracted for the fact boundary is exported for direct testing without
     widening the byte-boundary entry point itself.
+- 2026-07-31 (correction slice 0024): independent review rejected integration
+  head 87c532e with a reproduced blocker: a representation-valid
+  `type.argument-mismatch` produced a check-rejected `KernelRunObservation`
+  that failed `isKernelRunObservation`, and both canonical run encoders
+  threw. The root cause was the 0020 observation decoder (reserved
+  diagnostic-fact references never registered with the shared-table
+  authority; see the 0020 plan's sixth correction), not an interpreter
+  defect, and is fixed at the 0020 boundary. On this slice:
+  - the generated type-mismatch and affine-duplication invalid-program
+    properties now assert every produced observation passes
+    `isKernelRunObservation`, both canonical encoders agree, and the
+    canonical text re-validates after `JSON.parse`;
+  - a committed byte-exact `rejected-type-mismatch` kernel-run golden pins a
+    type-fact check rejection (nonempty shared type table, reserved
+    `type_index` facts) and joins the Bun golden test, genuine Node parity,
+    and the acceptance artifact list;
+  - `toPortableFact`'s array projection accepted an enumerable numeric own
+    key at or beyond the snapshotted `length` and silently omitted it — two
+    non-interchangeable host values projecting to one canonical fact, which
+    the fact-boundary contract forbids. Such keys now reject outright, with
+    hostile-proxy counterexamples (phantom tail key, at-length boundary
+    key) committed alongside the existing sparse-array rejection;
+  - assessed, unchanged: the review note that `isKernelRunObservation`
+    performs two live walks (one Effect Schema walk, one `canonicalBytes`
+    walk). No exact contract failure could be stated: the interpreter only
+    produces deeply frozen inert observations, for which both walks see
+    identical data, and both public canonical encoders already snapshot
+    through `toPortableFact` first and validate that one snapshot, so no
+    custody path validates one view and encodes another. For a hostile
+    accessor-backed input, a boolean JS predicate cannot freeze its
+    argument: even a single-walk guard is invalidated by ordinary post-call
+    mutation, and snapshotting inside the guard would make it answer about
+    a value the caller never receives. Collapsing the walks would therefore
+    buy no caller-visible guarantee; the guard stays as is.
+- 2026-07-31 (correction slice 0025): the 0024 residual — an accepted
+  observation whose open diagnostic-fact record keys were inserted out of
+  code-point order failing its own canonical byte decode with
+  `decode.type-table-order` — was confirmed real and fixed at the 0020
+  boundary (see the 0020 plan's seventh correction): open fact records are
+  traversed and materialized in `compareCodePoints` key order, the canonical
+  encoding's own key order, on both the decode and observe seams. This is a
+  clarification of the frozen contract, not a semantic version change: the
+  canonical byte grammar already fixed the key order, so agents must not
+  infer insertion order for any fact-record traversal, including
+  interpreter-produced kernel-run observations that embed check
+  observations. No interpreter code changed on this slice; the 0022
+  acceptance run re-verifies the kernel-run goldens byte-exactly against
+  the corrected boundary.

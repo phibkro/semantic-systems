@@ -229,6 +229,20 @@ const assertDeeplyFrozen = (input: unknown, seen = new WeakSet<object>()): void 
 
 const propertyConfiguration = Object.freeze({ seed: 0x0022, numRuns: 200 });
 
+// Correction slice 0024: a check-rejected observation carrying reserved
+// {"type_index"} diagnostic facts once failed the honest type guard and made
+// both canonical encoders throw, because the 0020 observation decoder never
+// registered reserved fact references with the shared-table authority. Every
+// produced observation must pass the guard and both canonical encoders, and
+// the canonical text must decode back into a valid observation.
+const assertRunObservationCustody = (observation: KernelRunObservation): void => {
+  expect(isKernelRunObservation(observation)).toBe(true);
+  const encodedBytes = encodeCanonicalKernelRunObservation(observation);
+  const encodedJson = canonicalKernelRunObservationJson(observation);
+  expect(new TextDecoder().decode(encodedBytes)).toBe(`${encodedJson}\n`);
+  expect(isKernelRunObservation(JSON.parse(encodedJson))).toBe(true);
+};
+
 describe("kernel reference interpreter examples", () => {
   test("the composition boundary keeps ambient authority and unchecked evaluation out", async () => {
     const source = await Bun.file(
@@ -250,7 +264,12 @@ describe("kernel reference interpreter examples", () => {
   });
 
   test("selected observations equal the portable golden bytes", async () => {
-    for (const name of ["pure-program", "handled-program", "rejected-double-resume"] as const) {
+    for (const name of [
+      "pure-program",
+      "handled-program",
+      "rejected-double-resume",
+      "rejected-type-mismatch",
+    ] as const) {
       const source = new Uint8Array(
         await Bun.file(
           new URL(`../examples/kernel-json/${name}.kernel.json`, import.meta.url),
@@ -444,6 +463,7 @@ describe("kernel reference interpreter generated evidence", () => {
         expect(result.observation.check.observation.diagnostics[0]?.code).toBe(
           "type.argument-mismatch",
         );
+        assertRunObservationCustody(result);
       }),
       propertyConfiguration,
     );
@@ -458,6 +478,7 @@ describe("kernel reference interpreter generated evidence", () => {
         expect(result.observation.check.observation.diagnostics[0]?.code).toBe(
           "usage.affine-duplicated",
         );
+        assertRunObservationCustody(result);
       }),
       propertyConfiguration,
     );
@@ -564,6 +585,34 @@ describe("toPortableFact: strict inert canonical JSON boundary (post-merge revie
       left: { a: 1 },
       right: { a: 1 },
     });
+  });
+
+  test("rejects an enumerable numeric own key at or beyond the snapshotted length, never silently omitting it", () => {
+    // A genuine array cannot hold an own index key at or beyond its length
+    // (defining one auto-extends `length`, which the sparse check already
+    // rejects), but a hostile Proxy over an extensible array can report
+    // exactly that shape: a `length` descriptor the element loop trusts,
+    // alongside an own enumerable data key the loop would never read.
+    // Silently dropping that key would project two non-interchangeable host
+    // values to the same canonical fact.
+    const phantomTail = new Proxy([1, 2], {
+      ownKeys: (target) => [...Reflect.ownKeys(target), "5"],
+      getOwnPropertyDescriptor: (target, prop) =>
+        prop === "5"
+          ? { value: "hidden", writable: true, enumerable: true, configurable: true }
+          : Object.getOwnPropertyDescriptor(target, prop),
+    });
+    expect(toPortableFact(phantomTail)).toBeUndefined();
+    expect(toPortableFact({ nested: phantomTail })).toBeUndefined();
+
+    const atLengthBoundary = new Proxy([1, 2], {
+      ownKeys: (target) => [...Reflect.ownKeys(target), "2"],
+      getOwnPropertyDescriptor: (target, prop) =>
+        prop === "2"
+          ? { value: 3, writable: true, enumerable: true, configurable: true }
+          : Object.getOwnPropertyDescriptor(target, prop),
+    });
+    expect(toPortableFact(atLengthBoundary)).toBeUndefined();
   });
 
   test("rejects a sparse array and an array carrying a non-index own property", () => {

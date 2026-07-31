@@ -401,9 +401,12 @@ const translateFact = (fact: StructuredFact, interner: Interner): DiagnosticFact
     case "list":
       return fact.items.map((item) => translateFact(item, interner));
     case "record": {
+      // Open-record fields intern and materialize in compareCodePoints key
+      // order, matching the canonical encoding's key order, so the table's
+      // first-encounter order is the one the canonical bytes replay.
       const output: Record<string, DiagnosticFact> = {};
-      for (const [key, value] of Object.entries(fact.fields))
-        output[key] = translateFact(value, interner);
+      for (const key of Object.keys(fact.fields).sort(compareCodePoints))
+        output[key] = translateFact(fact.fields[key]!, interner);
       return output;
     }
   }

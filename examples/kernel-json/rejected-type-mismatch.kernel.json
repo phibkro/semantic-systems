@@ -1,0 +1,35 @@
+{
+  "format": "semantic.kernel-json",
+  "kernel": "semantic.kernel-calculus/0018/v1",
+  "program": {
+    "argument": {
+      "first": {
+        "tag": "int",
+        "value": 1
+      },
+      "second": {
+        "tag": "int",
+        "value": 2
+      },
+      "tag": "pair"
+    },
+    "computation": {
+      "body": {
+        "grade": "1",
+        "tag": "return",
+        "value": {
+          "distance": 0,
+          "tag": "bound-value"
+        }
+      },
+      "grade": "1",
+      "parameter_type": {
+        "tag": "bool"
+      },
+      "tag": "lambda"
+    },
+    "tag": "apply"
+  },
+  "signature": [],
+  "version": 1
+}

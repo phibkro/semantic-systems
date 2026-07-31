@@ -43,6 +43,13 @@ const projectArray = (
     if (typeof key === "symbol" || !INDEX_KEY_PATTERN.test(key)) return undefined;
     const descriptor = descriptors[key]!;
     if (!("value" in descriptor) || !descriptor.enumerable) return undefined;
+    // An own index key at or beyond the snapshotted `length` is unreachable
+    // by the element loop below, so it would be silently dropped — two
+    // non-interchangeable host values projecting to one canonical fact. A
+    // genuine array cannot hold such a key (defining one auto-extends
+    // `length`), but a hostile Proxy's ownKeys/getOwnPropertyDescriptor
+    // traps can report exactly that shape; reject it outright.
+    if (Number(key) >= length) return undefined;
   }
   const result: Array<CanonicalJsonValue> = [];
   for (let index = 0; index < length; index += 1) {
