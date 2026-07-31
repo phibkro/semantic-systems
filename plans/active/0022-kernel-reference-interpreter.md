@@ -75,3 +75,48 @@ Exact feature acceptance and independent review remain before integration.
   shrinking through fast-check 4.9.0.
 - 2026-07-31: Bun and genuine Node 24 emitted byte-identical selected
   `semantic.kernel-run` golden observations.
+- 2026-07-31 (post-merge correction): independent review of the merged
+  feature found three blockers and one open decision. Corrections:
+  - the `expected`/`actual` diagnostic-fact projection (`portableFact`)
+    recognized only symbol keys and accessors; `Date`, `Map`, `Set`, and any
+    other exotic- or inherited-prototype object silently rendered as an
+    empty record instead of being rejected, and its cycle-only repeated-
+    reference guard released each object once its subtree finished, so a
+    non-cyclic alias (the same object referenced twice, not self-
+    referential) was duplicated rather than rejected. The design spec now
+    states the closed fact-kind and repeated-reference rule explicitly; the
+    implementation adds a prototype check and makes the repeated-reference
+    guard persistent for the whole projection, matching the 0019/0020
+    convention, and is exported as its own tested unit.
+  - supplied `bounds` were not total: a non-object `bounds`, `bounds.json`,
+    or `bounds.evaluation` (for example `null`, passed explicitly rather
+    than omitted) reached direct property access and raised an uncaught
+    `TypeError` instead of returning a closed observation; and several
+    numeric bound fields were read from the caller's object more than once
+    across their validation and use, which a hostile accessor could answer
+    inconsistently across reads. The fix reads every bound field exactly
+    once into a snapshot, validates that snapshot, and falls back
+    component-wise to the exact version 1 default — never wider — for
+    anything missing, wrongly typed, or out of range.
+  - the generated-evidence corpus exercised only `return`-of-a-value and one
+    fixed single-operation handler shape, and its invalid-mutation
+    properties covered only representation and scope violations, while the
+    model and plan implied broader "grammar-aware" coverage. The correction
+    adds `let`, `force`/`thunk`, and `lambda`/`apply` term-constructor
+    coverage and deliberate type-mismatch and affine-usage-violation invalid
+    mutations, and the design spec now states precisely what the version 1
+    corpus does and does not cover, deferring full grammar and grade
+    coverage to the differential-compiler property suite this contract
+    already requires.
+  - `KernelBackend`, named only in the differential-compiler contract prose,
+    was undecided as an exported symbol. Decision: it stays future-only.
+    Version 1 has exactly one implementation (the reference interpreter);
+    exporting a conformance interface with no second conformer would be a
+    premature abstraction. `KernelBackend` is introduced by the feature that
+    adds the second, compiled backend.
+  - considered and rejected: adding a second, document- or value-scoped
+    public entry point to make the bounds and fact-boundary fixes easier to
+    exercise directly. The frozen contract already commits to one bytes-only
+    entry point; the fixes above are internal to it, and the tested unit
+    extracted for the fact boundary is exported for direct testing without
+    widening the byte-boundary entry point itself.

@@ -1,4 +1,3 @@
-import type { CanonicalJsonValue } from "../normalized-core/canonical.ts";
 import {
   check,
   defaultEvaluationBounds,
@@ -16,6 +15,7 @@ import {
   projectKernelProgram,
   type KernelJsonRawBounds,
 } from "../kernel-json/index.ts";
+import { toPortableFact } from "./portable-fact.ts";
 import type {
   KernelRunObservation,
   ObservableComputationType,
@@ -106,45 +106,94 @@ const observableRuntimeValue = (value: RuntimeValue): ObservableRuntimeValue => 
   }
 };
 
-const narrowEvaluationBounds = (bounds: EvaluationBounds): EvaluationBounds =>
+/**
+ * Bound narrowing is total over any supplied `unknown` shape: a malformed,
+ * missing, wrong-typed, or hostile-accessor bound never raises a host error
+ * and never resolves wider than its exact version 1 default. Every field is
+ * read from the caller's object exactly once, into `field(...)`'s return
+ * value, and every subsequent check and use operates on that one snapshot —
+ * never on a second live read of the same property — so a bound backed by a
+ * getter cannot answer its validity check and its use inconsistently.
+ */
+const isPlainRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
+  typeof value === "object" && value !== null;
+
+/**
+ * The single read site for every bound field, at both the outer
+ * `bounds.json`/`bounds.evaluation` level and every nested numeric field:
+ * a throwing getter or a hostile `Proxy` trap (including a revoked proxy)
+ * must not escape as a host error, so a throw here is treated the same as
+ * a missing field and resolved to `undefined`, which every caller then
+ * narrows to the exact default.
+ */
+const boundField = (source: unknown, key: string): unknown => {
+  if (!isPlainRecord(source)) return undefined;
+  try {
+    return source[key];
+  } catch {
+    return undefined;
+  }
+};
+
+const narrowedInteger = (candidate: unknown, defaultValue: number, minimum: 0 | 1): number =>
+  typeof candidate === "number" &&
+  Number.isSafeInteger(candidate) &&
+  candidate >= minimum &&
+  (minimum === 0 || candidate > 0)
+    ? Math.min(candidate, defaultValue)
+    : defaultValue;
+
+const narrowEvaluationBounds = (input: unknown): EvaluationBounds =>
   freeze({
-    fuel:
-      Number.isSafeInteger(bounds.fuel) && bounds.fuel >= 0
-        ? Math.min(bounds.fuel, defaultEvaluationBounds.fuel)
-        : 0,
-    maximumTraceEntries:
-      Number.isSafeInteger(bounds.maximumTraceEntries) && bounds.maximumTraceEntries > 0
-        ? Math.min(bounds.maximumTraceEntries, defaultEvaluationBounds.maximumTraceEntries)
-        : 1,
+    fuel: narrowedInteger(boundField(input, "fuel"), defaultEvaluationBounds.fuel, 0),
+    maximumTraceEntries: narrowedInteger(
+      boundField(input, "maximumTraceEntries"),
+      defaultEvaluationBounds.maximumTraceEntries,
+      1,
+    ),
   });
 
-const narrowPositiveBound = (candidate: number, maximum: number): number =>
-  Number.isSafeInteger(candidate) && candidate > 0 ? Math.min(candidate, maximum) : 1;
-
-const narrowJsonBounds = (bounds: KernelJsonRawBounds): KernelJsonRawBounds =>
+const narrowJsonBounds = (input: unknown): KernelJsonRawBounds =>
   freeze({
-    maximumBytes: narrowPositiveBound(bounds.maximumBytes, defaultKernelJsonRawBounds.maximumBytes),
-    maximumDepth: narrowPositiveBound(bounds.maximumDepth, defaultKernelJsonRawBounds.maximumDepth),
-    maximumNodes: narrowPositiveBound(bounds.maximumNodes, defaultKernelJsonRawBounds.maximumNodes),
-    maximumStringBytes: narrowPositiveBound(
-      bounds.maximumStringBytes,
+    maximumBytes: narrowedInteger(
+      boundField(input, "maximumBytes"),
+      defaultKernelJsonRawBounds.maximumBytes,
+      1,
+    ),
+    maximumDepth: narrowedInteger(
+      boundField(input, "maximumDepth"),
+      defaultKernelJsonRawBounds.maximumDepth,
+      1,
+    ),
+    maximumNodes: narrowedInteger(
+      boundField(input, "maximumNodes"),
+      defaultKernelJsonRawBounds.maximumNodes,
+      1,
+    ),
+    maximumStringBytes: narrowedInteger(
+      boundField(input, "maximumStringBytes"),
       defaultKernelJsonRawBounds.maximumStringBytes,
+      1,
     ),
-    maximumCollectionLength: narrowPositiveBound(
-      bounds.maximumCollectionLength,
+    maximumCollectionLength: narrowedInteger(
+      boundField(input, "maximumCollectionLength"),
       defaultKernelJsonRawBounds.maximumCollectionLength,
+      1,
     ),
-    maximumOperations: narrowPositiveBound(
-      bounds.maximumOperations,
+    maximumOperations: narrowedInteger(
+      boundField(input, "maximumOperations"),
       defaultKernelJsonRawBounds.maximumOperations,
+      1,
     ),
-    maximumOperationClauses: narrowPositiveBound(
-      bounds.maximumOperationClauses,
+    maximumOperationClauses: narrowedInteger(
+      boundField(input, "maximumOperationClauses"),
       defaultKernelJsonRawBounds.maximumOperationClauses,
+      1,
     ),
-    maximumEffectLabels: narrowPositiveBound(
-      bounds.maximumEffectLabels,
+    maximumEffectLabels: narrowedInteger(
+      boundField(input, "maximumEffectLabels"),
       defaultKernelJsonRawBounds.maximumEffectLabels,
+      1,
     ),
   });
 
@@ -152,55 +201,6 @@ const observableRuntimeResult = (
   value: Extract<EvaluationResult, { readonly status: "returned" }>["value"],
 ): ObservableRuntimeResult =>
   value.kind === "function" ? { kind: "function" } : observableRuntimeValue(value);
-
-interface PortableInspection {
-  readonly active: WeakSet<object>;
-  nodes: number;
-}
-
-const portableFact = (
-  input: unknown,
-  inspection: PortableInspection = { active: new WeakSet(), nodes: 0 },
-): CanonicalJsonValue | undefined => {
-  if (
-    input === null ||
-    typeof input === "string" ||
-    typeof input === "boolean" ||
-    (typeof input === "number" && Number.isSafeInteger(input))
-  ) {
-    return input as CanonicalJsonValue;
-  }
-  if (typeof input !== "object" || inspection.active.has(input) || inspection.nodes >= 10_000) {
-    return undefined;
-  }
-  inspection.nodes += 1;
-  inspection.active.add(input);
-  try {
-    if (Array.isArray(input)) {
-      const result: Array<CanonicalJsonValue> = [];
-      for (const item of input) {
-        const projected = portableFact(item, inspection);
-        if (projected === undefined) return undefined;
-        result.push(projected);
-      }
-      return result;
-    }
-    const descriptors = Object.getOwnPropertyDescriptors(input);
-    if (Object.getOwnPropertySymbols(input).length !== 0) return undefined;
-    const result: Record<string, CanonicalJsonValue> = {};
-    for (const [key, descriptor] of Object.entries(descriptors)) {
-      if (!("value" in descriptor)) return undefined;
-      const projected = portableFact(descriptor.value, inspection);
-      if (projected === undefined) return undefined;
-      result[key] = projected;
-    }
-    return result;
-  } catch {
-    return undefined;
-  } finally {
-    inspection.active.delete(input);
-  }
-};
 
 const projectEvaluation = (result: EvaluationResult): KernelRunObservation => {
   switch (result.status) {
@@ -219,8 +219,8 @@ const projectEvaluation = (result: EvaluationResult): KernelRunObservation => {
     case "exhausted":
       return envelope({ tag: "inconclusive", reason: result.reason });
     case "runtime-rejected": {
-      const expected = portableFact(result.diagnostic.expected);
-      const actual = portableFact(result.diagnostic.actual);
+      const expected = toPortableFact(result.diagnostic.expected);
+      const actual = toPortableFact(result.diagnostic.actual);
       return envelope({
         tag: "runtime-rejected",
         diagnostic: {
@@ -243,7 +243,9 @@ export const interpretKernelJsonBytes = (
   input: unknown,
   bounds: KernelInterpreterBounds = defaultKernelInterpreterBounds,
 ): KernelRunObservation => {
-  const decoded = decodeKernelDocumentBytes(input, narrowJsonBounds(bounds.json));
+  const jsonBounds = narrowJsonBounds(boundField(bounds, "json"));
+  const evaluationBounds = narrowEvaluationBounds(boundField(bounds, "evaluation"));
+  const decoded = decodeKernelDocumentBytes(input, jsonBounds);
   if (decoded.status === "rejected") {
     return envelope({ tag: "representation-rejected", diagnostics: decoded.diagnostics });
   }
@@ -278,5 +280,5 @@ export const interpretKernelJsonBytes = (
       },
     });
   }
-  return projectEvaluation(evaluate(checked.program, narrowEvaluationBounds(bounds.evaluation)));
+  return projectEvaluation(evaluate(checked.program, evaluationBounds));
 };

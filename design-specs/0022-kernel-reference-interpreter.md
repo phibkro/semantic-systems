@@ -62,12 +62,28 @@ projects their observations.
 The public interpreter accepts unknown bytes and optional bounds no wider than
 the existing 0018 and 0020 defaults. The decoded document remains an internal
 stage of that entry point; callers cannot bypass the byte boundary through the
-interpreter API.
+interpreter API. This is the sole public entry point: version 1 exposes no
+second, document- or value-scoped overload, even for internal testing
+convenience. A post-merge review found that supplied bounds were not total
+over malformed values; the correction (recorded in the plan's evidence
+ledger) hardens the bytes-only entry point internally and does not widen its
+input surface.
+
+Malformed or partially shaped bounds — a wrong-typed value, a missing field,
+or a hostile accessor that returns different values on repeated reads — never
+raise a host error. Each bound field is read exactly once and validated
+against a snapshot of that single read; any field that is missing, wrongly
+typed, or out of range falls back to its exact version 1 default, never to a
+wider value.
 
 The future differential harness accepts two `KernelBackend` values, one
 generated case, and one deterministic test configuration. The reference
 backend is mandatory. A compiled backend cannot claim conformance merely by
-sharing a name or output shape.
+sharing a name or output shape. Version 1 does not export a `KernelBackend`
+type or value: only the reference backend exists, and a speculative
+conformance interface with no second implementation to conform would be a
+premature abstraction. `KernelBackend` is introduced by the feature that adds
+the second, compiled backend, not by this one.
 
 ### Semantic outputs
 
@@ -122,7 +138,10 @@ another representation without changing the interpreter contract.
 
 The existing JSON byte, depth, node, string, and collection limits remain in
 force. The existing checker bounds remain in force. The interpreter narrows or
-uses the existing evaluation fuel and trace limits; it cannot widen them.
+uses the existing evaluation fuel and trace limits; it cannot widen them. Bound
+narrowing is total: every malformed, missing, or hostile supplied bound
+resolves to its exact default rather than raising a host error, and the
+interpreter still returns one closed run observation.
 
 Property tests use an explicit seed, run count, maximum generated depth, and
 maximum generated collection size. A failing counterexample must retain the
@@ -134,8 +153,15 @@ semantic comparison.
 
 Example tests cover every pipeline outcome. Property tests cover canonical
 round trips, valid-program determinism, invalid-program phase separation, and
-generated programs staying within their stated grammar. Bun and genuine Node
-must emit byte-identical observations for the selected corpus.
+generated programs staying within their stated grammar. Version 1's generated
+corpus exercises `return`, `let`, `force`/`thunk`, `lambda`/`apply`, and one
+deep handler with a resumption, plus deliberate invalid mutations at the
+representation, scope, type, and affine-usage boundaries. It does not
+generate every term shape, grade combination, or handler arity the full 0018
+grammar admits; that completeness bar is the differential-compiler property
+suite's, which this contract already requires to cover every term constructor
+and grade. Bun and genuine Node must emit byte-identical observations for the
+selected corpus.
 
 When the optimized compiler arrives, its acceptance must add differential
 properties over both valid and invalid generated documents. This feature does
@@ -179,6 +205,18 @@ result type. It excludes the one-shot token and interpreter allocation ID. A
 runtime rejection includes stable code, occurrence path, and structured
 expected/actual facts when present. It excludes host stack and internal rule
 names.
+
+Expected and actual facts cross a strict inert canonical JSON value boundary:
+null, boolean, safe-integer, string, and finite arrays or plain records of the
+same, built from the exact host value with no structural sharing revealed and
+no extension by any other kind. `Date`, `Map`, `Set`, and any other exotic or
+inherited-prototype object, every symbol-keyed or accessor property, and every
+repeated reference — whether a true cycle or a non-cyclic alias — are rejected
+outright: the boundary silently misrepresenting one of these as an empty
+record was the exact defect a post-merge review found and this contract now
+forbids by construction. A fact that cannot cross the boundary is omitted, not
+approximated; two host values that are not interchangeable must never project
+to the same canonical fact.
 
 Canonical encoding uses the accepted 0019 JSON rules and one final line feed.
 Canonical byte equality is the default backend comparator.

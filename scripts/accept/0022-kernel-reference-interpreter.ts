@@ -20,6 +20,7 @@ const implementationArtifacts = [
   "src/kernel-interpreter/index.ts",
   "src/kernel-interpreter/observe.ts",
   "src/kernel-interpreter/schema.ts",
+  "src/kernel-interpreter/portable-fact.ts",
   "tests/kernel-reference-interpreter.test.ts",
   "tests/kernel-reference-interpreter-node.test.ts",
   "examples/kernel-json/pure-program.kernel-run.json.golden",
