@@ -370,6 +370,18 @@ state, and unrelated project-model changes.
   passes with 15 tests/126 expectations and full integration passes with 338
   Bun tests/1,776 expectations, zero Effect diagnostics, and 68 transitional
   Python custody checks. Clean-head custody and Fable re-review remain pending.
+- 2026-07-31: fifteenth independent exact-head review ACCEPTED clean
+  `622e0f6b9af112722abdd3092bb884df02df0cd2` on Fable 5 without
+  substitution. Its 35-case fresh falsifier matrix found zero unsafe accepts
+  and zero undisclosed false rejects; Chromium 150 confirmed that all five
+  option-label variants paint no child-text rectangles. It reproduced exact
+  acceptance at 15 tests/126 expectations, production-range validation, and
+  full integration at 338 Bun tests/1,776 expectations with zero Effect
+  diagnostics and 68 transitional Python custody checks.
+- 2026-07-31: the accepted head was integrated into the true primary branch by
+  conflict-free no-fast-forward merge `643b6f0`; its two parents are the prior
+  primary `bb7a701` and accepted feature head `622e0f6`. Exact integration-head
+  gates and final independent custody review remain pending.
 
 ## Acceptance command
 
