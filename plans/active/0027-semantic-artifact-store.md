@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0027-semantic-artifact-store.md`](../../design-specs/0027-semantic-artifact-store.md).
 This execution record cannot redefine that contract.
 
-Status: implementation candidate; exact acceptance passed; independent review pending
+Status: hostile-input correction candidate; exact reacceptance and review pending
 
 Owner: primary Semantic Systems language lead
 
@@ -86,6 +86,14 @@ bun scripts/accept/0027-semantic-artifact-store.ts
   the focused genuine-Node normalized-core observation, TypeScript 7 with
   Effect diagnostics, Oxlint, Oxfmt, canonical project-view checks, and the
   full repository gate. Independent review remains required before a PR.
+- 2026-08-01: a main-agent adversarial probe after the first green acceptance
+  found that Effect Schema defects from revoked or throwing proxies escaped the
+  typed `bindName`, `resolveName`, and `replay` boundaries. The correction uses
+  Effect v4 `catchDefect` only at those external decode adapters, preserving
+  ordinary schema diagnostics and interruption while mapping hostile decoder
+  defects to the existing typed errors. Focused regressions now cover revoked
+  and throwing proxies and prove state preservation. Exact reacceptance and
+  follow-up review are pending.
 
 ## Open review questions
 

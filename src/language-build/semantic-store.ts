@@ -138,6 +138,11 @@ const decodeNameBinding = (
 ): Effect.Effect<NameBindingInput, NameBindingInputRejected> =>
   Schema.decodeUnknownEffect(NameBindingInputSchema, { onExcessProperty: "error" })(input).pipe(
     Effect.mapError((cause) => new NameBindingInputRejected({ reason: cause.message })),
+    Effect.catchDefect(() =>
+      Effect.fail(
+        new NameBindingInputRejected({ reason: "name binding input could not be decoded" }),
+      ),
+    ),
   );
 
 const decodeNameLookup = (
@@ -145,6 +150,11 @@ const decodeNameLookup = (
 ): Effect.Effect<NameLookupInput, NameBindingInputRejected> =>
   Schema.decodeUnknownEffect(NameLookupInputSchema, { onExcessProperty: "error" })(input).pipe(
     Effect.mapError((cause) => new NameBindingInputRejected({ reason: cause.message })),
+    Effect.catchDefect(() =>
+      Effect.fail(
+        new NameBindingInputRejected({ reason: "name lookup input could not be decoded" }),
+      ),
+    ),
   );
 
 const snapshotState = (state: StoreState): SemanticStoreSnapshot => {
@@ -193,6 +203,11 @@ const prepareSnapshot = (
       onExcessProperty: "error",
     })(input).pipe(
       Effect.mapError((cause) => new SemanticStoreSnapshotRejected({ reason: cause.message })),
+      Effect.catchDefect(() =>
+        Effect.fail(
+          new SemanticStoreSnapshotRejected({ reason: "snapshot input could not be decoded" }),
+        ),
+      ),
     );
     if (snapshot.semantic_values.length > semanticStoreReplayBounds.semanticValues) {
       return yield* new SemanticStoreSnapshotRejected({

@@ -286,6 +286,16 @@ describe("language-build semantic store", () => {
         const semanticValue = source.semantic_values[0]!;
         const artifact = semanticValue.artifacts[0]!;
         const absentIdentity = `sha256:${"f".repeat(64)}`;
+        const revoked = Proxy.revocable({}, {});
+        revoked.revoke();
+        const throwing = new Proxy(
+          {},
+          {
+            ownKeys: () => {
+              throw new Error("ownKeys trap must remain a typed rejection");
+            },
+          },
+        );
 
         const candidates: ReadonlyArray<unknown> = [
           { ...source, semantic_values: [semanticValue, semanticValue] },
@@ -328,6 +338,8 @@ describe("language-build semantic store", () => {
             ),
           },
           { ...source, excess: true },
+          revoked.proxy,
+          throwing,
         ];
 
         const attempts = yield* Effect.forEach(candidates, (candidate) =>
@@ -342,7 +354,7 @@ describe("language-build semantic store", () => {
       }),
     );
 
-    expect(result.attempts).toHaveLength(8);
+    expect(result.attempts).toHaveLength(10);
     for (const attempt of result.attempts) {
       expect(attempt.after).toEqual(attempt.before);
       expect(attempt.after).toEqual(result.source);
@@ -350,5 +362,36 @@ describe("language-build semantic store", () => {
         expect(attempt.replay.failure).toBeInstanceOf(SemanticStoreSnapshotRejected);
       } else throw new Error("invalid snapshot must fail");
     }
+  });
+
+  test("turns hostile name-boundary objects into typed failures", async () => {
+    const result = await runStore(
+      Effect.gen(function* () {
+        const store = yield* SemanticStore;
+        const stored = yield* store.insert(yield* artifactBytes(1, 1));
+        const before = yield* store.snapshot;
+        const revoked = Proxy.revocable({}, {});
+        revoked.revoke();
+        const throwing = new Proxy(
+          {},
+          {
+            ownKeys: () => {
+              throw new Error("ownKeys trap must remain a typed rejection");
+            },
+          },
+        );
+        const bind = yield* store.bindName(revoked.proxy).pipe(Effect.result);
+        const resolve = yield* store.resolveName(throwing).pipe(Effect.result);
+        return { stored, before, after: yield* store.snapshot, bind, resolve };
+      }),
+    );
+
+    expect(result.after).toEqual(result.before);
+    if (Result.isFailure(result.bind)) {
+      expect(result.bind.failure).toBeInstanceOf(NameBindingInputRejected);
+    } else throw new Error("hostile name binding input must fail");
+    if (Result.isFailure(result.resolve)) {
+      expect(result.resolve.failure).toBeInstanceOf(NameBindingInputRejected);
+    } else throw new Error("hostile name lookup input must fail");
   });
 });
