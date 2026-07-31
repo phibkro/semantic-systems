@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0018-minimal-kernel-calculus.md`](../../design-specs/0018-minimal-kernel-calculus.md).
 This mutable record cannot change that contract.
 
-Status: contract frozen. Intentionally red acceptance awaits implementation
+Status: implementation candidate green. Awaiting independent review and integration
 
 Owner: primary Semantic Systems lead
 
@@ -108,3 +108,29 @@ authority, Node divergence, model drift, or an unrun required tool.
 - 2026-07-31: the frozen checkpoint passes TypeScript typecheck, strict Oxlint,
   model validation at 123 entities and 179 relations, and all eight generated
   view checks. The existing unsupported kernel-safety claim remains visible.
+- 2026-07-31: the reference implementation added immutable AST and signature
+  construction, bounded inert-data decoding, explicit grade and finite-set row
+  operations, retained algorithmic derivations, private checked-program
+  custody, a bounded deep-handler machine, internal and external one-shot
+  custody, normalized reports, and a genuine Node parity oracle.
+- 2026-07-31: implementation reused the repository's Effect Schema boundary,
+  WeakSet/WeakMap custody, canonical JSON, and portable-closure lint patterns.
+  The finite grade, row, value/computation, and provenance fixtures adapt
+  independently tested ideas from Apache-2.0 `lang-bang` at
+  `5b8e032bcffefb23a3a153d3f5cea99050e589c1`; no upstream source was copied.
+  The unlicensed `bang-lang` repository was not read or copied.
+- 2026-07-31: the frozen syntax has four handler operands but separately
+  requires rejection of a claimed output row that hides a foreign label. The
+  implementation resolves this by treating `claimedEffects` as an optional
+  checker assertion; the algorithmically inferred row remains authoritative.
+  The zero-fuel counterexample is also honored as the sole non-positive fuel
+  bound, while the trace-retention bound remains positive.
+- 2026-07-31: exact acceptance passed with 27 focused Bun oracles, one genuine
+  Node oracle, TypeScript 7 typecheck, strict Oxlint, focused Oxfmt, the
+  semantic-effect rules, project-model validation at 123 entities and 179
+  relations, and all eight generated-view checks. Project-model validation
+  retained the pre-existing unsupported kernel-safety warning.
+- 2026-07-31: full `just check` passed with 422 Bun tests and 68 Python tests,
+  formatting, strict lint, TypeScript typecheck, commit policy, model
+  validation, and generated-view checks. No provider, network, deployment, or
+  external repository effect occurred.

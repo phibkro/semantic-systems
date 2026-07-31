@@ -1,0 +1,123 @@
+/**
+ * Documented host-neutral entry point for the frozen minimal kernel calculus.
+ * Checked-program and resumption constructors intentionally remain private.
+ */
+export {
+  apply,
+  bool,
+  boolType,
+  cloneComputationTerm,
+  cloneType,
+  cloneValueTerm,
+  decodeComputationTerm,
+  decodeComputationTermEffect,
+  decodeOperationSignature,
+  decodeTerm,
+  decodeValueTerm,
+  defaultDecodeBounds,
+  force,
+  functionType,
+  handle,
+  int,
+  intType,
+  lambda,
+  letTerm,
+  operation,
+  operationClause,
+  operationSignature,
+  pair,
+  pairType,
+  resumption,
+  resumeTerm,
+  returnClause,
+  returnTerm,
+  returnType,
+  thunk,
+  thunkType,
+  unit,
+  unitType,
+  variable,
+  KernelDecodeFailure,
+} from "./ast.ts";
+export {
+  addGrades,
+  addUsage,
+  atLeastOnce,
+  basisUsage,
+  gradeLessThanOrEqual,
+  grades,
+  isGrade,
+  multiplyGrades,
+  scaleUsage,
+  zeroUsage,
+} from "./grade.ts";
+export {
+  effectRow,
+  effectRowHas,
+  effectRowIsSubset,
+  effectRowsEqual,
+  emptyEffectRow,
+  removeEffectLabel,
+  unionEffectRows,
+} from "./effect-row.ts";
+export { check, computationTypesEqual, valueTypesEqual } from "./checker.ts";
+export {
+  computationResultType,
+  defaultEvaluationBounds,
+  evaluate,
+  isRuntimeValue,
+  resume,
+  runtimeBool,
+  runtimeInt,
+  runtimePair,
+  runtimeUnit,
+} from "./machine.ts";
+export {
+  canonicalCheckReport,
+  canonicalEvaluationReport,
+  CheckResultSchema,
+  DecodeDiagnosticSchema,
+  EvaluationResultSchema,
+  KernelDiagnosticSchema,
+  normalizeCheckResult,
+  normalizeEvaluationResult,
+} from "./report.ts";
+export type {
+  ComputationTerm,
+  ComputationType,
+  DecodeBounds,
+  DecodeDiagnostic,
+  DecodeResult,
+  KernelType,
+  OperationClause,
+  OperationDeclaration,
+  OperationSignature,
+  ReturnClause,
+  Term,
+  ValueTerm,
+  ValueType,
+} from "./ast.ts";
+export type {
+  CheckAccepted,
+  CheckedProgram,
+  CheckRejected,
+  CheckResult,
+  Derivation,
+  KernelDiagnostic,
+} from "./checker.ts";
+export type { EffectRow } from "./effect-row.ts";
+export type { Grade, Usage } from "./grade.ts";
+export type {
+  EvaluationBounds,
+  EvaluationResult,
+  Exhausted,
+  ExternalSuspension,
+  MachineSnapshot,
+  MachineTraceEntry,
+  OperationRequest,
+  Returned,
+  RuntimeRejected,
+  RuntimeThunk,
+  RuntimeValue,
+  Suspended,
+} from "./machine.ts";
