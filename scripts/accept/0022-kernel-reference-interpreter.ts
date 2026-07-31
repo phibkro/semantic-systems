@@ -26,6 +26,7 @@ const implementationArtifacts = [
   "examples/kernel-json/pure-program.kernel-run.json.golden",
   "examples/kernel-json/handled-program.kernel-run.json.golden",
   "examples/kernel-json/rejected-double-resume.kernel-run.json.golden",
+  "examples/kernel-json/rejected-type-mismatch.kernel-run.json.golden",
 ] as const;
 
 const requireFile = (relativePath: string, kind: string) =>

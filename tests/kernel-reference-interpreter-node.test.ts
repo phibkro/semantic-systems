@@ -10,6 +10,7 @@ const corpus = [
   "pure-program.kernel.json",
   "handled-program.kernel.json",
   "rejected-double-resume.kernel.json",
+  "rejected-type-mismatch.kernel.json",
 ] as const;
 
 test("genuine Node emits the selected canonical kernel-run corpus", async () => {

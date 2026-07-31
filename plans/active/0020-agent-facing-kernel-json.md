@@ -185,3 +185,22 @@ failure is not a warning.
   serializes the exact 1,871-byte maximal function node and includes table
   brackets and separators, yielding a corrected rejected-observation worst
   case of 25,108,480 bytes under the unchanged 32 MiB ceiling.
+- 2026-07-31 (sixth correction, slice 0024): independent review reproduced a
+  blocker at integration head 87c532e. `checkKernelDocument` correctly emits
+  the frozen reserved diagnostic facts `{"type_index": n}` with a nonempty
+  shared type table for `type.argument-mismatch`, but the observation
+  decoder treated the reserved shapes as generic open-vocabulary records:
+  it never registered them with the `typeIndex`/`labelIndexRow` authority,
+  so `verifyTraversalOrder` rejected every such observation with
+  `decode.type-table-order`, while a dangling or malformed
+  `type_index`/`label_indexes` reference decoded silently. The decoder now
+  routes exactly the two reserved shapes from the contract's fact kind rules
+  through the existing table authorities — index range, sorted-row
+  discipline, and the frozen first-encounter traversal order included — and
+  rejects a reserved key carried next to sibling keys with
+  `decode.reserved-fact-shape`. Every other fact record key remains the
+  deliberate open vocabulary. No second checker was added; traversal,
+  maximal-sharing, range, and kind checks are unweakened.
+  `tests/kernel-json-diagnostic-fact-custody.test.ts` holds the round-trip
+  regression (value and byte-exact canonical paths) and the
+  dangling/malformed negative oracles, and joins the 0020 acceptance run.
