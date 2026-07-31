@@ -335,6 +335,43 @@ describe("Semantic surface language", () => {
     );
   });
 
+  test("erases binder names, comments, whitespace, and source spans from canonical kernel JSON", () => {
+    const declarations = "effect tracer.emit : Unit -> Unit;\n";
+    const baseline = source(
+      `let seed = return[1] () in
+      handle tracer ((fun (value : Unit) [1] => perform[1] tracer.emit(value))(seed)) with {
+        return result => return[1] result;
+        operation emit(argument, continuation) => resume continuation(argument);
+      }`,
+      declarations,
+    );
+    const alphaRenamed = source(
+      `let initial = return[1] () in
+      handle tracer ((fun (payload : Unit) [1] => perform[1] tracer.emit(payload))(initial)) with {
+        return outcome => return[1] outcome;
+        operation emit(request, resumeEmit) => resume resumeEmit(request);
+      }`,
+      declarations,
+    );
+    const presentationEdited = `${marker}
+      // Declaration placement and comments carry no kernel identity.
+      effect tracer.emit : Unit -> Unit;
+      run /* before the computation */ let initial = return[1] () in
+        handle tracer (
+          (fun (payload : Unit) [1] => perform[1] tracer.emit(payload))
+          (initial)
+        ) with {
+          return outcome => /* inside a clause */ return[1] outcome;
+          operation emit(request, resumeEmit) =>
+            resume resumeEmit(request); // line-comment variation
+        }`;
+
+    const canonical = (text: string): string => canonicalKernelDocumentJson(compile(text).kernel);
+
+    expect(canonical(alphaRenamed)).toBe(canonical(baseline));
+    expect(canonical(presentationEdited)).toBe(canonical(alphaRenamed));
+  });
+
   test("every kernel computation constructor appears in the elaborated corpus", () => {
     const programs = [
       source("return[1] ()"),

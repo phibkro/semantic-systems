@@ -57,8 +57,9 @@ may enter the public elaborator.
 
 The public source boundary accepts `unknown`. Effect Schema first establishes
 that it is a string. The lexer then accepts Unicode scalar source with ASCII
-language punctuation, `//` line comments, decimal safe integers, string
-literals for the fixed kernel marker, and identifier names.
+language punctuation, `//` line comments, non-nesting `/* ... */` block
+comments, decimal safe integers, string literals for the fixed kernel marker,
+and identifier names.
 
 The parser consumes the complete token stream. A successful parse is not a
 type judgment. The elaborator consumes only a parser-produced `SurfaceDocument`
