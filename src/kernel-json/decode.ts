@@ -1139,12 +1139,14 @@ class ObservationDecoder extends Decoder {
         ),
       });
     }
-    // Open-record fields are traversed and materialized in Unicode
-    // code-point key order — the same compareCodePoints order the canonical
-    // encoding serializes keys in — never JS insertion order. Table
+    // Open-record fields are traversed in Unicode code-point key order — the
+    // same compareCodePoints order the canonical encoding serializes keys in
+    // — never JS insertion order. Table
     // references nested under open keys therefore register with the
     // first-encounter authority in the order the canonical bytes replay
-    // them, so a value and its own canonical encoding agree.
+    // them, so a value and its own canonical encoding agree. JavaScript may
+    // still enumerate integer-index properties numerically after assignment;
+    // observable object key order is not part of this contract.
     const output: Record<string, DiagnosticFact> = {};
     for (const key of [...keys].sort(compareCodePoints)) {
       if (utf8Bytes(key) > 4_096)

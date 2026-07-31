@@ -575,11 +575,14 @@ checker's fact records, which name expected and actual features per rule —
 but every key, scalar, array, and record is bounded and inert, and the strict
 decoder enforces every one of these limits. No other JSON value form
 (fractions, exponents, unsafe integers) is accepted inside a fact. Open fact
-record fields are traversed and materialized in Unicode code-point key order
+record fields are traversed in Unicode code-point key order
 (`compareCodePoints`, the canonical encoding's own key order), so table
 references nested under open keys register with the first-encounter
 traversal authority in the exact order the canonical bytes replay them;
-agents must not infer host insertion order anywhere in a fact.
+agents must not infer host insertion order anywhere in a fact. The decoder
+assigns output properties in that traversal order, but JavaScript's own-key
+enumeration can still expose integer-index keys in numeric order; observable
+object enumeration order is therefore not part of the contract.
 
 Fact values are closed under these frozen kind rules, which is what makes the
 bounds provable rather than aspirational:
