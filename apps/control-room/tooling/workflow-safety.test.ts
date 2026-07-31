@@ -210,17 +210,29 @@ describe("Alchemy workflow safety", () => {
     expect(custody).toContain("signal: AbortSignal.timeout(GITHUB_OBSERVATION_TIMEOUT_MS)");
   });
 
-  test("uses the pinned Alchemy v2 noninteractive command surface", () => {
+  test("uses the pinned workspace Alchemy binary with an explicit credential preflight", () => {
     const workflow = trusted();
     const deploy = workflow.jobs["deploy-static"]!.steps.find((step) => step.id === "provider")!;
     const destroy = workflow.jobs["cleanup-preview"]!.steps.find((step) => step.id === "provider")!;
+    const deployRun = deploy.run ?? "";
+    const destroyRun = destroy.run ?? "";
 
-    expect(deploy.run).toContain("alchemy deploy");
-    expect(deploy.run).toContain("--stage");
-    expect(deploy.run).not.toContain("--yes");
-    expect(destroy.run).toContain("alchemy destroy");
-    expect(destroy.run).toContain("--stage");
-    expect(destroy.run).not.toContain("--yes");
+    expect(deployRun).toContain('test -n "${CLOUDFLARE_API_TOKEN}"');
+    expect(deployRun).toContain('test -n "${CLOUDFLARE_ACCOUNT_ID}"');
+    expect(deployRun).toContain("bun run --cwd apps/control-room alchemy deploy");
+    expect(deployRun).not.toContain("bunx alchemy");
+    expect(deployRun).toContain("--stage");
+    expect(deployRun).toContain("--yes");
+    expect(deployRun.indexOf("--stage")).toBeLessThan(
+      deployRun.indexOf("tooling/deploy-static.run.ts"),
+    );
+    expect(destroyRun).toContain('test -n "${CLOUDFLARE_API_TOKEN}"');
+    expect(destroyRun).toContain('test -n "${CLOUDFLARE_ACCOUNT_ID}"');
+    expect(destroyRun).toContain("bun run --cwd apps/control-room alchemy destroy");
+    expect(destroyRun).not.toContain("bunx alchemy");
+    expect(destroyRun).toContain("--stage");
+    expect(destroyRun).toContain("--yes");
+    expect(destroyRun.indexOf("--stage")).toBeLessThan(destroyRun.indexOf("alchemy.run.ts"));
   });
 
   test("the exact acceptance itself invokes the canonical full gate without recursion", () => {
