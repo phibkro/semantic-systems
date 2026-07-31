@@ -21,6 +21,7 @@ export const hasUnicodeScalarsOnly = (value: string): boolean => {
   for (let index = 0; index < value.length; index += 1) {
     const code = value.charCodeAt(index);
     if (code >= 0xd800 && code <= 0xdbff) {
+      if (index + 1 >= value.length) return false;
       const next = value.charCodeAt(index + 1);
       if (next < 0xdc00 || next > 0xdfff) return false;
       index += 1;
@@ -90,15 +91,20 @@ export interface JsonParseIssue {
 
 class JsonScanner {
   #index = 0;
+  #nodes = 0;
   readonly text: string;
+  readonly maximumDepth: number;
+  readonly maximumNodes: number;
 
-  constructor(text: string) {
+  constructor(text: string, maximumDepth: number, maximumNodes: number) {
     this.text = text;
+    this.maximumDepth = maximumDepth;
+    this.maximumNodes = maximumNodes;
   }
 
   scan(): JsonParseIssue | undefined {
     this.#space();
-    const issue = this.#value();
+    const issue = this.#value(0);
     if (issue !== undefined) return issue;
     this.#space();
     return this.#index === this.text.length
@@ -114,11 +120,18 @@ class JsonScanner {
     }
   }
 
-  #value(): JsonParseIssue | undefined {
+  #value(depth: number): JsonParseIssue | undefined {
+    if (depth > this.maximumDepth) {
+      return { code: "decode.depth-exceeded", message: "maximum decode depth exceeded" };
+    }
+    this.#nodes += 1;
+    if (this.#nodes > this.maximumNodes) {
+      return { code: "decode.nodes-exceeded", message: "maximum decoded node count exceeded" };
+    }
     this.#space();
     const token = this.text[this.#index];
-    if (token === "{") return this.#object();
-    if (token === "[") return this.#array();
+    if (token === "{") return this.#object(depth);
+    if (token === "[") return this.#array(depth);
     if (token === '"') return this.#string().issue;
     if (token === "-" || (token !== undefined && /[0-9]/.test(token))) return this.#number();
     for (const literal of ["true", "false", "null"]) {
@@ -179,7 +192,7 @@ class JsonScanner {
     return undefined;
   }
 
-  #array(): JsonParseIssue | undefined {
+  #array(depth: number): JsonParseIssue | undefined {
     this.#index += 1;
     this.#space();
     if (this.text[this.#index] === "]") {
@@ -187,7 +200,7 @@ class JsonScanner {
       return undefined;
     }
     while (true) {
-      const issue = this.#value();
+      const issue = this.#value(depth + 1);
       if (issue !== undefined) return issue;
       this.#space();
       const token = this.text[this.#index];
@@ -200,7 +213,7 @@ class JsonScanner {
     }
   }
 
-  #object(): JsonParseIssue | undefined {
+  #object(depth: number): JsonParseIssue | undefined {
     this.#index += 1;
     this.#space();
     if (this.text[this.#index] === "}") {
@@ -223,7 +236,7 @@ class JsonScanner {
         return { code: "byte.json-grammar", message: "object key must be followed by ':'" };
       }
       this.#index += 1;
-      const issue = this.#value();
+      const issue = this.#value(depth + 1);
       if (issue !== undefined) return issue;
       this.#space();
       const token = this.text[this.#index];
@@ -238,5 +251,9 @@ class JsonScanner {
   }
 }
 
-export const scanJson = (text: string): JsonParseIssue | undefined => new JsonScanner(text).scan();
+export const scanJson = (
+  text: string,
+  maximumDepth: number,
+  maximumNodes: number,
+): JsonParseIssue | undefined => new JsonScanner(text, maximumDepth, maximumNodes).scan();
 import { Schema } from "effect";

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { BunCrypto } from "@effect/platform-bun";
-import { Effect, type Crypto } from "effect";
+import { Crypto, Effect, Exit, Layer } from "effect";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import {
@@ -13,7 +13,9 @@ import {
 import {
   decodeEmissionMetadata,
   decodeNormalizedCore,
+  decodeNormalizedCoreBytes,
   emitNormalizedCore,
+  validateNormalizedCoreBytes,
 } from "../src/normalized-core/index.ts";
 
 const run = <Value, Error>(effect: Effect.Effect<Value, Error, Crypto.Crypto>): Promise<Value> =>
@@ -47,6 +49,16 @@ describe("normalized-core custody and hostile boundaries", () => {
       status: "rejected",
       diagnostics: [{ code: "decode.repeated-reference" }],
     });
+    const frozenShared = Object.freeze<Array<unknown>>([]);
+    expect(
+      decodeEmissionMetadata({
+        assumptions: frozenShared,
+        source: { units: frozenShared, correspondence: [] },
+      }),
+    ).toMatchObject({
+      status: "rejected",
+      diagnostics: [{ code: "decode.repeated-reference" }],
+    });
 
     const cyclic: Record<string, unknown> = {};
     cyclic["assumptions"] = [];
@@ -71,6 +83,22 @@ describe("normalized-core custody and hostile boundaries", () => {
     });
     expect(reads).toBe(0);
 
+    const symbolInput = emptyMetadata();
+    Object.defineProperty(symbolInput, Symbol("authority"), {
+      value: true,
+      enumerable: true,
+    });
+    expect(decodeEmissionMetadata(symbolInput)).toMatchObject({
+      status: "rejected",
+      diagnostics: [{ code: "decode.symbol-key" }],
+    });
+    const sparse = emptyMetadata();
+    sparse.assumptions.length = 1;
+    expect(decodeEmissionMetadata(sparse)).toMatchObject({
+      status: "rejected",
+      diagnostics: [{ code: "decode.sparse-array" }],
+    });
+
     const checked = check(operationSignature([]), returnTerm("1", int(1)));
     if (checked.status !== "accepted") throw new Error("fixture must check");
     expect(
@@ -93,6 +121,59 @@ describe("normalized-core custody and hostile boundaries", () => {
       status: "rejected",
       diagnostics: [{ code: "schema.excess-property" }],
     });
+    expect(
+      decodeEmissionMetadata({
+        ...emptyMetadata(),
+        closure: () => "authority",
+      }),
+    ).toMatchObject({
+      status: "rejected",
+      diagnostics: [{ code: "decode.non-json" }],
+    });
+
+    const exactFamilies = {
+      assumptions: [{ kind: "declared", statement: "a" }],
+      source: {
+        units: [
+          {
+            source_key: "s",
+            uri: "memory:s",
+            content_identity: `sha256:${"1".repeat(64)}`,
+            byte_length: 1,
+          },
+        ],
+        correspondence: [
+          {
+            node_path: "/term",
+            source_key: "s",
+            role: "expression",
+            start_byte: 0,
+            end_byte: 1,
+          },
+        ],
+      },
+    };
+    for (const selected of [
+      exactFamilies.assumptions[0]!,
+      exactFamilies.source,
+      exactFamilies.source.units[0]!,
+      exactFamilies.source.correspondence[0]!,
+    ]) {
+      const candidate = structuredClone(exactFamilies);
+      const path =
+        "kind" in selected
+          ? candidate.assumptions[0]!
+          : "units" in selected
+            ? candidate.source
+            : "source_key" in selected && "uri" in selected
+              ? candidate.source.units[0]!
+              : candidate.source.correspondence[0]!;
+      (path as Record<string, unknown>)["authority"] = "ambient";
+      expect(decodeEmissionMetadata(candidate)).toMatchObject({
+        status: "rejected",
+        diagnostics: [{ code: "schema.excess-property" }],
+      });
+    }
   });
 
   test("emission snapshots caller input and returns a deeply immutable artifact", async () => {
@@ -186,5 +267,110 @@ describe("normalized-core custody and hostile boundaries", () => {
       ),
     ).toEqual([]);
     expect([...visited].filter((path) => /(?:rust|lean|mlir|wasm)/i.test(path))).toEqual([]);
+  });
+
+  test("lone surrogates reject during emission and decoded-byte traversal", async () => {
+    for (const invalid of ["\ud800", "\udc00"]) {
+      const checked = check(
+        operationSignature([
+          {
+            label: invalid,
+            operation: "op",
+            argumentType: { kind: "unit" },
+            resultType: { kind: "unit" },
+          },
+        ]),
+        returnTerm("1", int(1)),
+      );
+      if (checked.status !== "accepted") throw new Error("0018 permits this counterexample");
+      expect(await run(emitNormalizedCore(checked.program, emptyMetadata()))).toMatchObject({
+        status: "rejected",
+        diagnostics: [{ code: "decode.lone-surrogate" }],
+      });
+
+      const valid = check(operationSignature([]), returnTerm("1", int(1)));
+      if (valid.status !== "accepted") throw new Error("fixture must check");
+      const emitted = await run(emitNormalizedCore(valid.program, emptyMetadata()));
+      if (emitted.status !== "emitted") throw new Error("fixture must emit");
+      const escape = invalid === "\ud800" ? "\\ud800" : "\\udc00";
+      const forged = new TextEncoder().encode(
+        new TextDecoder()
+          .decode(emitted.bytes)
+          .replace('"semantic.normalized-core"', `"${escape}"`),
+      );
+      expect(await run(decodeNormalizedCoreBytes(forged))).toMatchObject({
+        status: "rejected",
+        diagnostics: [{ code: "decode.lone-surrogate" }],
+      });
+    }
+  });
+
+  test("below-byte-limit pathological nesting returns a typed depth rejection", async () => {
+    const depth = 400_000;
+    const bytes = new TextEncoder().encode(`${"[".repeat(depth)}0${"]".repeat(depth)}\n`);
+    expect(bytes.byteLength).toBeLessThan(1_048_576);
+    expect(await run(decodeNormalizedCoreBytes(bytes))).toMatchObject({
+      status: "rejected",
+      diagnostics: [{ code: "decode.depth-exceeded" }],
+    });
+  });
+
+  test("byte ingress snapshots once and returned byte observations remain stable", async () => {
+    const checked = check(operationSignature([]), returnTerm("1", int(8)));
+    if (checked.status !== "accepted") throw new Error("fixture must check");
+    const emitted = await run(emitNormalizedCore(checked.program, emptyMetadata()));
+    if (emitted.status !== "emitted") throw new Error("fixture must emit");
+
+    expect(await run(decodeNormalizedCoreBytes(new Proxy(emitted.bytes, {})))).toMatchObject({
+      status: "rejected",
+      diagnostics: [{ code: "byte.hostile-input" }],
+    });
+
+    const callerBytes = emitted.bytes;
+    let mutated = false;
+    const mutatingCrypto = Layer.succeed(
+      Crypto.Crypto,
+      Crypto.make({
+        randomBytes: (size) => new Uint8Array(size),
+        digest: (_algorithm, data) => {
+          if (!mutated) {
+            mutated = true;
+            callerBytes[0] = "[".charCodeAt(0);
+          }
+          return Effect.succeed(new Bun.CryptoHasher("sha256").update(data).digest());
+        },
+      }),
+    );
+    const validated = await Effect.runPromise(
+      validateNormalizedCoreBytes(callerBytes).pipe(Effect.provide(mutatingCrypto)),
+    );
+    expect(validated.status).toBe("accepted");
+    expect(callerBytes[0]).toBe("[".charCodeAt(0));
+    if (validated.status !== "accepted") return;
+    expect(validated.bytes[0]).toBe("{".charCodeAt(0));
+    const validationExposure = validated.bytes;
+    validationExposure[0] = "[".charCodeAt(0);
+    expect(validated.bytes[0]).toBe("{".charCodeAt(0));
+
+    const emissionExposure = emitted.bytes;
+    emissionExposure[0] = "[".charCodeAt(0);
+    expect(emitted.bytes[0]).toBe("{".charCodeAt(0));
+  });
+
+  test("malformed SHA-256 observations fail through the typed digest channel", async () => {
+    const checked = check(operationSignature([]), returnTerm("1", int(9)));
+    if (checked.status !== "accepted") throw new Error("fixture must check");
+    const malformedCrypto = Layer.succeed(
+      Crypto.Crypto,
+      Crypto.make({
+        randomBytes: (size) => new Uint8Array(size),
+        digest: () => Effect.succeed(Uint8Array.of(0)),
+      }),
+    );
+    const exit = await Effect.runPromiseExit(
+      emitNormalizedCore(checked.program, emptyMetadata()).pipe(Effect.provide(malformedCrypto)),
+    );
+    expect(Exit.isFailure(exit)).toBeTrue();
+    if (Exit.isFailure(exit)) expect(String(exit.cause)).toContain("invalid SHA-256 digest length");
   });
 });

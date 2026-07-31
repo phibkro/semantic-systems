@@ -39,5 +39,11 @@ export const deriveIdentity = (
           }),
       ),
     );
+    if (digest.byteLength !== 32) {
+      return yield* new NormalizedCoreDigestFailure({
+        message: `invalid SHA-256 digest length for ${domain}`,
+        cause: { expectedBytes: 32, actualBytes: digest.byteLength },
+      });
+    }
     return `sha256:${toHex(digest)}` as Identity;
   });

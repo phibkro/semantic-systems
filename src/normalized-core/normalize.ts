@@ -164,6 +164,45 @@ const parseJson = (input: string): Attempt<unknown> => {
   }
 };
 
+const snapshotBytes = (input: unknown): Attempt<Uint8Array> => {
+  try {
+    if (!(input instanceof Uint8Array)) {
+      return {
+        status: "failure",
+        diagnostic: diagnostic("byte.expected-array", "$", "expected a byte array"),
+      };
+    }
+    return {
+      status: "success",
+      value: Uint8Array.prototype.slice.call(input) as Uint8Array,
+    };
+  } catch {
+    return {
+      status: "failure",
+      diagnostic: diagnostic("byte.hostile-input", "$", "byte input could not be snapshotted"),
+    };
+  }
+};
+
+const withImmutableBytes = <
+  Value extends {
+    readonly status: "emitted" | "accepted";
+    readonly bytes: Uint8Array;
+  },
+>(
+  value: Omit<Value, "bytes">,
+  bytes: Uint8Array,
+): Value => {
+  const snapshot = bytes.slice();
+  const output = { ...value } as Record<string, unknown>;
+  Object.defineProperty(output, "bytes", {
+    enumerable: true,
+    configurable: false,
+    get: () => snapshot.slice(),
+  });
+  return Object.freeze(output) as Value;
+};
+
 const fail = (code: string, path: string, message: string): never => {
   throw new DecodeFailure(diagnostic(code, path, message));
 };
@@ -866,14 +905,20 @@ const emit = (
         compareCodePoints(left.label, right.label) ||
         compareCodePoints(left.operation, right.operation),
     );
-    const signature = yield* Effect.forEach(declarations, (declaration) =>
+    const operationPayloads = declarations.map((declaration) =>
+      operationPayload({
+        label: declaration.label,
+        operation: declaration.operation,
+        argument_type: projectValueType(declaration.argumentType),
+        result_type: projectValueType(declaration.resultType),
+      }),
+    );
+    for (const payload of operationPayloads) {
+      const inspected = inspectUnknownJson(payload, bounds);
+      if (inspected.status === "rejected") return inspected;
+    }
+    const signature = yield* Effect.forEach(operationPayloads, (payload) =>
       Effect.gen(function* () {
-        const payload = operationPayload({
-          label: declaration.label,
-          operation: declaration.operation,
-          argument_type: projectValueType(declaration.argumentType),
-          result_type: projectValueType(declaration.resultType),
-        });
         const operation_identity = yield* deriveIdentity(
           identityDomains.operation,
           asCanonical(payload),
@@ -960,6 +1005,8 @@ const emit = (
     );
     if (partialAttempt.status === "failure") return resultRejected(partialAttempt.diagnostic);
     const partial = partialAttempt.value;
+    const inspectedPartial = inspectUnknownJson(partial, bounds);
+    if (inspectedPartial.status === "rejected") return inspectedPartial;
     const semantic_identity = yield* deriveIdentity(identityDomains.semantic, asCanonical(partial));
     const correspondenceAttempt = attemptDecode(() =>
       metadata.source.correspondence.map((input, index): SourceCorrespondence => {
@@ -1018,11 +1065,10 @@ const emit = (
         diagnostic("encode.bytes-exceeded", "$", "maximum output byte length exceeded"),
       );
     }
-    return freezeDeep({
-      status: "emitted",
-      artifact,
+    return withImmutableBytes<Extract<EmissionResult, { readonly status: "emitted" }>>(
+      { status: "emitted", artifact },
       bytes,
-    });
+    );
   });
 
 export const emitNormalizedCore = (
@@ -1393,21 +1439,16 @@ export const decodeNormalizedCore = (
     return yield* decodeInspectedArtifact(inspected.value.value, boundsResult.value);
   });
 
-export const decodeNormalizedCoreBytes = (
+const decodeNormalizedCoreBytesSnapshot = (
   input: Uint8Array,
-  bounds: NormalizedCoreBounds = defaultNormalizedCoreBounds,
+  bounds: NormalizedCoreBounds,
 ): Effect.Effect<
   DecodeResult<NormalizedCoreArtifact>,
   NormalizedCoreDigestFailure,
   Crypto.Crypto
 > =>
   Effect.gen(function* () {
-    const boundsResult = resolveBounds(bounds);
-    if (boundsResult.status === "rejected") return boundsResult;
-    if (!(input instanceof Uint8Array)) {
-      return rejected(diagnostic("byte.expected-array", "$", "expected a byte array"));
-    }
-    if (input.byteLength > boundsResult.value.maximumBytes) {
+    if (input.byteLength > bounds.maximumBytes) {
       return rejected(diagnostic("byte.bytes-exceeded", "$", "maximum input byte length exceeded"));
     }
     const decodedText = decodeUtf8(input);
@@ -1419,13 +1460,13 @@ export const decodeNormalizedCoreBytes = (
       );
     }
     const jsonText = text.slice(0, -1);
-    const scanIssue = scanJson(jsonText);
+    const scanIssue = scanJson(jsonText, bounds.maximumDepth, bounds.maximumNodes);
     if (scanIssue !== undefined) {
       return rejected(diagnostic(scanIssue.code, "$", scanIssue.message));
     }
     const parsed = parseJson(jsonText);
     if (parsed.status === "failure") return rejected(parsed.diagnostic);
-    const inspected = inspectUnknownJson(parsed.value, boundsResult.value);
+    const inspected = inspectUnknownJson(parsed.value, bounds);
     if (inspected.status === "rejected") return inspected;
     const canonical = attemptCanonicalBytes(inspected.value.value);
     if (canonical.status === "failure") return rejected(canonical.diagnostic);
@@ -1433,8 +1474,24 @@ export const decodeNormalizedCoreBytes = (
     if (encoded.length !== input.length || encoded.some((value, index) => value !== input[index])) {
       return rejected(diagnostic("byte.canonical", "$", "input is not canonical JSON bytes"));
     }
-    return yield* decodeInspectedArtifact(inspected.value.value, boundsResult.value);
+    return yield* decodeInspectedArtifact(inspected.value.value, bounds);
   });
+
+export const decodeNormalizedCoreBytes = (
+  input: unknown,
+  bounds: NormalizedCoreBounds = defaultNormalizedCoreBounds,
+): Effect.Effect<
+  DecodeResult<NormalizedCoreArtifact>,
+  NormalizedCoreDigestFailure,
+  Crypto.Crypto
+> => {
+  const boundsResult = resolveBounds(bounds);
+  if (boundsResult.status === "rejected") return Effect.succeed(boundsResult);
+  const snapshot = snapshotBytes(input);
+  return snapshot.status === "failure"
+    ? Effect.succeed(rejected(snapshot.diagnostic))
+    : decodeNormalizedCoreBytesSnapshot(snapshot.value, boundsResult.value);
+};
 
 const restoreValueType = (type: NormalizedValueType): ValueType => {
   switch (type.tag) {
@@ -1561,12 +1618,14 @@ const validateArtifact = (
       ),
     );
   }
-  return freezeDeep({
-    status: "accepted",
-    artifact,
+  return withImmutableBytes<Extract<ValidationResult, { readonly status: "accepted" }>>(
+    {
+      status: "accepted",
+      artifact,
+      checkSummary: artifact.summary,
+    },
     bytes,
-    checkSummary: artifact.summary,
-  });
+  );
 };
 
 const valueTypesEqualOrComputation = (left: ComputationType, right: ComputationType): boolean => {
@@ -1596,14 +1655,19 @@ export const validateNormalizedCore = (
   });
 
 export const validateNormalizedCoreBytes = (
-  input: Uint8Array,
+  input: unknown,
   bounds: NormalizedCoreBounds = defaultNormalizedCoreBounds,
-): Effect.Effect<ValidationResult, NormalizedCoreDigestFailure, Crypto.Crypto> =>
-  Effect.gen(function* () {
-    const decoded = yield* decodeNormalizedCoreBytes(input, bounds);
+): Effect.Effect<ValidationResult, NormalizedCoreDigestFailure, Crypto.Crypto> => {
+  const boundsResult = resolveBounds(bounds);
+  if (boundsResult.status === "rejected") return Effect.succeed(boundsResult);
+  const snapshot = snapshotBytes(input);
+  if (snapshot.status === "failure") return Effect.succeed(resultRejected(snapshot.diagnostic));
+  return Effect.gen(function* () {
+    const decoded = yield* decodeNormalizedCoreBytesSnapshot(snapshot.value, boundsResult.value);
     if (decoded.status === "rejected") return decoded;
-    return validateArtifact(decoded.value, input.slice());
+    return validateArtifact(decoded.value, snapshot.value);
   });
+};
 
 export const encodeNormalizedCore = (artifact: NormalizedCoreArtifact): Uint8Array =>
   canonicalBytes(asCanonical(artifact));
