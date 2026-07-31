@@ -7,6 +7,7 @@ import {
   type KernelCheckObservation,
   type KernelJsonDiagnostic,
 } from "../kernel-json/index.ts";
+import { toPortableFact } from "./portable-fact.ts";
 
 export type ObservableValueType =
   | { readonly kind: "unit" | "bool" | "int" }
@@ -148,12 +149,25 @@ const RepresentationDiagnosticSchema = Schema.Struct({
   message: Schema.String,
 });
 
+// `Schema.Unknown` would accept a Date, Map, or any other host value that
+// `toPortableFact` rejects; `canonicalBytes` would then render it as `{}`,
+// colliding with a genuine empty-record fact. Declaring the field against
+// `toPortableFact` itself keeps the public schema boundary exactly as
+// strict as the construction path: a present value must be exactly what
+// `toPortableFact` would produce, and `Schema.optionalKey` keeps absence
+// (the key is not present) distinct from an invalid present value (the key
+// is present but fails this predicate, which fails the whole struct).
+const PortableDiagnosticFactSchema = Schema.declare<CanonicalJsonValue>(
+  (input): input is CanonicalJsonValue => toPortableFact(input) !== undefined,
+  { identifier: "PortableDiagnosticFact" },
+);
+
 const RuntimeDiagnosticSchema = Schema.Struct({
   code: Schema.String,
   occurrence_path: Schema.String,
   message: Schema.String,
-  expected: Schema.optionalKey(Schema.Unknown),
-  actual: Schema.optionalKey(Schema.Unknown),
+  expected: Schema.optionalKey(PortableDiagnosticFactSchema),
+  actual: Schema.optionalKey(PortableDiagnosticFactSchema),
 });
 
 const KernelRunObservationShapeSchema = Schema.Struct({

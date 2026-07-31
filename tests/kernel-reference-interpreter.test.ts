@@ -713,6 +713,124 @@ describe("toPortableFact: strict inert canonical JSON boundary (post-merge revie
     expect(() => toPortableFact(throwingArrayOwnKeys)).not.toThrow();
     expect(toPortableFact(throwingArrayOwnKeys)).toBeUndefined();
   });
+
+  test("array projection reads every element from one descriptor snapshot, never a later live access", () => {
+    let liveIndexReads = 0;
+    let liveLengthReads = 0;
+    const proxy = new Proxy([1, 2, 3], {
+      get(target, prop, receiver) {
+        if (prop === "length") liveLengthReads += 1;
+        else if (typeof prop === "string" && /^\d+$/.test(prop)) liveIndexReads += 1;
+        return Reflect.get(target, prop, receiver);
+      },
+    });
+    expect(toPortableFact(proxy)).toEqual([1, 2, 3]);
+    // `Object.getOwnPropertyDescriptors` uses the `getOwnPropertyDescriptor`
+    // trap, not `get`; a zero count here proves the implementation never
+    // falls back to a second, independent live read of `length` or an
+    // index after validating the snapshot.
+    expect(liveLengthReads).toBe(0);
+    expect(liveIndexReads).toBe(0);
+  });
+
+  test("a descriptor snapshot that disagrees with a would-be live read is what actually gets projected", () => {
+    // A hostile proxy whose `get` trap would answer differently than its
+    // `getOwnPropertyDescriptor` trap. If the implementation ever read
+    // through `get` after validating through descriptors, this would
+    // project a `Date` (and so reject); reading only the one snapshot
+    // must instead see the descriptor's own safe-integer value.
+    const proxy = new Proxy([0], {
+      getOwnPropertyDescriptor(target, prop) {
+        if (prop === "0")
+          return { value: 42, writable: true, enumerable: true, configurable: true };
+        return Object.getOwnPropertyDescriptor(target, prop);
+      },
+      get(target, prop, receiver) {
+        if (prop === "0") return new Date(2020, 0, 1);
+        return Reflect.get(target, prop, receiver);
+      },
+    });
+    expect(toPortableFact(proxy)).toEqual([42]);
+  });
+});
+
+describe("the public schema boundary rejects the same hostile facts as toPortableFact (post-merge review)", () => {
+  const observationWithFact = (fact: unknown) =>
+    ({
+      format: "semantic.kernel-run",
+      version: 1,
+      kernel: "semantic.kernel-calculus/0018/v1",
+      observation: {
+        tag: "runtime-rejected",
+        diagnostic: {
+          code: "interpreter.example",
+          occurrence_path: "/program",
+          message: "m",
+          actual: fact,
+        },
+      },
+    }) as never;
+
+  test("isKernelRunObservation rejects every fact toPortableFact rejects, directly supplied", () => {
+    class Boxed {
+      constructor(public readonly value: number) {}
+    }
+    const cyclic: Record<string, unknown> = {};
+    cyclic["self"] = cyclic;
+    const shared = { a: 1 };
+    const diamond = { left: shared, right: shared };
+    const withAccessor: Record<string, unknown> = {};
+    Object.defineProperty(withAccessor, "a", { get: () => 1, enumerable: true });
+    const { proxy: revoked, revoke } = Proxy.revocable({}, {});
+    revoke();
+
+    for (const hostile of [
+      new Date(),
+      new Map([["a", 1]]),
+      new Set([1]),
+      /x/,
+      new Boxed(1),
+      cyclic,
+      diamond,
+      withAccessor,
+      revoked,
+    ]) {
+      const observation = observationWithFact(hostile);
+      expect(isKernelRunObservation(observation)).toBe(false);
+      expect(() => encodeCanonicalKernelRunObservation(observation)).toThrow();
+      expect(() => canonicalKernelRunObservationJson(observation)).toThrow();
+    }
+  });
+
+  test("isKernelRunObservation and both canonical encoders accept valid nested facts and negative zero", () => {
+    for (const portable of [
+      { a: [1, "b", { c: true, d: null }] },
+      -0,
+      0,
+      "text",
+      null,
+      true,
+      [1, 2, 3],
+    ]) {
+      const observation = observationWithFact(portable);
+      expect(isKernelRunObservation(observation)).toBe(true);
+      expect(() => encodeCanonicalKernelRunObservation(observation)).not.toThrow();
+      expect(() => canonicalKernelRunObservationJson(observation)).not.toThrow();
+    }
+  });
+
+  test("an observation entirely omitting expected/actual remains valid: absence is not an invalid present value", () => {
+    const observation = {
+      format: "semantic.kernel-run",
+      version: 1,
+      kernel: "semantic.kernel-calculus/0018/v1",
+      observation: {
+        tag: "runtime-rejected",
+        diagnostic: { code: "interpreter.example", occurrence_path: "/program", message: "m" },
+      },
+    };
+    expect(isKernelRunObservation(observation)).toBe(true);
+  });
 });
 
 describe("interpretKernelJsonBytes bounds totality (post-merge review)", () => {
@@ -821,5 +939,62 @@ describe("interpretKernelJsonBytes bounds totality (post-merge review)", () => {
     expect(
       interpretKernelJsonBytes(pureUnitSource, throwingGetBounds as never).observation,
     ).toEqual(expectedUnitObservation);
+  });
+});
+
+describe("both public encoders validate and encode the same one snapshot (post-merge review)", () => {
+  // The descriptor-safe/live-read proxy from the array-projection regression
+  // above, placed directly as a diagnostic fact: `getOwnPropertyDescriptor`
+  // reports a safe `42`, `get` would answer `Date` if ever read live. This
+  // reproduces the exact defect a validate-then-encode split allows: a
+  // schema check that snapshots once could pass while a separate,
+  // unguarded `canonicalJson` walk of the *original* value re-reads the
+  // live `Date` and silently renders it as `{}`.
+  const descriptorSafeLiveDivergentFact = new Proxy([0], {
+    getOwnPropertyDescriptor(target, prop) {
+      if (prop === "0") return { value: 42, writable: true, enumerable: true, configurable: true };
+      return Object.getOwnPropertyDescriptor(target, prop);
+    },
+    get(target, prop, receiver) {
+      if (prop === "0") return new Date(0);
+      return Reflect.get(target, prop, receiver);
+    },
+  });
+
+  const observationWithHostileFact = {
+    format: "semantic.kernel-run",
+    version: 1,
+    kernel: "semantic.kernel-calculus/0018/v1",
+    observation: {
+      tag: "runtime-rejected",
+      diagnostic: {
+        code: "interpreter.example",
+        occurrence_path: "/program",
+        message: "m",
+        actual: descriptorSafeLiveDivergentFact,
+      },
+    },
+  } as never;
+
+  test("encodeCanonicalKernelRunObservation emits the snapshotted 42, never the live Date or {}", () => {
+    const text = new TextDecoder().decode(
+      encodeCanonicalKernelRunObservation(observationWithHostileFact),
+    );
+    expect(text).toContain('"actual":[42]');
+    expect(text).not.toContain("{}");
+  });
+
+  test("canonicalKernelRunObservationJson emits the same snapshotted 42, never the live Date or {}", () => {
+    const text = canonicalKernelRunObservationJson(observationWithHostileFact);
+    expect(text).toContain('"actual":[42]');
+    expect(text).not.toContain("{}");
+  });
+
+  test("the byte encoder and the string encoder agree exactly on the one snapshot", () => {
+    const bytesText = new TextDecoder().decode(
+      encodeCanonicalKernelRunObservation(observationWithHostileFact),
+    );
+    const jsonText = canonicalKernelRunObservationJson(observationWithHostileFact);
+    expect(bytesText.trimEnd()).toBe(jsonText);
   });
 });

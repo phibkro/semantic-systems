@@ -16,18 +16,41 @@ const projectArray = (
   depth: number,
 ): ReadonlyArray<CanonicalJsonValue> | undefined => {
   if (Object.getPrototypeOf(input) !== Array.prototype) return undefined;
-  for (const key of Reflect.ownKeys(input)) {
+  // One descriptor snapshot for the whole array, exactly like `projectRecord`:
+  // `length` and every element are read from this same snapshot via
+  // `descriptor.value`, never through a second, later, live `input.length`
+  // or `input[index]` access. A hostile Proxy's `getOwnPropertyDescriptor`
+  // trap and its `get` trap are independent and need not agree; validating
+  // against one and then reading through the other would let a value the
+  // snapshot never saw slip past validation.
+  // Cast away the array-specific overload so TypeScript returns the generic
+  // `PropertyDescriptorMap` shape instead of pre-typing `length`'s
+  // descriptor as `number`; the runtime call is identical either way.
+  const descriptors = Object.getOwnPropertyDescriptors(input as object);
+  const lengthDescriptor = descriptors["length"];
+  if (
+    lengthDescriptor === undefined ||
+    !("value" in lengthDescriptor) ||
+    typeof lengthDescriptor.value !== "number" ||
+    !Number.isSafeInteger(lengthDescriptor.value) ||
+    lengthDescriptor.value < 0
+  ) {
+    return undefined;
+  }
+  const length = lengthDescriptor.value;
+  for (const key of Reflect.ownKeys(descriptors)) {
     if (key === "length") continue;
     if (typeof key === "symbol" || !INDEX_KEY_PATTERN.test(key)) return undefined;
-    const descriptor = Object.getOwnPropertyDescriptor(input, key);
+    const descriptor = descriptors[key]!;
+    if (!("value" in descriptor) || !descriptor.enumerable) return undefined;
+  }
+  const result: Array<CanonicalJsonValue> = [];
+  for (let index = 0; index < length; index += 1) {
+    const descriptor = descriptors[String(index)];
     if (descriptor === undefined || !("value" in descriptor) || !descriptor.enumerable) {
       return undefined;
     }
-  }
-  const result: Array<CanonicalJsonValue> = [];
-  for (let index = 0; index < input.length; index += 1) {
-    if (!Object.hasOwn(input, index)) return undefined;
-    const projected = project(input[index], inspection, depth + 1);
+    const projected = project(descriptor.value, inspection, depth + 1);
     if (projected === undefined) return undefined;
     result.push(projected);
   }
