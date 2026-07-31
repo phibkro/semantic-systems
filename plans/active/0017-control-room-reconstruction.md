@@ -9,8 +9,9 @@ Status: contract frozen; first reviewed candidate
 recut `86e9487b054bafdac464c1b8fb1ff4e6d5e9cdff` also received
 `CHANGES_REQUIRED`; first custody correction
 `4aef39ee8f42fc993c23973a22441e084aaceaaa` received `CHANGES_REQUIRED`;
-second bounded custody correction is committed and awaiting independent review
-and sibling-lineage integration
+second custody correction `1837fa0d2cb7a0a8506ceffa20ebd7502f1cd360`
+received `CHANGES_REQUIRED`; third bounded custody correction is awaiting its
+commit hash, independent review, and sibling-lineage integration
 
 Owner: primary Semantic Systems lead
 
@@ -24,6 +25,8 @@ Owner: primary Semantic Systems lead
 - reviewed recut `86e9487b054bafdac464c1b8fb1ff4e6d5e9cdff`;
 - rejected first custody correction
   `4aef39ee8f42fc993c23973a22441e084aaceaaa`;
+- rejected second custody correction
+  `1837fa0d2cb7a0a8506ceffa20ebd7502f1cd360`;
 - accepted executable semantic-system integration and current TypeScript/Effect
   v4 project model;
 - historical accepted Control Room PWA lineage
@@ -237,6 +240,33 @@ attempt to substitute deployment claims for observations.
   after which the same focused gate passed. No Nix, exact acceptance, browser,
   full integration, provider, GitHub, secret, deployment, or network operation
   ran for this correction.
+- 2026-07-31: independent rereview rejected exact clean custody head
+  `1837fa0d2cb7a0a8506ceffa20ebd7502f1cd360`. Its provider, artifact, and
+  GitHub observations ran concurrently, so GitHub state was not necessarily
+  the final observation; its production concurrency group could be selected
+  from an incidental non-triggering pull request; its provider bounds did not
+  bound preceding steps; post-effect GitHub fetches had no abort timeout; and
+  this ledger did not identify the exact second correction.
+- 2026-07-31: third custody correction head
+  `THIRD-CORRECTION-COMMIT-PENDING` sequences served/provider and immutable
+  artifact observations before the final authoritative GitHub target
+  observation. Focused adversarial readers change the PR head or reopen the PR
+  during earlier observations and require the final result to remain
+  `DeploymentUnknown`.
+- 2026-07-31: the third correction branches concurrency on
+  `workflow_run.event`, so a push selects production independent of incidental
+  matching pull requests, while preview deploy and cleanup retain the same exact
+  `control-room-alchemy-p<PR>` group. All GitHub fetches have bounded abort
+  signals. Per-step bounds cap deploy pre-effect work at 41 minutes in a
+  50-minute job and cleanup pre-effect work at 30 minutes in a 35-minute job,
+  leaving tested post-effect headroom. Runner cancellation and host loss remain
+  outside these workflow-level timing guarantees and require external
+  reconciliation.
+- 2026-07-31: permitted focused third-correction evidence before commit:
+  custody and workflow-safety Vitest `24/24`, owned Oxfmt, severe Oxlint, app
+  tooling TypeScript diagnostics, and diff check green. No Nix, exact
+  acceptance, browser, full integration, provider, GitHub, secret, deployment,
+  or network operation ran for this correction.
 - 2026-07-31: no provider plan/apply/destroy, Cloudflare/DNS mutation, GitHub
   secret mutation, push, pull request, preview, or production operation ran
   during reconstruction or recut.

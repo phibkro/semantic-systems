@@ -12,6 +12,7 @@ const PRODUCER_WORKFLOW = "Control Room Static Artifact";
 const PRODUCER_WORKFLOW_PATH = ".github/workflows/control-room-alchemy.yml";
 const MAX_SERVED_DOCUMENT_BYTES = 2 * 1024 * 1024;
 const SERVED_OBSERVATION_TIMEOUT_MS = 10_000;
+const GITHUB_OBSERVATION_TIMEOUT_MS = 10_000;
 
 interface RecordValue {
   readonly [key: string]: unknown;
@@ -50,6 +51,17 @@ export interface EffectObservation {
   readonly effectObservation: "DeploymentObserved" | "DeploymentUnknown" | "RemovalObserved";
   readonly reconciliationRequired: "false" | "true";
   readonly servedSnapshotDigest: string;
+}
+
+export interface WorkflowRunPostEffectReaders {
+  readonly fetchArtifactIdentity: () => Promise<ArtifactIdentity>;
+  readonly fetchLiveTarget: () => Promise<unknown>;
+  readonly fetchServedArtifact: () => Promise<ServedArtifactObservation>;
+}
+
+export interface ClosedPreviewPostEffectReaders {
+  readonly fetchLiveTarget: () => Promise<unknown>;
+  readonly fetchServedStatus: () => Promise<number>;
 }
 
 const isRecord = (value: unknown): value is RecordValue =>
@@ -333,6 +345,54 @@ export const observeClosedPreviewEffect = (
   }
 };
 
+export const observeWorkflowRunPostEffect = async (
+  provenance: WorkflowRunProvenance,
+  repository: string,
+  providerOutcome: string,
+  readers: WorkflowRunPostEffectReaders,
+): Promise<EffectObservation> => {
+  if (providerOutcome !== "success") return unknownObservation();
+  try {
+    const servedArtifact = await readers.fetchServedArtifact();
+    const artifact = await readers.fetchArtifactIdentity();
+    if (servedArtifact.artifactDigest !== artifact.digest) {
+      throw new Error("served observation is not bound to the immutable artifact digest");
+    }
+    const liveTarget = await readers.fetchLiveTarget();
+    return observeWorkflowRunEffect(
+      liveTarget,
+      provenance,
+      repository,
+      providerOutcome,
+      servedArtifact,
+    );
+  } catch {
+    return unknownObservation();
+  }
+};
+
+export const observeClosedPreviewPostEffect = async (
+  provenance: ClosedPreviewProvenance,
+  repository: string,
+  providerOutcome: string,
+  readers: ClosedPreviewPostEffectReaders,
+): Promise<EffectObservation> => {
+  if (providerOutcome !== "success") return unknownObservation();
+  try {
+    const servedStatus = await readers.fetchServedStatus();
+    const liveTarget = await readers.fetchLiveTarget();
+    return observeClosedPreviewEffect(
+      liveTarget,
+      provenance,
+      repository,
+      providerOutcome,
+      servedStatus,
+    );
+  } catch {
+    return unknownObservation();
+  }
+};
+
 const parseJson = (value: string, label: string): unknown => {
   try {
     return JSON.parse(value);
@@ -505,6 +565,7 @@ const fetchGitHubJson = async (
 ): Promise<unknown> => {
   const response = await fetch(`${apiUrl}/repos/${repository}${path}`, {
     headers: githubHeaders(token),
+    signal: AbortSignal.timeout(GITHUB_OBSERVATION_TIMEOUT_MS),
   });
   if (!response.ok) throw new Error(`${label} request failed (${response.status})`);
   return response.json();
@@ -604,24 +665,15 @@ const main = async (): Promise<void> => {
   }
   if (mode === "closed-preview-post-effect") {
     const provenance = validateClosedPreview(event, repository);
-    let observation = unknownObservation();
-    try {
-      const [livePullRequest, servedStatus] = await Promise.all([
-        fetchLiveClosedPreview(provenance, repository, apiUrl, token),
-        providerOutcome === "success"
-          ? fetchServedCleanupStatus(provenance.stage)
-          : Promise.resolve(undefined),
-      ]);
-      observation = observeClosedPreviewEffect(
-        livePullRequest,
-        provenance,
-        repository,
-        providerOutcome ?? "",
-        servedStatus,
-      );
-    } catch {
-      observation = unknownObservation();
-    }
+    const observation = await observeClosedPreviewPostEffect(
+      provenance,
+      repository,
+      providerOutcome ?? "",
+      {
+        fetchLiveTarget: () => fetchLiveClosedPreview(provenance, repository, apiUrl, token),
+        fetchServedStatus: () => fetchServedCleanupStatus(provenance.stage),
+      },
+    );
     await writeOutputs(outputPath, {
       effect_observation: observation.effectObservation,
       reconciliation_required: observation.reconciliationRequired,
@@ -634,31 +686,23 @@ const main = async (): Promise<void> => {
   }
   const provenance = validateWorkflowRunProvenance(event, repository);
   if (mode === "workflow-run-post-effect") {
-    let observation = unknownObservation();
-    try {
-      const [liveTarget, artifact, servedArtifact] = await Promise.all([
-        fetchLiveWorkflowTarget(provenance, repository, apiUrl, token),
-        fetchArtifactIdentity(provenance, repository, apiUrl, token),
-        providerOutcome === "success"
-          ? fetchServedArtifact(provenance, staticRoot ?? "", expectedArtifactDigest ?? "")
-          : Promise.resolve(undefined),
-      ]);
-      if (artifact.digest !== expectedArtifactDigest) {
-        throw new Error("post-effect artifact digest changed");
-      }
-      if (servedArtifact !== undefined && servedArtifact.artifactDigest !== artifact.digest) {
-        throw new Error("served observation is not bound to the immutable artifact digest");
-      }
-      observation = observeWorkflowRunEffect(
-        liveTarget,
-        provenance,
-        repository,
-        providerOutcome ?? "",
-        servedArtifact,
-      );
-    } catch {
-      observation = unknownObservation();
-    }
+    const observation = await observeWorkflowRunPostEffect(
+      provenance,
+      repository,
+      providerOutcome ?? "",
+      {
+        fetchArtifactIdentity: async () => {
+          const artifact = await fetchArtifactIdentity(provenance, repository, apiUrl, token);
+          if (artifact.digest !== expectedArtifactDigest) {
+            throw new Error("post-effect artifact digest changed");
+          }
+          return artifact;
+        },
+        fetchLiveTarget: () => fetchLiveWorkflowTarget(provenance, repository, apiUrl, token),
+        fetchServedArtifact: () =>
+          fetchServedArtifact(provenance, staticRoot ?? "", expectedArtifactDigest ?? ""),
+      },
+    );
     await writeOutputs(outputPath, {
       effect_observation: observation.effectObservation,
       reconciliation_required: observation.reconciliationRequired,

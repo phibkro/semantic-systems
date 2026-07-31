@@ -3,7 +3,9 @@ import { VERSION_SCHEMA, type PublicSnapshot, type PublicVersion } from "../src/
 import { fixtureSnapshot } from "../src/test/fixture.ts";
 import {
   observeClosedPreviewEffect,
+  observeClosedPreviewPostEffect,
   observeWorkflowRunEffect,
+  observeWorkflowRunPostEffect,
   selectImmutableArtifact,
   validateClosedPreview,
   validateLiveClosedPreview,
@@ -194,6 +196,18 @@ describe("trusted workflow-run custody", () => {
     expect(() => validateWorkflowRunProvenance(push, repository)).toThrow("did not run on main");
   });
 
+  test("classifies a push as production despite incidental matching pull requests", () => {
+    const push = structuredClone(previewEvent);
+    push.workflow_run.event = "push";
+    push.workflow_run.head_branch = "main";
+    expect(push.workflow_run.pull_requests).toHaveLength(1);
+    expect(validateWorkflowRunProvenance(push, repository)).toMatchObject({
+      kind: "production",
+      prNumber: "",
+      stage: "prod",
+    });
+  });
+
   test("derives cleanup only from one closed same-repository main PR", () => {
     const event = {
       action: "closed",
@@ -342,6 +356,33 @@ describe("trusted workflow-run custody", () => {
     });
   });
 
+  test("observes served bytes and artifact custody before the final live target", async () => {
+    const provenance = validateWorkflowRunProvenance(previewEvent, repository);
+    const calls: Array<string> = [];
+    let liveTarget = livePullRequest("open");
+    const observation = await observeWorkflowRunPostEffect(provenance, repository, "success", {
+      fetchServedArtifact: async () => {
+        calls.push("served");
+        liveTarget = livePullRequest("open", "f".repeat(40));
+        return servedArtifact;
+      },
+      fetchArtifactIdentity: async () => {
+        calls.push("artifact");
+        return { digest: artifactDigest, id: "456", name: provenance.artifactName };
+      },
+      fetchLiveTarget: async () => {
+        calls.push("github");
+        return liveTarget;
+      },
+    });
+    expect(calls).toEqual(["served", "artifact", "github"]);
+    expect(observation).toEqual({
+      effectObservation: "DeploymentUnknown",
+      reconciliationRequired: "true",
+      servedSnapshotDigest: "",
+    });
+  });
+
   test("binds served version and snapshot bytes to the digest-custodied artifact", async () => {
     const pair = await validServedPair();
     const versionText = `${JSON.stringify(pair.version)}\n`;
@@ -393,6 +434,38 @@ describe("trusted workflow-run custody", () => {
     expect(
       observeClosedPreviewEffect(livePullRequest("closed"), provenance, repository, "success", 200),
     ).toEqual({
+      effectObservation: "DeploymentUnknown",
+      reconciliationRequired: "true",
+      servedSnapshotDigest: "",
+    });
+  });
+
+  test("observes removal before the final live cleanup target", async () => {
+    const event = {
+      action: "closed",
+      repository: repositoryObject,
+      pull_request: {
+        number: 17,
+        base: { ref: "main", repo: repositoryObject },
+        head: { ref: "feature/control-room", repo: repositoryObject },
+      },
+    };
+    const provenance = validateClosedPreview(event, repository);
+    const calls: Array<string> = [];
+    let liveTarget = livePullRequest("closed");
+    const observation = await observeClosedPreviewPostEffect(provenance, repository, "success", {
+      fetchServedStatus: async () => {
+        calls.push("served");
+        liveTarget = livePullRequest("open");
+        return 404;
+      },
+      fetchLiveTarget: async () => {
+        calls.push("github");
+        return liveTarget;
+      },
+    });
+    expect(calls).toEqual(["served", "github"]);
+    expect(observation).toEqual({
       effectObservation: "DeploymentUnknown",
       reconciliationRequired: "true",
       servedSnapshotDigest: "",

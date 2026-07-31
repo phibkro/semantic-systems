@@ -6,10 +6,12 @@ import { parse } from "yaml";
 interface Step {
   readonly name?: string;
   readonly id?: string;
+  readonly if?: string;
   readonly uses?: string;
   readonly run?: string;
   readonly with?: Readonly<Record<string, unknown>>;
   readonly env?: Readonly<Record<string, unknown>>;
+  readonly "timeout-minutes"?: number;
 }
 
 interface Job {
@@ -52,6 +54,27 @@ const actions = (workflow: Workflow): ReadonlyArray<string> =>
     job.steps.flatMap((step) => (step.uses === undefined ? [] : [step.uses])),
   );
 
+const assertBudget = (
+  job: Job,
+  expectedPreEffectMinutes: number,
+  minimumPostEffectHeadroom: number,
+): void => {
+  expect(job.steps.every((step) => step["timeout-minutes"] !== undefined)).toBe(true);
+  const providerIndex = job.steps.findIndex((step) => step.id === "provider");
+  const preEffectMinutes = job.steps
+    .slice(0, providerIndex + 1)
+    .reduce((total, step) => total + (step["timeout-minutes"] ?? 0), 0);
+  expect(preEffectMinutes).toBe(expectedPreEffectMinutes);
+  expect(job["timeout-minutes"] - preEffectMinutes).toBeGreaterThanOrEqual(
+    minimumPostEffectHeadroom,
+  );
+  const totalStepMinutes = job.steps.reduce(
+    (total, step) => total + (step["timeout-minutes"] ?? 0),
+    0,
+  );
+  expect(totalStepMinutes).toBeLessThan(job["timeout-minutes"]);
+};
+
 describe("Alchemy workflow safety", () => {
   test("separates unprivileged artifact production from privileged default-branch deployment", () => {
     const build = producer();
@@ -82,7 +105,7 @@ describe("Alchemy workflow safety", () => {
   test("serializes preview deploy and cleanup through the same exact stage group", () => {
     const workflow = trusted();
     expect(workflow.jobs["deploy-static"]?.concurrency.group).toBe(
-      "control-room-alchemy-${{ github.event.workflow_run.pull_requests[0].number && format('p{0}', github.event.workflow_run.pull_requests[0].number) || 'prod' }}",
+      "control-room-alchemy-${{ github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.pull_requests[0].number && format('p{0}', github.event.workflow_run.pull_requests[0].number) || 'prod' }}",
     );
     expect(workflow.jobs["cleanup-preview"]?.concurrency.group).toBe(
       "control-room-alchemy-p${{ github.event.pull_request.number }}",
@@ -152,7 +175,7 @@ describe("Alchemy workflow safety", () => {
     const deployment = workflow.jobs["deploy-static"]!;
     const deployProvider = deployment.steps.find((step) => step.id === "provider")!;
     const deployObservation = deployment.steps.find((step) => step.id === "observation")!;
-    expect(deployment["timeout-minutes"]).toBe(30);
+    expect(deployment["timeout-minutes"]).toBe(50);
     expect(deployProvider.run).toContain("timeout --signal=TERM --kill-after=60s 15m");
     expect(deployment.steps.indexOf(deployObservation)).toBeGreaterThan(
       deployment.steps.indexOf(deployProvider),
@@ -164,7 +187,7 @@ describe("Alchemy workflow safety", () => {
     const cleanup = workflow.jobs["cleanup-preview"]!;
     const cleanupProvider = cleanup.steps.find((step) => step.id === "provider")!;
     const cleanupObservation = cleanup.steps.find((step) => step.id === "observation")!;
-    expect(cleanup["timeout-minutes"]).toBe(20);
+    expect(cleanup["timeout-minutes"]).toBe(35);
     expect(cleanupProvider.run).toContain("timeout --signal=TERM --kill-after=60s 8m");
     expect(cleanup.steps.indexOf(cleanupObservation)).toBeGreaterThan(
       cleanup.steps.indexOf(cleanupProvider),
@@ -176,6 +199,15 @@ describe("Alchemy workflow safety", () => {
     )!;
     expect(report.run).toContain("served snapshot");
     expect(report.run).not.toContain("preview deployed");
+
+    assertBudget(deployment, 41, 9);
+    assertBudget(cleanup, 30, 5);
+
+    const custody = readFileSync(
+      path.join(root, "apps/control-room/tooling/workflow-run-custody.ts"),
+      "utf8",
+    );
+    expect(custody).toContain("signal: AbortSignal.timeout(GITHUB_OBSERVATION_TIMEOUT_MS)");
   });
 
   test("the exact acceptance itself invokes the canonical full gate without recursion", () => {
