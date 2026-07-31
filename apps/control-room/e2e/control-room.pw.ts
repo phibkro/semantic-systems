@@ -6,6 +6,29 @@ import path from "node:path";
 
 const dataRoot = path.resolve(import.meta.dirname, "../dist/data");
 
+const expectedObservationLabel = async (): Promise<
+  "Local preview" | "Main CI assertion" | "PR CI assertion"
+> => {
+  const version = JSON.parse(await readFile(path.join(dataRoot, "version.json"), "utf8")) as {
+    readonly snapshot: string;
+  };
+  const snapshot = JSON.parse(await readFile(path.join(dataRoot, version.snapshot), "utf8")) as {
+    readonly metadata: { readonly observation_source: string };
+  };
+  switch (snapshot.metadata.observation_source) {
+    case "local_preview":
+      return "Local preview";
+    case "main_ci_assertion":
+      return "Main CI assertion";
+    case "pr_ci_assertion":
+      return "PR CI assertion";
+    default:
+      throw new Error(
+        `unexpected observation source: ${JSON.stringify(snapshot.metadata.observation_source)}`,
+      );
+  }
+};
+
 const compareCodeUnits = (left: string, right: string): number => {
   const length = Math.min(left.length, right.length);
   for (let index = 0; index < length; index += 1) {
@@ -92,7 +115,7 @@ test("phone viewport exposes five views, search, drill-down, and exact provenanc
   for (const name of ["Pulse", "Systems", "Semantics", "Evidence", "Work"]) {
     await expect(page.getByRole("button", { name, exact: true })).toBeVisible();
   }
-  await expect(page.getByText("Local preview", { exact: true })).toBeVisible();
+  await expect(page.getByText(await expectedObservationLabel(), { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Systems", exact: true }).click();
   await page.getByRole("searchbox", { name: "Search systems" }).fill("explorer");
   const result = page.getByRole("button", { name: /Semantic project explorer/ });
@@ -234,7 +257,7 @@ test("installed shell visibly retains its digest-valid snapshot offline", async 
   page,
 }) => {
   await openSemanticRoom(page);
-  await expect(page.getByText("Local preview", { exact: true })).toBeVisible();
+  await expect(page.getByText(await expectedObservationLabel(), { exact: true })).toBeVisible();
   await page.evaluate(async () => {
     await navigator.serviceWorker.ready;
   });
