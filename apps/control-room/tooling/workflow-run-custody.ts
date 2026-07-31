@@ -4,6 +4,7 @@ const EXACT_COMMIT = /^[0-9a-f]{40}$/;
 const EXACT_ARTIFACT_DIGEST = /^sha256:[0-9a-f]{64}$/;
 const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const PRODUCER_WORKFLOW = "Control Room Static Artifact";
+const PRODUCER_WORKFLOW_PATH = ".github/workflows/control-room-alchemy.yml";
 
 interface RecordValue {
   readonly [key: string]: unknown;
@@ -23,6 +24,16 @@ export interface ArtifactIdentity {
   readonly digest: string;
   readonly id: string;
   readonly name: string;
+}
+
+export interface ClosedPreviewProvenance {
+  readonly prNumber: string;
+  readonly stage: string;
+}
+
+export interface EffectObservation {
+  readonly effectObservation: "DeploymentObserved" | "DeploymentUnknown";
+  readonly reconciliationRequired: "false" | "true";
 }
 
 const isRecord = (value: unknown): value is RecordValue =>
@@ -60,6 +71,7 @@ export const validateWorkflowRunProvenance = (
   if (event.action !== "completed") throw new Error("workflow_run action must be completed");
   const run = record(event.workflow_run, "event.workflow_run");
   if (run.name !== PRODUCER_WORKFLOW) throw new Error("unexpected producer workflow");
+  if (run.path !== PRODUCER_WORKFLOW_PATH) throw new Error("unexpected producer workflow path");
   if (run.conclusion !== "success") throw new Error("producer workflow did not succeed");
   sameRepository(run.repository, repository, "workflow_run.repository");
   sameRepository(run.head_repository, repository, "workflow_run.head_repository");
@@ -133,7 +145,10 @@ export const selectImmutableArtifact = (
   return { digest, id, name: provenance.artifactName };
 };
 
-export const validateClosedPreview = (value: unknown, repository: string): string => {
+export const validateClosedPreview = (
+  value: unknown,
+  repository: string,
+): ClosedPreviewProvenance => {
   if (!REPOSITORY.test(repository)) throw new Error("repository identity is malformed");
   const event = record(value, "event");
   if (event.action !== "closed") throw new Error("cleanup event must be closed");
@@ -145,7 +160,125 @@ export const validateClosedPreview = (value: unknown, repository: string): strin
   if (base.ref !== "main") throw new Error("cleanup target branch must be main");
   sameRepository(base.repo, repository, "pull request base repository");
   sameRepository(head.repo, repository, "pull request head repository");
-  return `p${number}`;
+  return { prNumber: number, stage: `p${number}` };
+};
+
+const validateLivePullRequestIdentity = (
+  value: unknown,
+  repository: string,
+  prNumber: string,
+  expectedState: "closed" | "open",
+  expectedHead: string | undefined,
+): void => {
+  const pullRequest = record(value, "live pull request");
+  if (positiveInteger(pullRequest.number, "live pull request number") !== prNumber) {
+    throw new Error("live pull request number changed");
+  }
+  if (pullRequest.state !== expectedState) {
+    throw new Error(`live pull request is not ${expectedState}`);
+  }
+  const base = record(pullRequest.base, "live pull request base");
+  const head = record(pullRequest.head, "live pull request head");
+  if (base.ref !== "main") throw new Error("live pull request target branch is not main");
+  sameRepository(base.repo, repository, "live pull request base repository");
+  sameRepository(head.repo, repository, "live pull request head repository");
+  if (expectedHead !== undefined && head.sha !== expectedHead) {
+    throw new Error("live pull request head advanced");
+  }
+};
+
+export const validateLiveWorkflowTarget = (
+  value: unknown,
+  provenance: WorkflowRunProvenance,
+  repository: string,
+): void => {
+  if (provenance.kind === "preview") {
+    validateLivePullRequestIdentity(
+      value,
+      repository,
+      provenance.prNumber,
+      "open",
+      provenance.commit,
+    );
+    return;
+  }
+  const reference = record(value, "live main ref");
+  if (reference.ref !== "refs/heads/main") throw new Error("live production ref is not main");
+  const object = record(reference.object, "live main ref object");
+  if (object.type !== "commit") throw new Error("live production ref does not name a commit");
+  if (object.sha !== provenance.commit)
+    throw new Error("live main advanced past the artifact commit");
+};
+
+export const validateLiveClosedPreview = (
+  value: unknown,
+  provenance: ClosedPreviewProvenance,
+  repository: string,
+): void =>
+  validateLivePullRequestIdentity(value, repository, provenance.prNumber, "closed", undefined);
+
+const unknownObservation = (): EffectObservation => ({
+  effectObservation: "DeploymentUnknown",
+  reconciliationRequired: "true",
+});
+
+export const observeWorkflowRunEffect = (
+  value: unknown,
+  provenance: WorkflowRunProvenance,
+  repository: string,
+  providerOutcome: string,
+): EffectObservation => {
+  if (providerOutcome !== "success") return unknownObservation();
+  try {
+    validateLiveWorkflowTarget(value, provenance, repository);
+    return {
+      effectObservation: "DeploymentObserved",
+      reconciliationRequired: "false",
+    };
+  } catch {
+    return unknownObservation();
+  }
+};
+
+export const observeClosedPreviewEffect = (
+  value: unknown,
+  provenance: ClosedPreviewProvenance,
+  repository: string,
+  providerOutcome: string,
+): EffectObservation => {
+  if (providerOutcome !== "success") return unknownObservation();
+  try {
+    validateLiveClosedPreview(value, provenance, repository);
+    return {
+      effectObservation: "DeploymentObserved",
+      reconciliationRequired: "false",
+    };
+  } catch {
+    return unknownObservation();
+  }
+};
+
+const githubHeaders = (token: string): Readonly<Record<string, string>> => {
+  if (token === "") throw new Error("GitHub token is required for authoritative observation");
+  return {
+    Accept: "application/vnd.github+json",
+    Authorization: `Bearer ${token}`,
+    "X-GitHub-Api-Version": "2026-03-10",
+  };
+};
+
+const fetchGitHubJson = async (
+  path: string,
+  repository: string,
+  apiUrl: string,
+  token: string,
+  label: string,
+): Promise<unknown> => {
+  const response = await fetch(`${apiUrl}/repos/${repository}${path}`, {
+    headers: githubHeaders(token),
+  });
+  if (!response.ok) throw new Error(`${label} request failed (${response.status})`);
+  return response.json();
 };
 
 const fetchArtifactIdentity = async (
@@ -154,20 +287,43 @@ const fetchArtifactIdentity = async (
   apiUrl: string,
   token: string,
 ): Promise<ArtifactIdentity> => {
-  if (token === "") throw new Error("GitHub token is required for artifact custody");
-  const response = await fetch(
-    `${apiUrl}/repos/${repository}/actions/runs/${provenance.runId}/artifacts?per_page=100`,
-    {
-      headers: {
-        Accept: "application/vnd.github+json",
-        Authorization: `Bearer ${token}`,
-        "X-GitHub-Api-Version": "2026-03-10",
-      },
-    },
+  const value = await fetchGitHubJson(
+    `/actions/runs/${provenance.runId}/artifacts?per_page=100`,
+    repository,
+    apiUrl,
+    token,
+    "artifact metadata",
   );
-  if (!response.ok) throw new Error(`artifact metadata request failed (${response.status})`);
-  return selectImmutableArtifact(await response.json(), provenance);
+  return selectImmutableArtifact(value, provenance);
 };
+
+const fetchLiveWorkflowTarget = (
+  provenance: WorkflowRunProvenance,
+  repository: string,
+  apiUrl: string,
+  token: string,
+): Promise<unknown> =>
+  fetchGitHubJson(
+    provenance.kind === "production" ? "/git/ref/heads/main" : `/pulls/${provenance.prNumber}`,
+    repository,
+    apiUrl,
+    token,
+    "live deployment target",
+  );
+
+const fetchLiveClosedPreview = (
+  provenance: ClosedPreviewProvenance,
+  repository: string,
+  apiUrl: string,
+  token: string,
+): Promise<unknown> =>
+  fetchGitHubJson(
+    `/pulls/${provenance.prNumber}`,
+    repository,
+    apiUrl,
+    token,
+    "live cleanup target",
+  );
 
 const writeOutputs = async (path: string, outputs: Readonly<Record<string, string>>) => {
   for (const [key, value] of Object.entries(outputs)) {
@@ -179,29 +335,85 @@ const writeOutputs = async (path: string, outputs: Readonly<Record<string, strin
 };
 
 const main = async (): Promise<void> => {
-  const [mode, eventPath, repository, outputPath] = process.argv.slice(2);
+  const [mode, eventPath, repository, outputPath, providerOutcome] = process.argv.slice(2);
   if (
-    (mode !== "workflow-run" && mode !== "closed-preview") ||
+    (mode !== "workflow-run" &&
+      mode !== "closed-preview" &&
+      mode !== "workflow-run-post-effect" &&
+      mode !== "closed-preview-post-effect") ||
     eventPath === undefined ||
     repository === undefined ||
-    outputPath === undefined
+    outputPath === undefined ||
+    (mode.endsWith("-post-effect") && providerOutcome === undefined)
   ) {
     throw new Error(
-      "usage: workflow-run-custody.ts <workflow-run|closed-preview> EVENT REPOSITORY OUTPUT",
+      "usage: workflow-run-custody.ts <workflow-run|closed-preview|workflow-run-post-effect|closed-preview-post-effect> EVENT REPOSITORY OUTPUT [PROVIDER_OUTCOME]",
     );
   }
   const event: unknown = JSON.parse(await readFile(eventPath, "utf8"));
+  const apiUrl = process.env.GITHUB_API_URL ?? "https://api.github.com";
+  const token = process.env.GH_TOKEN ?? "";
   if (mode === "closed-preview") {
-    await writeOutputs(outputPath, { stage: validateClosedPreview(event, repository) });
+    const provenance = validateClosedPreview(event, repository);
+    const livePullRequest = await fetchLiveClosedPreview(provenance, repository, apiUrl, token);
+    validateLiveClosedPreview(livePullRequest, provenance, repository);
+    await writeOutputs(outputPath, {
+      pr_number: provenance.prNumber,
+      stage: provenance.stage,
+    });
+    return;
+  }
+  if (mode === "closed-preview-post-effect") {
+    const provenance = validateClosedPreview(event, repository);
+    let observation = unknownObservation();
+    try {
+      const livePullRequest = await fetchLiveClosedPreview(provenance, repository, apiUrl, token);
+      observation = observeClosedPreviewEffect(
+        livePullRequest,
+        provenance,
+        repository,
+        providerOutcome ?? "",
+      );
+    } catch {
+      observation = unknownObservation();
+    }
+    await writeOutputs(outputPath, {
+      effect_observation: observation.effectObservation,
+      reconciliation_required: observation.reconciliationRequired,
+    });
+    if (observation.reconciliationRequired === "true") {
+      throw new Error("DeploymentUnknown: cleanup requires reconciliation");
+    }
     return;
   }
   const provenance = validateWorkflowRunProvenance(event, repository);
-  const artifact = await fetchArtifactIdentity(
-    provenance,
-    repository,
-    process.env.GITHUB_API_URL ?? "https://api.github.com",
-    process.env.GH_TOKEN ?? "",
-  );
+  if (mode === "workflow-run-post-effect") {
+    let observation = unknownObservation();
+    try {
+      const liveTarget = await fetchLiveWorkflowTarget(provenance, repository, apiUrl, token);
+      observation = observeWorkflowRunEffect(
+        liveTarget,
+        provenance,
+        repository,
+        providerOutcome ?? "",
+      );
+    } catch {
+      observation = unknownObservation();
+    }
+    await writeOutputs(outputPath, {
+      effect_observation: observation.effectObservation,
+      reconciliation_required: observation.reconciliationRequired,
+    });
+    if (observation.reconciliationRequired === "true") {
+      throw new Error("DeploymentUnknown: deployment requires reconciliation");
+    }
+    return;
+  }
+  const [artifact, liveTarget] = await Promise.all([
+    fetchArtifactIdentity(provenance, repository, apiUrl, token),
+    fetchLiveWorkflowTarget(provenance, repository, apiUrl, token),
+  ]);
+  validateLiveWorkflowTarget(liveTarget, provenance, repository);
   await writeOutputs(outputPath, {
     artifact_digest: artifact.digest,
     artifact_id: artifact.id,

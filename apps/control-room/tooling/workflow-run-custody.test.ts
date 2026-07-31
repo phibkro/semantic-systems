@@ -1,7 +1,11 @@
 import { describe, expect, test } from "vitest";
 import {
+  observeClosedPreviewEffect,
+  observeWorkflowRunEffect,
   selectImmutableArtifact,
   validateClosedPreview,
+  validateLiveClosedPreview,
+  validateLiveWorkflowTarget,
   validateWorkflowRunProvenance,
 } from "./workflow-run-custody.ts";
 
@@ -15,6 +19,7 @@ const previewEvent = {
     id: 123,
     run_attempt: 2,
     name: "Control Room Static Artifact",
+    path: ".github/workflows/control-room-alchemy.yml",
     conclusion: "success",
     event: "pull_request",
     head_branch: "feature/control-room",
@@ -30,6 +35,16 @@ const previewEvent = {
     ],
   },
 };
+const livePullRequest = (state: "closed" | "open", headSha = commit) => ({
+  number: 17,
+  state,
+  base: { ref: "main", repo: repositoryObject },
+  head: { ref: "feature/control-room", sha: headSha, repo: repositoryObject },
+});
+const liveMain = (sha = commit) => ({
+  ref: "refs/heads/main",
+  object: { type: "commit", sha },
+});
 
 describe("trusted workflow-run custody", () => {
   test("binds one same-repository PR head to one immutable artifact identity", () => {
@@ -89,6 +104,10 @@ describe("trusted workflow-run custody", () => {
     expect(() =>
       selectImmutableArtifact({ total_count: 2, artifacts: [{}, {}] }, provenance),
     ).toThrow("exactly one immutable artifact");
+
+    const wrongWorkflow = structuredClone(previewEvent);
+    wrongWorkflow.workflow_run.path = ".github/workflows/untrusted.yml";
+    expect(() => validateWorkflowRunProvenance(wrongWorkflow, repository)).toThrow("workflow path");
   });
 
   test("accepts only a trusted main push for production", () => {
@@ -115,9 +134,100 @@ describe("trusted workflow-run custody", () => {
         head: { ref: "feature/control-room", repo: repositoryObject },
       },
     };
-    expect(validateClosedPreview(event, repository)).toBe("p17");
+    expect(validateClosedPreview(event, repository)).toEqual({
+      prNumber: "17",
+      stage: "p17",
+    });
     const fork = structuredClone(event);
     fork.pull_request.head.repo = { full_name: "attacker/fork" };
     expect(() => validateClosedPreview(fork, repository)).toThrow("head repository");
+  });
+
+  test("rejects a stale main artifact before production secret release", () => {
+    const push = structuredClone(previewEvent);
+    push.workflow_run.event = "push";
+    push.workflow_run.head_branch = "main";
+    push.workflow_run.pull_requests = [];
+    const provenance = validateWorkflowRunProvenance(push, repository);
+    expect(() =>
+      validateLiveWorkflowTarget(liveMain("f".repeat(40)), provenance, repository),
+    ).toThrow("live main advanced");
+  });
+
+  test("rejects a replayed production event after main advances", () => {
+    const push = structuredClone(previewEvent);
+    push.workflow_run.event = "push";
+    push.workflow_run.head_branch = "main";
+    push.workflow_run.pull_requests = [];
+    const provenance = validateWorkflowRunProvenance(push, repository);
+    expect(
+      observeWorkflowRunEffect(liveMain("f".repeat(40)), provenance, repository, "success"),
+    ).toEqual({
+      effectObservation: "DeploymentUnknown",
+      reconciliationRequired: "true",
+    });
+  });
+
+  test("rejects a preview after its PR advances or closes", () => {
+    const provenance = validateWorkflowRunProvenance(previewEvent, repository);
+    expect(() =>
+      validateLiveWorkflowTarget(livePullRequest("open", "f".repeat(40)), provenance, repository),
+    ).toThrow("head advanced");
+    expect(() =>
+      validateLiveWorkflowTarget(livePullRequest("closed"), provenance, repository),
+    ).toThrow("not open");
+  });
+
+  test("rejects cleanup replay after a PR is reopened", () => {
+    const event = {
+      action: "closed",
+      repository: repositoryObject,
+      pull_request: {
+        number: 17,
+        base: { ref: "main", repo: repositoryObject },
+        head: { ref: "feature/control-room", repo: repositoryObject },
+      },
+    };
+    const provenance = validateClosedPreview(event, repository);
+    expect(() =>
+      validateLiveClosedPreview(livePullRequest("open"), provenance, repository),
+    ).toThrow("not closed");
+    expect(
+      observeClosedPreviewEffect(livePullRequest("open"), provenance, repository, "success"),
+    ).toMatchObject({
+      effectObservation: "DeploymentUnknown",
+      reconciliationRequired: "true",
+    });
+  });
+
+  test("marks a mid-effect ref race and provider failure as reconciliation-required", () => {
+    const provenance = validateWorkflowRunProvenance(previewEvent, repository);
+    expect(
+      observeWorkflowRunEffect(
+        livePullRequest("open", "f".repeat(40)),
+        provenance,
+        repository,
+        "success",
+      ),
+    ).toEqual({
+      effectObservation: "DeploymentUnknown",
+      reconciliationRequired: "true",
+    });
+    expect(
+      observeWorkflowRunEffect(livePullRequest("open"), provenance, repository, "failure"),
+    ).toEqual({
+      effectObservation: "DeploymentUnknown",
+      reconciliationRequired: "true",
+    });
+  });
+
+  test("observes success only while the authoritative target remains exact", () => {
+    const provenance = validateWorkflowRunProvenance(previewEvent, repository);
+    expect(
+      observeWorkflowRunEffect(livePullRequest("open"), provenance, repository, "success"),
+    ).toEqual({
+      effectObservation: "DeploymentObserved",
+      reconciliationRequired: "false",
+    });
   });
 });

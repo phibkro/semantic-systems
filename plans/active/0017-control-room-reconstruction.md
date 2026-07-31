@@ -4,9 +4,11 @@ Canonical frozen contract:
 [`design-specs/0017-control-room-reconstruction.md`](../../design-specs/0017-control-room-reconstruction.md).
 This mutable execution record cannot redefine that contract.
 
-Status: contract frozen; reviewed candidate `5c9cce2404a1da8eef2977e68e0ed733118f927e`
-received `CHANGES_REQUIRED`; bounded recut implemented and under exact clean-head
-verification
+Status: contract frozen; first reviewed candidate
+`5c9cce2404a1da8eef2977e68e0ed733118f927e` received `CHANGES_REQUIRED`;
+recut `86e9487b054bafdac464c1b8fb1ff4e6d5e9cdff` also received
+`CHANGES_REQUIRED`; bounded live-custody correction is committed and awaiting
+independent review and sibling-lineage integration
 
 Owner: primary Semantic Systems lead
 
@@ -17,6 +19,7 @@ Owner: primary Semantic Systems lead
 - exact reconstruction base
   `726d315d52c2d9b7ff7f0cd817824cf8b2859a0b` and reviewed candidate
   `5c9cce2404a1da8eef2977e68e0ed733118f927e`;
+- reviewed recut `86e9487b054bafdac464c1b8fb1ff4e6d5e9cdff`;
 - accepted executable semantic-system integration and current TypeScript/Effect
   v4 project model;
 - historical accepted Control Room PWA lineage
@@ -161,6 +164,34 @@ attempt to substitute deployment claims for observations.
   feature acceptance, so the composition is non-recursive. Final exact-head
   acceptance/full-gate evidence and the recut commit are recorded by the
   integrating lead after this commit is created.
+- 2026-07-31: static review of exact clean head
+  `86e9487b054bafdac464c1b8fb1ff4e6d5e9cdff` returned
+  `CHANGES_REQUIRED`. Historical `workflow_run` and `pull_request.closed`
+  assertions were sufficient to choose an artifact or stage but did not prove
+  the current main ref or pull-request state before a privileged provider
+  effect. A replay could roll production back, redeploy an advanced or closed
+  preview, or destroy a reopened preview.
+- 2026-07-31: the exact acceptance run for `86e9487b054bafdac464c1b8fb1ff4e6d5e9cdff`
+  was canceled before completion because the host reached critical kernel-task
+  saturation and I/O pressure. No acceptance or full-gate pass is inferred
+  from that canceled run.
+- 2026-07-31: `86e9487b054bafdac464c1b8fb1ff4e6d5e9cdff`
+  and observed primary `135d9f2d7a53990108b77b12da8904be7b501952`
+  are sibling lineages with merge base
+  `726d315d52c2d9b7ff7f0cd817824cf8b2859a0b`. Integration must preserve
+  primary-lineage governance changes, apply this bounded correction, and run
+  the exact gate again on the resulting integrated head.
+- 2026-07-31: the bounded custody correction binds the producer to exact
+  workflow path `.github/workflows/control-room-alchemy.yml`, observes the
+  authoritative live main ref or pull request before secret release, and
+  re-observes it after the provider effect. Ref or state drift, observation
+  failure, and provider failure produce `DeploymentUnknown` with reconciliation
+  required rather than deployment success. Permitted local correction evidence:
+  custody and workflow-safety Vitest `16/16`, including stale-main, production
+  replay, advanced and closed preview, reopened cleanup, and mid-effect race
+  counterexamples; owned TypeScript and plan formatting green. No Nix, exact
+  acceptance, browser, full integration, provider, GitHub, secret, deployment,
+  or network operation ran for this correction.
 - 2026-07-31: no provider plan/apply/destroy, Cloudflare/DNS mutation, GitHub
   secret mutation, push, pull request, preview, or production operation ran
   during reconstruction or recut.

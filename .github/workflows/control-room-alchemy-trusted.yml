@@ -74,6 +74,7 @@ jobs:
           nix develop --command bun apps/control-room/tooling/scan-public-payload.ts
           "${CONTROL_ROOM_STATIC_DIR}" "${CONTROL_ROOM_ARTIFACT_COMMIT}"
       - name: Deploy validated bytes with trusted Alchemy code
+        id: provider
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -83,8 +84,19 @@ jobs:
           nix develop --command bunx alchemy deploy
           apps/control-room/tooling/deploy-static.run.ts
           --stage "${{ steps.provenance.outputs.stage }}" --yes
+      - name: Re-observe deployment target after provider effect
+        id: observation
+        if: always() && steps.provider.outcome != 'skipped'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          nix develop --command bun apps/control-room/tooling/workflow-run-custody.ts
+          workflow-run-post-effect "${GITHUB_EVENT_PATH}" "${GITHUB_REPOSITORY}"
+          "${GITHUB_OUTPUT}" "${{ steps.provider.outcome }}"
       - name: Report preview URL
-        if: steps.provenance.outputs.kind == 'preview'
+        if: >-
+          steps.provenance.outputs.kind == 'preview' &&
+          steps.observation.outputs.effect_observation == 'DeploymentObserved'
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
@@ -96,6 +108,9 @@ jobs:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: read
     concurrency:
       group: control-room-alchemy-pr-${{ github.event.pull_request.number }}
       cancel-in-progress: false
@@ -119,13 +134,25 @@ jobs:
           nix develop --command bun install --frozen-lockfile --ignore-scripts
       - name: Validate same-repository closed-preview identity
         id: cleanup
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: >-
           nix develop --command bun apps/control-room/tooling/workflow-run-custody.ts
           closed-preview "${GITHUB_EVENT_PATH}" "${GITHUB_REPOSITORY}" "${GITHUB_OUTPUT}"
       - name: Destroy preview stage with trusted Alchemy code
+        id: provider
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: >-
           nix develop --command bunx alchemy destroy apps/control-room/alchemy.run.ts
           --stage "${{ steps.cleanup.outputs.stage }}" --yes
+      - name: Re-observe cleanup target after provider effect
+        id: observation
+        if: always() && steps.provider.outcome != 'skipped'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          nix develop --command bun apps/control-room/tooling/workflow-run-custody.ts
+          closed-preview-post-effect "${GITHUB_EVENT_PATH}" "${GITHUB_REPOSITORY}"
+          "${GITHUB_OUTPUT}" "${{ steps.provider.outcome }}"
