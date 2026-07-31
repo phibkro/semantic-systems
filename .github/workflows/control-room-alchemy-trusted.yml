@@ -87,6 +87,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CONTROL_ROOM_ARTIFACT_COMMIT: ${{ steps.provenance.outputs.commit }}
           CONTROL_ROOM_STATIC_DIR: ${{ runner.temp }}/control-room-static
+        # Pinned Alchemy v2 has no confirmation flag in noninteractive CI.
         run: >-
           timeout --signal=TERM --kill-after=60s 15m
           nix develop --command bunx alchemy deploy
@@ -161,6 +162,7 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        # Pinned Alchemy v2 has no confirmation flag in noninteractive CI.
         run: >-
           timeout --signal=TERM --kill-after=60s 8m
           nix develop --command bunx alchemy destroy apps/control-room/alchemy.run.ts
