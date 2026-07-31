@@ -336,10 +336,10 @@
       "additionalProperties": false
     },
     "label_index": {
-      "description": "Index into the observation's labels table. Range validity is decoder-enforced.",
+      "description": "Index into the observation's labels table. Aligned with maximumLabels = 1,048,576, the safe ceiling derived from the 1 MiB raw input bound: every distinct label is nonempty and spelled at least once in the input. Range validity against the actual table is decoder-enforced.",
       "type": "integer",
       "minimum": 0,
-      "maximum": 65535
+      "maximum": 1048575
     },
     "type_index": {
       "description": "Index into the observation's maximally shared types table. The observation never spells an inferred type inline: a let chain of pair doublings makes inline types exponential, so all type content is table-shared. Range validity is decoder-enforced.",
@@ -348,11 +348,11 @@
       "maximum": 16383
     },
     "label_table": {
-      "description": "Every distinct effect label the observation mentions, sorted by Unicode code-point order with no duplicates (decoder-enforced). All effect rows in the observation are arrays of indexes into this table.",
+      "description": "Every distinct effect label the observation mentions, sorted by Unicode code-point order with no duplicates (decoder-enforced). All effect rows in the observation are arrays of indexes into this table. Capacity 1,048,576 is the observation-envelope maximumLabels, derived from the 1 MiB raw input byte bound (each distinct label is nonempty and spelled at least once in the input); the tight lemma bounds real tables at 349,525 because each first spelling is a quoted string of at least three disjoint input bytes.",
       "type": "array",
       "items": { "type": "string", "minLength": 1, "maxLength": 256 },
       "uniqueItems": true,
-      "maxItems": 65536
+      "maxItems": 1048576
     },
     "label_index_row": {
       "description": "Effect row as label indexes, sorted by the referenced labels' code-point order (decoder-enforced).",

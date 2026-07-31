@@ -30,6 +30,7 @@ const contractArtifacts = [
   "plans/active/0020-agent-facing-kernel-json.md",
   "design-specs/superseded/0020-lossless-kernel-source.md",
   "plans/superseded/0020-lossless-kernel-source.md",
+  "tests/kernel-json-observation-bounds.test.ts",
   schemaArtifact,
   ...goldenExamples.map(([path]) => path),
 ] as const;
@@ -105,6 +106,9 @@ const requireImplementationArtifacts = Effect.forEach(implementationArtifacts, (
 
 const program = Effect.gen(function* () {
   yield* requireContractArtifacts;
+  yield* runCommand(["bun", "test", "tests/kernel-json-observation-bounds.test.ts"], {
+    cwd: root,
+  });
   yield* requireImplementationArtifacts;
 
   for (const command of [
@@ -127,6 +131,7 @@ const program = Effect.gen(function* () {
       "tests/kernel-json-check-view.test.ts",
       "tests/kernel-json-custody.test.ts",
       "tests/kernel-json-node.test.ts",
+      "tests/kernel-json-observation-bounds.test.ts",
       "examples/kernel-json",
       "spec/kernel-json",
       "scripts/accept/0020-agent-facing-kernel-json.ts",

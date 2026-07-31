@@ -148,3 +148,19 @@ failure is not a warning.
   truncation. The seam records structured facts and reserves preorder
   record indexes with fixed-point rollback, without a second traversal or
   conclusion parsing.
+- 2026-07-31 (third correction): independent review falsified the envelope
+  bounds with an accepted input — 300 thunk leaves × 256 unique labels, a
+  605,557-byte document with 79,811 JSON value occurrences whose rejection
+  carries 76,800 distinct labels — verified and reduced against the real
+  0018 checker (the mechanism reproduces at 2 leaves × 3 labels; the old
+  65,536 label cap breaks at 257 leaves; the old raw node cap 65,536 also
+  rejected the byte-legal input itself). Raw-input and observation-envelope
+  bounds are now separate named families: raw `maximumNodes` = 524,288 (two
+  input bytes per JSON value occurrence), `maximumLabels` = 1,048,576
+  (simple byte-bound ceiling; tight lemma 349,525 at three bytes per
+  distinct spelling), `maximumObservationNodes` = 4,194,304 (proven worst
+  case 3,569,047), `maximumObservationCollectionLength` = 1,048,576, and
+  `maximumObservationBytes` kept at 33,554,432 (proven worst case
+  24,911,871). The counterexample and every bound derivation are committed
+  as `tests/kernel-json-observation-bounds.test.ts`, aligned with the
+  schema constants.

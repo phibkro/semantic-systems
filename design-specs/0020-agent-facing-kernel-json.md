@@ -834,49 +834,116 @@ the same portable entry point.
 
 ### Limits
 
-The version 1 defaults are:
+Version 1 separates raw-input decoding bounds from observation-envelope
+bounds. They are different facts: raw bounds limit what a caller may hand
+the decoder; envelope bounds limit what the authoritative check run is
+entitled to produce, and they are derived from the raw bounds so that every
+default-bound rejection is representable. Reusing the raw collection and
+node limits for observations was falsified by an accepted input — the
+label-bound counterexample below — whose rejection carries 76,800 distinct
+labels.
+
+The `semantic.kernel-json` raw-input defaults are:
 
 ```text
 {
   "maximumBytes": 1048576,
   "maximumDepth": 128,
-  "maximumNodes": 65536,
+  "maximumNodes": 524288,
   "maximumStringBytes": 4096,
   "maximumCollectionLength": 4096,
   "maximumOperations": 256,
   "maximumOperationClauses": 256,
-  "maximumEffectLabels": 256,
-  "maximumDiagnostics": 1024,
+  "maximumEffectLabels": 256
+}
+```
+
+The `semantic.kernel-check` observation-envelope defaults are:
+
+```text
+{
+  "maximumObservationBytes": 33554432,
+  "maximumObservationNodes": 4194304,
+  "maximumObservationCollectionLength": 1048576,
+  "maximumObservationDepth": 128,
+  "maximumObservationStringBytes": 4096,
+  "maximumLabels": 1048576,
+  "maximumTypeNodes": 16384,
   "maximumJudgments": 16384,
   "maximumContextEntries": 256,
-  "maximumLabels": 65536,
-  "maximumTypeNodes": 16384,
-  "maximumObservationBytes": 33554432
+  "maximumDiagnostics": 1024
 }
 ```
 
 Depth counts JSON value nesting from the root at depth zero. Nodes count
-every JSON value occurrence once, in preorder, before children. String bytes
-count strict UTF-8 bytes for every key and string value. Custom bounds are
-exact records that can only lower these values; they are validated before any
-candidate is inspected. The existing 0018 decode and checker bounds apply
-unchanged during projection and check composition, so a document within
-kernel-json bounds can still be rejected by the 0018 authority.
+every JSON value occurrence once — objects, arrays, strings, numbers,
+booleans, and nulls — in preorder, before children. String bytes count
+strict UTF-8 bytes for every key and string value. Document decoders apply
+the raw family; observation decoders and observation encoding apply the
+envelope family; the entry point selects the family, never a heuristic.
+Custom bounds are exact records that can only lower these values; they are
+validated before any candidate is inspected. The existing 0018 decode and
+checker bounds apply unchanged during projection and check composition, so a
+document within kernel-json bounds can still be rejected by the 0018
+authority.
 
-`maximumObservationBytes` replaces `maximumBytes` for `semantic.kernel-check`
-documents only. Rejected observations are always representable within it,
-proven from the exact 0018 bounds: one diagnostic with at most two type
-facts; distinct type-table nodes at most decoded type nodes plus one
-constructor node per checked term node plus declared signature types, under
-3 × 4096 = 12,288 under 16,384; row-bearing nodes at most 8,192, each row at
-most 256 label indexes; and total distinct label bytes bounded by the
-document byte bound, which both entry paths enforce. The arithmetic total
-stays under half the 32 MiB bound. Accepted observations carry the full
-per-judgment contexts, which are quadratic in the worst case; an accepted
-observation whose canonical encoding exceeds the observation bounds is a
-typed, loud resource failure — never truncation, elision, or a silent
-partial view — and the 0018 acceptance itself is unaffected. Only rejection
-observations carry the always-representable guarantee.
+The raw `maximumNodes` is derived from the byte bound, not chosen: every
+JSON value occurrence in a byte input consumes at least two input bytes (its
+own shortest token plus one adjacent structural byte), so a 1,048,576-byte
+document has at most 524,288 value occurrences. The label-bound
+counterexample's 605,557-byte document holds 79,811 occurrences — over the
+previous 65,536 raw cap, which therefore also strangled byte-legal input,
+and comfortably under the derived cap. On the object path, which has no
+input bytes, `maximumNodes` is the working traversal bound and the
+canonical-encoding byte check completes the equivalence.
+
+Envelope derivations, each tied to an exact raw or 0018 bound:
+
+- `maximumLabels` = 1,048,576, the simple safe ceiling: every distinct
+  label is nonempty and is spelled at least once in the raw input, which
+  both entry paths bound at 1,048,576 bytes, so distinct labels can never
+  exceed the byte bound. The tight occurrence lemma is stronger: each
+  distinct label's first spelling is a quoted JSON string of at least three
+  bytes occupying a disjoint input substring, so at most
+  ⌊1,048,576 / 3⌋ = 349,525 distinct labels can exist. The counterexample's
+  76,800 labels sit far inside both, and already above the falsified
+  65,536.
+- `maximumTypeNodes` = 16,384: distinct type-table nodes are at most
+  decoded type record nodes plus one constructor node per checked term node
+  plus declared signature type nodes, at most 3 × 4,096 = 12,288 under the
+  0018 `maximumNodes` = 4,096 per decode call.
+- `maximumObservationNodes` = 4,194,304, proven to dominate every
+  default-bound rejection: the label table contributes at most
+  1 + 349,525 occurrences (tight lemma); the type table contributes at most
+  1 + 12,288 × 262 = 3,219,457 occurrences, because the widest type node —
+  a function node — is one object, one tag, two child indexes, one grade,
+  one row array, and at most 256 label indexes (the 0018 row bound), for
+  262 occurrences; and the envelope, one diagnostic, and two structured
+  facts contribute at most 64. The total, 3,569,047, leaves a seventeen
+  percent margin under 4,194,304.
+- `maximumObservationCollectionLength` = 1,048,576: the label table is the
+  longest array the envelope permits; every other observation array has a
+  smaller named cap (types and judgments 16,384, diagnostics 1,024, rows
+  and contexts 256, premises 4,096).
+- `maximumObservationBytes` = 33,554,432: serialized labels cost at most
+  their raw input spellings plus three bytes each of quoting and
+  separation, at most 1,048,576 + 3 × 349,525 = 2,097,151 bytes; the type
+  table costs at most 12,288 × 1,856 = 22,806,528 bytes, because a full
+  256-entry row of at-most-six-digit label indexes with separators is at
+  most 1,792 bytes and node overhead at most 64; envelope and diagnostic
+  cost at most 8,192. The total, 24,911,871, leaves a twenty-five percent
+  margin under 32 MiB.
+
+Rejected observations are therefore always representable under the default
+envelope: one diagnostic, at most two type facts, tables bounded by the
+arithmetic above. Accepted observations carry the full per-judgment
+contexts, which are quadratic in the worst case; an accepted observation
+whose canonical encoding exceeds the envelope bounds is a typed, loud
+resource failure — never truncation, elision, or a silent partial view —
+and the 0018 acceptance itself is unaffected. That escape hatch is
+forbidden for default-bound rejections: a `KernelDocument` that decodes
+under the default raw bounds and reaches a checker rejection must produce
+its complete bounded rejection observation.
 
 ### Failure order
 
@@ -887,7 +954,8 @@ Byte decoding fails in this order:
 3. byte snapshot and byte-length limit;
 4. strict UTF-8;
 5. JSON grammar and duplicate keys;
-6. generic depth, node, string, and collection bounds;
+6. generic depth, node, string, and collection bounds of the entry point's
+   bound family (raw for documents, envelope for observations);
 7. exact closed schema shape, tags, enums, and safe integers;
 8. cross-field rules, in this order: version markers; sorted effect rows,
    signature order, and clause order; duplicate signature pairs and
@@ -956,17 +1024,30 @@ The implementation must retain focused rejection observations for:
     d8d663a contract could not represent, and which must remain a bounded
     rejected observation through one `type_index` into the shared table,
     never an Effect failure, truncation, or omission;
-19. an accepted observation whose canonical encoding exceeds the observation
+19. an accepted observation whose canonical encoding exceeds the envelope
     bounds failing as a typed resource error, never as truncation or a
     partial view;
-20. a forged or caller-mutated document failing to enter projection or check
+20. the label-bound counterexample: a balanced value type with 300 thunk
+    leaves, each carrying 256 unique labels, inside a lambda applied to
+    unit — a 605,557-byte document with 79,811 JSON value occurrences and
+    76,800 distinct labels that decodes under the default raw bounds,
+    rejects with `type.argument-mismatch`, and must produce its complete
+    bounded rejection observation (its labels alone falsified the previous
+    65,536 caps); generated compactly in TypeScript, never as a checked-in
+    giant JSON;
+21. a boundary case at every envelope maximum — `maximumLabels`,
+    `maximumTypeNodes`, `maximumObservationNodes`,
+    `maximumObservationCollectionLength`, `maximumObservationBytes` — and
+    at the derived raw `maximumNodes`, each with the worst-case arithmetic
+    checked executable, one fitting case, and one rejection;
+22. a forged or caller-mutated document failing to enter projection or check
     composition;
-21. parsing or schema validation attempting to mint checked or 0019
+23. parsing or schema validation attempting to mint checked or 0019
     authority;
-22. a seam-recorded judgment table disagreeing with the final 0018
+24. a seam-recorded judgment table disagreeing with the final 0018
     derivation in rule, order, or premise shape, or retaining records from a
     discarded handler fixed-point iteration; and
-23. two internal representations producing different bytes or observations
+25. two internal representations producing different bytes or observations
     for one fixture.
 
 Positive observations must include:
@@ -1006,15 +1087,20 @@ Feature 0020 is accepted only when:
    every default bound — yields a bounded rejected observation through the
    shared type table, with the rejection-representability arithmetic
    checked by a focused test;
-6. the schema artifact matches the exported schema observation byte-for-byte
+6. the committed label-bound counterexample fixture
+   (`tests/kernel-json-observation-bounds.test.ts`) reproduces the 76,800
+   distinct-label rejection compactly, proves the raw and envelope bound
+   derivations executable, and holds a boundary assertion at every revised
+   maximum, aligned with the schema constants;
+7. the schema artifact matches the exported schema observation byte-for-byte
    and documents its non-enforcement list;
-7. no public path mints checked or 0019 authority from parsed input;
-8. the storage-independence differential observation passes for the
+8. no public path mints checked or 0019 authority from parsed input;
+9. the storage-independence differential observation passes for the
    reference implementation;
-9. all counterexample and positive families above have focused tests;
-10. typecheck, strict lint, formatting, project-model validation, and
+10. all counterexample and positive families above have focused tests;
+11. typecheck, strict lint, formatting, project-model validation, and
     generated-view gates pass; and
-11. exact feature acceptance and full integration pass at one clean head.
+12. exact feature acceptance and full integration pass at one clean head.
 
 The exact acceptance command is:
 
