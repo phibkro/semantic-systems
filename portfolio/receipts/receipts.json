@@ -18,6 +18,19 @@
       "schema_version": "pbk.portfolio-row/v1",
       "record_type": "receipt",
       "value": {
+        "id": "receipt.herdr.codex-session",
+        "work_id": "work.herdr.codex-session",
+        "outcome": "accepted",
+        "commit": "2b5c507226a1e297ce3456fc9d287ffd58839caf",
+        "observed_at": "2026-07-31T18:22:37Z",
+        "evidence_refs": ["artifact.herdr.codex-session-evidence"],
+        "snapshot_id": null
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "receipt",
+      "value": {
         "id": "receipt.mastra.preview",
         "work_id": "work.mastra.preview",
         "outcome": "accepted",
@@ -51,6 +64,19 @@
         "observed_at": "2026-07-31T14:24:06Z",
         "evidence_refs": ["artifact.semantic.control-room-spec"],
         "snapshot_id": "snapshot.semantic.control-room-0017"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "receipt",
+      "value": {
+        "id": "receipt.semantic.kernel-json",
+        "work_id": "work.semantic.kernel-json",
+        "outcome": "accepted",
+        "commit": "feeef051ed617ced438d0ede8b8352ae57946de6",
+        "observed_at": "2026-07-31T18:22:37Z",
+        "evidence_refs": ["artifact.semantic.kernel-json-spec"],
+        "snapshot_id": null
       }
     }
   ]

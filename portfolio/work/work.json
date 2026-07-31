@@ -42,7 +42,7 @@
         "kind": "feature",
         "title": "Codex native-session observation",
         "summary": "Preserve an honestly observed resumable native Codex session through the stable lifecycle facade.",
-        "status": "active",
+        "status": "accepted",
         "definition_of_done": [
           "A real Codex lifecycle reports its native session when observed and preserves unknown when it cannot be warranted."
         ],
@@ -50,6 +50,67 @@
           "work.discipline": "testing",
           "work.layer": "adapter",
           "work.harness": "codex"
+        }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
+        "id": "work.herdr.supervisor-wake",
+        "project_id": "project.herdr-mcp",
+        "kind": "feature",
+        "title": "Managed supervisor wake channel",
+        "summary": "Deliver warranted child idle, blocked, and terminal transitions to a resumable supervisor without per-child polling.",
+        "status": "ready",
+        "definition_of_done": [
+          "A supervisor reconnects by stable identity and receives ordered, resumable child-state notifications through a typed channel."
+        ],
+        "attributes": {
+          "work.discipline": "engineering",
+          "work.layer": "supervision",
+          "work.agent-facing": true
+        }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
+        "id": "work.herdr.fleet-resource",
+        "project_id": "project.herdr-mcp",
+        "kind": "feature",
+        "title": "Fleet resource observations and leases",
+        "summary": "Publish synchronized machine observations and atomically admit registered task identities against finite resource pools.",
+        "status": "active",
+        "definition_of_done": [
+          "All harness adapters observe the same fresh resource facts and cannot obtain a partial resource vector or a second lease beyond a registered pool.",
+          "The interface states that lease admission does not prove execution while ordinary shell launch remains available."
+        ],
+        "attributes": {
+          "work.discipline": "engineering",
+          "work.layer": "environment",
+          "work.agent-facing": true
+        }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
+        "id": "work.herdr.e2e-environment",
+        "project_id": "project.herdr-mcp",
+        "kind": "feature",
+        "title": "Durable E2E execution environment",
+        "summary": "Provide one durable queued browser environment that executes accepted journey requests and returns exact receipts.",
+        "status": "planned",
+        "definition_of_done": [
+          "Concurrent callers enqueue typed journeys into one bounded executor and receive durable outcome receipts without sharing mutable browser state."
+        ],
+        "attributes": {
+          "work.discipline": "testing",
+          "work.layer": "environment",
+          "work.capacity": "single-slot"
         }
       }
     },
@@ -90,6 +151,28 @@
           "work.discipline": "design",
           "work.layer": "supervision",
           "work.agent-facing": true
+        }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
+        "id": "work.pagu.environment-runtime",
+        "project_id": "project.pagu",
+        "kind": "milestone",
+        "title": "Transparent environment runtime",
+        "summary": "Materialize harness-neutral environments whose declarations, observations, authority, reservations, and outcomes remain separately inspectable.",
+        "status": "planned",
+        "definition_of_done": [
+          "Every fleet member sees the same typed environment identity, facilities, limits, live facts, missing facts, and published limitations.",
+          "Each mutable resource has one owning serialization point and all other views are freshness-bounded projections."
+        ],
+        "attributes": {
+          "work.discipline": "engineering",
+          "work.layer": "environment",
+          "work.agent-facing": true,
+          "work.prior-art": "Barrelfish multikernel"
         }
       }
     },
@@ -190,7 +273,7 @@
         "kind": "feature",
         "title": "Agent-facing kernel JSON",
         "summary": "Implement the frozen closed JSON representation and bounded custody envelope for the kernel language.",
-        "status": "active",
+        "status": "accepted",
         "definition_of_done": [
           "Agents can decode, validate, canonicalize, and execute the frozen kernel JSON interface under exact bounds."
         ],
@@ -217,6 +300,68 @@
         "attributes": {
           "work.discipline": "language-design",
           "work.layer": "kernel",
+          "work.agent-facing": true
+        }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
+        "id": "work.semantic.kernel-interpreter",
+        "project_id": "project.semantic",
+        "kind": "feature",
+        "title": "Kernel reference interpreter",
+        "summary": "Execute the frozen kernel interface through a small reference semantics with explicit bounded observations.",
+        "status": "review",
+        "definition_of_done": [
+          "Valid kernel programs evaluate deterministically and invalid programs preserve the frozen diagnostic and observation boundaries.",
+          "The public API, portable facts, proxy observations, and all acceptance gates survive independent review."
+        ],
+        "attributes": {
+          "work.discipline": "engineering",
+          "work.layer": "kernel",
+          "work.agent-facing": true
+        }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
+        "id": "work.semantic.kernel-diagnostic-fact-custody",
+        "project_id": "project.semantic",
+        "kind": "feature",
+        "title": "Kernel diagnostic-fact custody correction",
+        "summary": "Restore the frozen type and label reference semantics for rejected checker observations so every interpreter outcome crosses its own canonical boundary.",
+        "status": "active",
+        "definition_of_done": [
+          "Type-valued and row-valued diagnostic facts register through the existing strict table-reference decoder and reject malformed or dangling references.",
+          "Generated invalid programs and a byte-exact cross-host fixture prove that every returned rejection satisfies the public guard and canonical encoders."
+        ],
+        "attributes": {
+          "work.discipline": "engineering",
+          "work.layer": "kernel",
+          "work.blocker-for": "work.semantic.kernel-interpreter"
+        }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
+        "id": "work.semantic.optimized-compiler",
+        "project_id": "project.semantic",
+        "kind": "feature",
+        "title": "Optimized kernel compiler",
+        "summary": "Lower kernel programs to the CBPV machine after the reference interpreter fixes executable meaning.",
+        "status": "candidate",
+        "definition_of_done": [
+          "Property-generated valid and invalid programs produce equivalent observable results through the reference interpreter and optimized compiler."
+        ],
+        "attributes": {
+          "work.discipline": "engineering",
+          "work.layer": "compiler",
           "work.agent-facing": true
         }
       }

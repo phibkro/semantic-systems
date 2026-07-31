@@ -38,7 +38,7 @@ describe("PBK portfolio Control Room", () => {
     for (const view of ["Overview", "Board", "Features", "Roadmap", "History"]) {
       expect(screen.getByRole("tab", { name: new RegExp(view) })).toBeVisible();
     }
-    expect(screen.getByText("8", { selector: "strong" })).toBeVisible();
+    expect(screen.getByText("9", { selector: "strong" })).toBeVisible();
     expect(screen.getByText("PBK Technologies", { selector: "span" })).toBeVisible();
   });
 
