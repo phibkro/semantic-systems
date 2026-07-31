@@ -105,5 +105,7 @@ describe("semantic component actor realization", () => {
     expect(result.actor.artifacts).toEqual(
       result.direct.artifacts.map((artifact) => artifact.payload),
     );
+    expect(result.actor.effects).toEqual(result.direct.effects.map((effect) => effect.payload));
+    expect(result.actor.diagnostics).toEqual(result.direct.diagnostics);
   });
 });

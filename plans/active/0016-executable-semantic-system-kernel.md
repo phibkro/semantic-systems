@@ -147,8 +147,9 @@ unsupported authority claims fail the gate.
   correlation and causation, retains completed command identities, binds
   registries to the exact privately constructed component instance,
   reconstructs canonical envelopes rather than spreading untrusted fields,
-  and translates every validation failure into the typed Effect channel. The
-  direct driver stages reaction batches transactionally within the queue bound
+  and translates the reviewed request-envelope and kernel validation failures
+  into the typed Effect channel. The direct driver stages reaction batches
+  transactionally within the queue bound
   and emits one causal trace; derived graphs preserve exact progress
   declarations. The authority test now walks the transitive import closure.
 - 2026-07-31: project-model declarations for the component and executable
@@ -178,3 +179,25 @@ unsupported authority claims fail the gate.
   Effect diagnostics, model validation at 122 entities/177 relations, eight
   checked generated views, and 68 transitional Python custody checks. Clean
   exact-head independent review remains pending.
+- 2026-07-31: independent exact-head review rejected `f276059` because an
+  interpreter that returned a malformed observation draft or died inside its
+  Effect could escape as an Effect defect, while actor/direct normalization
+  omitted effect requests and diagnostics. The same review independently
+  reproduced all gates and confirmed that the accepted-base reconstruction,
+  the other nine prior correction families, generated views, queue bounds,
+  cross-instance registry custody, inherited STM/lens behavior, and Bun/Node
+  parity remained intact.
+- 2026-07-31: the interpreter seam now checks that handlers return an Effect,
+  translates untyped Effect causes to an explicit unknown interpreter outcome,
+  validates and decodes the complete observation draft before dereferencing
+  it, and rejects malformed programs or drafts through the typed channel.
+  Actor/direct normalization now compares state, events, artifacts, effect
+  requests, and diagnostics. The import-closure test was renamed to the exact
+  runtime-adapter property it observes; ambient-authority evidence remains the
+  separate severe lint gate. Focused correction tests pass 18 tests/91
+  expectations. Exact 0016 acceptance passes 33 tests/180 expectations with
+  genuine Node parity and all inherited feature gates. Full `just check`
+  passes installation, Effect setup/diagnostics, formatting, severe lint,
+  typecheck, commit policy, all tests, 68 transitional Python custody checks,
+  model validation at 122 entities/177 relations with the one pre-existing
+  visibly unsupported claim, and all eight generated-view checks.

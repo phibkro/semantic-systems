@@ -402,7 +402,7 @@ describe("Semantic Systems Effect Oxlint rules", () => {
     );
   });
 
-  test("the semantic-system transitive import closure reaches no runtime authority", () => {
+  test("the semantic-system transitive import closure reaches no runtime-specific adapter", () => {
     const root = resolve(import.meta.dirname, "..");
     const entrypoint = resolve(root, "src/semantic-system/index.ts");
     const scanner = new Bun.Transpiler({ loader: "ts" });

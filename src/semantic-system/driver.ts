@@ -1,4 +1,4 @@
-import { Data, Effect, Result, Schema } from "effect";
+import { Cause, Data, Effect, Result, Schema } from "effect";
 import { snapshotSemanticValue, type SemanticValueRejected } from "./custody.ts";
 import { requireComponent, type InvalidSemanticComponent } from "./definition.ts";
 import { observation, react, SemanticKernelFailure, validateState } from "./kernel.ts";
@@ -46,6 +46,66 @@ export interface InterpreterObservationDraft<Observation extends Tagged> {
   readonly provenance: ObservationProvenance;
   readonly payload: Observation;
 }
+
+const invalidInterpreterOutput = (reason: string): InvalidInterpreterRegistry =>
+  new InvalidInterpreterRegistry({
+    reason: `interpreter returned an invalid observation draft: ${reason}`,
+  });
+
+const validateInterpreterObservationDraft = (
+  value: unknown,
+): Effect.Effect<
+  {
+    readonly messageId: string;
+    readonly provenance: ObservationProvenance;
+    readonly payload: unknown;
+  },
+  InvalidInterpreterRegistry
+> => {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return Effect.fail(invalidInterpreterOutput("draft must be a record"));
+  }
+  const fields = value as Record<string, unknown>;
+  const allowedKeys = new Set(["messageId", "provenance", "payload"]);
+  if (Object.keys(fields).some((key) => !allowedKeys.has(key))) {
+    return Effect.fail(invalidInterpreterOutput("draft contains undeclared fields"));
+  }
+  if (typeof fields["messageId"] !== "string" || fields["messageId"].trim().length === 0) {
+    return Effect.fail(invalidInterpreterOutput("messageId must be a non-empty string"));
+  }
+  const rawProvenance = fields["provenance"];
+  if (typeof rawProvenance !== "object" || rawProvenance === null || Array.isArray(rawProvenance)) {
+    return Effect.fail(invalidInterpreterOutput("provenance must be a record"));
+  }
+  const provenanceFields = rawProvenance as Record<string, unknown>;
+  const allowedProvenanceKeys = new Set(["sourceId", "basis"]);
+  if (Object.keys(provenanceFields).some((key) => !allowedProvenanceKeys.has(key))) {
+    return Effect.fail(invalidInterpreterOutput("provenance contains undeclared fields"));
+  }
+  if (
+    typeof provenanceFields["sourceId"] !== "string" ||
+    provenanceFields["sourceId"].trim().length === 0
+  ) {
+    return Effect.fail(invalidInterpreterOutput("provenance.sourceId must be non-empty"));
+  }
+  if (
+    typeof provenanceFields["basis"] !== "string" ||
+    provenanceFields["basis"].trim().length === 0
+  ) {
+    return Effect.fail(invalidInterpreterOutput("provenance.basis must be non-empty"));
+  }
+  if (!Object.hasOwn(fields, "payload")) {
+    return Effect.fail(invalidInterpreterOutput("payload is required"));
+  }
+  return Effect.succeed({
+    messageId: fields["messageId"],
+    provenance: {
+      sourceId: provenanceFields["sourceId"],
+      basis: provenanceFields["basis"],
+    },
+    payload: fields["payload"],
+  });
+};
 
 export interface InterpreterEntry<
   Request extends Tagged,
@@ -467,7 +527,7 @@ export const interpretEffectRequest = <
         reason: `no interpreter for request ${guardedRequest.payload["_tag"]}`,
       });
     }
-    const draft = yield* Effect.try({
+    const program = yield* Effect.try({
       try: () => handler(guardedRequest),
       catch: (cause) =>
         new InterpreterAttemptFailed({
@@ -478,14 +538,64 @@ export const interpretEffectRequest = <
               ? `interpreter threw before returning an Effect: ${cause.message}`
               : "interpreter threw before returning an Effect",
         }),
-    }).pipe(Effect.flatMap((program) => program));
-    const ownedDraft = yield* snapshotSemanticValue(draft, "interpreter observation draft");
+    });
+    const isProgram = yield* Effect.try({
+      try: () => Effect.isEffect(program),
+      catch: () =>
+        new InvalidInterpreterRegistry({
+          reason: "interpreter result could not be inspected as an Effect",
+        }),
+    });
+    if (!isProgram) {
+      return yield* new InvalidInterpreterRegistry({
+        reason: "interpreter must return an Effect",
+      });
+    }
+    const draft = yield* program.pipe(
+      Effect.catchCause((cause) => {
+        if (cause.reasons.some(Cause.isInterruptReason)) {
+          return Effect.failCause(cause);
+        }
+        const onlyReason = cause.reasons.length === 1 ? cause.reasons[0] : undefined;
+        if (
+          onlyReason !== undefined &&
+          Cause.isFailReason(onlyReason) &&
+          onlyReason.error instanceof InterpreterAttemptFailed
+        ) {
+          return Effect.fail(onlyReason.error);
+        }
+        return Effect.fail(
+          new InterpreterAttemptFailed({
+            actionId: guardedRequest.actionId,
+            outcome: "unknown",
+            reason: "interpreter Effect failed without a typed outcome",
+          }),
+        );
+      }),
+    );
+    const ownedDraft = yield* snapshotSemanticValue(
+      draft as unknown,
+      "interpreter observation draft",
+    ).pipe(Effect.flatMap(validateInterpreterObservationDraft));
+    const decodedObservationPayload = yield* Schema.decodeUnknownEffect(spec.observations.schema, {
+      onExcessProperty: "error",
+    })(ownedDraft.payload).pipe(
+      Effect.mapError(
+        (cause) =>
+          new InvalidInterpreterRegistry({
+            reason: `interpreter observation payload failed its declared schema: ${cause.message}`,
+          }),
+      ),
+    );
     const protocol = spec.protocols.find(
       (candidate) => candidate.requestTag === guardedRequest.payload["_tag"],
     );
-    if (protocol === undefined || !protocol.observationTags.includes(ownedDraft.payload["_tag"])) {
+    if (
+      protocol === undefined ||
+      !protocol.observationTags.includes(decodedObservationPayload["_tag"])
+    ) {
       return yield* new InvalidInterpreterRegistry({
-        reason: `request ${guardedRequest.payload["_tag"]} returned unrelated observation ${ownedDraft.payload["_tag"]}`,
+        reason: `request ${guardedRequest.payload["_tag"]} returned unrelated observation ${decodedObservationPayload["_tag"]}`,
       });
     }
     return yield* observation(
@@ -497,7 +607,7 @@ export const interpretEffectRequest = <
         actionId: guardedRequest.actionId,
         provenance: ownedDraft.provenance,
       },
-      ownedDraft.payload,
+      decodedObservationPayload,
     );
   });
 

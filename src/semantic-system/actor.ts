@@ -13,6 +13,7 @@ import type {
   Answer,
   ArtifactEnvelope,
   CommandEnvelope,
+  Diagnostic,
   ObservationEnvelope,
   QueryEnvelope,
   Reaction,
@@ -129,10 +130,17 @@ export const spawnSemanticActor = <
   Scope.Scope
 > => semanticActorDefinition(component, initialState, bounds).pipe(Effect.flatMap(spawn));
 
-export interface NormalizedActorJourney<State, Event extends Tagged, Artifact extends Tagged> {
+export interface NormalizedActorJourney<
+  State,
+  Event extends Tagged,
+  Artifact extends Tagged,
+  Request extends Tagged,
+> {
   readonly state: State;
   readonly events: ReadonlyArray<Event>;
   readonly artifacts: ReadonlyArray<Artifact>;
+  readonly effects: ReadonlyArray<Request>;
+  readonly diagnostics: ReadonlyArray<Diagnostic>;
 }
 
 export const normalizeActorReactions = <
@@ -145,7 +153,7 @@ export const normalizeActorReactions = <
     Reaction<State, Event, Artifact, Request>,
     ...ReadonlyArray<Reaction<State, Event, Artifact, Request>>,
   ],
-): NormalizedActorJourney<State, Event, Artifact> => {
+): NormalizedActorJourney<State, Event, Artifact, Request> => {
   const last = reactions[reactions.length - 1]!;
   return {
     state: last.state,
@@ -153,6 +161,8 @@ export const normalizeActorReactions = <
     artifacts: reactions.flatMap((reaction) =>
       reaction.artifacts.map((artifact: ArtifactEnvelope<Artifact>) => artifact.payload),
     ),
+    effects: reactions.flatMap((reaction) => reaction.effects.map((effect) => effect.payload)),
+    diagnostics: reactions.flatMap((reaction) => reaction.diagnostics),
   };
 };
 

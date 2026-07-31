@@ -1,11 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { Effect, Schema } from "effect";
+import { Effect, Result, Schema } from "effect";
 import {
   command,
   defineInterpreterRegistry,
   defineSemanticComponent,
   deriveComponentGraph,
   interpretEffectRequest,
+  InvalidInterpreterRegistry,
   InterpreterAttemptFailed,
   react,
   runDirect,
@@ -262,6 +263,87 @@ describe("bounded direct semantic-system driver", () => {
         }),
       ),
     ).rejects.toThrow("does not match the component protocol");
+  });
+
+  test("rejects malformed interpreter programs and observation drafts through typed failures", async () => {
+    const component = await run(defineSemanticComponent(makeSpec()));
+    const start = await run(
+      command(component, { messageId: "malformed", correlationId: "journey" }, { _tag: "Start" }),
+    );
+    const reaction = await run(react(component, { value: 0, confirmed: false }, start));
+    const request = reaction.effects[0]!;
+    const malformedInterpreters: ReadonlyArray<
+      InterpreterEntry<Request, Observation, never>["interpret"]
+    > = [
+      (() =>
+        Effect.succeed({
+          messageId: "missing-payload",
+          provenance: { sourceId: "fixture", basis: "malformed draft" },
+        })) as unknown as InterpreterEntry<Request, Observation, never>["interpret"],
+      (() => Effect.succeed("not-a-draft")) as unknown as InterpreterEntry<
+        Request,
+        Observation,
+        never
+      >["interpret"],
+      (() => "not-an-effect") as unknown as InterpreterEntry<
+        Request,
+        Observation,
+        never
+      >["interpret"],
+    ];
+
+    for (const interpret of malformedInterpreters) {
+      const registry = await run(
+        defineInterpreterRegistry(component, [{ requestTag: "Persist", interpret }]),
+      );
+      const result = await run(Effect.result(interpretEffectRequest(component, registry, request)));
+      expect(Result.isFailure(result)).toBeTrue();
+      if (Result.isFailure(result)) {
+        expect(result.failure).toBeInstanceOf(InvalidInterpreterRegistry);
+      }
+    }
+  });
+
+  test("converts interpreter defects into an unknown outcome and suspends without replay", async () => {
+    const component = await run(defineSemanticComponent(makeSpec()));
+    const registry = await run(
+      defineInterpreterRegistry(component, [
+        {
+          requestTag: "Persist",
+          interpret: () => Effect.die("acknowledgement outcome unavailable"),
+        },
+      ]),
+    );
+    const start = await run(
+      command(component, { messageId: "defect", correlationId: "journey" }, { _tag: "Start" }),
+    );
+    const reaction = await run(react(component, { value: 0, confirmed: false }, start));
+    const interpreted = await run(
+      Effect.result(interpretEffectRequest(component, registry, reaction.effects[0]!)),
+    );
+    expect(Result.isFailure(interpreted)).toBeTrue();
+    if (Result.isFailure(interpreted)) {
+      expect(interpreted.failure).toBeInstanceOf(InterpreterAttemptFailed);
+      if (interpreted.failure instanceof InterpreterAttemptFailed) {
+        expect(interpreted.failure.outcome).toBe("unknown");
+      }
+    }
+
+    const result = await run(
+      runDirect(component, registry, { value: 0, confirmed: false }, [start], bounds),
+    );
+    expect(result.status).toBe("suspended");
+    if (result.status !== "suspended") throw new Error("expected suspended result");
+    expect(result.reason).toBe("interpreter_unknown");
+    expect(result.remainingEffects).toHaveLength(1);
+    expect(result.attempts).toEqual([
+      {
+        actionId: "defect:persist",
+        requestMessageId: "defect:request",
+        outcome: "unknown",
+        reason: expect.stringContaining("failed without a typed outcome"),
+      },
+    ]);
   });
 
   test("suspends unknown attempts without replay and exposes remaining work", async () => {
