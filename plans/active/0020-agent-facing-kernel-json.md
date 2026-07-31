@@ -131,3 +131,20 @@ failure is not a warning.
   1 enums; the schema `$id` moved to the project-controlled
   `https://semantic.phibkro.org/` namespace; occurrence paths forbid RFC
   6901 escapes in prose and schema alike.
+- 2026-07-31 (second correction): singular `signature_origin` was
+  incomplete for `handler.deep`; it is now `signature_origins`, complete
+  and in canonical signature order, recorded by the seam as the exact
+  consulted declaration indexes. A new handled-program accepted golden
+  exercises it for both `computation.operation` and `handler.deep`.
+- 2026-07-31 (second correction): the 4,096-byte fact-string cap was proven
+  unsound against the real checker — a thirty-five-node let chain of pair
+  doublings inside every default bound renders a 524,283-byte mismatch fact
+  and grows exponentially. Observations now carry shared `labels` and
+  `types` tables; all inferred types and rows are table indexes; diagnostic
+  facts follow frozen kind rules (type facts are `type_index` records,
+  never rendered strings); rejected observations are always representable
+  with an arithmetic proof against the exact 0018 bounds; over-bound
+  accepted observations fail loudly as typed resource errors, never by
+  truncation. The seam records structured facts and reserves preorder
+  record indexes with fixed-point rollback, without a second traversal or
+  conclusion parsing.

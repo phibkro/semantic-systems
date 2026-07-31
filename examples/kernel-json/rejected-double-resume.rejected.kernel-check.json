@@ -12,7 +12,9 @@
         "rule": "handler.operation"
       }
     ],
-    "tag": "rejected"
+    "labels": [],
+    "tag": "rejected",
+    "types": []
   },
   "version": 1
 }

@@ -4,12 +4,12 @@
   "observation": {
     "inferred": {
       "effects": [],
-      "type": { "grade": "1", "tag": "return", "value": { "tag": "int" } },
+      "type": 1,
       "usage": []
     },
     "judgments": [
       {
-        "computation_type": { "grade": "1", "tag": "return", "value": { "tag": "int" } },
+        "computation_type": 1,
         "effects": [],
         "occurrence_path": "/program",
         "premises": [1, 3],
@@ -21,7 +21,7 @@
         "value_context": []
       },
       {
-        "computation_type": { "grade": "1", "tag": "return", "value": { "tag": "int" } },
+        "computation_type": 1,
         "effects": [],
         "occurrence_path": "/program/bound",
         "premises": [2],
@@ -41,10 +41,10 @@
         "tag": "value-judgment",
         "usage": [],
         "value_context": [],
-        "value_type": { "tag": "int" }
+        "value_type": 0
       },
       {
-        "computation_type": { "grade": "1", "tag": "return", "value": { "tag": "int" } },
+        "computation_type": 1,
         "effects": [],
         "occurrence_path": "/program/body",
         "premises": [4],
@@ -58,7 +58,7 @@
             "binder_origin": "/program",
             "origin_kind": "let-result",
             "usage_limit": "1",
-            "value_type": { "tag": "int" }
+            "value_type": 0
           }
         ]
       },
@@ -75,13 +75,15 @@
             "binder_origin": "/program",
             "origin_kind": "let-result",
             "usage_limit": "1",
-            "value_type": { "tag": "int" }
+            "value_type": 0
           }
         ],
-        "value_type": { "tag": "int" }
+        "value_type": 0
       }
     ],
-    "tag": "accepted"
+    "labels": [],
+    "tag": "accepted",
+    "types": [{ "tag": "int" }, { "grade": "1", "tag": "return", "value": 0 }]
   },
   "version": 1
 }

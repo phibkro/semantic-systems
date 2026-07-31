@@ -352,25 +352,70 @@ identical de Bruijn terms.
 ```text
 CheckAccepted := {
   "tag": "accepted",
+  "labels": [Label...],
+  "types": [TypeNode...],
   "inferred": InferredSummary,
   "judgments": [Judgment...]
 }
 
 CheckRejected := {
   "tag": "rejected",
+  "labels": [Label...],
+  "types": [TypeNode...],
   "diagnostics": [CheckDiagnostic...]
 }
 
 InferredSummary := {
-  "type": ComputationType,
-  "effects": [Label...],
+  "type": TypeIndex,
+  "effects": [LabelIndex...],
   "usage": [Grade...]
 }
 ```
 
+Inferred types are exponentially larger than their program when spelled
+inline: a let chain of pair doublings within every default bound renders a
+single mismatched type beyond half a megabyte after sixteen doublings and
+beyond any flat cap in general. The observation therefore never spells an
+inferred type or effect label inline. Both observation variants carry two
+shared tables:
+
+- `labels` lists every distinct effect label the observation mentions,
+  sorted by Unicode code-point order with no duplicates. A `LabelIndex` is a
+  nonnegative safe integer index into this table. Every effect row in the
+  observation — judgment effects, binder continuation effects, type-node
+  rows, and row-valued diagnostic facts — is an array of label indexes
+  sorted by the referenced labels' code-point order.
+- `types` is the maximally shared type table. A `TypeIndex` is a nonnegative
+  safe integer index into it. Each `TypeNode` is the frozen type grammar
+  with child positions replaced by type indexes:
+
+```text
+TypeNode :=
+  {"tag":"unit"}
+  {"tag":"bool"}
+  {"tag":"int"}
+  {"tag":"pair","first":TypeIndex,"second":TypeIndex}
+  {"tag":"thunk","effects":[LabelIndex...],"computation":TypeIndex}
+  {"tag":"return","grade":Grade,"value":TypeIndex}
+  {"tag":"function","parameter":TypeIndex,"grade":Grade,
+   "effects":[LabelIndex...],"result":TypeIndex}
+```
+
+Table discipline is frozen: every child index is strictly smaller than its
+parent's index, so the table is acyclic by construction; no two entries are
+structurally equal, so sharing is maximal and exponential inline duplication
+is unrepresentable; and entries appear in first-encounter postorder under
+the frozen traversal — `inferred.type` first, then each judgment in table
+order (context entries before the judged type), then each diagnostic's
+`expected` before `actual` — so the table is deterministic. These indexes
+are observation-scoped semantic sharing, not node identities: they carry no
+storage, hash, cache, or bundle meaning.
+
 `judgments` is the preorder flattening of the exact 0018 derivation: one
-judgment per successfully judged term occurrence, parents before descendants,
-in occurrence-path order. Each judgment is one of:
+judgment per successfully judged term occurrence, parents before
+descendants, premise subtrees in derivation premise order (for `handle`:
+the handled computation, then the return clause, then the clauses in
+canonical clause order). Each judgment is one of:
 
 ```text
 Judgment := ValueJudgment | ComputationJudgment
@@ -381,7 +426,7 @@ ValueJudgment := {
   "rule": RuleName,
   "value_context": [ValueBinderEntry...],
   "resumption_context": [ResumptionBinderEntry...],
-  "value_type": ValueType,
+  "value_type": TypeIndex,
   "usage": [Grade...],
   "resumption_usage": [Grade...],
   "premises": [JudgmentIndex...]
@@ -393,19 +438,19 @@ ComputationJudgment := {
   "rule": RuleName,
   "value_context": [ValueBinderEntry...],
   "resumption_context": [ResumptionBinderEntry...],
-  "computation_type": ComputationType,
-  "effects": [Label...],
+  "computation_type": TypeIndex,
+  "effects": [LabelIndex...],
   "usage": [Grade...],
   "resumption_usage": [Grade...],
   "premises": [JudgmentIndex...],
-  "signature_origin"?: OccurrencePath
+  "signature_origins"?: [OccurrencePath...]
 }
 
 ValueBinderEntry := {
   "binder_origin": OccurrencePath,
   "origin_kind": "lambda-parameter" | "let-result"
     | "return-clause-result" | "operation-clause-argument",
-  "value_type": ValueType,
+  "value_type": TypeIndex,
   "usage_limit": Grade
 }
 
@@ -414,9 +459,9 @@ ResumptionBinderEntry := {
   "origin_kind": "operation-clause-resumption",
   "label": String,
   "operation": String,
-  "result_type": ValueType,
-  "continuation_type": ComputationType,
-  "continuation_effects": [Label...],
+  "result_type": TypeIndex,
+  "continuation_type": TypeIndex,
+  "continuation_effects": [LabelIndex...],
   "usage_limit": "1"
 }
 
@@ -462,11 +507,17 @@ Exact meanings:
   greater than the judgment's own index, so the table is acyclic by
   construction. Judgment 0 is the root program judgment and must agree
   exactly with `inferred`.
-- `signature_origin` is present exactly when `rule` is
-  `computation.operation` or `handler.deep`, and points at the first
-  `/signature/N` declaration the judgment consulted (the declared operation
-  for `computation.operation`; the first declaration under the handled label
-  for `handler.deep`).
+- `signature_origins` is present exactly when `rule` is
+  `computation.operation` or `handler.deep`, and lists every `/signature/N`
+  declaration the judgment actually consulted, complete and in canonical
+  signature order. For `computation.operation` it holds exactly one entry:
+  the performed operation's declaration. For `handler.deep` it holds every
+  declaration under the handled label — the handler validates the complete
+  clause set and uses each declaration's argument and result types, so
+  recording fewer entries would hide semantic dependencies. It is absent for
+  every other rule. The 0018 seam records the exact declaration indexes it
+  consulted; kernel-json translates them to pointers and must not rediscover
+  them.
 - `code` and `rule` in a diagnostic are surfaced verbatim from the 0018
   checker and are frozen as closed version 1 enums. The complete
   `DiagnosticCode` vocabulary is: `checker.invalid-input`,
@@ -495,7 +546,7 @@ Exact meanings:
   the checker's term path translated into document pointer coordinates.
   `message` is presentation text; tests and callers bind to `code` and
   `occurrence_path`. `expected` and `actual`, when present, are
-  `DiagnosticFact` values copied from the checker diagnostic.
+  `DiagnosticFact` values built from the structured facts the seam records.
 
 `DiagnosticFact` is the recursive bounded inert fact grammar:
 
@@ -514,6 +565,37 @@ checker's fact records, which name expected and actual features per rule —
 but every key, scalar, array, and record is bounded and inert, and the strict
 decoder enforces every one of these limits. No other JSON value form
 (fractions, exponents, unsafe integers) is accepted inside a fact.
+
+Fact values are closed under these frozen kind rules, which is what makes the
+bounds provable rather than aspirational:
+
+- a type-valued fact is the record `{"type_index": TypeIndex}` into the
+  observation type table — never an inline or rendered type;
+- a row-valued fact is the record `{"label_indexes": [LabelIndex...]}` into
+  the label table;
+- a name-valued fact is the exact 0018 label or operation string;
+- a grade-valued fact is a `Grade` string;
+- a count- or index-valued fact is a nonnegative safe integer or a record of
+  them;
+- a shape expectation is one of the fixed literals `"F[q] A"`,
+  `"U(effects, C)"`, or `"A ->[q] (effects, C)"`; and
+- a numeric fact outside the safe-integer range (a malformed constructed
+  int) is recorded as its ECMAScript decimal or exponent string rendering,
+  at most 32 bytes.
+
+Boundedness proof against the exact 0018 bounds: every 0018 name is at most
+256 UTF-16 code units (`maximumStringLength`), hence at most 256 code points
+and 768 UTF-8 bytes, far under the 4,096-byte scalar cap; every fact array
+mirrors a 0018 collection of at most 256 entries
+(`maximumCollectionLength`); fact records carry a handful of fields; and all
+type and row content lives in the shared tables, so no fact scalar or
+aggregate depends on inferred-type size. The demonstrated d8d663a failure —
+a thirty-five-node let chain of pair doublings, inside every default bound,
+whose rendered mismatch fact is 524,283 bytes after sixteen doublings and
+exponential in general — is unrepresentable under these rules by
+construction: the same rejection is one diagnostic holding one `type_index`
+into a maximally shared table whose distinct nodes are linear in the checked
+term. Rendered type strings never enter the observation.
 
 The raw `KernelDocument` never carries any of these inferred facts; the
 observation is their only home. The observation never carries the program
@@ -535,32 +617,55 @@ authoritative checker:
   check pass, one record per derivation node, in the derivation's preorder.
 - Each record carries the structured facts the checker already holds at the
   exact point where it constructs the matching derivation node: the rule
-  name; the 0018 term path; the structured value or computation type; the
-  effect row for computation rules; the usage and resumption-usage vectors;
-  the exact value and resumption contexts, each entry with its introducing
-  term path, origin kind, type, and usage limit; the consulted signature
-  operation index when the rule is `computation.operation` or
-  `handler.deep`; and the premise indexes into the same table in derivation
-  order.
-- Recording happens only at the existing derivation construction points in
-  the same pass. The seam performs no second traversal, parses no
-  `conclusion` string, and duplicates no semantic rule. For the handler
-  fixed point, only the final iteration's records survive, exactly matching
-  the final derivation.
+  name; the 0018 term path; the structured value or computation type by
+  reference; the effect row for computation rules; the usage and
+  resumption-usage vectors; the exact value and resumption contexts, each
+  entry with its introducing term path, origin kind, type, and usage limit;
+  the complete list of signature operation indexes the rule actually
+  consulted, in canonical signature order — exactly one for
+  `computation.operation`, every declaration under the handled label for
+  `handler.deep`, none otherwise; and the premise indexes into the same
+  table in derivation order.
+- On rejection, the seam records the structured diagnostic facts alongside
+  the unchanged rendered `KernelDiagnostic`: type-valued facts as references
+  to the in-memory structured types, and grades, indexes, counts, names,
+  operation lists, and shape literals as the bounded scalars the fail site
+  already holds. Rendered `showValueType` and `showComputationType` strings
+  are never the recorded fact.
+- Preorder premise indexes need no hidden semantic pass: on entering a term
+  occurrence the seam reserves the next record index, checks the rule
+  through the existing code path, and fills the reserved record only after
+  the rule succeeds, appending each child's index to the parent as that
+  child returns. A thrown `CheckFailure` unwinds past every reserved record,
+  and the seam keeps only the structured facts of the failing site. For the
+  handler fixed point, the seam snapshots the table length before each
+  clause iteration and truncates back to the snapshot before re-checking, so
+  provisional records from non-final iterations are discarded and only the
+  final iteration's records survive, exactly matching the final derivation.
+  The seam performs no second traversal, parses no `conclusion` string, and
+  duplicates no semantic rule.
 - The table is bounded by construction: at most one record per decoded 0018
   term node, so the existing 0018 decode bounds bound its length, and each
-  context is bounded by the term depth.
+  context is bounded by the term depth. Recorded types are references to the
+  checker's existing shared type values; the seam copies no type
+  structurally, so recording cost stays linear even when spelled types would
+  be exponential.
 - `check` keeps its exact acceptance and rejection semantics, diagnostic
   codes, derivation shape, normalized report bytes, machine behavior, and
   `CheckedProgram` custody. Existing consumers observe no difference unless
-  they read the new field. The rejection observation shape is unchanged.
+  they read the new field. The rendered rejection diagnostic shape is
+  unchanged.
 
 `src/kernel-json` translates the recorded table into the frozen JSON
 observation: 0018 term paths become document occurrence pointers, grades and
-tags keep the frozen spellings, and signature indexes become `/signature/N`
-pointers. The kernel-json layer must not re-derive any context, type, usage,
-premise, or origin fact. If a recorded fact cannot be translated, check
-composition fails with a typed error; it never substitutes its own judgment.
+tags keep the frozen spellings, signature index lists become `/signature/N`
+pointer arrays, and the referenced in-memory types and rows are interned into
+the observation's shared `types` and `labels` tables by structural equality —
+a linear representation translation using reference memoization, not a
+semantic judgment. The kernel-json layer must not re-derive any context,
+type, usage, premise, or origin fact. If a recorded fact cannot be
+translated, check composition fails with a typed error; it never substitutes
+its own judgment.
 
 ### JSON Schema artifact
 
@@ -596,13 +701,17 @@ enforce:
 - occurrence-path resolvability, premise-link well-foundedness (strictly
   increasing, in-range indexes), or agreement between `inferred` and
   judgment 0;
-- the conditional presence of `signature_origin` exactly for
-  `computation.operation` and `handler.deep` rules, its `/signature/N`
-  range, or agreement between a binder entry's `origin_kind`, its
-  `binder_origin` target, and the introducing term;
-- diagnostic-fact nesting depth (fact record keys are deliberately open, but
-  keys, scalars, arrays, and records are bounded; only depth escapes the
-  schema); and
+- the conditional presence of `signature_origins` exactly for
+  `computation.operation` (one entry) and `handler.deep` (every declaration
+  under the handled label, complete and in canonical order), each entry's
+  `/signature/N` range, or agreement between a binder entry's
+  `origin_kind`, its `binder_origin` target, and the introducing term;
+- label- and type-table discipline: code-point label order and uniqueness,
+  child type indexes strictly below parents, maximal structural sharing,
+  the frozen first-encounter traversal order, and index range validity;
+- diagnostic-fact kind rules and nesting depth (fact record keys are
+  deliberately open, but keys, scalars, arrays, and records are bounded;
+  only kind agreement and depth escape the schema); and
 - that any observation was produced by the authoritative checker.
 
 Schema validity is a courtesy pre-check for agents. The strict decoder and
@@ -617,18 +726,21 @@ Version 1 checks in these byte-exact golden examples:
 examples/kernel-json/pure-program.kernel.json
 examples/kernel-json/handled-program.kernel.json
 examples/kernel-json/pure-program.accepted.kernel-check.json
+examples/kernel-json/handled-program.accepted.kernel-check.json
 examples/kernel-json/rejected-double-resume.kernel.json
 examples/kernel-json/rejected-double-resume.rejected.kernel-check.json
 ```
 
 They cover: a pure let program; a handled `fresh.allocate` operation whose
-clause resumes exactly once; the complete accepted checked view of the pure
-program, including binder contexts, usage limits, rule names, and premise
-links; and one schema-valid document whose clause resumes twice and is
-semantically rejected with `usage.affine-duplicated`, together with its exact
-rejected observation. The semantic facts in these fixtures were produced by
-running the accepted 0018 checker; the implementation must reproduce them
-byte-for-byte through canonical encoding.
+clause resumes exactly once; the complete accepted checked views of both,
+including the shared label and type tables, binder contexts, usage limits,
+rule names, premise links, and `signature_origins` for both
+`computation.operation` and `handler.deep`; and one schema-valid document
+whose clause resumes twice and is semantically rejected with
+`usage.affine-duplicated`, together with its exact rejected observation. The
+semantic facts in these fixtures were produced by running the accepted 0018
+checker; the implementation must reproduce them byte-for-byte through
+canonical encoding.
 
 ### Boundary and canonicalization
 
@@ -653,6 +765,11 @@ set, `-0` and `0` as distinct integer tokens, and one final line feed.
 Decoding then canonically encoding any accepted input yields exactly one byte
 sequence per document meaning.
 
+Object decoding has no input bytes, so — following the 0019 precedent — it
+additionally enforces the byte bound on the canonical encoding of the decoded
+value. Every accepted document therefore fits the byte bound regardless of
+entry path, which the diagnostic-fact and observation size proofs rely on.
+
 Returned documents and observations are deeply immutable snapshots. Later
 caller mutation of any input cannot change a prior document, observation, or
 byte result. All boundary failures are typed Effect failures with stable
@@ -667,8 +784,12 @@ encode equal documents to identical canonical bytes, and produce identical
 check observations for identical documents. Storage changes alone never
 change version 1 and never appear in the JSON: no hash, node reference,
 cache topology, store path, or bundle detail is representable in either
-frozen document. A representation change that alters any observable byte or
-observation is a version change, not an implementation detail.
+frozen document. The observation's `labels` and `types` indexes are not an
+exception: they are observation-scoped semantic sharing with a frozen
+deterministic construction, identical across every conforming
+implementation, and they identify nothing outside their own document. A
+representation change that alters any observable byte or observation is a
+version change, not an implementation detail.
 
 ### Public module
 
@@ -727,7 +848,10 @@ The version 1 defaults are:
   "maximumEffectLabels": 256,
   "maximumDiagnostics": 1024,
   "maximumJudgments": 16384,
-  "maximumContextEntries": 256
+  "maximumContextEntries": 256,
+  "maximumLabels": 65536,
+  "maximumTypeNodes": 16384,
+  "maximumObservationBytes": 33554432
 }
 ```
 
@@ -738,6 +862,21 @@ exact records that can only lower these values; they are validated before any
 candidate is inspected. The existing 0018 decode and checker bounds apply
 unchanged during projection and check composition, so a document within
 kernel-json bounds can still be rejected by the 0018 authority.
+
+`maximumObservationBytes` replaces `maximumBytes` for `semantic.kernel-check`
+documents only. Rejected observations are always representable within it,
+proven from the exact 0018 bounds: one diagnostic with at most two type
+facts; distinct type-table nodes at most decoded type nodes plus one
+constructor node per checked term node plus declared signature types, under
+3 × 4096 = 12,288 under 16,384; row-bearing nodes at most 8,192, each row at
+most 256 label indexes; and total distinct label bytes bounded by the
+document byte bound, which both entry paths enforce. The arithmetic total
+stays under half the 32 MiB bound. Accepted observations carry the full
+per-judgment contexts, which are quadratic in the worst case; an accepted
+observation whose canonical encoding exceeds the observation bounds is a
+typed, loud resource failure — never truncation, elision, or a silent
+partial view — and the 0018 acceptance itself is unaffected. Only rejection
+observations carry the always-representable guarantee.
 
 ### Failure order
 
@@ -752,13 +891,19 @@ Byte decoding fails in this order:
 7. exact closed schema shape, tags, enums, and safe integers;
 8. cross-field rules, in this order: version markers; sorted effect rows,
    signature order, and clause order; duplicate signature pairs and
-   duplicate clauses; occurrence-path token validity; premise links strictly
-   increasing and in range; `inferred`-versus-judgment-0 agreement;
-   `signature_origin` present exactly for `computation.operation` and
-   `handler.deep` and within `/signature/N` range; binder-entry
-   `origin_kind` agreement with its `binder_origin` token shape; diagnostic
-   `code` and `rule` membership in the closed version 1 enums; and
-   diagnostic-fact string, array, record, and depth bounds; and
+   duplicate clauses; label-table code-point order and uniqueness;
+   type-table child indexes strictly below their parent, structural
+   uniqueness (maximal sharing), and frozen first-encounter traversal order;
+   every label and type index in range; occurrence-path token validity;
+   premise links strictly increasing and in range;
+   `inferred`-versus-judgment-0 agreement; `signature_origins` present
+   exactly for `computation.operation` (exactly one entry) and
+   `handler.deep` (every declaration under the handled label, complete and
+   in canonical signature order), each entry within `/signature/N` range;
+   binder-entry `origin_kind` agreement with its `binder_origin` token
+   shape; diagnostic `code` and `rule` membership in the closed version 1
+   enums; and diagnostic-fact kind rules and string, array, record, and
+   depth bounds; and
 9. immutable document construction.
 
 Object decoding starts at step 6 with the repeated-reference rule. Check
@@ -795,17 +940,33 @@ The implementation must retain focused rejection observations for:
     usage, and handler inexactness;
 13. a malformed occurrence path, an escaped `~` pointer token, a broken
     premise link, or a judgment table disagreeing with `inferred`;
-14. a missing or extraneous `signature_origin`, or one outside the
-    `/signature/N` range;
+14. a missing, extraneous, incomplete, misordered, or out-of-range
+    `signature_origins` list — including a `handler.deep` judgment listing
+    fewer than every declaration under its handled label;
 15. a diagnostic code or rule outside the closed version 1 enums;
-16. a diagnostic fact over the string, array, record, or depth bound;
-17. a forged or caller-mutated document failing to enter projection or check
+16. a diagnostic fact over the string, array, record, or depth bound, or
+    breaking a frozen fact kind rule (an inline or rendered type where a
+    `type_index` is required);
+17. an unsorted or duplicate label table; a type table with a dangling or
+    forward child index, two structurally equal entries, or entries outside
+    the frozen traversal order;
+18. the maximum-shape rejection: a document inside every default bound whose
+    let chain of pair doublings makes the mismatched inferred type render
+    beyond 4,096 bytes — beyond 512 KiB at sixteen doublings — which the
+    d8d663a contract could not represent, and which must remain a bounded
+    rejected observation through one `type_index` into the shared table,
+    never an Effect failure, truncation, or omission;
+19. an accepted observation whose canonical encoding exceeds the observation
+    bounds failing as a typed resource error, never as truncation or a
+    partial view;
+20. a forged or caller-mutated document failing to enter projection or check
     composition;
-18. parsing or schema validation attempting to mint checked or 0019
+21. parsing or schema validation attempting to mint checked or 0019
     authority;
-19. a seam-recorded judgment table disagreeing with the final 0018
-    derivation in rule, order, or premise shape; and
-20. two internal representations producing different bytes or observations
+22. a seam-recorded judgment table disagreeing with the final 0018
+    derivation in rule, order, or premise shape, or retaining records from a
+    discarded handler fixed-point iteration; and
+23. two internal representations producing different bytes or observations
     for one fixture.
 
 Positive observations must include:
@@ -814,8 +975,9 @@ Positive observations must include:
    byte-exactly;
 2. the handled golden document with one resumption accepted with residual
    row `{}`;
-3. the accepted checked view exposing exact contexts, origins, limits,
-   rules, and premise links;
+3. both accepted checked views exposing exact contexts, origins, limits,
+   rules, premise links, shared label and type tables, and complete
+   `signature_origins` for `computation.operation` and `handler.deep`;
 4. the rejected golden document producing the exact frozen diagnostic;
 5. whitespace, key-order, and escape variants of one document decoding to
    equal documents and identical canonical bytes;
@@ -831,24 +993,28 @@ Positive observations must include:
 
 Feature 0020 is accepted only when:
 
-1. the frozen contract, schema artifact, and five golden examples are
+1. the frozen contract, schema artifact, and six golden examples are
    checked in and byte-stable;
 2. the strict decoders enforce every boundary, bound, and cross-field rule
-   with typed failures;
+   with typed failures, including label- and type-table discipline;
 3. canonical encoding is deterministic and byte-identical on Bun and genuine
    Node;
 4. check composition reproduces every golden observation through the real
    0018 checker, using only the judgment-recording seam for per-occurrence
    facts, while every prior 0018 acceptance stays green;
-5. the schema artifact matches the exported schema observation byte-for-byte
+5. the maximum-shape counterexample — exponential rendered types inside
+   every default bound — yields a bounded rejected observation through the
+   shared type table, with the rejection-representability arithmetic
+   checked by a focused test;
+6. the schema artifact matches the exported schema observation byte-for-byte
    and documents its non-enforcement list;
-6. no public path mints checked or 0019 authority from parsed input;
-7. the storage-independence differential observation passes for the
+7. no public path mints checked or 0019 authority from parsed input;
+8. the storage-independence differential observation passes for the
    reference implementation;
-8. all counterexample and positive families above have focused tests;
-9. typecheck, strict lint, formatting, project-model validation, and
-   generated-view gates pass; and
-10. exact feature acceptance and full integration pass at one clean head.
+9. all counterexample and positive families above have focused tests;
+10. typecheck, strict lint, formatting, project-model validation, and
+    generated-view gates pass; and
+11. exact feature acceptance and full integration pass at one clean head.
 
 The exact acceptance command is:
 

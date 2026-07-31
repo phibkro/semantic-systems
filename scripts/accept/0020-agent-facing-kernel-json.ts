@@ -17,6 +17,7 @@ const goldenExamples = [
   ["examples/kernel-json/pure-program.kernel.json", "semantic.kernel-json"],
   ["examples/kernel-json/handled-program.kernel.json", "semantic.kernel-json"],
   ["examples/kernel-json/pure-program.accepted.kernel-check.json", "semantic.kernel-check"],
+  ["examples/kernel-json/handled-program.accepted.kernel-check.json", "semantic.kernel-check"],
   ["examples/kernel-json/rejected-double-resume.kernel.json", "semantic.kernel-json"],
   [
     "examples/kernel-json/rejected-double-resume.rejected.kernel-check.json",
