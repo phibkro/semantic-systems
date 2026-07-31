@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0027-semantic-artifact-store.md`](../../design-specs/0027-semantic-artifact-store.md).
 This execution record cannot redefine that contract.
 
-Status: contract frozen; implementation candidate under reconciliation
+Status: implementation candidate; exact acceptance passed; independent review pending
 
 Owner: primary Semantic Systems language lead
 
@@ -74,6 +74,18 @@ bun scripts/accept/0027-semantic-artifact-store.ts
 - 2026-08-01: the frozen slice deliberately stops at semantic/artifact reuse,
   separate names, and validated replay. Reachability and rewrite work remain a
   later dependency rather than being smuggled into the store abstraction.
+- 2026-08-01: the first exact acceptance run passed the 0027 tests, TypeScript,
+  lint, formatting, model gates, and current 0019 Bun/Node tests, then exposed
+  that recursively invoking 0019 acceptance reopens 0018's machine-local
+  `LANG_BANG_LAKE_BIN` oracle. Like accepted feature 0026, 0027 now consumes the
+  predecessor receipt and reruns the relevant current normalized-core tests;
+  it does not reinterpret a historical external-oracle environment as a new
+  dependency of the store.
+- 2026-08-01: exact acceptance on the rebased candidate passed 668 Bun tests
+  with one explicit optional-oracle skip, 68 reference-custody Python tests,
+  the focused genuine-Node normalized-core observation, TypeScript 7 with
+  Effect diagnostics, Oxlint, Oxfmt, canonical project-view checks, and the
+  full repository gate. Independent review remains required before a PR.
 
 ## Open review questions
 

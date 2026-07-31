@@ -8,6 +8,7 @@ class AcceptanceFailure extends Data.TaggedError("AcceptanceFailure")<{
 }> {}
 
 const root = resolve(import.meta.dirname, "../..");
+const nodeExecutable = process.env.SEMANTIC_NODE_BIN ?? "node";
 
 const artifacts = [
   "design-specs/0027-semantic-artifact-store.md",
@@ -48,7 +49,13 @@ const program = Effect.gen(function* () {
     ],
     ["bun", "run", "semproj", "--", "validate"],
     ["bun", "run", "semproj", "--", "generate", "--check"],
-    ["bun", "scripts/accept/0019-normalized-core-format.ts"],
+    [
+      "bun",
+      "test",
+      "tests/normalized-core-format.test.ts",
+      "tests/normalized-core-custody.test.ts",
+    ],
+    [nodeExecutable, "--test", "tests/normalized-core-node.test.ts"],
     ["just", "check"],
   ] as const) {
     yield* runCommand(command, { cwd: root });
