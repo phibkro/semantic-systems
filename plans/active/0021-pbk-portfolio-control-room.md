@@ -64,8 +64,8 @@ roadmap fields; and browser mutation authority.
 3. Implement strict decoding, bounded label normalization, typed metadata
    predicates, history compatibility, and immutable projections.
 4. Add exhaustive small-universe tests against the course-platform label laws.
-5. Implement saved view specifications and list, grid, graph, and DAG
-   projection interpreters over one selected identity set.
+5. Implement saved view specifications and list, grid, graph, DAG, and
+   semantic-zoom Mosaic projection interpreters over one selected identity set.
 6. Add shared Overview, Board, Features, Roadmap, History, and Detail views.
 7. Add deterministic dependency layout and accessible phone fallback.
 8. Add cross-view, priority, dependency, history, hostile-text, and mobile
@@ -101,5 +101,8 @@ then fail on the first absent implementation artifact,
 - 2026-07-31: operator requested queryable metadata and considered file or
   database storage. The frozen choice is strict row-oriented JSON in Git, an
   assembled content-addressed JSON snapshot, and replaceable database indexes.
+- 2026-07-31: operator selected Mosaic as an alternate semantic-zoom view of
+  the primary Obsidian-like Roadmap graph. It preserves node membership and
+  authority while exposing progressively richer metadata.
 - 2026-07-31: no implementation, adjacent-repository write, provider action,
   deployment, or public cutover occurred during contract freeze.

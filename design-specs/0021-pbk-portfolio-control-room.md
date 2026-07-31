@@ -19,8 +19,8 @@ Separate Kanban, issue, roadmap, and history stores would drift. A Gantt view
 would also encode deadlines and duration assumptions that do not govern this
 studio. PBK Technologies needs one bounded portfolio value with several honest
 projections: Overview, Board, Features, Roadmap, and History. It also needs a
-small query language so the operator can compose new list, grid, graph, and DAG
-views without creating a new source of truth.
+small query language so the operator can compose new list, grid, graph, DAG,
+and mosaic views without creating a new source of truth.
 
 ## Felt journey
 
@@ -35,7 +35,7 @@ working horizon. An operator priority assertion reorders ready candidates but
 cannot make blocked work ready or rewrite history. The operator can save a
 question such as "engineering or research, all agent-facing work, excluding
 deferred work" and render the same selected identities as a list, a
-project-by-status grid, or a dependency DAG.
+project-by-status grid, a dependency DAG, or a zoomable metadata mosaic.
 
 ## Open semantic system design lens
 
@@ -130,14 +130,25 @@ status, and priority remain typed fields and cannot be shadowed by metadata.
 typed field predicates. Version 1 supports `equals`, `not-equals`, `in`,
 `contains`, `exists`, `greater-than-or-equal`, and `less-than-or-equal`.
 Predicates are conjoined. A saved view adds selected fields, relation traversal,
-grouping, stable sorting, and one presentation: `list`, `grid`, `graph`, or
-`dag`. This JSON query value is the agent-facing interface. A later SQL-like
-text surface may parse to the same value but cannot add semantics to it.
+grouping, stable sorting, and one presentation: `list`, `grid`, `graph`, `dag`,
+or `mosaic`. This JSON query value is the agent-facing interface. A later
+SQL-like text surface may parse to the same value but cannot add semantics to
+it.
 
 Every presentation interprets the same selected identity set. List and grid do
 not invent edges. Graph can show selected typed relations, while DAG rejects a
 requested cyclic relation family. Changing presentation never changes query
 membership.
+
+Roadmap defaults to an Obsidian-like graph that makes typed dependency and
+containment edges inspectable. Mosaic is its alternate semantic-zoom
+interpreter. It nests portfolio, project, milestone, and feature tiles and
+reveals more selected metadata as the operator zooms into a tile. Mosaic is not
+a second roadmap, does not copy work records, and cannot hide an identity merely
+because metadata is absent. Tile area and position have no effort, duration,
+priority, or importance meaning unless the saved view explicitly selects and
+labels such a metric. Both modes expose the same ordered accessible node list
+and detail controls; neither requires a canvas or pointer precision.
 
 ### Work as an executable calculus
 
@@ -299,6 +310,7 @@ queryWork(document, query)
 
 projectWork(document, selectedIdentities, view)
   -> ListProjection | GridProjection | GraphProjection | DagProjection
+     | MosaicProjection
 ```
 
 Returned documents and projections are deeply immutable and alias no caller
@@ -317,6 +329,10 @@ without changing node, edge, priority, receipt, or snapshot meaning.
   and permutation cases match the course-platform label algebra.
 - Every presentation over one query contains exactly the same selected work
   identities; grid grouping and graph edges cannot add or remove membership.
+- Graph, DAG, and Mosaic expose the same selected identities and detail links.
+  Mosaic zoom changes visible metadata density, not membership or authority.
+- Mosaic tile area and position do not imply effort, priority, or schedule when
+  no explicit labelled metric is selected.
 - Typed metadata distinguishes `5`, `"5"`, `false`, and absent. Canonical fields
   cannot be shadowed by metadata.
 - A cyclic relation family rejects DAG projection while the same selected work
@@ -345,12 +361,13 @@ Feature 0021 is accepted only when one clean head:
 1. strictly decodes the bounded portfolio document and rejects every oracle;
 2. reuses the bounded Any/All/Exclude/Unlabeled label algebra, evaluates typed
    metadata predicates, and proves exhaustive small-universe laws;
-3. derives all five built-in views plus list, grid, graph, and DAG projections
-   and proves selected cross-view identity agreement;
+3. derives all five built-in views plus list, grid, graph, DAG, and mosaic
+   projections and proves selected cross-view identity agreement;
 4. exposes PBK Technologies and every recorded project from one public
    content-addressed portfolio snapshot;
 5. renders a dependency-first Roadmap with major project/milestone nodes,
-   minor feature nodes, typed edges, and no time axis;
+   minor feature nodes, typed edges, no time axis, and an alternate zoomable
+   metadata Mosaic over the same identities;
 6. renders Board, Features, History, and detail journeys over the same data;
 7. retains accepted receipts and product snapshots across an update;
 8. passes phone Chromium interaction and accessibility journeys;
@@ -390,7 +407,8 @@ This feature names the studio PBK Technologies and adds one portfolio semantic
 boundary plus five read-only projections. It adds explicit working-horizon,
 priority-assertion, receipt-history, artifact, journey, and product-snapshot
 meaning. It reuses course-platform's bounded label-set algebra, adds typed
-metadata queries and interchangeable presentation interpreters, and makes the
+metadata queries and interchangeable presentation interpreters, adds a
+semantic-zoom Mosaic alternate to the primary dependency graph, and makes the
 work-definition to accepted-artifact transition explicit. Existing Semantic
 project facts, scheduler readiness, evidence categories, Control Room
 freshness, deployment custody, and provider authority remain unchanged.
