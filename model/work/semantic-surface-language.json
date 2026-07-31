@@ -1,0 +1,57 @@
+{
+  "entities": [
+    {
+      "id": "work.semantic-surface-language",
+      "kind": "work_item",
+      "name": "Establish the Semantic surface language",
+      "summary": "Parse a bounded named language, elaborate separate value and resumption binders to the frozen kernel JSON, and preserve checker and interpreter authority.",
+      "status": "in_progress",
+      "tags": ["language", "surface", "parser", "pratt", "elaboration"],
+      "attributes": {
+        "phase": "implementation",
+        "effort": 8,
+        "design_spec": "design-specs/0026-semantic-surface-language.md",
+        "plan": "plans/active/0026-semantic-surface-language.md",
+        "acceptance": [
+          "Every current kernel constructor has an explicit named source spelling",
+          "Pratt rule data pins product and application associativity",
+          "Value and resumption names resolve through separate lexical contexts",
+          "Every elaborated document crosses the strict kernel JSON boundary",
+          "Selected source programs agree with the reference interpreter"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 5,
+          "testability": 5,
+          "reversibility": 5,
+          "integration_independence": 4,
+          "blast_radius": 3,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source": "work.semantic-surface-language",
+      "target": "work.agent-facing-kernel-json",
+      "kind": "requires",
+      "summary": "Elaboration targets and revalidates the frozen agent-facing kernel document.",
+      "attributes": {}
+    },
+    {
+      "source": "work.semantic-surface-language",
+      "target": "work.kernel-reference-interpreter",
+      "kind": "requires",
+      "summary": "The reference interpreter supplies the executable agreement oracle.",
+      "attributes": {}
+    },
+    {
+      "source": "work.semantic-surface-language",
+      "target": "component.kernel",
+      "kind": "implements",
+      "summary": "The surface layer exposes the accepted kernel through names and readable syntax without changing its semantics.",
+      "attributes": {}
+    }
+  ]
+}

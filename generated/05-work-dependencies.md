@@ -33,6 +33,7 @@ flowchart LR
     work_pbk_portfolio_control_room["Build PBK Technologies portfolio Control Room"]
     work_relational_fact_schema["Define relational fact export"]
     work_semantic_attestation_profile["Specify semantic attestation profile"]
+    work_semantic_surface_language["Establish the Semantic surface language"]
     work_stm_laws["Specify STM effect and handler laws"]
     work_stm_model_check["Model-check STM interleavings"]
     work_stm_runtime["Implement minimal STM runtime"]
@@ -56,6 +57,8 @@ flowchart LR
     work_wasm_contract_mapping -->|blocks| work_normalized_core_format
     work_deterministic_simulator_spec -->|blocks| work_stm_laws
     work_explorer_query_contract -->|informs| work_relational_fact_schema
+    work_semantic_surface_language -->|requires| work_agent_facing_kernel_json
+    work_semantic_surface_language -->|requires| work_kernel_reference_interpreter
     work_core_checker -->|blocks| work_kernel_spec
     work_kernel_spec -->|requires| decision_one_shot
     work_theory_identity -->|requires| decision_theory_identity
