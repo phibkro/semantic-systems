@@ -26,6 +26,10 @@
         "parse5": "8.0.1",
         "typescript": "7.0.2",
       },
+      "optionalDependencies": {
+        "@effect/tsgo-linux-x64": "0.24.3",
+        "@typescript/typescript-linux-x64": "7.0.2",
+      },
     },
     "apps/control-room": {
       "name": "@semantic-systems/control-room",
