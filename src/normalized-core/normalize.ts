@@ -177,7 +177,7 @@ const record = (
     return fail("schema.expected-record", path, "expected an object");
   }
   const actual = Object.keys(value);
-  const expected = [...fields];
+  const expected = [...fields].sort(compareCodePoints);
   const excess = actual.sort(compareCodePoints).find((key) => !expected.includes(key));
   if (excess !== undefined) {
     return fail("schema.excess-property", `${path}/${excess}`, "unexpected property");

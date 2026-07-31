@@ -15,7 +15,7 @@ export {
   validateNormalizedCoreBytes,
 } from "./normalize.ts";
 export { defaultNormalizedCoreBounds, isIdentity } from "./schema.ts";
-export { deriveIdentity, identityDomains, NormalizedCoreDigestFailure } from "./identity.ts";
+export { NormalizedCoreDigestFailure } from "./identity.ts";
 export type {
   DecodeResult,
   EmissionMetadataInput,

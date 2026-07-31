@@ -406,7 +406,12 @@ export const inspectUnknownJson = (
     }
     const output: Record<string, unknown> = {};
     for (const key of stringKeys.sort(compareCodePoints)) {
-      output[key] = visit(descriptors[key]!.value, `${path}/${key}`, depth + 1);
+      Object.defineProperty(output, key, {
+        value: visit(descriptors[key]!.value, `${path}/${key}`, depth + 1),
+        enumerable: true,
+        configurable: true,
+        writable: true,
+      });
     }
     return output;
   };
