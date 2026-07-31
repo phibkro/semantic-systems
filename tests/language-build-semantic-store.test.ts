@@ -480,6 +480,49 @@ describe("language-build semantic store", () => {
     } else throw new Error("oversized sparse snapshot must fail");
   });
 
+  test("decodes the one bounded descriptor snapshot of a stateful proxy", async () => {
+    const source = await runStore(
+      Effect.gen(function* () {
+        const store = yield* SemanticStore;
+        yield* store.insert(yield* artifactBytes(1, 1));
+        return yield* store.snapshot;
+      }),
+    );
+    const safe = structuredClone(source);
+    let switchedReads = 0;
+    let elementReads = 0;
+    const oversizedTarget: unknown[] = [];
+    oversizedTarget.length = semanticStoreReplayBounds.semanticValues + 1;
+    const oversized = new Proxy(oversizedTarget, {
+      get: (target, key, receiver) => {
+        elementReads += 1;
+        return Reflect.get(target, key, receiver);
+      },
+    });
+    const switching = new Proxy(safe, {
+      get: (target, key, receiver) => {
+        if (key === "semantic_values") {
+          switchedReads += 1;
+          return oversized;
+        }
+        return Reflect.get(target, key, receiver);
+      },
+    });
+
+    const replayed = await runStore(
+      Effect.gen(function* () {
+        const store = yield* SemanticStore;
+        const receipt = yield* store.replay(switching);
+        return { receipt, snapshot: yield* store.snapshot };
+      }),
+    );
+
+    expect(switchedReads).toBe(0);
+    expect(elementReads).toBe(0);
+    expect(replayed.receipt.status).toBe("replayed");
+    expect(replayed.snapshot).toEqual(source);
+  });
+
   test("alternate insertion orders produce one equal deeply immutable snapshot", async () => {
     const populate = (reverse: boolean) =>
       runStore(

@@ -84,73 +84,164 @@ export class SemanticStoreSnapshotRejected extends Data.TaggedError(
   readonly reason: string;
 }> {}
 
-const dataProperty = (
-  descriptors: Readonly<Record<string, PropertyDescriptor | undefined>>,
-  key: string,
-): unknown | undefined => {
-  const descriptor = descriptors[key];
-  if (descriptor === undefined) return undefined;
-  if (!("value" in descriptor)) throw new TypeError(`${key} must be a data property`);
-  return descriptor.value;
+type DescriptorRecord = Readonly<Record<string, PropertyDescriptor>>;
+
+const rejectSnapshotInput = (reason: string): never => {
+  throw new SemanticStoreSnapshotRejected({ reason });
 };
 
-const arrayLength = (value: unknown): number | undefined => {
-  if (!Array.isArray(value)) return undefined;
-  const descriptor = Object.getOwnPropertyDescriptor(value, "length");
-  if (descriptor === undefined || !("value" in descriptor)) {
-    throw new TypeError("array length must be a data property");
+const requireRecordDescriptors = (
+  input: unknown,
+  expectedKeys: ReadonlyArray<string>,
+  seen: WeakSet<object>,
+): DescriptorRecord => {
+  if (typeof input !== "object" || input === null || Array.isArray(input)) {
+    return rejectSnapshotInput("snapshot input must contain closed records");
   }
-  return descriptor.value as number;
-};
-
-const inspectSnapshotBounds = (input: unknown): string | undefined => {
-  if (typeof input !== "object" || input === null) return undefined;
-  const root = Object.getOwnPropertyDescriptors(input);
-  const semanticValues = dataProperty(root, "semantic_values");
-  const nameBindings = dataProperty(root, "name_bindings");
-  const semanticValueCount = arrayLength(semanticValues);
-  const nameBindingCount = arrayLength(nameBindings);
+  if (seen.has(input)) return rejectSnapshotInput("snapshot input must not repeat containers");
+  seen.add(input);
+  const prototype = Object.getPrototypeOf(input);
+  if (prototype !== Object.prototype && prototype !== null) {
+    return rejectSnapshotInput("snapshot input must contain plain records");
+  }
+  const descriptors = Object.getOwnPropertyDescriptors(input) as DescriptorRecord;
+  const keys = Reflect.ownKeys(descriptors);
   if (
-    semanticValueCount !== undefined &&
-    semanticValueCount > semanticStoreReplayBounds.semanticValues
+    keys.some((key) => typeof key === "symbol") ||
+    keys.length !== expectedKeys.length ||
+    expectedKeys.some((key) => !Object.hasOwn(descriptors, key))
   ) {
-    return `snapshot exceeds ${semanticStoreReplayBounds.semanticValues} semantic values`;
+    return rejectSnapshotInput("snapshot input record shape is not closed");
   }
-  if (nameBindingCount !== undefined && nameBindingCount > semanticStoreReplayBounds.nameBindings) {
-    return `snapshot exceeds ${semanticStoreReplayBounds.nameBindings} authored-name bindings`;
-  }
-  if (semanticValueCount === undefined || !Array.isArray(semanticValues)) return undefined;
-
-  const semanticValueDescriptors = Object.getOwnPropertyDescriptors(semanticValues);
-  let artifactCount = 0;
-  for (let index = 0; index < semanticValueCount; index += 1) {
-    const semanticValue = dataProperty(semanticValueDescriptors, String(index));
-    if (typeof semanticValue !== "object" || semanticValue === null) continue;
-    const artifacts = dataProperty(Object.getOwnPropertyDescriptors(semanticValue), "artifacts");
-    const count = arrayLength(artifacts);
-    if (count === undefined) continue;
-    artifactCount += count;
-    if (artifactCount > semanticStoreReplayBounds.artifacts) {
-      return `snapshot exceeds ${semanticStoreReplayBounds.artifacts} artifact variants`;
+  for (const key of expectedKeys) {
+    const descriptor = descriptors[key]!;
+    if (!descriptor.enumerable || !("value" in descriptor)) {
+      return rejectSnapshotInput("snapshot input properties must be enumerable data");
     }
   }
-  return undefined;
+  return descriptors;
 };
 
-const preflightSnapshotBounds = (
+const requireArraySnapshot = <Value>(
   input: unknown,
-): Effect.Effect<void, SemanticStoreSnapshotRejected> =>
+  maximum: number,
+  limitLabel: string,
+  seen: WeakSet<object>,
+  capture: (value: unknown) => Value,
+): ReadonlyArray<Value> => {
+  if (!Array.isArray(input)) return rejectSnapshotInput("snapshot input must contain arrays");
+  if (seen.has(input)) return rejectSnapshotInput("snapshot input must not repeat containers");
+  seen.add(input);
+  if (Object.getPrototypeOf(input) !== Array.prototype) {
+    return rejectSnapshotInput("snapshot input must contain plain arrays");
+  }
+  const descriptors = Object.getOwnPropertyDescriptors(input) as DescriptorRecord;
+  const lengthDescriptor = descriptors["length"];
+  if (
+    lengthDescriptor === undefined ||
+    !("value" in lengthDescriptor) ||
+    typeof lengthDescriptor.value !== "number"
+  ) {
+    return rejectSnapshotInput("snapshot array length could not be captured");
+  }
+  const length = lengthDescriptor.value;
+  if (length > maximum) return rejectSnapshotInput(`snapshot exceeds ${maximum} ${limitLabel}`);
+  const keys = Reflect.ownKeys(descriptors);
+  if (
+    keys.some((key) => typeof key === "symbol") ||
+    keys.length !== length + 1 ||
+    keys.some(
+      (key) => key !== "length" && (typeof key !== "string" || !/^(?:0|[1-9][0-9]*)$/.test(key)),
+    )
+  ) {
+    return rejectSnapshotInput("snapshot arrays must be dense and contain no extra properties");
+  }
+  const output: Value[] = [];
+  for (let index = 0; index < length; index += 1) {
+    const descriptor = descriptors[String(index)];
+    if (descriptor === undefined || !descriptor.enumerable || !("value" in descriptor)) {
+      return rejectSnapshotInput("snapshot arrays must contain enumerable data elements");
+    }
+    output.push(capture(descriptor.value));
+  }
+  return Object.freeze(output);
+};
+
+const snapshotReplayInput = (
+  input: unknown,
+): Effect.Effect<unknown, SemanticStoreSnapshotRejected> =>
   Effect.try({
-    try: () => inspectSnapshotBounds(input),
-    catch: () =>
-      new SemanticStoreSnapshotRejected({ reason: "snapshot input could not be inspected" }),
-  }).pipe(
-    Effect.flatMap((reason) =>
-      reason === undefined
-        ? Effect.void
-        : Effect.fail(new SemanticStoreSnapshotRejected({ reason })),
-    ),
-  );
+    try: () => {
+      const seen = new WeakSet<object>();
+      let artifactCount = 0;
+      const root = requireRecordDescriptors(
+        input,
+        ["format", "version", "semantic_values", "name_bindings"],
+        seen,
+      );
+      const semanticValues = requireArraySnapshot(
+        root["semantic_values"]!.value,
+        semanticStoreReplayBounds.semanticValues,
+        "semantic values",
+        seen,
+        (semanticValue) => {
+          const value = requireRecordDescriptors(
+            semanticValue,
+            ["semantic_identity", "artifacts"],
+            seen,
+          );
+          const remainingArtifacts = semanticStoreReplayBounds.artifacts - artifactCount;
+          const artifacts = requireArraySnapshot(
+            value["artifacts"]!.value,
+            remainingArtifacts,
+            "artifact variants",
+            seen,
+            (artifact) => {
+              artifactCount += 1;
+              const entry = requireRecordDescriptors(
+                artifact,
+                ["artifact_identity", "canonical_bytes"],
+                seen,
+              );
+              return Object.freeze({
+                artifact_identity: entry["artifact_identity"]!.value,
+                canonical_bytes: entry["canonical_bytes"]!.value,
+              });
+            },
+          );
+          return Object.freeze({
+            semantic_identity: value["semantic_identity"]!.value,
+            artifacts,
+          });
+        },
+      );
+      const nameBindings = requireArraySnapshot(
+        root["name_bindings"]!.value,
+        semanticStoreReplayBounds.nameBindings,
+        "authored-name bindings",
+        seen,
+        (binding) => {
+          const entry = requireRecordDescriptors(binding, ["name", "semantic_identity"], seen);
+          return Object.freeze({
+            name: entry["name"]!.value,
+            semantic_identity: entry["semantic_identity"]!.value,
+          });
+        },
+      );
+      return Object.freeze({
+        format: root["format"]!.value,
+        version: root["version"]!.value,
+        semantic_values: semanticValues,
+        name_bindings: nameBindings,
+      });
+    },
+    catch: (cause) =>
+      cause instanceof SemanticStoreSnapshotRejected
+        ? cause
+        : new SemanticStoreSnapshotRejected({
+            reason: "snapshot input could not be captured",
+          }),
+  });
 
 export type StoreStatus = "stored" | "artifact-hit" | "semantic-hit";
 
@@ -273,10 +364,10 @@ const prepareSnapshot = (
   Crypto.Crypto
 > =>
   Effect.gen(function* () {
-    yield* preflightSnapshotBounds(input);
+    const inputSnapshot = yield* snapshotReplayInput(input);
     const snapshot = yield* Schema.decodeUnknownEffect(SemanticStoreSnapshotSchema, {
       onExcessProperty: "error",
-    })(input).pipe(
+    })(inputSnapshot).pipe(
       Effect.mapError((cause) => new SemanticStoreSnapshotRejected({ reason: cause.message })),
       Effect.catchDefect(() =>
         Effect.fail(

@@ -109,6 +109,15 @@ bun scripts/accept/0027-semantic-artifact-store.ts
   immutability, concurrent insert/bind linearization, and a digest failure after
   replay validation begins. The focused suite passes 12 journeys and 101
   assertions; exact acceptance and corrected-head review remain pending.
+- 2026-08-01: follow-up review of `f589352` found one remaining time-of-check
+  split: descriptor preflight bounded one view of a stateful proxy, but Effect
+  Schema then decoded the original object and could observe a larger array.
+  Replay now builds one bounded, inert descriptor snapshot of the complete
+  version 1 container shape and passes only that snapshot to Schema. The exact
+  proxy counterexample observes zero caller `get` or oversized-element reads
+  and replays the captured safe value. The focused suite passes 13 journeys and
+  105 assertions; exact reacceptance and one final revision-pinned review remain
+  pending.
 
 ## Open review questions
 
