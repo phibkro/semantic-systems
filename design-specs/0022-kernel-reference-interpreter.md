@@ -60,8 +60,9 @@ projects their observations.
 ### Semantic inputs
 
 The public interpreter accepts unknown bytes and optional bounds no wider than
-the existing 0018 and 0020 defaults. A decoded-document entry point accepts
-only a genuine privately decoded `KernelDocument`.
+the existing 0018 and 0020 defaults. The decoded document remains an internal
+stage of that entry point; callers cannot bypass the byte boundary through the
+interpreter API.
 
 The future differential harness accepts two `KernelBackend` values, one
 generated case, and one deterministic test configuration. The reference

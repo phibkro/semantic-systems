@@ -8,7 +8,7 @@
       "status": "in_progress",
       "tags": ["language", "kernel", "interpreter", "cbpv", "property-testing"],
       "attributes": {
-        "phase": "design",
+        "phase": "implementation",
         "effort": 8,
         "design_spec": "design-specs/0022-kernel-reference-interpreter.md",
         "plan": "plans/active/0022-kernel-reference-interpreter.md",

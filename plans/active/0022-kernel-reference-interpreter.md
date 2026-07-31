@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0022-kernel-reference-interpreter.md`](../../design-specs/0022-kernel-reference-interpreter.md).
 This execution record cannot redefine that contract.
 
-Status: contract frozen; implementation intentionally absent
+Status: implementation candidate; exact acceptance pending
 
 Owner: primary Semantic Systems language lead
 
@@ -23,6 +23,7 @@ Owner: primary Semantic Systems language lead
 - `model/work/kernel-reference-interpreter.json`
 - `src/kernel-interpreter/**`
 - `tests/kernel-reference-interpreter*.test.ts`
+- `examples/kernel-json/*.kernel-run.json.golden`
 - `scripts/accept/0022-kernel-reference-interpreter.ts`
 - direct property-testing dependencies in `package.json` and `bun.lock`
 
@@ -58,8 +59,9 @@ Python or shell programs, or touching operator-owned `AGENTS.md`.
 bun scripts/accept/0022-kernel-reference-interpreter.ts
 ```
 
-At the design checkpoint, contract artifacts pass and acceptance then fails on
-the absent `src/kernel-interpreter/index.ts` implementation artifact.
+The implementation candidate composes the accepted decoder, checker, and
+machine. Its focused Bun properties and genuine Node golden parity are green.
+Exact feature acceptance and independent review remain before integration.
 
 ## Evidence ledger
 
@@ -69,3 +71,7 @@ the absent `src/kernel-interpreter/index.ts` implementation artifact.
 - 2026-07-31: the contract excludes implementation traces from equivalence and
   treats exhaustion as inconclusive.
 - 2026-07-31: no compiler or optimization was introduced at contract freeze.
+- 2026-07-31: added seeded grammar-aware valid and invalid properties with
+  shrinking through fast-check 4.9.0.
+- 2026-07-31: Bun and genuine Node 24 emitted byte-identical selected
+  `semantic.kernel-run` golden observations.
