@@ -91,7 +91,7 @@ jobs:
           timeout --signal=TERM --kill-after=60s 15m
           nix develop --command bunx alchemy deploy
           apps/control-room/tooling/deploy-static.run.ts
-          --stage "${{ steps.provenance.outputs.stage }}" --yes
+          --stage "${{ steps.provenance.outputs.stage }}"
       - name: Observe served snapshot and target after provider effect
         id: observation
         if: always() && steps.provider.outcome != 'skipped'
@@ -164,7 +164,7 @@ jobs:
         run: >-
           timeout --signal=TERM --kill-after=60s 8m
           nix develop --command bunx alchemy destroy apps/control-room/alchemy.run.ts
-          --stage "${{ steps.cleanup.outputs.stage }}" --yes
+          --stage "${{ steps.cleanup.outputs.stage }}"
       - name: Observe preview removal and target after provider effect
         id: observation
         if: always() && steps.provider.outcome != 'skipped'
