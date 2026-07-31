@@ -20,7 +20,7 @@ Ready parallel work items: **8**.
 | Implement pure inventory realization | implementation | complete | no | 97 | delegate directly |  |
 | Complete inventory evidence-resolution tracer | validation | complete | no | 87 | delegate with review |  |
 | Implement inventory STM realization | implementation | planned | no | 94 | delegate directly | Implement minimal STM runtime |
-| Specify minimal kernel calculus | research | ready | yes | 53 | bounded spike |  |
+| Specify minimal kernel calculus | implementation | in_progress | yes | 53 | bounded spike |  |
 | Specify Lean evidence adapter | research | planned | no | 60 | delegate with review | Specify normalized core artifact |
 | Design lossless incremental frontend | design | planned | no | 75 | delegate with review | Specify normalized core artifact |
 | Specify normalized core artifact | design | ready | no | 45 | bounded spike | Specify minimal kernel calculus |

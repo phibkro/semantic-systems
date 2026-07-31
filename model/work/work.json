@@ -56,16 +56,19 @@
       "id": "work.kernel-spec",
       "kind": "work_item",
       "name": "Specify minimal kernel calculus",
-      "summary": "Write syntax, typing, usage, effects, and operational rules.",
-      "status": "ready",
+      "summary": "Run a finite CBPV-style calculus with usage, effects, handlers, and typed observations.",
+      "status": "in_progress",
       "tags": ["kernel"],
       "attributes": {
-        "phase": "research",
+        "phase": "implementation",
         "effort": 8,
+        "design_spec": "design-specs/0018-minimal-kernel-calculus.md",
+        "plan": "plans/active/0018-minimal-kernel-calculus.md",
         "acceptance": [
           "Judgments and syntax are explicit",
-          "Affine values and one-shot handlers interact soundly",
-          "Reference interpreter agrees with examples"
+          "Affine values and one-shot handlers reject duplicate use",
+          "Checked closed terms return, suspend, exhaust, or reject with typed observations",
+          "The reference evaluator agrees with pinned overlapping oracle fixtures"
         ],
         "delegation": {
           "specification_completeness": 4,

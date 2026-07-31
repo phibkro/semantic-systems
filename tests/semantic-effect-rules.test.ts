@@ -22,6 +22,7 @@ const referencesCuratorHolder = { filename: "/repo/src/references/curator-holder
 const portableStm = { filename: "/repo/src/stm/model.ts" };
 const stmBunMain = { filename: "/repo/src/stm/main-bun.ts" };
 const portableSemanticSystem = { filename: "/repo/src/semantic-system/kernel.ts" };
+const portableKernelCalculus = { filename: "/repo/src/kernel-calculus/machine.ts" };
 
 const runAmbientConsole = (
   events: ReadonlyArray<readonly [visitor: string, node: unknown]>,
@@ -313,6 +314,36 @@ describe("Semantic Systems Effect Oxlint rules", () => {
         {
           message:
             "Keep Effect programs composable; execute them only in main-bun.ts or main-node.ts",
+        },
+      ],
+    );
+  });
+
+  test("the kernel calculus closure rejects ambient runtime authority", () => {
+    Testing.expectDiagnostics(
+      Testing.runRule(
+        portableRuntimeImports,
+        "ImportDeclaration",
+        Testing.importDecl("node:crypto"),
+        portableKernelCalculus,
+      ),
+      [
+        {
+          message:
+            "Portable semantic code must request Effect services; provide Bun or Node layers only in main entrypoints",
+        },
+      ],
+    );
+    Testing.expectDiagnostics(
+      Testing.runRule(
+        ambientNondeterminism,
+        "CallExpression",
+        Testing.callOfMember("Math", "random"),
+        portableKernelCalculus,
+      ),
+      [
+        {
+          message: "Use Effect Clock, Random, or Crypto services instead of ambient nondeterminism",
         },
       ],
     );
