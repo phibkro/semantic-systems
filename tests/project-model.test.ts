@@ -66,7 +66,8 @@ describe("project model Effect v4 slice", () => {
         .filter((item) => item.ready)
         .map((item) => item.entity.id),
     );
-    expect(ready.has("work.kernel-spec")).toBeTrue();
+    expect(ready.has("work.kernel-spec")).toBeFalse();
+    expect(ready.has("work.normalized-core-format")).toBeTrue();
     expect(ready.has("work.stm-runtime")).toBeFalse();
     const path = criticalPath(project);
     expect(path.length).toBeGreaterThan(0);

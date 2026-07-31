@@ -23,6 +23,9 @@ const portableStm = { filename: "/repo/src/stm/model.ts" };
 const stmBunMain = { filename: "/repo/src/stm/main-bun.ts" };
 const portableSemanticSystem = { filename: "/repo/src/semantic-system/kernel.ts" };
 const portableKernelCalculus = { filename: "/repo/src/kernel-calculus/machine.ts" };
+const portableNormalizedCore = { filename: "/repo/src/normalized-core/normalize.ts" };
+const normalizedCoreBunMain = { filename: "/repo/src/normalized-core/main-bun.ts" };
+const normalizedCoreNodeMain = { filename: "/repo/src/normalized-core/main-node.ts" };
 
 const runAmbientConsole = (
   events: ReadonlyArray<readonly [visitor: string, node: unknown]>,
@@ -347,6 +350,78 @@ describe("Semantic Systems Effect Oxlint rules", () => {
         },
       ],
     );
+  });
+
+  test("the normalized core lint domain rejects ambient runtime authority", () => {
+    Testing.expectDiagnostics(
+      Testing.runRule(
+        portableRuntimeImports,
+        "ImportDeclaration",
+        Testing.importDecl("node:crypto"),
+        portableNormalizedCore,
+      ),
+      [
+        {
+          message:
+            "Normalized core has no runtime-adapter exemption; request portable Effect services only",
+        },
+      ],
+    );
+    Testing.expectDiagnostics(
+      Testing.runRule(
+        ambientNondeterminism,
+        "CallExpression",
+        Testing.callOfMember("crypto", "randomUUID"),
+        portableNormalizedCore,
+      ),
+      [
+        {
+          message: "Use Effect Clock, Random, or Crypto services instead of ambient nondeterminism",
+        },
+      ],
+    );
+    Testing.expectDiagnostics(
+      Testing.runRule(
+        effectRuntimeBoundary,
+        "CallExpression",
+        Testing.callOfMember("Effect", "runPromise"),
+        portableNormalizedCore,
+      ),
+      [
+        {
+          message: "Normalized core has no runtime entrypoint; keep Effect programs composable",
+        },
+      ],
+    );
+    for (const forbiddenMain of [normalizedCoreBunMain, normalizedCoreNodeMain]) {
+      Testing.expectDiagnostics(
+        Testing.runRule(
+          portableRuntimeImports,
+          "ImportDeclaration",
+          Testing.importDecl("node:crypto"),
+          forbiddenMain,
+        ),
+        [
+          {
+            message:
+              "Normalized core has no runtime-adapter exemption; request portable Effect services only",
+          },
+        ],
+      );
+      Testing.expectDiagnostics(
+        Testing.runRule(
+          effectRuntimeBoundary,
+          "CallExpression",
+          Testing.callOfMember("Effect", "runPromise"),
+          forbiddenMain,
+        ),
+        [
+          {
+            message: "Normalized core has no runtime entrypoint; keep Effect programs composable",
+          },
+        ],
+      );
+    }
   });
 
   test("Effect execution is confined to composition entrypoints while internal composition remains open", () => {

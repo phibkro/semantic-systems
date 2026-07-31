@@ -1,0 +1,17 @@
+{
+  "artifact_identity": "sha256:86a6357e12434de54ed7f917ebd091f606f2074bfd8da3130668e251fd5e1eb1",
+  "byte_length": 1755,
+  "semantic_identity": "sha256:154ff23841b0efd87075d176b3d807c67e9d2449880e5bce1c4d69421de99b78",
+  "summary": {
+    "effects": [],
+    "type": {
+      "grade": "1",
+      "tag": "return",
+      "value": {
+        "tag": "int"
+      }
+    },
+    "usage": []
+  },
+  "validation_status": "accepted"
+}

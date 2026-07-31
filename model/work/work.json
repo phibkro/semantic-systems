@@ -57,13 +57,20 @@
       "kind": "work_item",
       "name": "Specify minimal kernel calculus",
       "summary": "Run a finite CBPV-style calculus with usage, effects, handlers, and typed observations.",
-      "status": "in_progress",
+      "status": "complete",
       "tags": ["kernel"],
       "attributes": {
-        "phase": "implementation",
+        "phase": "validation",
         "effort": 8,
         "design_spec": "design-specs/0018-minimal-kernel-calculus.md",
         "plan": "plans/active/0018-minimal-kernel-calculus.md",
+        "completion": {
+          "implementation_head": "d436176d3b652b81b19ec81716dcde88dda848ca",
+          "integration_head": "f461cb38960493c044459c58374d6d1aa12bda3b",
+          "feature_acceptance": "runtime_validation",
+          "integration_gate": "test_and_static_analysis",
+          "independent_review": "assertion"
+        },
         "acceptance": [
           "Judgments and syntax are explicit",
           "Affine values and one-shot handlers reject duplicate use",

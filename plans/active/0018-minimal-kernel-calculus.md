@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0018-minimal-kernel-calculus.md`](../../design-specs/0018-minimal-kernel-calculus.md).
 This mutable record cannot change that contract.
 
-Status: implementation candidate green. Awaiting independent review and integration
+Status: integrated and accepted
 
 Owner: primary Semantic Systems lead
 
@@ -170,3 +170,8 @@ authority, Node divergence, model drift, or an unrun required tool.
   only shared ignored `.lake/build` artifacts; those are declared derived local
   oracle output, not source or project evidence mutations. The temporary
   worktree is removed after the observation.
+- 2026-07-31: independent final review accepted candidate
+  `d436176d3b652b81b19ec81716dcde88dda848ca`. Clean integration at
+  `f461cb38960493c044459c58374d6d1aa12bda3b` passed exact feature acceptance
+  and the full repository gate. The accepted program custody seam now unblocks
+  normalized-core format 0019.

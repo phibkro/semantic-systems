@@ -37,10 +37,13 @@
       "kind": "artifact",
       "name": "Normalized semantic core artifact",
       "summary": "Canonical project-owned representation consumed by checkers, evidence producers, analyzers, and backends.",
-      "status": "research",
+      "status": "design",
       "tags": ["semantics", "contract"],
       "attributes": {
         "canonical": true,
+        "format": "semantic.normalized-core",
+        "version": 1,
+        "design_spec": "design-specs/0019-normalized-core-format.md",
         "requirements": [
           "deterministic normalization",
           "stable entity identities",
@@ -90,11 +93,7 @@
       "status": "planned",
       "tags": ["compiler", "optimization"],
       "attributes": {
-        "responsibilities": [
-          "multi-level lowering",
-          "translation validation",
-          "backend isolation"
-        ],
+        "responsibilities": ["multi-level lowering", "translation validation", "backend isolation"],
         "preferred_pattern": "project IR with optional MLIR and LLVM adapters"
       }
     },

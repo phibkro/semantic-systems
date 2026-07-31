@@ -3,8 +3,16 @@ import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import * as Ref from "effect/Ref";
 
+const normalizedCoreProgram = (filename: string): boolean => {
+  const normalized = filename.replaceAll("\\", "/");
+  return (
+    normalized.includes("/src/normalized-core/") || normalized.startsWith("src/normalized-core/")
+  );
+};
+
 const portableSemanticProgram = (filename: string): boolean => {
   const normalized = filename.replaceAll("\\", "/");
+  const inNormalizedCore = normalizedCoreProgram(filename);
   const inPortableProgram = [
     "/src/project-model/",
     "/src/tracer/",
@@ -13,6 +21,7 @@ const portableSemanticProgram = (filename: string): boolean => {
     "/src/stm/",
     "/src/semantic-system/",
     "/src/kernel-calculus/",
+    "/src/normalized-core/",
     "src/project-model/",
     "src/tracer/",
     "src/references/",
@@ -20,6 +29,7 @@ const portableSemanticProgram = (filename: string): boolean => {
     "src/stm/",
     "src/semantic-system/",
     "src/kernel-calculus/",
+    "src/normalized-core/",
   ].some((fragment) => normalized.includes(fragment) || normalized.startsWith(fragment));
   const runtimeAdapter = [
     "/main-bun.ts",
@@ -28,7 +38,7 @@ const portableSemanticProgram = (filename: string): boolean => {
     "/references/toml-node.ts",
     "/references/curator-holder.ts",
   ].some((suffix) => normalized.endsWith(suffix));
-  return inPortableProgram && !runtimeAdapter;
+  return inPortableProgram && (inNormalizedCore || !runtimeAdapter);
 };
 
 // Project-model has completed the total-function slice. Tracer still contains
@@ -73,7 +83,9 @@ export const portableRuntimeImports = Rule.define({
             ? report(
                 ctx,
                 node,
-                "Portable semantic code must request Effect services; provide Bun or Node layers only in main entrypoints",
+                normalizedCoreProgram(ctx.filename)
+                  ? "Normalized core has no runtime-adapter exemption; request portable Effect services only"
+                  : "Portable semantic code must request Effect services; provide Bun or Node layers only in main entrypoints",
               )
             : Effect.void,
         ),
@@ -204,7 +216,9 @@ export const effectRuntimeBoundary = Rule.define({
           ? report(
               ctx,
               node,
-              "Keep Effect programs composable; execute them only in main-bun.ts or main-node.ts",
+              normalizedCoreProgram(ctx.filename)
+                ? "Normalized core has no runtime entrypoint; keep Effect programs composable"
+                : "Keep Effect programs composable; execute them only in main-bun.ts or main-node.ts",
             )
           : Effect.void,
       ),
