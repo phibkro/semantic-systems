@@ -6,6 +6,12 @@ The compiler should preserve a traceable chain from human-oriented source to
 executable artifacts while keeping the trusted semantic checker substantially
 smaller than the production toolchain.
 
+The compiler is the middle feedback loop between kernel checking and package
+building. See
+[Language system incremental architecture](language-system-incremental-architecture.md)
+for the graph granularities, receipt boundaries, and cache rules that connect
+these systems.
+
 ## Architectural overview
 
 ```mermaid

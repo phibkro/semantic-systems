@@ -1,5 +1,10 @@
 # Package and Evidence Model
 
+Package actions consume module artifact receipts. They do not inspect compiler
+query graphs or kernel storage layouts. See
+[Language system incremental architecture](language-system-incremental-architecture.md)
+for the boundary between build, compiler, and kernel identities.
+
 ## Package roles
 
 - theory;
