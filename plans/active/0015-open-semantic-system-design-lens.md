@@ -358,6 +358,18 @@ state, and unrelated project-model changes.
   passes with 338 Bun tests/1,770 expectations, zero Effect diagnostics, and
   68 transitional Python custody checks. Clean-head custody and Fable
   re-review remain pending.
+- 2026-07-31: fourteenth independent Fable review rejected exact clean head
+  `b42739a`. Container exclusions held, but HTML parser recovery can place
+  `option` elements outside `select` and `datalist`; a non-empty `label`
+  attribute then substitutes for hidden child prose that the gate counted.
+  Bare, foster-parented, nested-select recovery, whitespace-label, and
+  duplicate-label variants reproduced in Chromium 150.
+- 2026-07-31: `option` and `optgroup` subtrees are now conservatively excluded
+  wherever HTML parsing places them. Focused fixtures cover the five confirmed
+  unsafe-accept variants plus the adjacent grouping boundary. Exact acceptance
+  passes with 15 tests/126 expectations and full integration passes with 338
+  Bun tests/1,776 expectations, zero Effect diagnostics, and 68 transitional
+  Python custody checks. Clean-head custody and Fable re-review remain pending.
 
 ## Acceptance command
 

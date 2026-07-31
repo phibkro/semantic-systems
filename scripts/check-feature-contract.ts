@@ -228,6 +228,8 @@ const NONVISIBLE_HTML_ELEMENTS = new Set([
   "noframes",
   "noscript",
   "object",
+  "optgroup",
+  "option",
   "progress",
   "rp",
   "script",
