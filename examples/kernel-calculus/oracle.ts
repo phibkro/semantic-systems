@@ -13,7 +13,10 @@ export const langBangOracleProvenance = Object.freeze({
   source: "lang-bang",
   commit: "5b8e032bcffefb23a3a153d3f5cea99050e589c1",
   license: "Apache-2.0",
-  method: "independent expected observations; no source copied",
+  method: "independent execution of the pinned Source.eval oracle; no source copied",
+  defaultRoot: "/srv/share/projects/lang-bang",
+  executable: ".lake/build/bin/bang",
+  cleanSourcePaths: Object.freeze(["Main.lean", "Bang", "lakefile.toml", "lean-toolchain"]),
 });
 
 export const finiteOracleTypes = Object.freeze({

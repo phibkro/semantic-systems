@@ -1,7 +1,18 @@
 export type EffectRow = ReadonlyArray<string>;
 
+const compareCodePoints = (left: string, right: string): number => {
+  const leftPoints = Array.from(left, (value) => value.codePointAt(0)!);
+  const rightPoints = Array.from(right, (value) => value.codePointAt(0)!);
+  const length = Math.min(leftPoints.length, rightPoints.length);
+  for (let index = 0; index < length; index += 1) {
+    const order = leftPoints[index]! - rightPoints[index]!;
+    if (order !== 0) return order;
+  }
+  return leftPoints.length - rightPoints.length;
+};
+
 const normalizedLabels = (labels: Iterable<string>): ReadonlyArray<string> =>
-  [...new Set(labels)].sort((left, right) => left.localeCompare(right));
+  [...new Set(labels)].sort(compareCodePoints);
 
 export const effectRow = (...labels: ReadonlyArray<string>): EffectRow =>
   Object.freeze(normalizedLabels(labels));

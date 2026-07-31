@@ -120,11 +120,24 @@ authority, Node divergence, model drift, or an unrun required tool.
   `5b8e032bcffefb23a3a153d3f5cea99050e589c1`; no upstream source was copied.
   The unlicensed `bang-lang` repository was not read or copied.
 - 2026-07-31: the frozen syntax has four handler operands but separately
-  requires rejection of a claimed output row that hides a foreign label. The
-  implementation resolves this by treating `claimedEffects` as an optional
-  checker assertion; the algorithmically inferred row remains authoritative.
-  The zero-fuel counterexample is also honored as the sole non-positive fuel
-  bound, while the trace-retention bound remains positive.
+  requires rejection of a claimed output row that hides a foreign label.
+  Handler terms therefore contain no claimed row. `checkEffectAssertion` is a
+  separate checker judgment over a privately custodied checked program and an
+  asserted row. The program's inferred row remains authoritative, a hidden
+  inferred label reports `effect.foreign-tunneling`, and any other unequal row
+  reports `effect.row-mismatch`. The zero-fuel counterexample is also honored
+  as the sole non-positive fuel bound, while the trace-retention bound remains
+  positive.
+- 2026-07-31: rejection follow-up retained checker-derived latent thunk types
+  under private runtime custody, replaced lossy exhaustion summaries with
+  deterministic finite graph snapshots, made operation-pair keys collision
+  free, replaced locale collation with code-point ordering, and made public
+  result schemas validate semantic structure or private custody.
+- 2026-07-31: the `lang-bang` overlap now executes the existing local
+  `Source.eval` oracle binary against a stable source fixture. The test requires
+  exact upstream head `5b8e032bcffefb23a3a153d3f5cea99050e589c1`,
+  unchanged oracle source paths, and its Apache-2.0 license before recording
+  the observation; it performs no network access and copies no upstream source.
 - 2026-07-31: exact acceptance passed with 27 focused Bun oracles, one genuine
   Node oracle, TypeScript 7 typecheck, strict Oxlint, focused Oxfmt, the
   semantic-effect rules, project-model validation at 123 entities and 179
@@ -134,3 +147,11 @@ authority, Node divergence, model drift, or an unrun required tool.
   formatting, strict lint, TypeScript typecheck, commit policy, model
   validation, and generated-view checks. No provider, network, deployment, or
   external repository effect occurred.
+- 2026-07-31: rejection correction acceptance passed with 30 focused Bun
+  oracles, one genuine Node oracle, the independently executed pinned
+  `lang-bang` observation, TypeScript 7 typecheck, strict Oxlint, focused
+  Oxfmt, semantic-effect rules, project-model validation, and all generated
+  view checks. Full `just check` then passed in the Nix dev shell with 425 Bun
+  tests and 68 Python tests. The pre-existing unsupported kernel-safety warning
+  remains visible. No provider, network, deployment, or external repository
+  mutation occurred.

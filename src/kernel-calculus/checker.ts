@@ -64,9 +64,14 @@ export interface CheckRejected {
 
 export type CheckResult = CheckAccepted | CheckRejected;
 
+export type EffectAssertionResult =
+  | { readonly status: "accepted"; readonly effects: EffectRow }
+  | CheckRejected;
+
 interface CheckedProgramInternals {
   readonly signature: OperationSignature;
   readonly term: ComputationTerm;
+  readonly valueTypes: ReadonlyMap<object, ValueType>;
 }
 
 const checkedCustody = new WeakSet<object>();
@@ -81,11 +86,12 @@ class CheckedProgramImpl implements CheckedProgram {
     effects: EffectRow,
     signature: OperationSignature,
     term: ComputationTerm,
+    valueTypes: ReadonlyMap<object, ValueType>,
   ) {
     this.type = type;
     this.effects = effects;
     checkedCustody.add(this);
-    checkedInternals.set(this, { signature, term });
+    checkedInternals.set(this, { signature, term, valueTypes });
     Object.freeze(this);
   }
 }
@@ -96,6 +102,9 @@ export const requireCheckedProgram = (
   typeof program === "object" && program !== null && checkedCustody.has(program)
     ? checkedInternals.get(program)
     : undefined;
+
+export const isCheckedProgram = (program: unknown): program is CheckedProgram =>
+  typeof program === "object" && program !== null && checkedCustody.has(program);
 
 const frozen = <Value>(value: Value): Value => {
   if (typeof value !== "object" || value === null || Object.isFrozen(value)) return value;
@@ -233,21 +242,36 @@ interface CheckedComputation {
 
 const mergeResumptionUsage = (left: Usage, right: Usage): Usage => addUsage(left, right);
 
+const operationKey = (label: string, operation: string): string =>
+  JSON.stringify([label, operation]);
+
 class AlgorithmicChecker {
   readonly #signature: OperationSignature;
   readonly #operations: ReadonlyMap<string, OperationDeclaration>;
+  readonly valueTypes = new Map<object, ValueType>();
 
   constructor(signature: OperationSignature) {
     this.#signature = signature;
     this.#operations = new Map(
       signature.operations.map((declaration) => [
-        `${declaration.label}\u0000${declaration.operation}`,
+        operationKey(declaration.label, declaration.operation),
         declaration,
       ]),
     );
   }
 
   value(
+    term: ValueTerm,
+    context: ReadonlyArray<ValueType>,
+    resumptions: ReadonlyArray<ResumptionExpectation>,
+    path: string,
+  ): CheckedValue {
+    const checked = this.valueUnchecked(term, context, resumptions, path);
+    this.valueTypes.set(term, checked.type);
+    return checked;
+  }
+
+  private valueUnchecked(
     term: ValueTerm,
     context: ReadonlyArray<ValueType>,
     resumptions: ReadonlyArray<ResumptionExpectation>,
@@ -545,7 +569,7 @@ class AlgorithmicChecker {
         };
       }
       case "operation": {
-        const declaration = this.#operations.get(`${term.label}\u0000${term.operation}`);
+        const declaration = this.#operations.get(operationKey(term.label, term.operation));
         if (declaration === undefined) {
           return fail(
             "signature.operation-unknown",
@@ -715,7 +739,7 @@ class AlgorithmicChecker {
     let clauses: ReadonlyArray<CheckedComputation> = [];
     for (let iteration = 0; iteration <= this.#signature.operations.length; iteration += 1) {
       clauses = term.operationClauses.map((clause, index) => {
-        const declaration = this.#operations.get(`${term.label}\u0000${clause.operation}`)!;
+        const declaration = this.#operations.get(operationKey(term.label, clause.operation))!;
         const checked = this.computation(
           clause.body,
           [declaration.argumentType, ...context],
@@ -762,28 +786,6 @@ class AlgorithmicChecker {
       assumedEffects = next;
     }
 
-    if (term.claimedEffects !== undefined && !effectRowIsSubset(residual, term.claimedEffects)) {
-      return fail(
-        "effect.foreign-tunneling",
-        "handler.output-row",
-        `${path}.claimedEffects`,
-        "handler output row cannot hide a foreign residual label",
-        { expected: residual, actual: term.claimedEffects },
-      );
-    }
-    if (
-      term.claimedEffects !== undefined &&
-      !effectRowsEqual(term.claimedEffects, assumedEffects)
-    ) {
-      return fail(
-        "effect.row-mismatch",
-        "handler.output-row",
-        `${path}.claimedEffects`,
-        "claimed handler output row does not equal the inferred row",
-        { expected: assumedEffects, actual: term.claimedEffects },
-      );
-    }
-
     let usage = addUsage(handled.usage, returned.usage.slice(1));
     let resumptionUsage = addUsage(handled.resumptionUsage, returned.resumptionUsage);
     for (const clause of clauses) {
@@ -817,7 +819,7 @@ const validateSignature = (signature: OperationSignature): KernelDiagnostic | un
         "operation labels and names must be nonempty",
       );
     }
-    const key = `${declaration.label}\u0000${declaration.operation}`;
+    const key = operationKey(declaration.label, declaration.operation);
     if (seen.has(key)) {
       return diagnostic(
         "signature.duplicate-operation",
@@ -843,8 +845,15 @@ export const check = (
       return frozen({ status: "rejected", diagnostics: frozen([invalidSignature]) });
     }
     const term = cloneComputationTerm(termInput);
-    const checked = new AlgorithmicChecker(signature).computation(term, [], [], "$");
-    const program = new CheckedProgramImpl(checked.type, checked.effects, signature, term);
+    const checker = new AlgorithmicChecker(signature);
+    const checked = checker.computation(term, [], [], "$");
+    const program = new CheckedProgramImpl(
+      checked.type,
+      checked.effects,
+      signature,
+      term,
+      checker.valueTypes,
+    );
     return frozen({
       status: "accepted",
       type: checked.type,
@@ -869,4 +878,53 @@ export const check = (
       ]),
     });
   }
+};
+
+export const checkEffectAssertion = (
+  program: CheckedProgram,
+  claimedEffects: EffectRow,
+): EffectAssertionResult => {
+  if (!isCheckedProgram(program)) {
+    return frozen({
+      status: "rejected",
+      diagnostics: frozen([
+        diagnostic(
+          "checked-program.required",
+          "checker.effect-assertion",
+          "$.program",
+          "effect assertion requires a checked program in private custody",
+        ),
+      ]),
+    });
+  }
+  const claimed = effectRow(...claimedEffects);
+  if (!effectRowIsSubset(program.effects, claimed)) {
+    return frozen({
+      status: "rejected",
+      diagnostics: frozen([
+        diagnostic(
+          "effect.foreign-tunneling",
+          "handler.output-row",
+          "$.claimedEffects",
+          "claimed output row cannot hide an inferred effect label",
+          { expected: program.effects, actual: claimed },
+        ),
+      ]),
+    });
+  }
+  if (!effectRowsEqual(program.effects, claimed)) {
+    return frozen({
+      status: "rejected",
+      diagnostics: frozen([
+        diagnostic(
+          "effect.row-mismatch",
+          "checker.effect-assertion",
+          "$.claimedEffects",
+          "claimed output row does not equal the authoritative inferred row",
+          { expected: program.effects, actual: claimed },
+        ),
+      ]),
+    });
+  }
+  return frozen({ status: "accepted", effects: program.effects });
 };

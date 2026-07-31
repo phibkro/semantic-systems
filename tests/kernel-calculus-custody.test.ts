@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
+import { Schema } from "effect";
 import {
   check,
+  CheckResultSchema,
   decodeComputationTerm,
+  EvaluationResultSchema,
   evaluate,
   int,
   operationSignature,
@@ -82,6 +85,22 @@ describe("minimal kernel calculus custody and decode bounds", () => {
       diagnostics: [{ code: "decode.non-data" }],
     });
     expect(reads).toBe(0);
+
+    expect(
+      decodeComputationTerm({
+        kind: "handle",
+        label: "fresh",
+        computation: { kind: "return", grade: "1", value: { kind: "unit" } },
+        returnClause: {
+          body: { kind: "return", grade: "1", value: { kind: "variable", index: 0 } },
+        },
+        operationClauses: [],
+        claimedEffects: [],
+      }),
+    ).toMatchObject({
+      status: "rejected",
+      diagnostics: [{ code: "decode.excess-property", path: "$.claimedEffects" }],
+    });
   });
 
   test("counterexample 16: a structural checked-program lookalike has no execution authority", () => {
@@ -126,5 +145,47 @@ describe("minimal kernel calculus custody and decode bounds", () => {
     if (term.kind !== "return") throw new Error("expected return");
     expect(Object.isFrozen(term.value)).toBeTrue();
     expect(Object.isFrozen(signature.operations)).toBeTrue();
+  });
+
+  test("public result schemas reject forged principal evidence", () => {
+    expect(() =>
+      Schema.decodeUnknownSync(CheckResultSchema)({
+        status: "accepted",
+        type: 42,
+        effects: ["forged"],
+        usage: [],
+        derivation: "not-a-derivation",
+        program: { type: {}, effects: [] },
+      }),
+    ).toThrow();
+    expect(() =>
+      Schema.decodeUnknownSync(EvaluationResultSchema)({
+        status: "returned",
+        value: { kind: "unit", authority: "ambient" },
+        trace: [],
+      }),
+    ).toThrow();
+    expect(() =>
+      Schema.decodeUnknownSync(EvaluationResultSchema)({
+        status: "returned",
+        value: { kind: "unit" },
+        trace: [{ step: "zero", rule: 4, path: null }],
+      }),
+    ).toThrow();
+    expect(() =>
+      Schema.decodeUnknownSync(EvaluationResultSchema)({
+        status: "exhausted",
+        reason: "fuel",
+        machineSnapshot: { format: "kernel-machine-v1", state: "not-json" },
+        trace: [],
+      }),
+    ).toThrow();
+
+    const checked = check(operationSignature([]), returnTerm("1", int(1)));
+    expect(() => Schema.decodeUnknownSync(CheckResultSchema)(checked)).not.toThrow();
+    if (checked.status !== "accepted") throw new Error("expected accepted");
+    expect(() =>
+      Schema.decodeUnknownSync(EvaluationResultSchema)(evaluate(checked.program)),
+    ).not.toThrow();
   });
 });

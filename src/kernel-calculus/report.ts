@@ -1,17 +1,115 @@
 import { Schema } from "effect";
 import { canonicalJson } from "../tracer/canonical.ts";
 import type { JsonObject, JsonValue } from "../tracer/json.ts";
-import type { CheckResult, Derivation, KernelDiagnostic } from "./checker.ts";
-import type { EvaluationResult, MachineTraceEntry, RuntimeValue } from "./machine.ts";
+import {
+  isCheckedProgram,
+  type CheckedProgram,
+  type CheckResult,
+  type Derivation,
+  type KernelDiagnostic,
+} from "./checker.ts";
+import {
+  isExternalSuspension,
+  isMachineSnapshot,
+  isRuntimeResult,
+  isRuntimeValue,
+  type EvaluationResult,
+  type ExternalSuspension,
+  type MachineSnapshot,
+  type MachineTraceEntry,
+  type RuntimeResult,
+  type RuntimeValue,
+} from "./machine.ts";
 import type { ComputationType, ValueType } from "./ast.ts";
+
+const GradeSchema = Schema.Literals(["0", "1", "omega"]);
+const EffectRowSchema = Schema.Array(Schema.String);
+
+export const ValueTypeSchema: Schema.Codec<ValueType> = Schema.suspend(() =>
+  Schema.Union([
+    Schema.Struct({ kind: Schema.Literal("unit") }),
+    Schema.Struct({ kind: Schema.Literal("bool") }),
+    Schema.Struct({ kind: Schema.Literal("int") }),
+    Schema.Struct({
+      kind: Schema.Literal("pair"),
+      first: ValueTypeSchema,
+      second: ValueTypeSchema,
+    }),
+    Schema.Struct({
+      kind: Schema.Literal("thunk"),
+      effects: EffectRowSchema,
+      computation: ComputationTypeSchema,
+    }),
+  ]),
+);
+
+export const ComputationTypeSchema: Schema.Codec<ComputationType> = Schema.suspend(() =>
+  Schema.Union([
+    Schema.Struct({
+      kind: Schema.Literal("return"),
+      grade: GradeSchema,
+      value: ValueTypeSchema,
+    }),
+    Schema.Struct({
+      kind: Schema.Literal("function"),
+      parameter: ValueTypeSchema,
+      grade: GradeSchema,
+      effects: EffectRowSchema,
+      result: ComputationTypeSchema,
+    }),
+  ]),
+);
+
+const isDiagnosticFact = (input: unknown): boolean => {
+  const seen = new WeakSet<object>();
+  let nodes = 0;
+  const visit = (value: unknown, depth: number): boolean => {
+    nodes += 1;
+    if (nodes > 4_096 || depth > 64) return false;
+    if (
+      value === null ||
+      typeof value === "string" ||
+      typeof value === "boolean" ||
+      (typeof value === "number" && Number.isFinite(value))
+    ) {
+      return true;
+    }
+    if (typeof value !== "object") return false;
+    if (isRuntimeResult(value)) return true;
+    if (seen.has(value)) return false;
+    seen.add(value);
+    if (Array.isArray(value)) return value.every((entry) => visit(entry, depth + 1));
+    if (Object.getPrototypeOf(value) !== Object.prototype) return false;
+    const descriptors = Object.getOwnPropertyDescriptors(value);
+    return (
+      Object.getOwnPropertySymbols(value).length === 0 &&
+      Object.values(descriptors).every(
+        (descriptor) =>
+          "value" in descriptor &&
+          descriptor.enumerable === true &&
+          visit(descriptor.value, depth + 1),
+      )
+    );
+  };
+  try {
+    return visit(input, 0);
+  } catch {
+    return false;
+  }
+};
+
+const DiagnosticFactSchema = Schema.declare<unknown>(
+  (input): input is unknown => isDiagnosticFact(input),
+  { identifier: "KernelDiagnosticFact" },
+);
 
 export const KernelDiagnosticSchema = Schema.Struct({
   code: Schema.String,
   rule: Schema.String,
   path: Schema.String,
   message: Schema.String,
-  expected: Schema.optionalKey(Schema.Unknown),
-  actual: Schema.optionalKey(Schema.Unknown),
+  expected: Schema.optionalKey(DiagnosticFactSchema),
+  actual: Schema.optionalKey(DiagnosticFactSchema),
 });
 
 export const DecodeDiagnosticSchema = Schema.Struct({
@@ -20,14 +118,27 @@ export const DecodeDiagnosticSchema = Schema.Struct({
   message: Schema.String,
 });
 
+export const DerivationSchema: Schema.Codec<Derivation> = Schema.suspend(() =>
+  Schema.Struct({
+    rule: Schema.String,
+    path: Schema.String,
+    conclusion: Schema.String,
+    premises: Schema.Array(DerivationSchema),
+  }),
+);
+
+const CheckedProgramSchema = Schema.declare<CheckedProgram>(isCheckedProgram, {
+  identifier: "CustodiedCheckedProgram",
+});
+
 export const CheckResultSchema = Schema.Union([
   Schema.Struct({
     status: Schema.Literal("accepted"),
-    type: Schema.Unknown,
-    effects: Schema.Array(Schema.String),
-    usage: Schema.Array(Schema.Literals(["0", "1", "omega"])),
-    derivation: Schema.Unknown,
-    program: Schema.Unknown,
+    type: ComputationTypeSchema,
+    effects: EffectRowSchema,
+    usage: Schema.Array(GradeSchema),
+    derivation: DerivationSchema,
+    program: CheckedProgramSchema,
   }),
   Schema.Struct({
     status: Schema.Literal("rejected"),
@@ -35,28 +146,64 @@ export const CheckResultSchema = Schema.Union([
   }),
 ]);
 
+export const RuntimeValueSchema = Schema.declare<RuntimeValue>(isRuntimeValue, {
+  identifier: "RuntimeValue",
+});
+
+const RuntimeResultSchema = Schema.declare<RuntimeResult>(isRuntimeResult, {
+  identifier: "RuntimeResult",
+});
+
+export const MachineTraceEntrySchema: Schema.Codec<MachineTraceEntry> = Schema.Struct({
+  step: Schema.Finite.pipe(Schema.check(Schema.isInt(), Schema.isGreaterThanOrEqualTo(0))),
+  rule: Schema.String,
+  path: Schema.String,
+  operation: Schema.optionalKey(
+    Schema.Struct({
+      label: Schema.String,
+      name: Schema.String,
+    }),
+  ),
+  resumption: Schema.optionalKey(Schema.String),
+});
+
+export const OperationRequestSchema = Schema.Struct({
+  label: Schema.String,
+  operation: Schema.String,
+  argument: RuntimeValueSchema,
+  resultType: ValueTypeSchema,
+});
+
+const ExternalSuspensionSchema = Schema.declare<ExternalSuspension>(isExternalSuspension, {
+  identifier: "CustodiedExternalSuspension",
+});
+
+export const MachineSnapshotSchema = Schema.declare<MachineSnapshot>(isMachineSnapshot, {
+  identifier: "ExactMachineSnapshot",
+});
+
 export const EvaluationResultSchema = Schema.Union([
   Schema.Struct({
     status: Schema.Literal("returned"),
-    value: Schema.Unknown,
-    trace: Schema.Array(Schema.Unknown),
+    value: RuntimeResultSchema,
+    trace: Schema.Array(MachineTraceEntrySchema),
   }),
   Schema.Struct({
     status: Schema.Literal("suspended"),
-    request: Schema.Unknown,
-    oneShotToken: Schema.Unknown,
-    trace: Schema.Array(Schema.Unknown),
+    request: OperationRequestSchema,
+    oneShotToken: ExternalSuspensionSchema,
+    trace: Schema.Array(MachineTraceEntrySchema),
   }),
   Schema.Struct({
     status: Schema.Literal("exhausted"),
     reason: Schema.Literals(["fuel", "trace"]),
-    machineSnapshot: Schema.Unknown,
-    trace: Schema.Array(Schema.Unknown),
+    machineSnapshot: MachineSnapshotSchema,
+    trace: Schema.Array(MachineTraceEntrySchema),
   }),
   Schema.Struct({
     status: Schema.Literal("runtime-rejected"),
     diagnostic: KernelDiagnosticSchema,
-    trace: Schema.Array(Schema.Unknown),
+    trace: Schema.Array(MachineTraceEntrySchema),
   }),
 ]);
 
@@ -182,10 +329,8 @@ export const normalizeEvaluationResult = (result: EvaluationResult): JsonObject 
         status: "exhausted",
         reason: result.reason,
         machineSnapshot: {
-          control: result.machineSnapshot.control,
-          path: result.machineSnapshot.path,
-          frames: result.machineSnapshot.frames,
-          nextResumptionIdentity: result.machineSnapshot.nextResumptionIdentity,
+          format: result.machineSnapshot.format,
+          state: result.machineSnapshot.state,
         },
         trace: normalizeTrace(result.trace),
       };

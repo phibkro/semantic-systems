@@ -4,6 +4,7 @@ import {
   canonicalCheckReport,
   canonicalEvaluationReport,
   check,
+  effectRow,
   evaluate,
   int,
   operationSignature,
@@ -21,4 +22,5 @@ test("counterexample 18: genuine Node produces the frozen normalized observation
   assert.equal(checked.status, "accepted");
   if (checked.status !== "accepted") return;
   assert.equal(canonicalEvaluationReport(evaluate(checked.program)), expectedEvaluation);
+  assert.deepEqual(effectRow("😀", "\uE000", "ä", "z"), ["z", "ä", "\uE000", "😀"]);
 });

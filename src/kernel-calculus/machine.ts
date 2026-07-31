@@ -39,7 +39,7 @@ interface RuntimeFunction {
   readonly kind: "function";
 }
 
-type RuntimeResult = RuntimeValue | RuntimeFunction;
+export type RuntimeResult = RuntimeValue | RuntimeFunction;
 
 interface Environment {
   readonly values: ReadonlyArray<RuntimeValue>;
@@ -49,6 +49,7 @@ interface Environment {
 interface ThunkInternals {
   readonly body: ComputationTerm;
   readonly environment: Environment;
+  readonly type: Extract<ValueType, { readonly kind: "thunk" }>;
 }
 
 interface FunctionInternals {
@@ -125,6 +126,7 @@ interface Machine {
   readonly control: Control;
   readonly frames: ReadonlyArray<Frame>;
   readonly signature: OperationSignature;
+  readonly valueTypes: ReadonlyMap<object, ValueType>;
   readonly nextIdentity: number;
 }
 
@@ -201,11 +203,11 @@ export interface MachineTraceEntry {
 }
 
 export interface MachineSnapshot {
-  readonly control: string;
-  readonly path: string;
-  readonly frames: ReadonlyArray<string>;
-  readonly nextResumptionIdentity: number;
+  readonly format: "kernel-machine-v1";
+  readonly state: string;
 }
+
+const machineSnapshotCustody = new WeakSet<object>();
 
 export interface OperationRequest {
   readonly label: string;
@@ -291,7 +293,11 @@ const operationDeclaration = (signature: OperationSignature, label: string, oper
     (declaration) => declaration.label === label && declaration.operation === operation,
   );
 
-const evaluateValue = (term: ValueTerm, environment: Environment): RuntimeValue | undefined => {
+const evaluateValue = (
+  term: ValueTerm,
+  environment: Environment,
+  valueTypes: ReadonlyMap<object, ValueType>,
+): RuntimeValue | undefined => {
   switch (term.kind) {
     case "variable":
       return environment.values[term.index];
@@ -302,12 +308,16 @@ const evaluateValue = (term: ValueTerm, environment: Environment): RuntimeValue 
     case "int":
       return runtimeInt(term.value);
     case "pair": {
-      const first = evaluateValue(term.first, environment);
-      const second = evaluateValue(term.second, environment);
+      const first = evaluateValue(term.first, environment, valueTypes);
+      const second = evaluateValue(term.second, environment, valueTypes);
       return first === undefined || second === undefined ? undefined : runtimePair(first, second);
     }
-    case "thunk":
-      return new RuntimeThunkImpl({ body: term.body, environment });
+    case "thunk": {
+      const type = valueTypes.get(term);
+      return type?.kind === "thunk"
+        ? new RuntimeThunkImpl({ body: term.body, environment, type })
+        : undefined;
+    }
     case "resumption":
       return undefined;
   }
@@ -328,18 +338,9 @@ const runtimeValueHasType = (value: RuntimeValue, type: ValueType): boolean => {
         runtimeValueHasType(value.second, type.second)
       );
     case "thunk":
-      return (
-        value.kind === "thunk" &&
-        thunkCustody.has(value) &&
-        valueTypesEqual(
-          {
-            kind: "thunk",
-            effects: type.effects,
-            computation: type.computation,
-          },
-          type,
-        )
-      );
+      if (value.kind !== "thunk" || !thunkCustody.has(value)) return false;
+      const internals = thunkInternals.get(value);
+      return internals !== undefined && valueTypesEqual(internals.type, type);
   }
 };
 
@@ -361,16 +362,167 @@ const snapshotRuntimeValue = (value: RuntimeValue): RuntimeValue | undefined => 
   }
 };
 
-const machineSnapshot = (machine: Machine): MachineSnapshot =>
-  freeze({
-    control:
-      machine.control.kind === "term"
-        ? `term.${machine.control.term.kind}`
-        : `result.${machine.control.result.kind}`,
-    path: machine.control.path,
-    frames: freeze(machine.frames.map((frame) => frame.kind)),
+const machineSnapshot = (machine: Machine): MachineSnapshot => {
+  type Pending =
+    | { readonly kind: "thunk"; readonly id: string; readonly value: RuntimeThunk }
+    | { readonly kind: "function"; readonly id: string; readonly value: RuntimeFunction }
+    | { readonly kind: "resumption"; readonly id: string; readonly value: InternalResumption };
+
+  const identifiers = new WeakMap<object, string>();
+  const pending: Array<Pending> = [];
+  const heap: Array<unknown> = [];
+  let nextObjectIdentity = 1;
+
+  const reference = (
+    kind: Pending["kind"],
+    value: RuntimeThunk | RuntimeFunction | InternalResumption,
+  ): { readonly ref: string } => {
+    const known = identifiers.get(value);
+    if (known !== undefined) return { ref: known };
+    const id = `object-${nextObjectIdentity}`;
+    nextObjectIdentity += 1;
+    identifiers.set(value, id);
+    pending.push({ kind, id, value } as Pending);
+    return { ref: id };
+  };
+
+  const snapshotValue = (value: RuntimeValue): unknown => {
+    switch (value.kind) {
+      case "unit":
+        return { kind: "unit" };
+      case "bool":
+      case "int":
+        return { kind: value.kind, value: value.value };
+      case "pair":
+        return {
+          kind: "pair",
+          first: snapshotValue(value.first),
+          second: snapshotValue(value.second),
+        };
+      case "thunk":
+        return { kind: "thunk", ...reference("thunk", value) };
+    }
+  };
+
+  const snapshotResult = (result: RuntimeResult): unknown =>
+    result.kind === "function"
+      ? { kind: "function", ...reference("function", result) }
+      : snapshotValue(result);
+
+  const snapshotEnvironment = (environment: Environment): unknown => ({
+    values: environment.values.map(snapshotValue),
+    resumptions: environment.resumptions.map((token) => reference("resumption", token)),
+  });
+
+  const snapshotFrame = (frame: Frame): unknown => {
+    switch (frame.kind) {
+      case "let":
+        return {
+          kind: "let",
+          body: frame.body,
+          environment: snapshotEnvironment(frame.environment),
+          path: frame.path,
+        };
+      case "apply":
+        return {
+          kind: "apply",
+          argument: frame.argument,
+          environment: snapshotEnvironment(frame.environment),
+          path: frame.path,
+        };
+      case "handler":
+        return {
+          kind: "handler",
+          label: frame.label,
+          returnClause: frame.returnClause,
+          operationClauses: frame.operationClauses,
+          environment: snapshotEnvironment(frame.environment),
+          path: frame.path,
+        };
+    }
+  };
+
+  const control =
+    machine.control.kind === "term"
+      ? {
+          kind: "term",
+          term: machine.control.term,
+          environment: snapshotEnvironment(machine.control.environment),
+          path: machine.control.path,
+        }
+      : {
+          kind: "result",
+          result: snapshotResult(machine.control.result),
+          path: machine.control.path,
+        };
+  const frames = machine.frames.map(snapshotFrame);
+
+  while (pending.length > 0) {
+    const item = pending.shift()!;
+    switch (item.kind) {
+      case "thunk": {
+        const internals = thunkInternals.get(item.value);
+        heap.push({
+          id: item.id,
+          kind: item.kind,
+          live: thunkCustody.has(item.value),
+          ...(internals === undefined
+            ? { invalid: true }
+            : {
+                type: internals.type,
+                body: internals.body,
+                environment: snapshotEnvironment(internals.environment),
+              }),
+        });
+        break;
+      }
+      case "function": {
+        const internals = functionInternals.get(item.value);
+        heap.push({
+          id: item.id,
+          kind: item.kind,
+          live: functionCustody.has(item.value),
+          ...(internals === undefined
+            ? { invalid: true }
+            : {
+                body: internals.body,
+                environment: snapshotEnvironment(internals.environment),
+              }),
+        });
+        break;
+      }
+      case "resumption": {
+        const state = internalState.get(item.value);
+        heap.push({
+          id: item.id,
+          kind: item.kind,
+          tokenId: item.value.id,
+          live: internalLive.has(item.value),
+          ...(state === undefined
+            ? { invalid: true }
+            : {
+                expectedType: state.expectedType,
+                handler: snapshotFrame(state.handler),
+                capturedFrames: state.capturedFrames.map(snapshotFrame),
+              }),
+        });
+        break;
+      }
+    }
+  }
+
+  const state = JSON.stringify({
+    control,
+    frames,
+    signature: machine.signature,
+    valueTypes: [...machine.valueTypes].map(([term, type]) => ({ term, type })),
+    heap,
     nextResumptionIdentity: machine.nextIdentity,
   });
+  const snapshot: MachineSnapshot = { format: "kernel-machine-v1", state };
+  machineSnapshotCustody.add(snapshot);
+  return freeze(snapshot);
+};
 
 const validateBounds = (
   bounds: EvaluationBounds,
@@ -468,7 +620,7 @@ const transition = (machine: Machine): Transition => {
             path: frame.path,
           };
         }
-        const argument = evaluateValue(frame.argument, frame.environment);
+        const argument = evaluateValue(frame.argument, frame.environment, machine.valueTypes);
         const internals = functionInternals.get(control.result);
         if (argument === undefined || internals === undefined) {
           return {
@@ -538,7 +690,7 @@ const transition = (machine: Machine): Transition => {
   const term = control.term;
   switch (term.kind) {
     case "return": {
-      const value = evaluateValue(term.value, control.environment);
+      const value = evaluateValue(term.value, control.environment, machine.valueTypes);
       return value === undefined
         ? {
             terminal: rejected(
@@ -584,7 +736,7 @@ const transition = (machine: Machine): Transition => {
         path: control.path,
       };
     case "force": {
-      const value = evaluateValue(term.value, control.environment);
+      const value = evaluateValue(term.value, control.environment, machine.valueTypes);
       const internals =
         value !== undefined && value.kind === "thunk" && thunkCustody.has(value)
           ? thunkInternals.get(value)
@@ -655,7 +807,7 @@ const transition = (machine: Machine): Transition => {
         path: control.path,
       };
     case "operation": {
-      const argument = evaluateValue(term.argument, control.environment);
+      const argument = evaluateValue(term.argument, control.environment, machine.valueTypes);
       const declaration = operationDeclaration(machine.signature, term.label, term.operation);
       if (argument === undefined || declaration === undefined) {
         return {
@@ -778,7 +930,7 @@ const transition = (machine: Machine): Transition => {
       };
     case "resume": {
       const token = control.environment.resumptions[term.resumption];
-      const value = evaluateValue(term.value, control.environment);
+      const value = evaluateValue(term.value, control.environment, machine.valueTypes);
       if (
         token === undefined ||
         !internalKnown.has(token) ||
@@ -954,6 +1106,7 @@ export const evaluate = (
       },
       frames: [],
       signature: internals.signature,
+      valueTypes: internals.valueTypes,
       nextIdentity: 1,
     },
     bounds,
@@ -1021,26 +1174,88 @@ export const resume = (
   );
 };
 
+const exactDataFields = (
+  value: object,
+  fields: ReadonlyArray<string>,
+): Readonly<Record<string, PropertyDescriptor>> | undefined => {
+  try {
+    const descriptors = Object.getOwnPropertyDescriptors(value);
+    if (
+      Object.getOwnPropertySymbols(value).length !== 0 ||
+      Object.keys(descriptors).length !== fields.length ||
+      fields.some((field) => !("value" in (descriptors[field] ?? {}))) ||
+      Object.keys(descriptors).some((field) => !fields.includes(field))
+    ) {
+      return undefined;
+    }
+    return descriptors;
+  } catch {
+    return undefined;
+  }
+};
+
 export const isRuntimeValue = (value: unknown): value is RuntimeValue => {
   if (typeof value !== "object" || value === null) return false;
-  const candidate = value as { readonly kind?: unknown };
-  switch (candidate.kind) {
+  let kindDescriptor: PropertyDescriptor | undefined;
+  try {
+    kindDescriptor = Object.getOwnPropertyDescriptor(value, "kind");
+  } catch {
+    return false;
+  }
+  if (kindDescriptor === undefined || !("value" in kindDescriptor)) return false;
+  switch (kindDescriptor.value) {
     case "unit":
-      return true;
-    case "bool":
-      return typeof (value as { readonly value?: unknown }).value === "boolean";
-    case "int":
-      return Number.isSafeInteger((value as { readonly value?: unknown }).value);
-    case "pair":
+      return exactDataFields(value, ["kind"]) !== undefined;
+    case "bool": {
+      const fields = exactDataFields(value, ["kind", "value"]);
+      return fields !== undefined && typeof fields["value"]!.value === "boolean";
+    }
+    case "int": {
+      const fields = exactDataFields(value, ["kind", "value"]);
+      return fields !== undefined && Number.isSafeInteger(fields["value"]!.value);
+    }
+    case "pair": {
+      const fields = exactDataFields(value, ["kind", "first", "second"]);
       return (
-        isRuntimeValue((value as { readonly first?: unknown }).first) &&
-        isRuntimeValue((value as { readonly second?: unknown }).second)
+        fields !== undefined &&
+        isRuntimeValue(fields["first"]!.value) &&
+        isRuntimeValue(fields["second"]!.value)
       );
+    }
     case "thunk":
-      return thunkCustody.has(value);
+      return exactDataFields(value, ["kind"]) !== undefined && thunkCustody.has(value);
     default:
       return false;
   }
+};
+
+export const isRuntimeThunk = (value: unknown): value is RuntimeThunk =>
+  typeof value === "object" &&
+  value !== null &&
+  (value as { readonly kind?: unknown }).kind === "thunk" &&
+  thunkCustody.has(value);
+
+export const isRuntimeResult = (value: unknown): value is RuntimeResult =>
+  isRuntimeValue(value) ||
+  (typeof value === "object" &&
+    value !== null &&
+    exactDataFields(value, ["kind"])?.["kind"]?.value === "function" &&
+    functionCustody.has(value));
+
+export const isExternalSuspension = (value: unknown): value is ExternalSuspension =>
+  typeof value === "object" &&
+  value !== null &&
+  externalKnown.has(value) &&
+  externalState.get(value) !== undefined;
+
+export const isMachineSnapshot = (value: unknown): value is MachineSnapshot => {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    machineSnapshotCustody.has(value) &&
+    (value as { readonly format?: unknown }).format === "kernel-machine-v1" &&
+    typeof (value as { readonly state?: unknown }).state === "string"
+  );
 };
 
 export const computationResultType = (program: CheckedProgram): ComputationType | undefined =>

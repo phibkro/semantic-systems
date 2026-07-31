@@ -1,3 +1,4 @@
+import { resolve } from "node:path";
 import { describe, expect, test } from "bun:test";
 import {
   addGrades,
@@ -87,6 +88,7 @@ describe("finite calculus law and differential oracles", () => {
         }
       }
     }
+    expect(effectRow("😀", "\uE000", "ä", "z")).toEqual(["z", "ä", "\uE000", "😀"]);
   });
 
   test("counterexample 10: force(thunk(return(V))) agrees with return(V)", () => {
@@ -107,13 +109,52 @@ describe("finite calculus law and differential oracles", () => {
     });
   });
 
-  test("the pinned Apache-2.0 overlap fixture retains independent provenance", () => {
-    expect(langBangOracleProvenance).toEqual({
+  test("the pinned Apache-2.0 overlap fixture executes the independent oracle", async () => {
+    expect(langBangOracleProvenance).toMatchObject({
       source: "lang-bang",
       commit: "5b8e032bcffefb23a3a153d3f5cea99050e589c1",
       license: "Apache-2.0",
-      method: "independent expected observations; no source copied",
+      method: "independent execution of the pinned Source.eval oracle; no source copied",
     });
+    const root = process.env.LANG_BANG_ORACLE_ROOT ?? langBangOracleProvenance.defaultRoot;
+    const head = Bun.spawnSync(["git", "-C", root, "rev-parse", "HEAD"]);
+    expect(head.exitCode).toBe(0);
+    expect(head.stdout.toString().trim()).toBe(langBangOracleProvenance.commit);
+    const sourceStatus = Bun.spawnSync([
+      "git",
+      "-C",
+      root,
+      "diff",
+      "--quiet",
+      "HEAD",
+      "--",
+      ...langBangOracleProvenance.cleanSourcePaths,
+    ]);
+    expect(sourceStatus.exitCode).toBe(0);
+    expect(await Bun.file(resolve(root, "LICENSE")).text()).toContain(
+      "Apache License\n                           Version 2.0",
+    );
+
+    const fixture = resolve(
+      import.meta.dirname,
+      "../examples/kernel-calculus/lang-bang-overlap.bang",
+    );
+    const expected = (
+      await Bun.file(
+        resolve(import.meta.dirname, "../examples/kernel-calculus/lang-bang-overlap.expected.txt"),
+      ).text()
+    ).trim();
+    const observation = Bun.spawnSync([
+      resolve(root, langBangOracleProvenance.executable),
+      "run",
+      "--engine=oracle",
+      "--no-typecheck",
+      fixture,
+    ]);
+    expect(observation.exitCode).toBe(0);
+    expect(observation.stderr.toString()).toBe("");
+    expect(observation.stdout.toString().trim()).toBe(expected);
+
     expect(finiteOracleTypes).toEqual({
       unit: { kind: "unit" },
       bool: { kind: "bool" },

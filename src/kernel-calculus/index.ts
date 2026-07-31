@@ -60,11 +60,21 @@ export {
   removeEffectLabel,
   unionEffectRows,
 } from "./effect-row.ts";
-export { check, computationTypesEqual, valueTypesEqual } from "./checker.ts";
+export {
+  check,
+  checkEffectAssertion,
+  computationTypesEqual,
+  isCheckedProgram,
+  valueTypesEqual,
+} from "./checker.ts";
 export {
   computationResultType,
   defaultEvaluationBounds,
   evaluate,
+  isExternalSuspension,
+  isMachineSnapshot,
+  isRuntimeResult,
+  isRuntimeThunk,
   isRuntimeValue,
   resume,
   runtimeBool,
@@ -76,11 +86,18 @@ export {
   canonicalCheckReport,
   canonicalEvaluationReport,
   CheckResultSchema,
+  ComputationTypeSchema,
   DecodeDiagnosticSchema,
+  DerivationSchema,
   EvaluationResultSchema,
   KernelDiagnosticSchema,
+  MachineSnapshotSchema,
+  MachineTraceEntrySchema,
   normalizeCheckResult,
   normalizeEvaluationResult,
+  OperationRequestSchema,
+  RuntimeValueSchema,
+  ValueTypeSchema,
 } from "./report.ts";
 export type {
   ComputationTerm,
@@ -103,6 +120,7 @@ export type {
   CheckRejected,
   CheckResult,
   Derivation,
+  EffectAssertionResult,
   KernelDiagnostic,
 } from "./checker.ts";
 export type { EffectRow } from "./effect-row.ts";
@@ -117,6 +135,7 @@ export type {
   OperationRequest,
   Returned,
   RuntimeRejected,
+  RuntimeResult,
   RuntimeThunk,
   RuntimeValue,
   Suspended,

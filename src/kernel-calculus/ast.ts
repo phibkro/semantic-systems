@@ -63,7 +63,6 @@ export type ComputationTerm =
       readonly computation: ComputationTerm;
       readonly returnClause: ReturnClause;
       readonly operationClauses: ReadonlyArray<OperationClause>;
-      readonly claimedEffects?: EffectRow;
     }
   | {
       readonly kind: "resume";
@@ -234,9 +233,6 @@ export const cloneComputationTerm = (term: ComputationTerm): ComputationTerm => 
             }),
           ),
         ),
-        ...(term.claimedEffects === undefined
-          ? {}
-          : { claimedEffects: effectRow(...term.claimedEffects) }),
       });
     case "resume":
       return freeze({
@@ -332,7 +328,6 @@ export const handle = (
   computation: ComputationTerm,
   onReturn: ReturnClause,
   clauses: ReadonlyArray<OperationClause>,
-  claimedEffects?: EffectRow,
 ): ComputationTerm =>
   freeze({
     kind: "handle",
@@ -344,7 +339,6 @@ export const handle = (
         freeze({ operation: clause.operation, body: cloneComputationTerm(clause.body) }),
       ),
     ),
-    ...(claimedEffects === undefined ? {} : { claimedEffects: effectRow(...claimedEffects) }),
   });
 export const resumeTerm = (resumptionBinder: number, value: ValueTerm): ComputationTerm =>
   freeze({ kind: "resume", resumption: resumptionBinder, value: cloneValueTerm(value) });
@@ -608,7 +602,7 @@ class Decoder {
       case "handle": {
         this.exact(
           fields,
-          ["kind", "label", "computation", "returnClause", "operationClauses", "claimedEffects"],
+          ["kind", "label", "computation", "returnClause", "operationClauses"],
           path,
         );
         const returnFields = this.node(fields["returnClause"], `${path}.returnClause`, depth + 1);
@@ -629,9 +623,6 @@ class Decoder {
               this.computationTerm(clauseFields["body"], `${clausePath}.body`, depth + 2),
             );
           }),
-          fields["claimedEffects"] === undefined
-            ? undefined
-            : this.row(fields["claimedEffects"], `${path}.claimedEffects`),
         );
       }
       case "resume":

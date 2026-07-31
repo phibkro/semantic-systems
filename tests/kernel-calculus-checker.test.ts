@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   apply,
   check,
+  checkEffectAssertion,
   decodeComputationTerm,
   decodeValueTerm,
   effectRow,
@@ -156,11 +157,36 @@ describe("minimal kernel calculus checker", () => {
       ),
       returnClause(returnTerm("1", variable(0))),
       [operationClause("allocate", resumeTerm(0, int(1)))],
-      effectRow(),
     );
-    expect(check(effectsSignature, term)).toMatchObject({
+    const checked = check(effectsSignature, term);
+    expect(checked).toMatchObject({ status: "accepted", effects: ["foreign"] });
+    if (checked.status !== "accepted") throw new Error("expected accepted");
+    expect(checkEffectAssertion(checked.program, effectRow())).toMatchObject({
       status: "rejected",
       diagnostics: [{ code: "effect.foreign-tunneling", rule: "handler.output-row" }],
+    });
+  });
+
+  test("operation identity is collision-free for arbitrary nonempty strings", () => {
+    const nulSignature = operationSignature([
+      {
+        label: "a\u0000b",
+        operation: "c",
+        argumentType: unitType(),
+        resultType: intType(),
+      },
+      {
+        label: "a",
+        operation: "b\u0000c",
+        argumentType: unitType(),
+        resultType: intType(),
+      },
+    ]);
+    expect(check(nulSignature, operation("1", "a\u0000b", "c", unit()))).toMatchObject({
+      status: "accepted",
+    });
+    expect(check(nulSignature, operation("1", "a", "b\u0000c", unit()))).toMatchObject({
+      status: "accepted",
     });
   });
 

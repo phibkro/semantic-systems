@@ -23,6 +23,8 @@ const requiredArtifacts = [
   "tests/kernel-calculus-custody.test.ts",
   "tests/kernel-calculus-oracle.test.ts",
   "tests/kernel-calculus-node.test.ts",
+  "examples/kernel-calculus/lang-bang-overlap.bang",
+  "examples/kernel-calculus/lang-bang-overlap.expected.txt",
 ] as const;
 
 const requireArtifacts = Effect.forEach(requiredArtifacts, (relativePath) =>
@@ -61,6 +63,7 @@ const program = Effect.gen(function* () {
       "tests/kernel-calculus-custody.test.ts",
       "tests/kernel-calculus-oracle.test.ts",
       "tests/kernel-calculus-node.test.ts",
+      "examples/kernel-calculus",
       "scripts/accept/0018-minimal-kernel-calculus.ts",
     ],
     ["bun", "test", "tests/semantic-effect-rules.test.ts"],
