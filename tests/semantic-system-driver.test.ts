@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { Effect, Result, Schema } from "effect";
+import { Cause, Deferred, Effect, Exit, Fiber, Result, Schema } from "effect";
 import {
   command,
   defineInterpreterRegistry,
@@ -344,6 +344,51 @@ describe("bounded direct semantic-system driver", () => {
         reason: expect.stringContaining("failed without a typed outcome"),
       },
     ]);
+  });
+
+  test("preserves structured interruption across the interpreter seam and runs finalizers", async () => {
+    const component = await run(defineSemanticComponent(makeSpec()));
+    const started = await run(Deferred.make<void>());
+    let finalized = false;
+    const registry = await run(
+      defineInterpreterRegistry(component, [
+        {
+          requestTag: "Persist",
+          interpret: () =>
+            Effect.gen(function* () {
+              yield* Deferred.succeed(started, undefined);
+              return yield* Effect.never;
+            }).pipe(
+              Effect.onInterrupt(() =>
+                Effect.sync(() => {
+                  finalized = true;
+                }),
+              ),
+            ),
+        },
+      ]),
+    );
+    const start = await run(
+      command(component, { messageId: "interrupt", correlationId: "journey" }, { _tag: "Start" }),
+    );
+    const reaction = await run(react(component, { value: 0, confirmed: false }, start));
+
+    const exit = await run(
+      Effect.gen(function* () {
+        const fiber = yield* Effect.forkChild(
+          interpretEffectRequest(component, registry, reaction.effects[0]!),
+        );
+        yield* Deferred.await(started);
+        yield* Fiber.interrupt(fiber);
+        return yield* Fiber.await(fiber);
+      }),
+    );
+
+    expect(finalized).toBeTrue();
+    expect(Exit.isFailure(exit)).toBeTrue();
+    if (Exit.isFailure(exit)) {
+      expect(Cause.hasInterruptsOnly(exit.cause)).toBeTrue();
+    }
   });
 
   test("suspends unknown attempts without replay and exposes remaining work", async () => {

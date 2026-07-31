@@ -4,8 +4,9 @@ Canonical frozen contract:
 [`design-specs/0016-executable-semantic-system-kernel.md`](../../design-specs/0016-executable-semantic-system-kernel.md).
 This mutable execution record cannot redefine that contract.
 
-Status: first independent review rejected; semantic counterexamples under
-correction before dependency integration and exact-head re-review
+Status: final corrected head accepted by independent review; one focused
+interruption regression and this ledger correction await exact-head recheck
+before integration
 
 Owner: primary Semantic Systems lead
 
@@ -201,3 +202,17 @@ unsupported authority claims fail the gate.
   typecheck, commit policy, all tests, 68 transitional Python custody checks,
   model validation at 122 entities/177 relations with the one pre-existing
   visibly unsupported claim, and all eight generated-view checks.
+- 2026-07-31: independent Fable 5 high-effort exact-head review ACCEPTED clean
+  `7901f635a10287dd78a10880da8d928559acf0f5`. It independently reran exact
+  0016 acceptance (33 focused tests/180 expectations), full integration (392
+  Bun tests/2,174 expectations plus 68 transitional Python custody checks),
+  genuine Node parity, and every prior malformed-draft, non-Effect, defect,
+  typed-failure, interruption, no-replay, actor-normalization, and transitive
+  import-closure probe. It found no blocking defects. One low finding was that
+  structured interruption had only live probe evidence rather than a committed
+  focused regression; actor bookkeeping beyond the contracted projection and
+  duplicate runtime oracle literals were informational.
+- 2026-07-31: the accepted interruption behavior is now pinned in the focused
+  driver suite: a blocked interpreter is interrupted only after entering,
+  its finalizer runs, and its exit cause remains interruption-only instead of
+  becoming an unknown interpreter outcome. No production behavior changed.
