@@ -464,6 +464,39 @@ describe("autonomous development control loop", () => {
     expect(text(replay)).toContain("ambiguous range ownership: 0010-left, 0011-right");
   });
 
+  test("retains superseded design and plan identities in range ownership", async () => {
+    const fixture = await featureFixture();
+    const ownerDesign = join(fixture.repo, "design-specs", "0005-fixture.md");
+    await Bun.write(
+      ownerDesign,
+      `${await Bun.file(ownerDesign).text()}\nMigrates-Feature-IDs: 0006-retired\n`,
+    );
+    await mkdir(join(fixture.repo, "design-specs", "superseded"), { recursive: true });
+    await mkdir(join(fixture.repo, "plans", "superseded"), { recursive: true });
+    await Bun.write(
+      join(fixture.repo, "design-specs", "superseded", "0006-retired.md"),
+      "# retained historical design\n",
+    );
+    await Bun.write(
+      join(fixture.repo, "plans", "superseded", "0006-retired.md"),
+      "# retained historical plan\n",
+    );
+    const head = commit(fixture.repo, "test: retain superseded migration identity");
+    const replay = runFeatureTool(
+      FEATURE_RUNNER,
+      fixture.repo,
+      "--mode",
+      "range",
+      "--base",
+      fixture.base,
+      "--head",
+      head,
+    );
+    expect(replay.exitCode).toBe(0);
+    expect(text(replay)).toContain("contract migrations owned by 0005-fixture");
+    expect(text(replay)).toContain("0006-retired");
+  });
+
   test("rejects a newly added low-number contract as invented pre-lens lineage", async () => {
     const fixture = await featureFixture();
     const ownerDesign = join(fixture.repo, "design-specs", "0005-fixture.md");

@@ -506,8 +506,8 @@ export const nonTrivialPaths = (paths: string[]): string[] =>
 export const featureIdsFromContractPaths = (paths: string[]): string[] => {
   const ids = new Set<string>();
   const patterns = [
-    /^design-specs\/([0-9]{4}-[a-z0-9]+(?:-[a-z0-9]+)*)\.md$/,
-    /^plans\/(?:active|completed)\/([0-9]{4}-[a-z0-9]+(?:-[a-z0-9]+)*)\.md$/,
+    /^design-specs\/(?:superseded\/)?([0-9]{4}-[a-z0-9]+(?:-[a-z0-9]+)*)\.md$/,
+    /^plans\/(?:active|completed|superseded)\/([0-9]{4}-[a-z0-9]+(?:-[a-z0-9]+)*)\.md$/,
     /^scripts\/accept\/([0-9]{4}-[a-z0-9]+(?:-[a-z0-9]+)*)\.ts$/,
   ];
   for (const path of paths) {
