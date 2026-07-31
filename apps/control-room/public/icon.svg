@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-label="Semantic Systems">
-  <rect width="192" height="192" rx="42" fill="#082f49"/>
-  <circle cx="96" cy="96" r="58" fill="none" stroke="#67e8f9" stroke-width="16"/>
-  <circle cx="96" cy="96" r="18" fill="#fbbf24"/>
-  <path d="M96 38v40M96 114v40M38 96h40M114 96h40" stroke="#f5f7f2" stroke-width="10" stroke-linecap="round"/>
+  <rect width="192" height="192" rx="42" fill="oklch(0.2935 0.0632 243.2)"/>
+  <circle cx="96" cy="96" r="58" fill="none" stroke="oklch(0.8651 0.1153 207.1)" stroke-width="16"/>
+  <circle cx="96" cy="96" r="18" fill="oklch(0.8369 0.1644 84.4)"/>
+  <path d="M96 38v40M96 114v40M38 96h40M114 96h40" stroke="oklch(0.9732 0.0069 124.4)" stroke-width="10" stroke-linecap="round"/>
 </svg>

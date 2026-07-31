@@ -1,6 +1,8 @@
 import { lstat, readdir, readFile } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
-import { Console, Effect } from "effect";
+import { Console, Effect, Schema } from "effect";
+import { PublicPortfolioVersionSchema } from "../../../src/portfolio-model/public-export.ts";
+import { verifyPortfolioCandidate } from "../src/portfolio-snapshot.ts";
 import { isPublicVersion, verifyCandidate } from "../src/snapshot.ts";
 
 const EXACT_COMMIT = /^[0-9a-f]{40}$/;
@@ -16,7 +18,10 @@ const ALLOWED_FILES = [
   /^workbox-[0-9a-f]+\.js$/,
   /^assets\/index-[A-Za-z0-9_-]+\.css$/,
   /^assets\/index-[A-Za-z0-9_-]+\.js$/,
+  /^assets\/geist-[A-Za-z0-9_-]+\.woff2$/,
   /^assets\/workbox-window\.prod\.es5-[A-Za-z0-9_-]+\.js$/,
+  /^data\/portfolio-version\.json$/,
+  /^data\/portfolio\.[0-9a-f]{64}\.json$/,
   /^data\/version\.json$/,
   /^data\/snapshot\.[0-9a-f]{64}\.json$/,
 ] as const;
@@ -36,6 +41,7 @@ const FORBIDDEN = [
 export interface StaticArtifactObservation {
   readonly commit: string;
   readonly fileCount: number;
+  readonly portfolioDigest: string;
   readonly snapshotDigest: string;
   readonly treeDigest: string;
 }
@@ -112,9 +118,18 @@ export const validateStaticArtifact = async (
   const files = await walkArtifact(root);
   const versions = files.filter((file) => file === "data/version.json");
   const snapshots = files.filter((file) => /^data\/snapshot\.[0-9a-f]{64}\.json$/.test(file));
+  const portfolioVersions = files.filter((file) => file === "data/portfolio-version.json");
+  const portfolioSnapshots = files.filter((file) =>
+    /^data\/portfolio\.[0-9a-f]{64}\.json$/.test(file),
+  );
   if (versions.length !== 1 || snapshots.length !== 1) {
     throw new Error(
       `expected one version and one snapshot, found ${versions.length} and ${snapshots.length}`,
+    );
+  }
+  if (portfolioVersions.length !== 1 || portfolioSnapshots.length !== 1) {
+    throw new Error(
+      `expected one portfolio version and snapshot, found ${portfolioVersions.length} and ${portfolioSnapshots.length}`,
     );
   }
 
@@ -144,14 +159,36 @@ export const validateStaticArtifact = async (
   const snapshotValue: unknown = JSON.parse(decode(snapshots[0]!));
   await verifyCandidate(versionValue, snapshotValue);
 
+  const portfolioVersionValue: unknown = JSON.parse(decode(portfolioVersions[0]!));
+  const portfolioVersion = Schema.decodeUnknownSync(PublicPortfolioVersionSchema, {
+    onExcessProperty: "error",
+  })(portfolioVersionValue);
+  if (portfolioVersion.commit !== versionValue.commit) {
+    throw new Error("semantic and portfolio observations do not share one source commit");
+  }
+  if (expectedCommit !== undefined && portfolioVersion.commit !== expectedCommit) {
+    throw new Error("portfolio artifact commit does not match the triggering workflow head");
+  }
+  if (`data/${portfolioVersion.snapshot}` !== portfolioSnapshots[0]) {
+    throw new Error("portfolio snapshot filename is not bound to portfolio-version.json");
+  }
+  const portfolioSnapshotValue: unknown = JSON.parse(decode(portfolioSnapshots[0]!));
+  await verifyPortfolioCandidate(portfolioVersion, portfolioSnapshotValue);
+
   if (!files.includes("sw.js")) {
     throw new Error("built PWA is missing sw.js");
   }
   const worker = decode("sw.js");
-  if (worker.includes("data/version.json") || worker.includes(versionValue.snapshot)) {
+  if (
+    worker.includes("data/version.json") ||
+    worker.includes(versionValue.snapshot) ||
+    worker.includes("data/portfolio-version.json") ||
+    worker.includes(portfolioVersion.snapshot)
+  ) {
     throw new Error("service worker must not precache mutable public snapshot data");
   }
   for (const relativePath of files) {
+    if (relativePath.endsWith(".woff2")) continue;
     const text = decode(relativePath);
     for (const { label, pattern } of FORBIDDEN) {
       if (pattern.test(text)) {
@@ -169,6 +206,7 @@ export const validateStaticArtifact = async (
   return {
     commit: versionValue.commit,
     fileCount: files.length,
+    portfolioDigest: portfolioVersion.digest,
     snapshotDigest: versionValue.digest,
     treeDigest: await sha256(treeEntries.join("")),
   };

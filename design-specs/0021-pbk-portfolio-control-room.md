@@ -69,7 +69,7 @@ snapshots remain inspectable forever.
 `pbk.portfolio/v1` accepts these closed families:
 
 - `StudioDefinition(id, name, summary)`;
-- `ProjectObservation(id, repositoryUrl, head, observedAt, status)`;
+- `ProjectObservation(id, repositoryUrl?, head, observedAt, status)`;
 - `WorkDefinition(id, projectId, kind, status, definitionOfDone, attributes)`
   where kind is `milestone` or `feature` and attributes are bounded typed
   metadata values;

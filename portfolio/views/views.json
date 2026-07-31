@@ -1,0 +1,149 @@
+{
+  "schema_version": "pbk.portfolio-row-set/v1",
+  "rows": [
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "view",
+      "value": {
+        "id": "view.board",
+        "name": "Board",
+        "query": {
+          "labels": {
+            "include_label_ids": [],
+            "include_unlabeled": false,
+            "include_mode": "any",
+            "exclude_label_ids": [],
+            "exclude_unlabeled": false
+          },
+          "where": [
+            {
+              "field": "status",
+              "operator": "in",
+              "value": ["candidate", "planned", "ready", "active", "blocked", "review"]
+            }
+          ]
+        },
+        "traverse": [],
+        "group_by": ["status"],
+        "sort": [{ "field": "priority_rank", "direction": "ascending" }],
+        "fields": ["title", "project_id", "status", "priority_rank"],
+        "presentation": "grid"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "view",
+      "value": {
+        "id": "view.features",
+        "name": "Features",
+        "query": {
+          "labels": {
+            "include_label_ids": [],
+            "include_unlabeled": false,
+            "include_mode": "any",
+            "exclude_label_ids": [],
+            "exclude_unlabeled": false
+          },
+          "where": [{ "field": "kind", "operator": "equals", "value": "feature" }]
+        },
+        "traverse": [],
+        "group_by": [],
+        "sort": [{ "field": "project_id", "direction": "ascending" }],
+        "fields": ["title", "summary", "project_id", "status"],
+        "presentation": "list"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "view",
+      "value": {
+        "id": "view.history",
+        "name": "History",
+        "query": {
+          "labels": {
+            "include_label_ids": [],
+            "include_unlabeled": false,
+            "include_mode": "any",
+            "exclude_label_ids": [],
+            "exclude_unlabeled": false
+          },
+          "where": [{ "field": "status", "operator": "in", "value": ["accepted", "superseded"] }]
+        },
+        "traverse": [],
+        "group_by": [],
+        "sort": [{ "field": "id", "direction": "ascending" }],
+        "fields": ["title", "project_id", "status"],
+        "presentation": "list"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "view",
+      "value": {
+        "id": "view.overview",
+        "name": "Overview",
+        "query": {
+          "labels": {
+            "include_label_ids": [],
+            "include_unlabeled": false,
+            "include_mode": "any",
+            "exclude_label_ids": [],
+            "exclude_unlabeled": false
+          },
+          "where": []
+        },
+        "traverse": [],
+        "group_by": [],
+        "sort": [{ "field": "project_id", "direction": "ascending" }],
+        "fields": ["title", "project_id", "status"],
+        "presentation": "list"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "view",
+      "value": {
+        "id": "view.roadmap",
+        "name": "Roadmap graph",
+        "query": {
+          "labels": {
+            "include_label_ids": [],
+            "include_unlabeled": false,
+            "include_mode": "any",
+            "exclude_label_ids": [],
+            "exclude_unlabeled": false
+          },
+          "where": []
+        },
+        "traverse": ["contains", "requires"],
+        "group_by": ["project_id"],
+        "sort": [{ "field": "id", "direction": "ascending" }],
+        "fields": ["title", "project_id", "status", "work.discipline", "work.layer"],
+        "presentation": "dag"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "view",
+      "value": {
+        "id": "view.roadmap-mosaic",
+        "name": "Roadmap mosaic",
+        "query": {
+          "labels": {
+            "include_label_ids": [],
+            "include_unlabeled": false,
+            "include_mode": "any",
+            "exclude_label_ids": [],
+            "exclude_unlabeled": false
+          },
+          "where": []
+        },
+        "traverse": ["contains", "requires"],
+        "group_by": ["project_id"],
+        "sort": [{ "field": "id", "direction": "ascending" }],
+        "fields": ["title", "summary", "status", "work.discipline", "work.layer"],
+        "presentation": "mosaic"
+      }
+    }
+  ]
+}

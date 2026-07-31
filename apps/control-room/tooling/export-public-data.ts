@@ -5,6 +5,7 @@ import {
   type ObservationSource,
 } from "../../../src/project-model/public-export.ts";
 import { loadProject } from "../../../src/project-model/loader.ts";
+import { buildPublicPortfolioArtifact, loadPortfolio } from "../../../src/portfolio-model/index.ts";
 
 const sourceFrom = (value: string | undefined): ObservationSource => {
   if (value === "local_preview" || value === "main_ci_assertion" || value === "pr_ci_assertion") {
@@ -40,6 +41,7 @@ const program = Effect.gen(function* () {
   const root = path.resolve(appRoot, "../..");
   const output = path.join(appRoot, "public", "data");
   const project = yield* loadProject(root);
+  const portfolio = yield* loadPortfolio(root);
   const commit = yield* exactCommit(root);
   const now = yield* Clock.currentTimeMillis;
   const observedAt =
@@ -50,6 +52,11 @@ const program = Effect.gen(function* () {
     freshnessSeconds: 86_400,
     deployedCheckStatus: "not_checked",
     observationSource: sourceFrom(Bun.env.CONTROL_ROOM_OBSERVATION_SOURCE ?? "local_preview"),
+  });
+  const portfolioArtifact = yield* buildPublicPortfolioArtifact(portfolio, {
+    commit,
+    observed_at: observedAt,
+    freshness_seconds: 86_400,
   });
 
   yield* fs.makeDirectory(output, { recursive: true });
@@ -64,7 +71,27 @@ const program = Effect.gen(function* () {
   );
   yield* fs.writeFileString(path.join(output, artifact.snapshotName), artifact.snapshotBytes);
   yield* fs.writeFileString(path.join(output, "version.json"), artifact.versionBytes);
-  yield* Console.log(`derived ${artifact.snapshotName} from ${commit}`);
+  yield* Effect.forEach(
+    files.filter(
+      (name) =>
+        name.startsWith("portfolio.") &&
+        name.endsWith(".json") &&
+        name !== portfolioArtifact.snapshot_name,
+    ),
+    (name) => fs.remove(path.join(output, name)),
+    { discard: true },
+  );
+  yield* fs.writeFileString(
+    path.join(output, portfolioArtifact.snapshot_name),
+    portfolioArtifact.snapshot_bytes,
+  );
+  yield* fs.writeFileString(
+    path.join(output, "portfolio-version.json"),
+    portfolioArtifact.version_bytes,
+  );
+  yield* Console.log(
+    `derived ${artifact.snapshotName} and ${portfolioArtifact.snapshot_name} from ${commit}`,
+  );
 }).pipe(Effect.provide([BunFileSystem.layer, BunPath.layer, BunCrypto.layer]));
 
 Effect.runPromise(program).catch((error: unknown) => {

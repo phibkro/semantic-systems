@@ -1,0 +1,49 @@
+{
+  "schema_version": "pbk.portfolio-row-set/v1",
+  "rows": [
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "priority",
+      "value": {
+        "id": "priority.pbk-control-room.01",
+        "work_id": "work.semantic.pbk-control-room",
+        "rank": 1,
+        "asserted_at": "2026-07-31T15:28:13Z",
+        "reason": "The operator wants the portfolio Control Room usable while language implementation proceeds."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "priority",
+      "value": {
+        "id": "priority.kernel-json.01",
+        "work_id": "work.semantic.kernel-json",
+        "rank": 2,
+        "asserted_at": "2026-07-31T15:28:13Z",
+        "reason": "The frozen agent-facing kernel interface is the active language implementation frontier."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "priority",
+      "value": {
+        "id": "priority.surface-language.01",
+        "work_id": "work.semantic.surface-language",
+        "rank": 3,
+        "asserted_at": "2026-07-31T15:28:13Z",
+        "reason": "Surface-language work should follow the frozen kernel boundary without bypassing it."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "priority",
+      "value": {
+        "id": "priority.reef-shape.01",
+        "work_id": "work.reef.repository-shape",
+        "rank": 4,
+        "asserted_at": "2026-07-31T15:28:13Z",
+        "reason": "PBK repositories should converge on reusable quality and delivery shape through Reef."
+      }
+    }
+  ]
+}

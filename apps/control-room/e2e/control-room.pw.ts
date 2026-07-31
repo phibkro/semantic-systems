@@ -1,4 +1,5 @@
-import { expect, test } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
+import { expect, test, type Page } from "@playwright/test";
 import { createHash } from "node:crypto";
 import { readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -28,16 +29,71 @@ const canonicalize = (value: unknown): unknown => {
 
 const canonical = (value: unknown): string => `${JSON.stringify(canonicalize(value))}\n`;
 
-test("phone viewport exposes five views, search, drill-down, and exact provenance", async ({
+const openSemanticRoom = async (page: Page): Promise<void> => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Semantic Systems", exact: true }).click();
+};
+
+const expectNoAxeViolations = async (page: Page, observation: string): Promise<void> => {
+  const result = await new AxeBuilder({ page }).analyze();
+  expect(result.violations, `${observation} has automatically detectable a11y violations`).toEqual(
+    [],
+  );
+};
+
+test("PBK portfolio exposes overview, board, features, roadmap, mosaic, and history", async ({
   page,
 }) => {
   await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Control Room" })).toBeVisible();
+  for (const name of ["Overview", "Board", "Features", "Roadmap", "History"]) {
+    await expect(page.getByRole("tab", { name: new RegExp(name) })).toBeVisible();
+  }
+  await page.getByRole("tab", { name: /Roadmap/ }).click();
+  await expect(page.getByLabel("PBK dependency roadmap")).toContainText("Typed edges");
+  await page.getByRole("tab", { name: "Mosaic" }).click();
+  await expect(
+    page
+      .getByLabel("PBK dependency roadmap")
+      .getByRole("button", { name: "PBK Technologies", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("tab", { name: /Board/ }).click();
+  await expect(page.getByLabel("PBK working horizon board")).toContainText(
+    "Workgraph product journeys",
+  );
+});
+
+test("Axe finds no violations across the primary rendered views", async ({ page }) => {
+  await page.goto("/");
+  await expectNoAxeViolations(page, "PBK overview");
+
+  for (const name of ["Board", "Features", "Roadmap", "History"]) {
+    await page.getByRole("tab", { name: new RegExp(name) }).click();
+    await expectNoAxeViolations(page, `PBK ${name.toLowerCase()}`);
+  }
+
+  await page.getByRole("tab", { name: /Roadmap/ }).click();
+  await page.getByRole("tab", { name: "Mosaic" }).click();
+  await expectNoAxeViolations(page, "PBK roadmap mosaic");
+
+  await openSemanticRoom(page);
+  await expectNoAxeViolations(page, "Semantic pulse");
+  for (const name of ["Systems", "Semantics", "Evidence", "Work"]) {
+    await page.getByRole("button", { name, exact: true }).click();
+    await expectNoAxeViolations(page, `Semantic ${name.toLowerCase()}`);
+  }
+});
+
+test("phone viewport exposes five views, search, drill-down, and exact provenance", async ({
+  page,
+}) => {
+  await openSemanticRoom(page);
   await expect(page.getByRole("heading", { name: "Control Room" })).toBeVisible();
   for (const name of ["Pulse", "Systems", "Semantics", "Evidence", "Work"]) {
     await expect(page.getByRole("button", { name, exact: true })).toBeVisible();
   }
   await expect(page.getByText("Local preview", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Systems" }).click();
+  await page.getByRole("button", { name: "Systems", exact: true }).click();
   await page.getByRole("searchbox", { name: "Search systems" }).fill("explorer");
   const result = page.getByRole("button", { name: /Semantic project explorer/ });
   await expect(result).toBeVisible();
@@ -110,7 +166,7 @@ test("N to N+1 applies atomically and an older version cannot roll back", async 
   };
 
   try {
-    await page.goto("/");
+    await openSemanticRoom(page);
     const originalObservedAt = (
       JSON.parse(originalSnapshotText) as { metadata: { observed_at: string } }
     ).metadata.observed_at;
@@ -150,7 +206,7 @@ test("invalid candidate never replaces last-known-valid state", async ({ page })
   const forgedName = `snapshot.${forged.metadata.digest}.json`;
   const forgedPath = path.join(dataRoot, forgedName);
   try {
-    await page.goto("/");
+    await openSemanticRoom(page);
     const originalCommit = page.getByText(originalVersion.commit, { exact: true });
     await expect(originalCommit).toBeVisible();
     await writeFile(forgedPath, canonical(forged));
@@ -177,7 +233,7 @@ test("installed shell visibly retains its digest-valid snapshot offline", async 
   context,
   page,
 }) => {
-  await page.goto("/");
+  await openSemanticRoom(page);
   await expect(page.getByText("Local preview", { exact: true })).toBeVisible();
   await page.evaluate(async () => {
     await navigator.serviceWorker.ready;
@@ -185,6 +241,7 @@ test("installed shell visibly retains its digest-valid snapshot offline", async 
   await page.reload();
   await context.setOffline(true);
   await page.reload();
+  await page.getByRole("button", { name: "Semantic Systems", exact: true }).click();
   await expect(page.getByText("Offline", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Control Room" })).toBeVisible();
   await expect(page.getByText(/last valid snapshot/)).toBeVisible();

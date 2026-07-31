@@ -1,5 +1,10 @@
-import { useMemo, useState } from "react";
+import { useMachine } from "@xstate/react";
+import { useState, type ReactNode } from "react";
+import { Button } from "@/components/ui/button";
+import { controlRoomMachine, type ControlRoomScope } from "./control-room-machine.ts";
 import type { DataState, PublicEntity, PublicSnapshot, SnapshotState } from "./model.ts";
+import Portfolio from "./Portfolio.tsx";
+import type { PortfolioState } from "./portfolio-snapshot.ts";
 import { useSnapshot } from "./use-snapshot.ts";
 
 type View = "pulse" | "systems" | "semantics" | "evidence" | "work";
@@ -291,14 +296,8 @@ const Detail = ({
   );
   const names = new Map(snapshot.entities.map((item) => [item.id, item.name]));
   return (
-    <div className="dialog-backdrop" role="presentation" onMouseDown={onClose}>
-      <section
-        aria-describedby="entity-detail-summary"
-        aria-modal="true"
-        className="detail"
-        role="dialog"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
+    <div className="dialog-backdrop">
+      <dialog open aria-describedby="entity-detail-summary" aria-modal="true" className="detail">
         <header>
           <div>
             <span className="kind">{entity.kind.replaceAll("_", " ")}</span>
@@ -357,7 +356,7 @@ const Detail = ({
         <a className="source-link" href={entity.source_url} rel="noreferrer" target="_blank">
           Open canonical source at exact commit
         </a>
-      </section>
+      </dialog>
     </div>
   );
 };
@@ -395,32 +394,39 @@ const StatusBanner = ({
   );
 };
 
-export default function App({ provided }: { readonly provided?: SnapshotState }) {
+const SemanticRoom = ({
+  provided,
+  scopeControls,
+}: {
+  readonly provided?: SnapshotState;
+  readonly scopeControls: ReactNode;
+}) => {
   const live = useSnapshot();
   const result = provided ?? live;
   const [view, setView] = useState<View>("pulse");
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("");
   const [selected, setSelected] = useState<PublicEntity | null>(null);
-  const statuses = useMemo(() => {
-    if (result.snapshot === null || view === "pulse") return [];
-    return [
-      ...new Set(
-        result.snapshot.entities
-          .filter((entity) => VIEW_KINDS[view].has(entity.kind))
-          .flatMap((entity) => (entity.status === null ? [] : [entity.status])),
-      ),
-    ].sort();
-  }, [result.snapshot, view]);
+  const statuses =
+    result.snapshot === null || view === "pulse"
+      ? []
+      : [
+          ...new Set(
+            result.snapshot.entities
+              .filter((entity) => VIEW_KINDS[view].has(entity.kind))
+              .flatMap((entity) => (entity.status === null ? [] : [entity.status])),
+          ),
+        ].sort();
 
   return (
-    <div className="app-shell">
+    <div className="app-shell semantic-room">
       <StatusBanner
         result={result}
         onApply={provided === undefined ? live.applyUpdate : () => undefined}
         onRefresh={provided === undefined ? () => void live.refresh() : () => undefined}
       />
       <header className="masthead">
+        {scopeControls}
         <p className="eyebrow">Semantic Systems</p>
         <h1>Control Room</h1>
         <p>Read-only views over a digest-valid, provenance-linked public projection.</p>
@@ -503,5 +509,67 @@ export default function App({ provided }: { readonly provided?: SnapshotState })
         <Detail entity={selected} snapshot={result.snapshot} onClose={() => setSelected(null)} />
       )}
     </div>
+  );
+};
+
+const ScopeSwitch = ({
+  scope,
+  onChange,
+}: {
+  readonly scope: ControlRoomScope;
+  readonly onChange: (scope: ControlRoomScope) => void;
+}) => (
+  <div className="flex w-fit gap-1 rounded-lg bg-muted p-1" aria-label="Control Room scope">
+    <Button
+      aria-pressed={scope === "portfolio"}
+      size="sm"
+      type="button"
+      variant={scope === "portfolio" ? "default" : "ghost"}
+      onClick={() => onChange("portfolio")}
+    >
+      PBK Technologies
+    </Button>
+    <Button
+      aria-pressed={scope === "semantic"}
+      size="sm"
+      type="button"
+      variant={scope === "semantic" ? "default" : "ghost"}
+      onClick={() => onChange("semantic")}
+    >
+      Semantic Systems
+    </Button>
+  </div>
+);
+
+export default function App({
+  provided,
+  providedPortfolio,
+  initialScope,
+}: {
+  readonly provided?: SnapshotState;
+  readonly providedPortfolio?: PortfolioState;
+  readonly initialScope?: ControlRoomScope;
+}) {
+  const [shell, send] = useMachine(controlRoomMachine, {
+    input: { scope: initialScope ?? (provided === undefined ? "portfolio" : "semantic") },
+  });
+  const scope: ControlRoomScope = shell.matches("portfolio") ? "portfolio" : "semantic";
+  const controls = (
+    <ScopeSwitch
+      scope={scope}
+      onChange={(next) =>
+        send(next === "portfolio" ? { type: "scope.portfolio" } : { type: "scope.semantic" })
+      }
+    />
+  );
+  return scope === "portfolio" ? (
+    <div className="app-shell">
+      <Portfolio
+        {...(providedPortfolio === undefined ? {} : { provided: providedPortfolio })}
+        scopeControls={controls}
+      />
+    </div>
+  ) : (
+    <SemanticRoom {...(provided === undefined ? {} : { provided })} scopeControls={controls} />
   );
 }

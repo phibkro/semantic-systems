@@ -1,0 +1,93 @@
+{
+  "schema_version": "pbk.portfolio-row-set/v1",
+  "rows": [
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "relation",
+      "value": {
+        "id": "relation.herdr.01",
+        "source_id": "work.herdr.supervisor",
+        "target_id": "work.herdr.stable-facade",
+        "kind": "contains",
+        "summary": "The supervisor milestone contains the accepted stable lifecycle facade."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "relation",
+      "value": {
+        "id": "relation.herdr.02",
+        "source_id": "work.herdr.supervisor",
+        "target_id": "work.herdr.codex-session",
+        "kind": "contains",
+        "summary": "The supervisor milestone contains native-session observation repair."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "relation",
+      "value": {
+        "id": "relation.herdr.03",
+        "source_id": "work.herdr.codex-session",
+        "target_id": "work.herdr.stable-facade",
+        "kind": "requires",
+        "summary": "Native-session observation extends the accepted stable facade."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "relation",
+      "value": {
+        "id": "relation.semantic.01",
+        "source_id": "work.semantic.language-kernel",
+        "target_id": "work.semantic.kernel-json",
+        "kind": "contains",
+        "summary": "The language-kernel milestone contains the frozen JSON boundary."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "relation",
+      "value": {
+        "id": "relation.semantic.02",
+        "source_id": "work.semantic.language-kernel",
+        "target_id": "work.semantic.surface-language",
+        "kind": "contains",
+        "summary": "The surface language elaborates into the language kernel."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "relation",
+      "value": {
+        "id": "relation.semantic.03",
+        "source_id": "work.semantic.surface-language",
+        "target_id": "work.semantic.kernel-json",
+        "kind": "requires",
+        "summary": "Surface elaboration targets the frozen agent-facing kernel representation."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "relation",
+      "value": {
+        "id": "relation.semantic.04",
+        "source_id": "work.semantic.pbk-control-room",
+        "target_id": "work.semantic.control-room-0017",
+        "kind": "requires",
+        "summary": "Portfolio views extend the accepted phone-first Control Room custody boundary."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "relation",
+      "value": {
+        "id": "relation.studio.01",
+        "source_id": "work.flow.autonomous-studio",
+        "target_id": "work.herdr.stable-facade",
+        "kind": "requires",
+        "summary": "The autonomous studio consumes stable native-harness lifecycle operations."
+      }
+    }
+  ]
+}

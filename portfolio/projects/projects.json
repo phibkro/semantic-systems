@@ -1,0 +1,117 @@
+{
+  "schema_version": "pbk.portfolio-row-set/v1",
+  "rows": [
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "project",
+      "value": {
+        "id": "project.course-data-platform",
+        "name": "Course Decision Product",
+        "summary": "Evidence-backed course discovery and study-planning product.",
+        "repository_url": "https://github.com/phibkro/course-data-platform",
+        "head": "29aa2105e60f114684120b580f339412edd289da",
+        "observed_at": "2026-07-31T15:28:13Z",
+        "status": "active",
+        "preview_url": null
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "project",
+      "value": {
+        "id": "project.flow",
+        "name": "Flow / Flue",
+        "summary": "Local-first coordination plane for governed human and agent work.",
+        "repository_url": "https://github.com/phibkro/flow",
+        "head": "417d751305a406458956e4ab9b3914e0b5538f18",
+        "observed_at": "2026-07-31T15:28:13Z",
+        "status": "active",
+        "preview_url": null
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "project",
+      "value": {
+        "id": "project.herdr-mcp",
+        "name": "Herdr MCP",
+        "summary": "Stable programmatic lifecycle and supervision surface over native agent harnesses.",
+        "repository_url": "https://github.com/phibkro/herdr-mcp",
+        "head": "0448c1658ac323f2e61108b6efdde2915fc19c8f",
+        "observed_at": "2026-07-31T15:28:13Z",
+        "status": "active",
+        "preview_url": null
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "project",
+      "value": {
+        "id": "project.mastra-preview",
+        "name": "Mastra Preview",
+        "summary": "Bounded product evaluation of Mastra as an agent and capability composition layer.",
+        "repository_url": null,
+        "head": "25bea156a54628949549658ef1b614025fc23661",
+        "observed_at": "2026-07-31T15:28:13Z",
+        "status": "active",
+        "preview_url": "https://mastra-preview.phibkro.org"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "project",
+      "value": {
+        "id": "project.qeffect",
+        "name": "QEffect",
+        "summary": "Bounded resource-hazard tracer over Effect v4 programs.",
+        "repository_url": null,
+        "head": "139439ea246a7eb025cd50faee0cbf5096185bca",
+        "observed_at": "2026-07-31T15:28:13Z",
+        "status": "paused",
+        "preview_url": null
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "project",
+      "value": {
+        "id": "project.reef",
+        "name": "Reef",
+        "summary": "Source-distribution tool for reusable repository quality and delivery shape.",
+        "repository_url": null,
+        "head": "8ca2d33a6fa205c689d3d2b9f4168b9830c072b8",
+        "observed_at": "2026-07-31T15:28:13Z",
+        "status": "active",
+        "preview_url": null
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "project",
+      "value": {
+        "id": "project.semantic",
+        "name": "Semantic Systems",
+        "summary": "Language, kernel, runtime, evidence, and semantic project-system development.",
+        "repository_url": "https://github.com/phibkro/semantic-systems",
+        "head": "4b520e9a02d3056d3718cf7ca4d5836170e0c317",
+        "observed_at": "2026-07-31T15:28:13Z",
+        "status": "active",
+        "preview_url": "https://semantic.phibkro.org"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "project",
+      "value": {
+        "id": "project.workgraph",
+        "name": "Workgraph",
+        "summary": "Local-first evidence-bound graph for human and agent work.",
+        "repository_url": "https://github.com/phibkro/workgraph",
+        "head": "6a5c767ec68684399198954e1e02565f69389d44",
+        "observed_at": "2026-07-31T15:28:13Z",
+        "status": "active",
+        "preview_url": null
+      }
+    }
+  ]
+}

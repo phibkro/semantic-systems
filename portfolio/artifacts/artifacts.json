@@ -1,0 +1,77 @@
+{
+  "schema_version": "pbk.portfolio-row-set/v1",
+  "rows": [
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "artifact",
+      "value": {
+        "id": "artifact.herdr.supervisor-spec",
+        "work_id": "work.herdr.stable-facade",
+        "kind": "design",
+        "title": "Stable Herdr agent facade",
+        "href": "https://github.com/phibkro/herdr-mcp/blob/3489ea576519bf71da7b5f7bc91fe9853076d65c/design-specs/0001-stable-herdr-agents.md",
+        "revision": "3489ea576519bf71da7b5f7bc91fe9853076d65c"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "artifact",
+      "value": {
+        "id": "artifact.mastra.project",
+        "work_id": "work.mastra.preview",
+        "kind": "evidence",
+        "title": "Mastra preview contract",
+        "href": "https://github.com/phibkro/mastra-preview/blob/25bea156a54628949549658ef1b614025fc23661/PROJECT.md",
+        "revision": "25bea156a54628949549658ef1b614025fc23661"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "artifact",
+      "value": {
+        "id": "artifact.qeffect.readme",
+        "work_id": "work.qeffect.resource-tracer",
+        "kind": "evidence",
+        "title": "QEffect bounded tracer surface",
+        "href": "https://github.com/phibkro/qeffect/blob/139439ea246a7eb025cd50faee0cbf5096185bca/README.md",
+        "revision": "139439ea246a7eb025cd50faee0cbf5096185bca"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "artifact",
+      "value": {
+        "id": "artifact.semantic.control-room-spec",
+        "work_id": "work.semantic.control-room-0017",
+        "kind": "design",
+        "title": "Control Room reconstruction contract",
+        "href": "https://github.com/phibkro/semantic-systems/blob/26a7625ad4fdd5538efdbec3f28eaa7e0885c38a/design-specs/0017-control-room-reconstruction.md",
+        "revision": "26a7625ad4fdd5538efdbec3f28eaa7e0885c38a"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "artifact",
+      "value": {
+        "id": "artifact.semantic.kernel-json-spec",
+        "work_id": "work.semantic.kernel-json",
+        "kind": "design",
+        "title": "Agent-facing kernel JSON contract",
+        "href": "https://github.com/phibkro/semantic-systems/blob/4b520e9a02d3056d3718cf7ca4d5836170e0c317/design-specs/0020-agent-facing-kernel-json.md",
+        "revision": "4b520e9a02d3056d3718cf7ca4d5836170e0c317"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "artifact",
+      "value": {
+        "id": "artifact.semantic.pbk-spec",
+        "work_id": "work.semantic.pbk-control-room",
+        "kind": "design",
+        "title": "PBK portfolio Control Room contract",
+        "href": "https://github.com/phibkro/semantic-systems/blob/49c471195af3a877f488f14bc467d314537480f7/design-specs/0021-pbk-portfolio-control-room.md",
+        "revision": "49c471195af3a877f488f14bc467d314537480f7"
+      }
+    }
+  ]
+}

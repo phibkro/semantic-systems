@@ -1,0 +1,286 @@
+{
+  "schema_version": "pbk.portfolio-row-set/v1",
+  "rows": [
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
+        "id": "work.course.decision-product",
+        "project_id": "project.course-data-platform",
+        "kind": "milestone",
+        "title": "Course decision product",
+        "summary": "Turn observed course facts and student-owned planning state into trustworthy decisions.",
+        "status": "active",
+        "definition_of_done": [
+          "Students can explore, inspect, save, label, compare, and plan from explicit evidence states."
+        ],
+        "attributes": { "work.discipline": "product-engineering", "work.layer": "product" }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
+        "id": "work.flow.autonomous-studio",
+        "project_id": "project.flow",
+        "kind": "milestone",
+        "title": "Autonomous studio coordination",
+        "summary": "Compose project goals, bounded actors, effects, evidence, and accepted transitions recursively.",
+        "status": "active",
+        "definition_of_done": [
+          "A portfolio goal can decompose into governed project and feature executions with durable receipts."
+        ],
+        "attributes": { "work.discipline": "engineering", "work.layer": "orchestration" }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
+        "id": "work.herdr.codex-session",
+        "project_id": "project.herdr-mcp",
+        "kind": "feature",
+        "title": "Codex native-session observation",
+        "summary": "Preserve an honestly observed resumable native Codex session through the stable lifecycle facade.",
+        "status": "active",
+        "definition_of_done": [
+          "A real Codex lifecycle reports its native session when observed and preserves unknown when it cannot be warranted."
+        ],
+        "attributes": {
+          "work.discipline": "testing",
+          "work.layer": "adapter",
+          "work.harness": "codex"
+        }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
+        "id": "work.herdr.stable-facade",
+        "project_id": "project.herdr-mcp",
+        "kind": "feature",
+        "title": "Stable Herdr agent facade",
+        "summary": "Expose stable identities, typed lifecycle operations, exact waits, and durable supervisor observations.",
+        "status": "accepted",
+        "definition_of_done": [
+          "Callers can create, message, wait for, inspect, suspend, and resume native harness sessions through typed operations."
+        ],
+        "attributes": {
+          "work.discipline": "engineering",
+          "work.layer": "supervision",
+          "work.agent-facing": true
+        }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
+        "id": "work.herdr.supervisor",
+        "project_id": "project.herdr-mcp",
+        "kind": "milestone",
+        "title": "Subscription-backed supervisor runtime",
+        "summary": "Model callers as stable supervisors of native-harness child actors with durable state notification.",
+        "status": "active",
+        "definition_of_done": [
+          "A supervisor reconnects by stable identity and receives warranted child state transitions without polling every child."
+        ],
+        "attributes": {
+          "work.discipline": "design",
+          "work.layer": "supervision",
+          "work.agent-facing": true
+        }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
+        "id": "work.mastra.preview",
+        "project_id": "project.mastra-preview",
+        "kind": "feature",
+        "title": "Mastra composition preview",
+        "summary": "Provide a deployed bounded environment for evaluating Mastra composition workflows.",
+        "status": "accepted",
+        "definition_of_done": [
+          "The preview deploys reproducibly and records observed composition capabilities and limits."
+        ],
+        "attributes": {
+          "work.discipline": "research",
+          "work.layer": "product",
+          "work.public-preview": true
+        }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
+        "id": "work.qeffect.resource-tracer",
+        "project_id": "project.qeffect",
+        "kind": "feature",
+        "title": "Bounded Effect resource tracer",
+        "summary": "Trace declared recurring resource drift and fan-out hazards without claiming heap reachability proof.",
+        "status": "accepted",
+        "definition_of_done": [
+          "The tracer preserves unknown and assumed boundaries and enforces named semantic budgets."
+        ],
+        "attributes": { "work.discipline": "testing", "work.layer": "analysis" }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
+        "id": "work.reef.repository-shape",
+        "project_id": "project.reef",
+        "kind": "feature",
+        "title": "Reusable repository shape",
+        "summary": "Compose versioned domain policies, capabilities, generators, migrations, agent guidance, and conformance gates into the PBK program shape.",
+        "status": "ready",
+        "definition_of_done": [
+          "A repository can adopt and update a versioned PBK shape while retaining explicit local ownership and deviations.",
+          "One declarative profile drives an interactive builder, a typed programmatic API, non-interactive agent input, and deterministic generated artifacts.",
+          "Frontend profiles deploy to Cloudflare Workers through Alchemy v2, while Bun remains the local package and task runtime.",
+          "Every frontend profile installs Axe and escalates tests from Vitest to Browser Mode to Playwright at explicit behavior boundaries.",
+          "Reef can audit and reconcile an existing repository through versioned migrations, exception records, and evidence without erasing local product decisions.",
+          "Generator backends are adapters; Nx generators are evaluated first, while non-Nx repositories remain supported."
+        ],
+        "attributes": {
+          "work.discipline": "delivery",
+          "work.layer": "infrastructure",
+          "work.agent-facing": true,
+          "work.frontend-runtime": "Cloudflare Workers",
+          "work.infrastructure": "Alchemy v2",
+          "work.a11y-gate": "Axe",
+          "work.e2e-runner": "Playwright",
+          "work.reference-products": ["Better-T-Stack", "VoidZero Vite+"],
+          "work.generator-candidates": ["Vite+ local generators", "Nx generators"]
+        }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
+        "id": "work.semantic.control-room-0017",
+        "project_id": "project.semantic",
+        "kind": "feature",
+        "title": "Phone-first Semantic Control Room",
+        "summary": "Reconstruct the project Control Room as a content-addressed, freshness-aware public PWA.",
+        "status": "accepted",
+        "definition_of_done": [
+          "The accepted Semantic snapshot is usable on phone and exposes exact provenance, freshness, work, and evidence."
+        ],
+        "attributes": {
+          "work.discipline": "product-engineering",
+          "work.layer": "product",
+          "work.public-preview": true,
+          "work.frontend-runtime": "Cloudflare Workers"
+        }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
+        "id": "work.semantic.kernel-json",
+        "project_id": "project.semantic",
+        "kind": "feature",
+        "title": "Agent-facing kernel JSON",
+        "summary": "Implement the frozen closed JSON representation and bounded custody envelope for the kernel language.",
+        "status": "active",
+        "definition_of_done": [
+          "Agents can decode, validate, canonicalize, and execute the frozen kernel JSON interface under exact bounds."
+        ],
+        "attributes": {
+          "work.discipline": "engineering",
+          "work.layer": "kernel",
+          "work.agent-facing": true
+        }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
+        "id": "work.semantic.language-kernel",
+        "project_id": "project.semantic",
+        "kind": "milestone",
+        "title": "Semantic language kernel",
+        "summary": "Establish a small explicit kernel that lowers cleanly to the intended CBPV machine.",
+        "status": "active",
+        "definition_of_done": [
+          "Kernel programs have a frozen external representation, checked semantics, and executable lowering evidence."
+        ],
+        "attributes": {
+          "work.discipline": "language-design",
+          "work.layer": "kernel",
+          "work.agent-facing": true
+        }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
+        "id": "work.semantic.pbk-control-room",
+        "project_id": "project.semantic",
+        "kind": "feature",
+        "title": "PBK portfolio Control Room",
+        "summary": "Project the portfolio as queryable Board, Features, graph Roadmap, Mosaic, History, and detail views.",
+        "status": "active",
+        "definition_of_done": [
+          "All portfolio views derive from one strict model and preserve dependency, priority, evidence, and history meaning."
+        ],
+        "attributes": {
+          "work.discipline": "product-engineering",
+          "work.layer": "portfolio",
+          "work.operator-facing": true,
+          "work.public-preview": true
+        }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
+        "id": "work.semantic.surface-language",
+        "project_id": "project.semantic",
+        "kind": "feature",
+        "title": "Surface language grammar",
+        "summary": "Design the readable surface language and Pratt-parsed grammar that elaborates to the frozen kernel interface.",
+        "status": "candidate",
+        "definition_of_done": [
+          "One complete grammar parses, preserves source structure, and elaborates through explicit correspondence evidence."
+        ],
+        "attributes": {
+          "work.discipline": "language-design",
+          "work.layer": "surface-language",
+          "work.agent-facing": true
+        }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
+        "id": "work.workgraph.journeys",
+        "project_id": "project.workgraph",
+        "kind": "milestone",
+        "title": "Workgraph product journeys",
+        "summary": "Close the deliberately red 0002 journeys for the local-first evidence-bound work graph.",
+        "status": "blocked",
+        "definition_of_done": [
+          "All frozen 0002 user journeys pass without weakening evidence or projection custody."
+        ],
+        "attributes": {
+          "work.discipline": "testing",
+          "work.layer": "product",
+          "work.blocker": "incomplete-journeys"
+        }
+      }
+    }
+  ]
+}

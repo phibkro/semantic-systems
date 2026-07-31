@@ -1,6 +1,7 @@
 import { useMachine } from "@xstate/react";
-import type { DataState, SnapshotState } from "./model.ts";
-import { snapshotMachine } from "./snapshot-machine.ts";
+import type { DataState } from "./model.ts";
+import { portfolioMachine } from "./portfolio-machine.ts";
+import type { PortfolioState } from "./portfolio-snapshot.ts";
 
 const TRANSIENT = new Set([
   "hydrating",
@@ -20,16 +21,17 @@ const observedState = (value: unknown, hasSnapshot: boolean): DataState => {
     value === "offline" ||
     value === "invalid" ||
     value === "unavailable"
-  )
+  ) {
     return value;
+  }
   return hasSnapshot ? "stale" : "loading";
 };
 
-export const useSnapshot = (): SnapshotState & {
+export const usePortfolio = (): PortfolioState & {
   readonly refresh: () => void;
   readonly applyUpdate: () => void;
 } => {
-  const [machine, send] = useMachine(snapshotMachine, {
+  const [machine, send] = useMachine(portfolioMachine, {
     input: {
       baseUrl: new URL(import.meta.env.BASE_URL, document.baseURI),
       browser: window,
@@ -37,6 +39,7 @@ export const useSnapshot = (): SnapshotState & {
       storage: localStorage,
     },
   });
+
   return {
     state: observedState(machine.value, machine.context.snapshot !== null),
     snapshot: machine.context.snapshot,

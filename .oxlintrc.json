@@ -5,14 +5,30 @@
     "suspicious": "error",
     "perf": "error"
   },
-  "plugins": ["typescript", "unicorn", "oxc", "import", "promise"],
+  "plugins": ["typescript", "unicorn", "oxc", "import", "promise", "react", "jsx-a11y"],
   "jsPlugins": ["./scripts/oxlint/semantic-effect-rules.ts"],
   "rules": {
     "eqeqeq": "error",
+    "no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          {
+            "name": "react",
+            "importNames": ["useEffect"],
+            "message": "Model lifecycles as XState callback actors or library-owned subscriptions. A rare adapter exception belongs under src/adapters with a reviewed local override."
+          }
+        ]
+      }
+    ],
     "no-await-in-loop": "off",
     "no-throw-literal": "error",
     "promise/always-return": "off",
     "promise/no-multiple-resolved": "error",
+    "react/exhaustive-deps": "error",
+    "react/react-compiler": "error",
+    "react/react-in-jsx-scope": "off",
+    "react/rules-of-hooks": "error",
     "semantic-effect/ambient-console": "error",
     "semantic-effect/ambient-nondeterminism": "error",
     "semantic-effect/effect-runtime-boundary": "error",
