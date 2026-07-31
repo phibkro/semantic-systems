@@ -70,7 +70,7 @@ jobs:
           nix develop --command bun run effect:setup
 
       - name: Assert TypeScript identity
-        run: test "$(nix develop --command ./node_modules/.bin/tsc --version)" = "Version 7.0.2"
+        run: test "$(nix develop --command ./node_modules/.bin/tsc --version)" = "Version 7.0.2+effect-tsgo.0.24.3"
 
       - name: Fast loop
         run: nix develop --command just fast

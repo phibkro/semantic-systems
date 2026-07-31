@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { resolve } from "node:path";
-import { Data, Effect } from "effect";
+import { Config, Data, Effect } from "effect";
 import { runCommand, runMain } from "../lib/command.ts";
 
 class AcceptanceFailure extends Data.TaggedError("AcceptanceFailure")<{
@@ -9,6 +9,10 @@ class AcceptanceFailure extends Data.TaggedError("AcceptanceFailure")<{
 
 const root = resolve(import.meta.dirname, "../..");
 const nodeExecutable = process.env.SEMANTIC_NODE_BIN ?? "node";
+const externalOracleConfig = Config.all({
+  lakeExecutable: Config.nonEmptyString("LANG_BANG_LAKE_BIN"),
+  sourceRoot: Config.nonEmptyString("LANG_BANG_ORACLE_ROOT"),
+});
 
 const requiredArtifacts = [
   "src/kernel-calculus/index.ts",
@@ -39,6 +43,7 @@ const requireArtifacts = Effect.forEach(requiredArtifacts, (relativePath) =>
 );
 
 const program = Effect.gen(function* () {
+  yield* externalOracleConfig;
   yield* requireArtifacts;
 
   for (const command of [

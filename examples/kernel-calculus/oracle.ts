@@ -14,8 +14,6 @@ export const langBangOracleProvenance = Object.freeze({
   commit: "5b8e032bcffefb23a3a153d3f5cea99050e589c1",
   license: "Apache-2.0",
   method: "independent execution of the pinned Source.eval oracle; no source copied",
-  defaultRoot: "/srv/share/projects/lang-bang",
-  defaultLakeExecutable: "/home/nori/.elan/toolchains/leanprover--lean4---v4.30.0/bin/lake",
   toolchain: "leanprover/lean4:v4.30.0",
   executable: ".lake/build/bin/bang",
   buildArtifactPolicy:
