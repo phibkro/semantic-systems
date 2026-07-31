@@ -334,6 +334,22 @@ describe("language-build semantic store", () => {
             },
           },
         );
+        const hostileThrownValue = new Proxy(
+          {},
+          {
+            getPrototypeOf: () => {
+              throw new Error("thrown caller value must remain opaque");
+            },
+          },
+        );
+        const throwingHostileValue = new Proxy(
+          {},
+          {
+            ownKeys: () => {
+              throw hostileThrownValue;
+            },
+          },
+        );
 
         const candidates: ReadonlyArray<unknown> = [
           { ...source, semantic_values: [semanticValue, semanticValue] },
@@ -391,6 +407,7 @@ describe("language-build semantic store", () => {
           { ...source, excess: true },
           revoked.proxy,
           throwing,
+          throwingHostileValue,
         ];
 
         const attempts = yield* Effect.forEach(candidates, (candidate) =>
@@ -405,7 +422,7 @@ describe("language-build semantic store", () => {
       }),
     );
 
-    expect(result.attempts).toHaveLength(12);
+    expect(result.attempts).toHaveLength(13);
     for (const attempt of result.attempts) {
       expect(attempt.after).toEqual(attempt.before);
       expect(attempt.after).toEqual(result.source);
@@ -413,6 +430,46 @@ describe("language-build semantic store", () => {
         expect(attempt.replay.failure).toBeInstanceOf(SemanticStoreSnapshotRejected);
       } else throw new Error("invalid snapshot must fail");
     }
+  });
+
+  test("rejects non-primitive snapshot leaves without observing them", async () => {
+    let leafReads = 0;
+    const hostileLeaf = new Proxy(
+      {},
+      {
+        get: () => {
+          leafReads += 1;
+          throw new Error("snapshot decoder must not observe caller leaf containers");
+        },
+      },
+    );
+    const result = await runStore(
+      Effect.gen(function* () {
+        const store = yield* SemanticStore;
+        yield* store.insert(yield* artifactBytes(1, 1));
+        const before = yield* store.snapshot;
+        const semanticValue = before.semantic_values[0]!;
+        const artifact = semanticValue.artifacts[0]!;
+        const replay = yield* store
+          .replay({
+            ...before,
+            semantic_values: [
+              {
+                ...semanticValue,
+                artifacts: [{ ...artifact, canonical_bytes: hostileLeaf }],
+              },
+            ],
+          })
+          .pipe(Effect.result);
+        return { before, after: yield* store.snapshot, replay };
+      }),
+    );
+
+    expect(leafReads).toBe(0);
+    expect(result.after).toEqual(result.before);
+    if (Result.isFailure(result.replay)) {
+      expect(result.replay.failure).toBeInstanceOf(SemanticStoreSnapshotRejected);
+    } else throw new Error("non-primitive snapshot leaf must fail");
   });
 
   test("turns hostile name-boundary objects into typed failures", async () => {
@@ -478,6 +535,40 @@ describe("language-build semantic store", () => {
     if (Result.isFailure(result.replay)) {
       expect(result.replay.failure).toBeInstanceOf(SemanticStoreSnapshotRejected);
     } else throw new Error("oversized sparse snapshot must fail");
+  });
+
+  test("rejects an oversized dense replay before capturing element descriptors", async () => {
+    let descriptorReads = 0;
+    const dense = new Proxy(
+      Array.from({ length: semanticStoreReplayBounds.semanticValues + 1 }, () => null),
+      {
+        getOwnPropertyDescriptor: (target, key) => {
+          descriptorReads += 1;
+          return Reflect.getOwnPropertyDescriptor(target, key);
+        },
+      },
+    );
+    const result = await runStore(
+      Effect.gen(function* () {
+        const store = yield* SemanticStore;
+        const before = yield* store.snapshot;
+        const replay = yield* store
+          .replay({
+            format: before.format,
+            version: before.version,
+            semantic_values: dense,
+            name_bindings: [],
+          })
+          .pipe(Effect.result);
+        return { before, after: yield* store.snapshot, replay };
+      }),
+    );
+
+    expect(descriptorReads).toBe(1);
+    expect(result.after).toEqual(result.before);
+    if (Result.isFailure(result.replay)) {
+      expect(result.replay.failure).toBeInstanceOf(SemanticStoreSnapshotRejected);
+    } else throw new Error("oversized dense snapshot must fail");
   });
 
   test("decodes the one bounded descriptor snapshot of a stateful proxy", async () => {

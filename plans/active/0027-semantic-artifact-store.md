@@ -118,6 +118,17 @@ bun scripts/accept/0027-semantic-artifact-store.ts
   and replays the captured safe value. The focused suite passes 13 journeys and
   105 assertions; exact reacceptance and one final revision-pinned review remain
   pending.
+- 2026-08-01: revision-pinned review of `30fa574` found that dense over-limit
+  arrays still paid for full descriptor capture, a caller-controlled thrown
+  proxy could defect during `instanceof` error classification, invalid leaf
+  containers remained observable by Schema, and the aggregate artifact-limit
+  explanation could report a remaining allowance as the global limit. Replay
+  now admits array length before descriptor capture, recognizes internal
+  capture rejections through private object identity without inspecting thrown
+  caller values, captures only primitive version 1 leaves, and reports the
+  frozen global artifact bound. Focused counterexamples cover all four paths;
+  the suite passes 15 journeys and 114 assertions. Exact reacceptance and final
+  corrected-head review remain pending.
 
 ## Open review questions
 

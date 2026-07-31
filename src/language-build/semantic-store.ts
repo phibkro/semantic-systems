@@ -86,9 +86,19 @@ export class SemanticStoreSnapshotRejected extends Data.TaggedError(
 
 type DescriptorRecord = Readonly<Record<string, PropertyDescriptor>>;
 
+const snapshotCaptureRejectionReasons = new WeakMap<object, string>();
+
 const rejectSnapshotInput = (reason: string): never => {
-  throw new SemanticStoreSnapshotRejected({ reason });
+  const rejection = Object.freeze({});
+  snapshotCaptureRejectionReasons.set(rejection, reason);
+  throw rejection;
 };
+
+const requireSnapshotString = (input: unknown, label: string): string =>
+  typeof input === "string" ? input : rejectSnapshotInput(`snapshot ${label} must be a string`);
+
+const requireSnapshotNumber = (input: unknown, label: string): number =>
+  typeof input === "number" ? input : rejectSnapshotInput(`snapshot ${label} must be a number`);
 
 const requireRecordDescriptors = (
   input: unknown,
@@ -128,12 +138,25 @@ const requireArraySnapshot = <Value>(
   limitLabel: string,
   seen: WeakSet<object>,
   capture: (value: unknown) => Value,
+  reportedMaximum = maximum,
 ): ReadonlyArray<Value> => {
   if (!Array.isArray(input)) return rejectSnapshotInput("snapshot input must contain arrays");
   if (seen.has(input)) return rejectSnapshotInput("snapshot input must not repeat containers");
   seen.add(input);
   if (Object.getPrototypeOf(input) !== Array.prototype) {
     return rejectSnapshotInput("snapshot input must contain plain arrays");
+  }
+  const admittedLengthDescriptor = Object.getOwnPropertyDescriptor(input, "length");
+  if (
+    admittedLengthDescriptor === undefined ||
+    !("value" in admittedLengthDescriptor) ||
+    typeof admittedLengthDescriptor.value !== "number"
+  ) {
+    return rejectSnapshotInput("snapshot array length could not be admitted");
+  }
+  const admittedLength = admittedLengthDescriptor.value;
+  if (admittedLength > maximum) {
+    return rejectSnapshotInput(`snapshot exceeds ${reportedMaximum} ${limitLabel}`);
   }
   const descriptors = Object.getOwnPropertyDescriptors(input) as DescriptorRecord;
   const lengthDescriptor = descriptors["length"];
@@ -145,7 +168,12 @@ const requireArraySnapshot = <Value>(
     return rejectSnapshotInput("snapshot array length could not be captured");
   }
   const length = lengthDescriptor.value;
-  if (length > maximum) return rejectSnapshotInput(`snapshot exceeds ${maximum} ${limitLabel}`);
+  if (length !== admittedLength) {
+    return rejectSnapshotInput("snapshot array length changed during capture");
+  }
+  if (length > maximum) {
+    return rejectSnapshotInput(`snapshot exceeds ${reportedMaximum} ${limitLabel}`);
+  }
   const keys = Reflect.ownKeys(descriptors);
   if (
     keys.some((key) => typeof key === "symbol") ||
@@ -204,13 +232,23 @@ const snapshotReplayInput = (
                 seen,
               );
               return Object.freeze({
-                artifact_identity: entry["artifact_identity"]!.value,
-                canonical_bytes: entry["canonical_bytes"]!.value,
+                artifact_identity: requireSnapshotString(
+                  entry["artifact_identity"]!.value,
+                  "artifact identity",
+                ),
+                canonical_bytes: requireSnapshotString(
+                  entry["canonical_bytes"]!.value,
+                  "canonical bytes",
+                ),
               });
             },
+            semanticStoreReplayBounds.artifacts,
           );
           return Object.freeze({
-            semantic_identity: value["semantic_identity"]!.value,
+            semantic_identity: requireSnapshotString(
+              value["semantic_identity"]!.value,
+              "semantic identity",
+            ),
             artifacts,
           });
         },
@@ -223,24 +261,28 @@ const snapshotReplayInput = (
         (binding) => {
           const entry = requireRecordDescriptors(binding, ["name", "semantic_identity"], seen);
           return Object.freeze({
-            name: entry["name"]!.value,
-            semantic_identity: entry["semantic_identity"]!.value,
+            name: requireSnapshotString(entry["name"]!.value, "authored name"),
+            semantic_identity: requireSnapshotString(
+              entry["semantic_identity"]!.value,
+              "semantic identity",
+            ),
           });
         },
       );
       return Object.freeze({
-        format: root["format"]!.value,
-        version: root["version"]!.value,
+        format: requireSnapshotString(root["format"]!.value, "format"),
+        version: requireSnapshotNumber(root["version"]!.value, "version"),
         semantic_values: semanticValues,
         name_bindings: nameBindings,
       });
     },
-    catch: (cause) =>
-      cause instanceof SemanticStoreSnapshotRejected
-        ? cause
-        : new SemanticStoreSnapshotRejected({
-            reason: "snapshot input could not be captured",
-          }),
+    catch: (cause) => {
+      const isObject = (typeof cause === "object" && cause !== null) || typeof cause === "function";
+      const reason = isObject ? snapshotCaptureRejectionReasons.get(cause as object) : undefined;
+      return new SemanticStoreSnapshotRejected({
+        reason: reason ?? "snapshot input could not be captured",
+      });
+    },
   });
 
 export type StoreStatus = "stored" | "artifact-hit" | "semantic-hit";
