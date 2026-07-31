@@ -1,10 +1,15 @@
-name: Control Room Alchemy
+name: Control Room Static Artifact
 
+# This workflow is intentionally unprivileged. Pull-request code may build and
+# test its own candidate, but it receives no Cloudflare secret and performs no
+# provider operation. The separate default-branch workflow treats its returned
+# static artifact as untrusted data.
 on:
   push:
     branches: [main]
   pull_request:
-    types: [opened, reopened, synchronize, closed]
+    branches: [main]
+    types: [opened, reopened, synchronize]
 
 permissions:
   contents: read
@@ -14,22 +19,22 @@ env:
   LC_ALL: C.UTF-8
 
 jobs:
-  deploy-production:
-    name: deploy production
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  build-static:
+    name: build unprivileged static artifact
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     concurrency:
-      group: control-room-alchemy-prod
-      cancel-in-progress: false
+      group: control-room-static-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
     env:
-      CONTROL_ROOM_COMMIT: ${{ github.sha }}
-      CONTROL_ROOM_OBSERVATION_SOURCE: main_ci_assertion
+      CONTROL_ROOM_COMMIT: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      CONTROL_ROOM_OBSERVATION_SOURCE: ${{ github.event_name == 'pull_request' && 'pr_ci_assertion' || 'main_ci_assertion' }}
     steps:
-      - name: Check out exact main commit
+      - name: Check out exact candidate commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ env.CONTROL_ROOM_COMMIT }}
           persist-credentials: false
       - name: Install pinned Nix
         uses: DeterminateSystems/nix-installer-action@ef8a148080ab6020fd15196c2084a2eea5ff2d25 # v22
@@ -38,56 +43,7 @@ jobs:
           source-tag: v3.21.8
           nix-package-url: https://releases.nixos.org/nix/nix-2.34.8/nix-2.34.8-x86_64-linux.tar.xz
           diagnostic-endpoint: ""
-      - name: Verify exact checkout
-        run: test "${GITHUB_SHA}" = "$(git rev-parse HEAD)" && test -z "$(git status --porcelain)"
-      - name: Install exact dependencies
-        run: nix develop --command bun install --frozen-lockfile --ignore-scripts
-      - name: Attach Effect diagnostics
-        run: nix develop --command bun run effect:setup
-      - name: Validate repository
-        run: nix develop --command just check
-      - name: Check and build Control Room
-        run: nix develop --command bun run --cwd apps/control-room check
-      - name: Exercise root-base mobile PWA
-        run: nix develop --command bun run --cwd apps/control-room test:browser
-      - name: Scan final public payload
-        run: nix develop --command bun run --cwd apps/control-room scan
-      - name: Deploy production stage
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: >-
-          nix develop --command bunx alchemy deploy apps/control-room/alchemy.run.ts
-          --stage prod --yes
-
-  deploy-preview:
-    name: deploy preview
-    if: github.event_name == 'pull_request' && github.event.action != 'closed' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    permissions:
-      contents: read
-      pull-requests: write
-    concurrency:
-      group: control-room-alchemy-pr-${{ github.event.pull_request.number }}
-      cancel-in-progress: false
-    env:
-      CONTROL_ROOM_COMMIT: ${{ github.event.pull_request.head.sha }}
-      CONTROL_ROOM_OBSERVATION_SOURCE: pr_ci_assertion
-    steps:
-      - name: Check out exact same-repository PR head
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          persist-credentials: false
-      - name: Install pinned Nix
-        uses: DeterminateSystems/nix-installer-action@ef8a148080ab6020fd15196c2084a2eea5ff2d25 # v22
-        with:
-          determinate: false
-          source-tag: v3.21.8
-          nix-package-url: https://releases.nixos.org/nix/nix-2.34.8/nix-2.34.8-x86_64-linux.tar.xz
-          diagnostic-endpoint: ""
-      - name: Verify exact PR checkout
+      - name: Verify exact candidate checkout
         run: test "${CONTROL_ROOM_COMMIT}" = "$(git rev-parse HEAD)" && test -z "$(git status --porcelain)"
       - name: Install exact dependencies
         run: nix develop --command bun install --frozen-lockfile --ignore-scripts
@@ -100,58 +56,16 @@ jobs:
       - name: Exercise root-base mobile PWA
         run: nix develop --command bun run --cwd apps/control-room test:browser
       - name: Scan final public payload
-        run: nix develop --command bun run --cwd apps/control-room scan
-      - name: Resolve exact preview identity
-        id: deployment
         run: >-
-          nix develop --command bun apps/control-room/tooling/deployment-identity.ts
-          deploy "p${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
-      - name: Deploy preview stage
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: >-
-          nix develop --command bunx alchemy deploy apps/control-room/alchemy.run.ts
-          --stage "${{ steps.deployment.outputs.stage }}" --yes
-      - name: Report preview URL
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: >-
-          gh pr comment "${{ github.event.pull_request.number }}" --edit-last --create-if-none
-          --body "Control Room preview: ${{ steps.deployment.outputs.url }} at commit ${{ github.event.pull_request.head.sha }}."
-
-  cleanup-preview:
-    name: cleanup preview
-    if: github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    concurrency:
-      group: control-room-alchemy-pr-${{ github.event.pull_request.number }}
-      cancel-in-progress: false
-    steps:
-      - name: Check out trusted target-branch commit
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+          nix develop --command bun apps/control-room/tooling/scan-public-payload.ts
+          "$(pwd)/apps/control-room/dist" "${CONTROL_ROOM_COMMIT}"
+      - name: Upload one immutable static artifact
+        id: upload
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          ref: ${{ github.event.pull_request.merged && github.sha || github.event.pull_request.base.sha }}
-          persist-credentials: false
-      - name: Install pinned Nix
-        uses: DeterminateSystems/nix-installer-action@ef8a148080ab6020fd15196c2084a2eea5ff2d25 # v22
-        with:
-          determinate: false
-          source-tag: v3.21.8
-          nix-package-url: https://releases.nixos.org/nix/nix-2.34.8/nix-2.34.8-x86_64-linux.tar.xz
-          diagnostic-endpoint: ""
-      - name: Install exact dependencies
-        run: nix develop --command bun install --frozen-lockfile --ignore-scripts
-      - name: Resolve typed preview-only cleanup target
-        id: cleanup
-        run: >-
-          nix develop --command bun apps/control-room/tooling/deployment-identity.ts
-          cleanup "p${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
-      - name: Destroy preview stage
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: >-
-          nix develop --command bunx alchemy destroy apps/control-room/alchemy.run.ts
-          --stage "${{ steps.cleanup.outputs.stage }}" --yes
+          name: control-room-static-${{ github.run_id }}-${{ github.run_attempt }}
+          path: apps/control-room/dist
+          if-no-files-found: error
+          include-hidden-files: false
+          overwrite: false
+          retention-days: 7

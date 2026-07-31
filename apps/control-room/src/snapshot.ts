@@ -51,6 +51,12 @@ const ENTITY_KEYS = [
 ] as const;
 const RELATION_KEYS = ["kind", "source_id", "source_url", "summary", "target_id"] as const;
 const VERSION_KEYS = ["commit", "digest", "observed_at", "schema_version", "snapshot"] as const;
+const CACHE_KEYS = ["snapshot", "version"] as const;
+
+interface CachedSnapshotPair {
+  readonly snapshot: PublicSnapshot;
+  readonly version: PublicVersion;
+}
 
 export class SnapshotCandidateError extends Error {
   readonly kind: "invalid" | "unavailable";
@@ -252,10 +258,32 @@ export const freshnessState = (
 export const isRollback = (current: PublicSnapshot, next: PublicVersion): boolean =>
   Date.parse(next.observed_at) <= Date.parse(current.metadata.observed_at);
 
-export const readCachedSnapshot = (storage: Storage = localStorage): PublicSnapshot | null => {
+const versionForSnapshot = (snapshot: PublicSnapshot): PublicVersion => ({
+  schema_version: VERSION_SCHEMA,
+  commit: snapshot.metadata.commit,
+  digest: snapshot.metadata.digest,
+  observed_at: snapshot.metadata.observed_at,
+  snapshot: `snapshot.${snapshot.metadata.digest}.json`,
+});
+
+const isCachedSnapshotPair = (value: unknown): value is CachedSnapshotPair =>
+  isRecord(value) &&
+  hasExactKeys(value, CACHE_KEYS) &&
+  isPublicVersion(value.version) &&
+  isPublicSnapshot(value.snapshot);
+
+/**
+ * Cached bytes are untrusted input. Hydration deliberately remains
+ * asynchronous so callers cannot render a schema-shaped snapshot before its
+ * persisted version binding and content digest have both been recomputed.
+ */
+export const readCachedSnapshot = async (
+  storage: Storage = localStorage,
+): Promise<PublicSnapshot | null> => {
   try {
     const value: unknown = JSON.parse(storage.getItem(CACHE_KEY) ?? "null");
-    return isPublicSnapshot(value) ? value : null;
+    if (!isCachedSnapshotPair(value)) return null;
+    return await verifyCandidate(value.version, value.snapshot);
   } catch {
     return null;
   }
@@ -265,7 +293,13 @@ export const writeCachedSnapshot = (
   snapshot: PublicSnapshot,
   storage: Storage = localStorage,
 ): void => {
-  storage.setItem(CACHE_KEY, JSON.stringify(snapshot));
+  storage.setItem(
+    CACHE_KEY,
+    JSON.stringify({
+      snapshot,
+      version: versionForSnapshot(snapshot),
+    } satisfies CachedSnapshotPair),
+  );
 };
 
 export const fetchCandidate = async (

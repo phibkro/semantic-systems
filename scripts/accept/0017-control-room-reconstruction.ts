@@ -22,6 +22,9 @@ const requiredArtifacts = [
   "apps/control-room/alchemy.run.ts",
   "apps/control-room/playwright.config.ts",
   ".github/workflows/control-room-alchemy.yml",
+  ".github/workflows/control-room-alchemy-trusted.yml",
+  "apps/control-room/tooling/deploy-static.run.ts",
+  "apps/control-room/tooling/workflow-run-custody.ts",
 ] as const;
 
 const requireArtifacts = Effect.forEach(requiredArtifacts, (relativePath) =>
@@ -63,6 +66,7 @@ const program = Effect.gen(function* () {
       "bun",
       "scripts/accept/0016-executable-semantic-system-kernel.ts",
     ],
+    ["nix", "develop", "--command", "just", "check"],
   ] as const) {
     yield* runCommand(command, { cwd: root });
   }

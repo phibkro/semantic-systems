@@ -11,16 +11,11 @@ import {
 
 const POLL_MS = 60_000;
 
-const initialState = (): SnapshotState => {
-  const cached = readCachedSnapshot();
-  return cached === null
-    ? { state: "loading", snapshot: null, pending: null }
-    : {
-        state: freshnessState(cached, Date.now(), navigator.onLine),
-        snapshot: cached,
-        pending: null,
-      };
-};
+const initialState = (): SnapshotState => ({
+  state: "loading",
+  snapshot: null,
+  pending: null,
+});
 
 export const useSnapshot = (): SnapshotState & {
   readonly refresh: () => Promise<void>;
@@ -111,7 +106,21 @@ export const useSnapshot = (): SnapshotState & {
 
   useEffect(() => {
     mounted.current = true;
-    void refresh();
+    void readCachedSnapshot().then((cached) => {
+      if (!mounted.current) return;
+      if (cached !== null) {
+        setResult((current) =>
+          current.snapshot !== null
+            ? current
+            : {
+                state: freshnessState(cached, Date.now(), navigator.onLine),
+                snapshot: cached,
+                pending: null,
+              },
+        );
+      }
+      void refresh();
+    });
     const timer = window.setInterval(() => void refresh(), POLL_MS);
     const updateConnectivity = () =>
       setResult((current) =>

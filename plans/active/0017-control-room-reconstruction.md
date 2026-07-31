@@ -4,14 +4,19 @@ Canonical frozen contract:
 [`design-specs/0017-control-room-reconstruction.md`](../../design-specs/0017-control-room-reconstruction.md).
 This mutable execution record cannot redefine that contract.
 
-Status: contract frozen; intentionally red acceptance awaits isolated
-implementation
+Status: contract frozen; reviewed candidate `5c9cce2404a1da8eef2977e68e0ed733118f927e`
+received `CHANGES_REQUIRED`; bounded recut implemented and under exact clean-head
+verification
 
 Owner: primary Semantic Systems lead
 
 ## Dependencies
 
-- accepted current primary `04579fdb40ca4169d1d9e861eb7c94472d772e59`;
+- independently observed current primary
+  `135d9f2d7a53990108b77b12da8904be7b501952` at recut start;
+- exact reconstruction base
+  `726d315d52c2d9b7ff7f0cd817824cf8b2859a0b` and reviewed candidate
+  `5c9cce2404a1da8eef2977e68e0ed733118f927e`;
 - accepted executable semantic-system integration and current TypeScript/Effect
   v4 project model;
 - historical accepted Control Room PWA lineage
@@ -107,5 +112,55 @@ attempt to substitute deployment claims for observations.
   credentials, cleanup, memo, and zone-ownership evidence. The beta and
   provider plan remain explicit assumptions.
 - 2026-07-31: no upstream snippet has been copied and no provider operation has
-  run. The frozen acceptance is intentionally red until the isolated
-  implementation creates the required application and exporter artifacts.
+  run.
+- 2026-07-31: the first reconstruction candidate selectively reused the
+  accepted PWA information architecture, snapshot-state vocabulary, and
+  browser journey family from `f3250485`; the exact-cache repair family from
+  `ff35eb2`; and stage parsing, memo-scope, cleanup, and workflow
+  counterexamples from `2301780c`. It adapted those behaviors to the current
+  TypeScript/Effect v4 project model and authored a new allowlisted exporter,
+  custom React/CSS shell, and current workflow rather than copying the old
+  Python/shell/runtime lineage.
+- 2026-07-31: independent review rejected candidate `5c9cce2404a1` because a
+  schema-valid cached snapshot could render before asynchronous digest
+  verification, exact acceptance did not invoke the canonical full repository
+  gate, same-repository PR code ran in a job that later received Cloudflare
+  credentials, and this plan still described an intentionally red pre-build
+  state.
+- 2026-07-31: the recut persists a complete version/snapshot pair and adopts it
+  only after asynchronous binding and content-digest verification. Focused
+  tests include schema-valid content-forged and observation-binding-forged
+  cache counterexamples.
+- 2026-07-31: the recut separates the secret-free `pull_request`/main static
+  artifact producer from a trusted-default-branch `workflow_run` consumer.
+  The consumer validates exact same-repository provenance, one immutable
+  artifact ID and server SHA-256 digest, extracts outside the workspace,
+  validates a bounded static tree bound to the producer commit, and uses
+  trusted Alchemy code to upload the directory as assets without importing or
+  executing returned JavaScript. Cleanup likewise derives a preview-only stage
+  with trusted default-branch tooling. There is no `pull_request_target`.
+- 2026-07-31: this workflow split adapts GitHub's official `workflow_run`
+  privilege-separation and runner-temporary artifact pattern, the official
+  immutable `upload-artifact` ID/digest contract, and Alchemy v2's documented
+  prebuilt assets-only `Cloudflare.Worker` interface. Sources consulted:
+  `docs.github.com/actions/reference/workflows-and-actions/events-that-trigger-workflows`,
+  `docs.github.com/en/rest/actions/artifacts`, the MIT-licensed
+  `actions/upload-artifact` and `actions/download-artifact` documentation, and
+  `alchemy.run/cloudflare/frontend/static-site/`. Only techniques and public
+  interface contracts were reused; no external implementation snippet was
+  copied.
+- 2026-07-31: focused recut evidence before commit: Control Room Vitest
+  `39/39`, pinned-Nix mobile Chromium `5/5`, app TypeScript build green, both
+  workflow files green under Actionlint, and the built ten-file payload passed
+  bounded static-tree, exact-commit, version/snapshot, SHA-256, service-worker,
+  and sensitive-sentinel validation. These observations do not prove the
+  privileged workflow trustworthy; they exercise the recorded counterexamples
+  and static contract.
+- 2026-07-31: exact acceptance now invokes
+  `nix develop --command just check`; `scripts/check.ts` does not dispatch
+  feature acceptance, so the composition is non-recursive. Final exact-head
+  acceptance/full-gate evidence and the recut commit are recorded by the
+  integrating lead after this commit is created.
+- 2026-07-31: no provider plan/apply/destroy, Cloudflare/DNS mutation, GitHub
+  secret mutation, push, pull request, preview, or production operation ran
+  during reconstruction or recut.

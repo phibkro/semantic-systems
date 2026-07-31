@@ -5,7 +5,9 @@ import {
   isPublicSnapshot,
   isPublicVersion,
   isRollback,
+  readCachedSnapshot,
   verifyCandidate,
+  writeCachedSnapshot,
 } from "./snapshot.ts";
 import { fixtureSnapshot } from "./test/fixture.ts";
 
@@ -59,6 +61,40 @@ const validPair = async (): Promise<{
       snapshot: `snapshot.${snapshot.metadata.digest}.json`,
     },
   };
+};
+
+class MemoryStorage implements Storage {
+  readonly #items = new Map<string, string>();
+
+  get length(): number {
+    return this.#items.size;
+  }
+
+  clear(): void {
+    this.#items.clear();
+  }
+
+  getItem(key: string): string | null {
+    return this.#items.get(key) ?? null;
+  }
+
+  key(index: number): string | null {
+    return [...this.#items.keys()][index] ?? null;
+  }
+
+  removeItem(key: string): void {
+    this.#items.delete(key);
+  }
+
+  setItem(key: string, value: string): void {
+    this.#items.set(key, value);
+  }
+}
+
+const readCachedValue = (value: unknown) => {
+  const storage = new MemoryStorage();
+  storage.setItem("semantic-control-room.snapshot-v1", JSON.stringify(value));
+  return readCachedSnapshot(storage);
 };
 
 describe("snapshot custody", () => {
@@ -137,5 +173,46 @@ describe("snapshot custody", () => {
     expect(
       isRollback(pair.snapshot, { ...pair.version, observed_at: "2026-08-01T12:00:00Z" }),
     ).toBe(false);
+  });
+
+  test("persists and asynchronously re-verifies the complete version and snapshot pair", async () => {
+    const pair = await validPair();
+    const storage = new MemoryStorage();
+    writeCachedSnapshot(pair.snapshot, storage);
+
+    expect(storage.length).toBe(1);
+    const key = storage.key(0);
+    expect(key).not.toBeNull();
+    const persisted: unknown = JSON.parse(storage.getItem(key!)!);
+    expect(persisted).toEqual(pair);
+    await expect(readCachedSnapshot(storage)).resolves.toEqual(pair.snapshot);
+  });
+
+  test("never adopts schema-valid cached content whose digest or binding was forged", async () => {
+    const pair = await validPair();
+
+    const contentForged: PublicSnapshot = {
+      ...pair.snapshot,
+      entities: [
+        { ...pair.snapshot.entities[0]!, summary: "schema-valid forged cached content" },
+        ...pair.snapshot.entities.slice(1),
+      ],
+    };
+    expect(isPublicSnapshot(contentForged)).toBe(true);
+    await expect(
+      readCachedValue({ version: pair.version, snapshot: contentForged }),
+    ).resolves.toBeNull();
+
+    const bindingForged: PublicSnapshot = {
+      ...pair.snapshot,
+      metadata: {
+        ...pair.snapshot.metadata,
+        observed_at: "2026-08-01T12:00:00Z",
+      },
+    };
+    expect(isPublicSnapshot(bindingForged)).toBe(true);
+    await expect(
+      readCachedValue({ version: pair.version, snapshot: bindingForged }),
+    ).resolves.toBeNull();
   });
 });
