@@ -1,10 +1,17 @@
 import { appendFile, readFile } from "node:fs/promises";
+import { join } from "node:path";
+import { parseDeploymentStage } from "../src/deployment.ts";
+import { isPublicVersion, verifyCandidate } from "../src/snapshot.ts";
+import { resolveStaticArtifactRoot, validateStaticArtifact } from "./scan-public-payload.ts";
 
 const EXACT_COMMIT = /^[0-9a-f]{40}$/;
+const EXACT_SNAPSHOT_DIGEST = /^[0-9a-f]{64}$/;
 const EXACT_ARTIFACT_DIGEST = /^sha256:[0-9a-f]{64}$/;
 const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const PRODUCER_WORKFLOW = "Control Room Static Artifact";
 const PRODUCER_WORKFLOW_PATH = ".github/workflows/control-room-alchemy.yml";
+const MAX_SERVED_DOCUMENT_BYTES = 2 * 1024 * 1024;
+const SERVED_OBSERVATION_TIMEOUT_MS = 10_000;
 
 interface RecordValue {
   readonly [key: string]: unknown;
@@ -15,6 +22,7 @@ export interface WorkflowRunProvenance {
   readonly commit: string;
   readonly kind: "preview" | "production";
   readonly prNumber: string;
+  readonly repositoryId: string;
   readonly runAttempt: string;
   readonly runId: string;
   readonly stage: string;
@@ -28,12 +36,20 @@ export interface ArtifactIdentity {
 
 export interface ClosedPreviewProvenance {
   readonly prNumber: string;
+  readonly repositoryId: string;
   readonly stage: string;
 }
 
+export interface ServedArtifactObservation {
+  readonly artifactDigest: string;
+  readonly commit: string;
+  readonly snapshotDigest: string;
+}
+
 export interface EffectObservation {
-  readonly effectObservation: "DeploymentObserved" | "DeploymentUnknown";
+  readonly effectObservation: "DeploymentObserved" | "DeploymentUnknown" | "RemovalObserved";
   readonly reconciliationRequired: "false" | "true";
+  readonly servedSnapshotDigest: string;
 }
 
 const isRecord = (value: unknown): value is RecordValue =>
@@ -56,9 +72,28 @@ const positiveInteger = (value: unknown, label: string): string => {
   return String(value);
 };
 
-const sameRepository = (value: unknown, repository: string, label: string): void => {
-  const fullName = string(record(value, label).full_name, `${label}.full_name`);
+const sameRepository = (value: unknown, repository: string, label: string): string => {
+  const repositoryValue = record(value, label);
+  const fullName = string(repositoryValue.full_name, `${label}.full_name`);
   if (fullName !== repository) throw new Error(`${label} is not the triggering repository`);
+  return positiveInteger(repositoryValue.id, `${label}.id`);
+};
+
+const sameRepositoryId = (
+  value: unknown,
+  repository: string,
+  repositoryId: string,
+  label: string,
+): void => {
+  const reference = record(value, label);
+  if (positiveInteger(reference.id, `${label}.id`) !== repositoryId) {
+    throw new Error(`${label} is not the triggering repository`);
+  }
+  const repositoryName = repository.slice(repository.indexOf("/") + 1);
+  if (string(reference.name, `${label}.name`) !== repositoryName) {
+    throw new Error(`${label} name is not the triggering repository`);
+  }
+  string(reference.url, `${label}.url`);
 };
 
 export const validateWorkflowRunProvenance = (
@@ -67,14 +102,20 @@ export const validateWorkflowRunProvenance = (
 ): WorkflowRunProvenance => {
   if (!REPOSITORY.test(repository)) throw new Error("repository identity is malformed");
   const event = record(value, "event");
-  sameRepository(event.repository, repository, "event.repository");
+  const repositoryId = sameRepository(event.repository, repository, "event.repository");
   if (event.action !== "completed") throw new Error("workflow_run action must be completed");
   const run = record(event.workflow_run, "event.workflow_run");
   if (run.name !== PRODUCER_WORKFLOW) throw new Error("unexpected producer workflow");
   if (run.path !== PRODUCER_WORKFLOW_PATH) throw new Error("unexpected producer workflow path");
   if (run.conclusion !== "success") throw new Error("producer workflow did not succeed");
-  sameRepository(run.repository, repository, "workflow_run.repository");
-  sameRepository(run.head_repository, repository, "workflow_run.head_repository");
+  if (sameRepository(run.repository, repository, "workflow_run.repository") !== repositoryId) {
+    throw new Error("workflow_run.repository id is not the triggering repository");
+  }
+  if (
+    sameRepository(run.head_repository, repository, "workflow_run.head_repository") !== repositoryId
+  ) {
+    throw new Error("workflow_run.head_repository id is not the triggering repository");
+  }
   const commit = string(run.head_sha, "workflow_run.head_sha");
   if (!EXACT_COMMIT.test(commit)) throw new Error("workflow head is not an exact commit");
   const runId = positiveInteger(run.id, "workflow_run.id");
@@ -88,6 +129,7 @@ export const validateWorkflowRunProvenance = (
       commit,
       kind: "production",
       prNumber: "",
+      repositoryId,
       runAttempt,
       runId,
       stage: "prod",
@@ -102,14 +144,15 @@ export const validateWorkflowRunProvenance = (
   const base = record(pullRequest.base, "pull request base");
   const head = record(pullRequest.head, "pull request head");
   if (base.ref !== "main") throw new Error("preview target branch must be main");
-  sameRepository(base.repo, repository, "pull request base repository");
-  sameRepository(head.repo, repository, "pull request head repository");
+  sameRepositoryId(base.repo, repository, repositoryId, "pull request base repository");
+  sameRepositoryId(head.repo, repository, repositoryId, "pull request head repository");
   if (head.sha !== commit) throw new Error("pull request head is not bound to the workflow head");
   return {
     artifactName,
     commit,
     kind: "preview",
     prNumber: number,
+    repositoryId,
     runAttempt,
     runId,
     stage: `p${number}`,
@@ -152,20 +195,25 @@ export const validateClosedPreview = (
   if (!REPOSITORY.test(repository)) throw new Error("repository identity is malformed");
   const event = record(value, "event");
   if (event.action !== "closed") throw new Error("cleanup event must be closed");
-  sameRepository(event.repository, repository, "event.repository");
+  const repositoryId = sameRepository(event.repository, repository, "event.repository");
   const pullRequest = record(event.pull_request, "event.pull_request");
   const number = positiveInteger(pullRequest.number, "pull request number");
   const base = record(pullRequest.base, "pull request base");
   const head = record(pullRequest.head, "pull request head");
   if (base.ref !== "main") throw new Error("cleanup target branch must be main");
-  sameRepository(base.repo, repository, "pull request base repository");
-  sameRepository(head.repo, repository, "pull request head repository");
-  return { prNumber: number, stage: `p${number}` };
+  if (sameRepository(base.repo, repository, "pull request base repository") !== repositoryId) {
+    throw new Error("pull request base repository id is not the triggering repository");
+  }
+  if (sameRepository(head.repo, repository, "pull request head repository") !== repositoryId) {
+    throw new Error("pull request head repository id is not the triggering repository");
+  }
+  return { prNumber: number, repositoryId, stage: `p${number}` };
 };
 
 const validateLivePullRequestIdentity = (
   value: unknown,
   repository: string,
+  repositoryId: string,
   prNumber: string,
   expectedState: "closed" | "open",
   expectedHead: string | undefined,
@@ -180,8 +228,12 @@ const validateLivePullRequestIdentity = (
   const base = record(pullRequest.base, "live pull request base");
   const head = record(pullRequest.head, "live pull request head");
   if (base.ref !== "main") throw new Error("live pull request target branch is not main");
-  sameRepository(base.repo, repository, "live pull request base repository");
-  sameRepository(head.repo, repository, "live pull request head repository");
+  if (sameRepository(base.repo, repository, "live pull request base repository") !== repositoryId) {
+    throw new Error("live pull request base repository id changed");
+  }
+  if (sameRepository(head.repo, repository, "live pull request head repository") !== repositoryId) {
+    throw new Error("live pull request head repository id changed");
+  }
   if (expectedHead !== undefined && head.sha !== expectedHead) {
     throw new Error("live pull request head advanced");
   }
@@ -196,6 +248,7 @@ export const validateLiveWorkflowTarget = (
     validateLivePullRequestIdentity(
       value,
       repository,
+      provenance.repositoryId,
       provenance.prNumber,
       "open",
       provenance.commit,
@@ -215,11 +268,19 @@ export const validateLiveClosedPreview = (
   provenance: ClosedPreviewProvenance,
   repository: string,
 ): void =>
-  validateLivePullRequestIdentity(value, repository, provenance.prNumber, "closed", undefined);
+  validateLivePullRequestIdentity(
+    value,
+    repository,
+    provenance.repositoryId,
+    provenance.prNumber,
+    "closed",
+    undefined,
+  );
 
 const unknownObservation = (): EffectObservation => ({
   effectObservation: "DeploymentUnknown",
   reconciliationRequired: "true",
+  servedSnapshotDigest: "",
 });
 
 export const observeWorkflowRunEffect = (
@@ -227,13 +288,23 @@ export const observeWorkflowRunEffect = (
   provenance: WorkflowRunProvenance,
   repository: string,
   providerOutcome: string,
+  servedArtifact: ServedArtifactObservation | undefined,
 ): EffectObservation => {
-  if (providerOutcome !== "success") return unknownObservation();
+  if (
+    providerOutcome !== "success" ||
+    servedArtifact === undefined ||
+    !EXACT_ARTIFACT_DIGEST.test(servedArtifact.artifactDigest) ||
+    servedArtifact.commit !== provenance.commit ||
+    !EXACT_SNAPSHOT_DIGEST.test(servedArtifact.snapshotDigest)
+  ) {
+    return unknownObservation();
+  }
   try {
     validateLiveWorkflowTarget(value, provenance, repository);
     return {
       effectObservation: "DeploymentObserved",
       reconciliationRequired: "false",
+      servedSnapshotDigest: servedArtifact.snapshotDigest,
     };
   } catch {
     return unknownObservation();
@@ -245,17 +316,175 @@ export const observeClosedPreviewEffect = (
   provenance: ClosedPreviewProvenance,
   repository: string,
   providerOutcome: string,
+  servedStatus: number | undefined,
 ): EffectObservation => {
-  if (providerOutcome !== "success") return unknownObservation();
+  if (providerOutcome !== "success" || (servedStatus !== 404 && servedStatus !== 410)) {
+    return unknownObservation();
+  }
   try {
     validateLiveClosedPreview(value, provenance, repository);
     return {
-      effectObservation: "DeploymentObserved",
+      effectObservation: "RemovalObserved",
       reconciliationRequired: "false",
+      servedSnapshotDigest: "",
     };
   } catch {
     return unknownObservation();
   }
+};
+
+const parseJson = (value: string, label: string): unknown => {
+  try {
+    return JSON.parse(value);
+  } catch {
+    throw new Error(`${label} is not valid JSON`);
+  }
+};
+
+export const validateServedArtifact = async (
+  expectedVersionText: string,
+  expectedSnapshotText: string,
+  servedVersionText: string,
+  servedSnapshotText: string,
+  expectedCommit: string,
+  artifactDigest: string,
+): Promise<ServedArtifactObservation> => {
+  if (!EXACT_ARTIFACT_DIGEST.test(artifactDigest)) {
+    throw new Error("served observation artifact digest is malformed");
+  }
+  const expectedVersionValue = parseJson(expectedVersionText, "artifact version document");
+  if (!isPublicVersion(expectedVersionValue)) {
+    throw new Error("artifact version document is invalid");
+  }
+  if (expectedVersionValue.commit !== expectedCommit) {
+    throw new Error("artifact version commit is not the deployment commit");
+  }
+  const expectedSnapshotValue = parseJson(expectedSnapshotText, "artifact snapshot");
+  await verifyCandidate(expectedVersionValue, expectedSnapshotValue);
+  if (servedVersionText !== expectedVersionText) {
+    throw new Error("served version bytes do not match the digest-custodied artifact");
+  }
+  if (servedSnapshotText !== expectedSnapshotText) {
+    throw new Error("served snapshot bytes do not match the digest-custodied artifact");
+  }
+  const servedVersionValue = parseJson(servedVersionText, "served version document");
+  if (!isPublicVersion(servedVersionValue)) {
+    throw new Error("served version document is invalid");
+  }
+  const servedSnapshotValue = parseJson(servedSnapshotText, "served snapshot");
+  await verifyCandidate(servedVersionValue, servedSnapshotValue);
+  return {
+    artifactDigest,
+    commit: servedVersionValue.commit,
+    snapshotDigest: servedVersionValue.digest,
+  };
+};
+
+const decodeUtf8 = (value: Uint8Array, label: string): string => {
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(value);
+  } catch {
+    throw new Error(`${label} is not valid UTF-8`);
+  }
+};
+
+const readBoundedFile = async (path: string, label: string): Promise<string> => {
+  const value = new Uint8Array(await readFile(path));
+  if (value.byteLength > MAX_SERVED_DOCUMENT_BYTES) {
+    throw new Error(`${label} exceeds the bounded size`);
+  }
+  return decodeUtf8(value, label);
+};
+
+const readBoundedResponse = async (response: Response, label: string): Promise<string> => {
+  const declaredLength = Number(response.headers.get("content-length") ?? "0");
+  if (declaredLength > MAX_SERVED_DOCUMENT_BYTES) {
+    throw new Error(`${label} exceeds the bounded size`);
+  }
+  if (response.body === null) throw new Error(`${label} response has no body`);
+  const reader = response.body.getReader();
+  const chunks: Array<Uint8Array> = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > MAX_SERVED_DOCUMENT_BYTES) {
+      await reader.cancel();
+      throw new Error(`${label} exceeds the bounded size`);
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return decodeUtf8(bytes, label);
+};
+
+const fetchServedText = async (url: URL, label: string): Promise<string> => {
+  const response = await fetch(url, {
+    cache: "no-store",
+    redirect: "error",
+    signal: AbortSignal.timeout(SERVED_OBSERVATION_TIMEOUT_MS),
+  });
+  if (!response.ok) throw new Error(`${label} request failed (${response.status})`);
+  return readBoundedResponse(response, label);
+};
+
+const fetchServedArtifact = async (
+  provenance: WorkflowRunProvenance,
+  staticRootInput: string,
+  artifactDigest: string,
+): Promise<ServedArtifactObservation> => {
+  const staticRoot = resolveStaticArtifactRoot(staticRootInput);
+  await validateStaticArtifact(staticRoot, provenance.commit);
+  const expectedVersionText = await readBoundedFile(
+    join(staticRoot, "data", "version.json"),
+    "artifact version document",
+  );
+  const expectedVersionValue = parseJson(expectedVersionText, "artifact version document");
+  if (!isPublicVersion(expectedVersionValue)) {
+    throw new Error("artifact version document is invalid");
+  }
+  if (expectedVersionValue.commit !== provenance.commit) {
+    throw new Error("artifact version commit is not the deployment commit");
+  }
+  const expectedSnapshotText = await readBoundedFile(
+    join(staticRoot, "data", expectedVersionValue.snapshot),
+    "artifact snapshot",
+  );
+  const deployment = parseDeploymentStage(provenance.stage);
+  const versionUrl = new URL("data/version.json", `${deployment.url}/`);
+  versionUrl.searchParams.set("control-room-commit", provenance.commit);
+  const servedVersionText = await fetchServedText(versionUrl, "served version document");
+  const snapshotUrl = new URL(`data/${expectedVersionValue.snapshot}`, `${deployment.url}/`);
+  snapshotUrl.searchParams.set("control-room-digest", expectedVersionValue.digest);
+  const servedSnapshotText = await fetchServedText(snapshotUrl, "served snapshot");
+  return validateServedArtifact(
+    expectedVersionText,
+    expectedSnapshotText,
+    servedVersionText,
+    servedSnapshotText,
+    provenance.commit,
+    artifactDigest,
+  );
+};
+
+const fetchServedCleanupStatus = async (stage: string): Promise<number> => {
+  const deployment = parseDeploymentStage(stage);
+  if (deployment.kind !== "preview") throw new Error("cleanup observation requires preview stage");
+  const url = new URL(deployment.url);
+  url.searchParams.set("control-room-removal-observation", stage);
+  const response = await fetch(url, {
+    cache: "no-store",
+    redirect: "error",
+    signal: AbortSignal.timeout(SERVED_OBSERVATION_TIMEOUT_MS),
+  });
+  await response.body?.cancel();
+  return response.status;
 };
 
 const githubHeaders = (token: string): Readonly<Record<string, string>> => {
@@ -335,7 +564,15 @@ const writeOutputs = async (path: string, outputs: Readonly<Record<string, strin
 };
 
 const main = async (): Promise<void> => {
-  const [mode, eventPath, repository, outputPath, providerOutcome] = process.argv.slice(2);
+  const [
+    mode,
+    eventPath,
+    repository,
+    outputPath,
+    providerOutcome,
+    staticRoot,
+    expectedArtifactDigest,
+  ] = process.argv.slice(2);
   if (
     (mode !== "workflow-run" &&
       mode !== "closed-preview" &&
@@ -344,10 +581,12 @@ const main = async (): Promise<void> => {
     eventPath === undefined ||
     repository === undefined ||
     outputPath === undefined ||
-    (mode.endsWith("-post-effect") && providerOutcome === undefined)
+    (mode.endsWith("-post-effect") && providerOutcome === undefined) ||
+    (mode === "workflow-run-post-effect" &&
+      (staticRoot === undefined || expectedArtifactDigest === undefined))
   ) {
     throw new Error(
-      "usage: workflow-run-custody.ts <workflow-run|closed-preview|workflow-run-post-effect|closed-preview-post-effect> EVENT REPOSITORY OUTPUT [PROVIDER_OUTCOME]",
+      "usage: workflow-run-custody.ts <workflow-run|closed-preview|workflow-run-post-effect|closed-preview-post-effect> EVENT REPOSITORY OUTPUT [PROVIDER_OUTCOME] [STATIC_ROOT] [ARTIFACT_DIGEST]",
     );
   }
   const event: unknown = JSON.parse(await readFile(eventPath, "utf8"));
@@ -367,12 +606,18 @@ const main = async (): Promise<void> => {
     const provenance = validateClosedPreview(event, repository);
     let observation = unknownObservation();
     try {
-      const livePullRequest = await fetchLiveClosedPreview(provenance, repository, apiUrl, token);
+      const [livePullRequest, servedStatus] = await Promise.all([
+        fetchLiveClosedPreview(provenance, repository, apiUrl, token),
+        providerOutcome === "success"
+          ? fetchServedCleanupStatus(provenance.stage)
+          : Promise.resolve(undefined),
+      ]);
       observation = observeClosedPreviewEffect(
         livePullRequest,
         provenance,
         repository,
         providerOutcome ?? "",
+        servedStatus,
       );
     } catch {
       observation = unknownObservation();
@@ -380,6 +625,7 @@ const main = async (): Promise<void> => {
     await writeOutputs(outputPath, {
       effect_observation: observation.effectObservation,
       reconciliation_required: observation.reconciliationRequired,
+      served_snapshot_digest: observation.servedSnapshotDigest,
     });
     if (observation.reconciliationRequired === "true") {
       throw new Error("DeploymentUnknown: cleanup requires reconciliation");
@@ -390,12 +636,25 @@ const main = async (): Promise<void> => {
   if (mode === "workflow-run-post-effect") {
     let observation = unknownObservation();
     try {
-      const liveTarget = await fetchLiveWorkflowTarget(provenance, repository, apiUrl, token);
+      const [liveTarget, artifact, servedArtifact] = await Promise.all([
+        fetchLiveWorkflowTarget(provenance, repository, apiUrl, token),
+        fetchArtifactIdentity(provenance, repository, apiUrl, token),
+        providerOutcome === "success"
+          ? fetchServedArtifact(provenance, staticRoot ?? "", expectedArtifactDigest ?? "")
+          : Promise.resolve(undefined),
+      ]);
+      if (artifact.digest !== expectedArtifactDigest) {
+        throw new Error("post-effect artifact digest changed");
+      }
+      if (servedArtifact !== undefined && servedArtifact.artifactDigest !== artifact.digest) {
+        throw new Error("served observation is not bound to the immutable artifact digest");
+      }
       observation = observeWorkflowRunEffect(
         liveTarget,
         provenance,
         repository,
         providerOutcome ?? "",
+        servedArtifact,
       );
     } catch {
       observation = unknownObservation();
@@ -403,6 +662,7 @@ const main = async (): Promise<void> => {
     await writeOutputs(outputPath, {
       effect_observation: observation.effectObservation,
       reconciliation_required: observation.reconciliationRequired,
+      served_snapshot_digest: observation.servedSnapshotDigest,
     });
     if (observation.reconciliationRequired === "true") {
       throw new Error("DeploymentUnknown: deployment requires reconciliation");

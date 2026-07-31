@@ -16,6 +16,7 @@ interface Job {
   readonly if?: string;
   readonly concurrency: { readonly group: string; readonly "cancel-in-progress": boolean };
   readonly steps: ReadonlyArray<Step>;
+  readonly "timeout-minutes": number;
 }
 
 interface Workflow {
@@ -78,6 +79,16 @@ describe("Alchemy workflow safety", () => {
     expect(privileged.jobs["cleanup-preview"]?.concurrency["cancel-in-progress"]).toBe(false);
   });
 
+  test("serializes preview deploy and cleanup through the same exact stage group", () => {
+    const workflow = trusted();
+    expect(workflow.jobs["deploy-static"]?.concurrency.group).toBe(
+      "control-room-alchemy-${{ github.event.workflow_run.pull_requests[0].number && format('p{0}', github.event.workflow_run.pull_requests[0].number) || 'prod' }}",
+    );
+    expect(workflow.jobs["cleanup-preview"]?.concurrency.group).toBe(
+      "control-room-alchemy-p${{ github.event.pull_request.number }}",
+    );
+  });
+
   test("checks out only main and confines provider secrets to trusted deploy or destroy steps", () => {
     const workflow = trusted();
     const checkouts = Object.values(workflow.jobs).flatMap((job) =>
@@ -134,6 +145,37 @@ describe("Alchemy workflow safety", () => {
     expect(cleanup[3]?.run).toContain("closed-preview");
     expect(cleanup[3]?.run).toContain("workflow-run-custody.ts");
     expect(cleanup[4]?.run).toContain("alchemy destroy");
+  });
+
+  test("reserves job time for served-state observation after bounded provider commands", () => {
+    const workflow = trusted();
+    const deployment = workflow.jobs["deploy-static"]!;
+    const deployProvider = deployment.steps.find((step) => step.id === "provider")!;
+    const deployObservation = deployment.steps.find((step) => step.id === "observation")!;
+    expect(deployment["timeout-minutes"]).toBe(30);
+    expect(deployProvider.run).toContain("timeout --signal=TERM --kill-after=60s 15m");
+    expect(deployment.steps.indexOf(deployObservation)).toBeGreaterThan(
+      deployment.steps.indexOf(deployProvider),
+    );
+    expect(deployObservation.if).toContain("always()");
+    expect(deployObservation.run).toContain("control-room-static");
+    expect(deployObservation.run).toContain("steps.provenance.outputs.artifact_digest");
+
+    const cleanup = workflow.jobs["cleanup-preview"]!;
+    const cleanupProvider = cleanup.steps.find((step) => step.id === "provider")!;
+    const cleanupObservation = cleanup.steps.find((step) => step.id === "observation")!;
+    expect(cleanup["timeout-minutes"]).toBe(20);
+    expect(cleanupProvider.run).toContain("timeout --signal=TERM --kill-after=60s 8m");
+    expect(cleanup.steps.indexOf(cleanupObservation)).toBeGreaterThan(
+      cleanup.steps.indexOf(cleanupProvider),
+    );
+    expect(cleanupObservation.if).toContain("always()");
+
+    const report = deployment.steps.find(
+      (step) => step.name === "Report observed preview snapshot",
+    )!;
+    expect(report.run).toContain("served snapshot");
+    expect(report.run).not.toContain("preview deployed");
   });
 
   test("the exact acceptance itself invokes the canonical full gate without recursion", () => {

@@ -1,4 +1,6 @@
 import { describe, expect, test } from "vitest";
+import { VERSION_SCHEMA, type PublicSnapshot, type PublicVersion } from "../src/model.ts";
+import { fixtureSnapshot } from "../src/test/fixture.ts";
 import {
   observeClosedPreviewEffect,
   observeWorkflowRunEffect,
@@ -6,12 +8,19 @@ import {
   validateClosedPreview,
   validateLiveClosedPreview,
   validateLiveWorkflowTarget,
+  validateServedArtifact,
   validateWorkflowRunProvenance,
 } from "./workflow-run-custody.ts";
 
 const repository = "phibkro/semantic-systems";
+const repositoryId = 4242;
 const commit = "0123456789abcdef0123456789abcdef01234567";
-const repositoryObject = { full_name: repository };
+const repositoryObject = { full_name: repository, id: repositoryId };
+const workflowRepoRef = {
+  id: repositoryId,
+  name: "semantic-systems",
+  url: `https://api.github.test/repositories/${repositoryId}`,
+};
 const previewEvent = {
   action: "completed",
   repository: repositoryObject,
@@ -28,9 +37,11 @@ const previewEvent = {
     head_repository: repositoryObject,
     pull_requests: [
       {
+        id: 1717,
         number: 17,
-        base: { ref: "main", sha: "f".repeat(40), repo: repositoryObject },
-        head: { ref: "feature/control-room", sha: commit, repo: repositoryObject },
+        url: "https://api.github.test/repos/phibkro/semantic-systems/pulls/17",
+        base: { ref: "main", sha: "f".repeat(40), repo: { ...workflowRepoRef } },
+        head: { ref: "feature/control-room", sha: commit, repo: { ...workflowRepoRef } },
       },
     ],
   },
@@ -45,6 +56,58 @@ const liveMain = (sha = commit) => ({
   ref: "refs/heads/main",
   object: { type: "commit", sha },
 });
+const artifactDigest = `sha256:${"b".repeat(64)}`;
+const servedArtifact = { artifactDigest, commit, snapshotDigest: "a".repeat(64) };
+
+const compareCodeUnits = (left: string, right: string): number => {
+  const length = Math.min(left.length, right.length);
+  for (let index = 0; index < length; index += 1) {
+    const difference = left.charCodeAt(index) - right.charCodeAt(index);
+    if (difference !== 0) return difference;
+  }
+  return left.length - right.length;
+};
+
+const canonicalize = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value)
+        .sort(([left], [right]) => compareCodeUnits(left, right))
+        .map(([key, item]) => [key, canonicalize(item)]),
+    );
+  }
+  return value;
+};
+
+const validServedPair = async (): Promise<{
+  readonly snapshot: PublicSnapshot;
+  readonly version: PublicVersion;
+}> => {
+  const digestInput = {
+    ...fixtureSnapshot,
+    metadata: { ...fixtureSnapshot.metadata, digest: "" },
+  };
+  const bytes = new TextEncoder().encode(`${JSON.stringify(canonicalize(digestInput))}\n`);
+  const digestBytes = await crypto.subtle.digest("SHA-256", bytes);
+  const digest = Array.from(new Uint8Array(digestBytes), (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
+  const snapshot: PublicSnapshot = {
+    ...fixtureSnapshot,
+    metadata: { ...fixtureSnapshot.metadata, digest },
+  };
+  return {
+    snapshot,
+    version: {
+      schema_version: VERSION_SCHEMA,
+      commit,
+      digest,
+      observed_at: snapshot.metadata.observed_at,
+      snapshot: `snapshot.${digest}.json`,
+    },
+  };
+};
 
 describe("trusted workflow-run custody", () => {
   test("binds one same-repository PR head to one immutable artifact identity", () => {
@@ -54,6 +117,7 @@ describe("trusted workflow-run custody", () => {
       commit,
       kind: "preview",
       prNumber: "17",
+      repositoryId: String(repositoryId),
       runAttempt: "2",
       runId: "123",
       stage: "p17",
@@ -83,7 +147,7 @@ describe("trusted workflow-run custody", () => {
 
   test("rejects forks, ambiguous PR provenance, stale heads, and extra artifacts", () => {
     const fork = structuredClone(previewEvent);
-    fork.workflow_run.head_repository = { full_name: "attacker/fork" };
+    fork.workflow_run.head_repository = { full_name: "attacker/fork", id: 9999 };
     expect(() => validateWorkflowRunProvenance(fork, repository)).toThrow(
       "workflow_run.head_repository",
     );
@@ -98,6 +162,12 @@ describe("trusted workflow-run custody", () => {
     stale.workflow_run.pull_requests[0]!.head.sha = "f".repeat(40);
     expect(() => validateWorkflowRunProvenance(stale, repository)).toThrow(
       "not bound to the workflow head",
+    );
+
+    const forkReference = structuredClone(previewEvent);
+    forkReference.workflow_run.pull_requests[0]!.head.repo.id = 9999;
+    expect(() => validateWorkflowRunProvenance(forkReference, repository)).toThrow(
+      "head repository",
     );
 
     const provenance = validateWorkflowRunProvenance(previewEvent, repository);
@@ -136,10 +206,11 @@ describe("trusted workflow-run custody", () => {
     };
     expect(validateClosedPreview(event, repository)).toEqual({
       prNumber: "17",
+      repositoryId: String(repositoryId),
       stage: "p17",
     });
     const fork = structuredClone(event);
-    fork.pull_request.head.repo = { full_name: "attacker/fork" };
+    fork.pull_request.head.repo = { full_name: "attacker/fork", id: 9999 };
     expect(() => validateClosedPreview(fork, repository)).toThrow("head repository");
   });
 
@@ -161,10 +232,17 @@ describe("trusted workflow-run custody", () => {
     push.workflow_run.pull_requests = [];
     const provenance = validateWorkflowRunProvenance(push, repository);
     expect(
-      observeWorkflowRunEffect(liveMain("f".repeat(40)), provenance, repository, "success"),
+      observeWorkflowRunEffect(
+        liveMain("f".repeat(40)),
+        provenance,
+        repository,
+        "success",
+        servedArtifact,
+      ),
     ).toEqual({
       effectObservation: "DeploymentUnknown",
       reconciliationRequired: "true",
+      servedSnapshotDigest: "",
     });
   });
 
@@ -193,7 +271,7 @@ describe("trusted workflow-run custody", () => {
       validateLiveClosedPreview(livePullRequest("open"), provenance, repository),
     ).toThrow("not closed");
     expect(
-      observeClosedPreviewEffect(livePullRequest("open"), provenance, repository, "success"),
+      observeClosedPreviewEffect(livePullRequest("open"), provenance, repository, "success", 404),
     ).toMatchObject({
       effectObservation: "DeploymentUnknown",
       reconciliationRequired: "true",
@@ -208,26 +286,116 @@ describe("trusted workflow-run custody", () => {
         provenance,
         repository,
         "success",
+        servedArtifact,
       ),
     ).toEqual({
       effectObservation: "DeploymentUnknown",
       reconciliationRequired: "true",
+      servedSnapshotDigest: "",
     });
     expect(
-      observeWorkflowRunEffect(livePullRequest("open"), provenance, repository, "failure"),
+      observeWorkflowRunEffect(
+        livePullRequest("open"),
+        provenance,
+        repository,
+        "failure",
+        servedArtifact,
+      ),
     ).toEqual({
       effectObservation: "DeploymentUnknown",
       reconciliationRequired: "true",
+      servedSnapshotDigest: "",
     });
   });
 
-  test("observes success only while the authoritative target remains exact", () => {
+  test("does not infer deployment from provider exit and unchanged GitHub state", () => {
     const provenance = validateWorkflowRunProvenance(previewEvent, repository);
     expect(
-      observeWorkflowRunEffect(livePullRequest("open"), provenance, repository, "success"),
+      observeWorkflowRunEffect(
+        livePullRequest("open"),
+        provenance,
+        repository,
+        "success",
+        undefined,
+      ),
+    ).toEqual({
+      effectObservation: "DeploymentUnknown",
+      reconciliationRequired: "true",
+      servedSnapshotDigest: "",
+    });
+  });
+
+  test("observes deployment only from an exact served artifact and current target", () => {
+    const provenance = validateWorkflowRunProvenance(previewEvent, repository);
+    expect(
+      observeWorkflowRunEffect(
+        livePullRequest("open"),
+        provenance,
+        repository,
+        "success",
+        servedArtifact,
+      ),
     ).toEqual({
       effectObservation: "DeploymentObserved",
       reconciliationRequired: "false",
+      servedSnapshotDigest: servedArtifact.snapshotDigest,
+    });
+  });
+
+  test("binds served version and snapshot bytes to the digest-custodied artifact", async () => {
+    const pair = await validServedPair();
+    const versionText = `${JSON.stringify(pair.version)}\n`;
+    const snapshotText = `${JSON.stringify(pair.snapshot)}\n`;
+    await expect(
+      validateServedArtifact(
+        versionText,
+        snapshotText,
+        versionText,
+        snapshotText,
+        commit,
+        artifactDigest,
+      ),
+    ).resolves.toEqual({
+      artifactDigest,
+      commit,
+      snapshotDigest: pair.version.digest,
+    });
+    await expect(
+      validateServedArtifact(
+        versionText,
+        snapshotText,
+        versionText,
+        `${snapshotText} `,
+        commit,
+        artifactDigest,
+      ),
+    ).rejects.toThrow("served snapshot bytes");
+  });
+
+  test("observes cleanup only from an explicit absent response at a still-closed PR", () => {
+    const event = {
+      action: "closed",
+      repository: repositoryObject,
+      pull_request: {
+        number: 17,
+        base: { ref: "main", repo: repositoryObject },
+        head: { ref: "feature/control-room", repo: repositoryObject },
+      },
+    };
+    const provenance = validateClosedPreview(event, repository);
+    expect(
+      observeClosedPreviewEffect(livePullRequest("closed"), provenance, repository, "success", 404),
+    ).toEqual({
+      effectObservation: "RemovalObserved",
+      reconciliationRequired: "false",
+      servedSnapshotDigest: "",
+    });
+    expect(
+      observeClosedPreviewEffect(livePullRequest("closed"), provenance, repository, "success", 200),
+    ).toEqual({
+      effectObservation: "DeploymentUnknown",
+      reconciliationRequired: "true",
+      servedSnapshotDigest: "",
     });
   });
 });

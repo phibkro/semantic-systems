@@ -7,8 +7,10 @@ This mutable execution record cannot redefine that contract.
 Status: contract frozen; first reviewed candidate
 `5c9cce2404a1da8eef2977e68e0ed733118f927e` received `CHANGES_REQUIRED`;
 recut `86e9487b054bafdac464c1b8fb1ff4e6d5e9cdff` also received
-`CHANGES_REQUIRED`; bounded live-custody correction is committed and awaiting
-independent review and sibling-lineage integration
+`CHANGES_REQUIRED`; first custody correction
+`4aef39ee8f42fc993c23973a22441e084aaceaaa` received `CHANGES_REQUIRED`;
+second bounded custody correction is committed and awaiting independent review
+and sibling-lineage integration
 
 Owner: primary Semantic Systems lead
 
@@ -20,6 +22,8 @@ Owner: primary Semantic Systems lead
   `726d315d52c2d9b7ff7f0cd817824cf8b2859a0b` and reviewed candidate
   `5c9cce2404a1da8eef2977e68e0ed733118f927e`;
 - reviewed recut `86e9487b054bafdac464c1b8fb1ff4e6d5e9cdff`;
+- rejected first custody correction
+  `4aef39ee8f42fc993c23973a22441e084aaceaaa`;
 - accepted executable semantic-system integration and current TypeScript/Effect
   v4 project model;
 - historical accepted Control Room PWA lineage
@@ -192,6 +196,47 @@ attempt to substitute deployment claims for observations.
   counterexamples; owned TypeScript and plan formatting green. No Nix, exact
   acceptance, browser, full integration, provider, GitHub, secret, deployment,
   or network operation ran for this correction.
+- 2026-07-31: independent rereview rejected exact clean custody head
+  `4aef39ee8f42fc993c23973a22441e084aaceaaa`. Its workflow-run PR fixture
+  fabricated `full_name` on GitHub's smaller Repo Ref shape; preview deploy and
+  cleanup used different concurrency groups for the same stage; provider exit
+  plus unchanged GitHub state was mislabeled `DeploymentObserved`; preview
+  wording consequently overclaimed deployment; and an outer job timeout could
+  prevent post-effect uncertainty from being materialized.
+- 2026-07-31: pinned
+  `@octokit/openapi-webhooks-types@12.1.0` evidence records workflow-run PR
+  base/head Repo Ref objects as `id`, `name`, and `url`, while the event and
+  workflow-run repository objects carry `id` and `full_name`. The second
+  correction therefore treats the event repository ID as authoritative and
+  validates smaller PR references by repository ID and their available pinned
+  fields.
+- 2026-07-31: the second correction reuses the pure deployment URL parser and
+  public version/snapshot validators. Provider exit and stable GitHub state
+  remain `DeploymentUnknown` unless a bounded no-store HTTPS probe observes
+  exact served version and snapshot bytes matching the digest-custodied
+  artifact, its commit, and its content digest. The post-effect observer also
+  re-observes the immutable GitHub artifact digest and revalidates the bounded
+  extracted tree before accepting that served observation. Cleanup reports
+  `RemovalObserved` only for an explicit 404/410 from the exact preview URL;
+  timeout, DNS failure, redirects, and a still-served response remain
+  reconciliation-required unknowns.
+- 2026-07-31: preview deploy and cleanup now share the exact
+  `control-room-alchemy-p<PR>` concurrency group, with cancellation disabled.
+  This serializes provider jobs for one stage but does not make GitHub PR state
+  and served Cloudflare state atomic, guarantee queued-job order, prevent a
+  later reopen, or prove lasting removal. A reopen observed during the effect
+  makes the result unknown; a reopen after the final observations remains
+  unknowable to that completed run and requires a later reconciliation event
+  or operator observation.
+- 2026-07-31: provider commands have explicit 15-minute deploy and 8-minute
+  cleanup bounds inside 30-minute and 20-minute jobs, reserving time for
+  post-effect observations. Permitted focused evidence: custody and
+  workflow-safety Vitest `21/21`, owned formatting green, and diff check green.
+  The first focused run exposed only a shared-object alias in the new schema
+  fixture; separate schema-faithful base/head Repo Ref fixtures corrected it,
+  after which the same focused gate passed. No Nix, exact acceptance, browser,
+  full integration, provider, GitHub, secret, deployment, or network operation
+  ran for this correction.
 - 2026-07-31: no provider plan/apply/destroy, Cloudflare/DNS mutation, GitHub
   secret mutation, push, pull request, preview, or production operation ran
   during reconstruction or recut.

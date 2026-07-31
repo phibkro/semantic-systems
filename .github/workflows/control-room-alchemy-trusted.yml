@@ -30,7 +30,7 @@ jobs:
       contents: read
       pull-requests: write
     concurrency:
-      group: control-room-alchemy-${{ github.event.workflow_run.event }}-${{ github.event.workflow_run.pull_requests[0].number || 'prod' }}
+      group: control-room-alchemy-${{ github.event.workflow_run.pull_requests[0].number && format('p{0}', github.event.workflow_run.pull_requests[0].number) || 'prod' }}
       cancel-in-progress: false
     steps:
       - name: Check out trusted default branch
@@ -81,10 +81,11 @@ jobs:
           CONTROL_ROOM_ARTIFACT_COMMIT: ${{ steps.provenance.outputs.commit }}
           CONTROL_ROOM_STATIC_DIR: ${{ runner.temp }}/control-room-static
         run: >-
+          timeout --signal=TERM --kill-after=60s 15m
           nix develop --command bunx alchemy deploy
           apps/control-room/tooling/deploy-static.run.ts
           --stage "${{ steps.provenance.outputs.stage }}" --yes
-      - name: Re-observe deployment target after provider effect
+      - name: Observe served snapshot and target after provider effect
         id: observation
         if: always() && steps.provider.outcome != 'skipped'
         env:
@@ -93,7 +94,9 @@ jobs:
           nix develop --command bun apps/control-room/tooling/workflow-run-custody.ts
           workflow-run-post-effect "${GITHUB_EVENT_PATH}" "${GITHUB_REPOSITORY}"
           "${GITHUB_OUTPUT}" "${{ steps.provider.outcome }}"
-      - name: Report preview URL
+          "${{ runner.temp }}/control-room-static"
+          "${{ steps.provenance.outputs.artifact_digest }}"
+      - name: Report observed preview snapshot
         if: >-
           steps.provenance.outputs.kind == 'preview' &&
           steps.observation.outputs.effect_observation == 'DeploymentObserved'
@@ -101,7 +104,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: >-
           gh pr comment "${{ steps.provenance.outputs.pr_number }}" --edit-last --create-if-none
-          --body "Control Room preview deployed from immutable artifact ${{ steps.provenance.outputs.artifact_digest }} at commit ${{ steps.provenance.outputs.commit }}."
+          --body "Control Room served snapshot ${{ steps.observation.outputs.served_snapshot_digest }} was observed at commit ${{ steps.provenance.outputs.commit }} from digest-custodied artifact ${{ steps.provenance.outputs.artifact_digest }}."
 
   cleanup-preview:
     name: cleanup trusted preview stage
@@ -112,7 +115,7 @@ jobs:
       contents: read
       pull-requests: read
     concurrency:
-      group: control-room-alchemy-pr-${{ github.event.pull_request.number }}
+      group: control-room-alchemy-p${{ github.event.pull_request.number }}
       cancel-in-progress: false
     steps:
       - name: Check out trusted default branch
@@ -145,9 +148,10 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: >-
+          timeout --signal=TERM --kill-after=60s 8m
           nix develop --command bunx alchemy destroy apps/control-room/alchemy.run.ts
           --stage "${{ steps.cleanup.outputs.stage }}" --yes
-      - name: Re-observe cleanup target after provider effect
+      - name: Observe preview removal and target after provider effect
         id: observation
         if: always() && steps.provider.outcome != 'skipped'
         env:
