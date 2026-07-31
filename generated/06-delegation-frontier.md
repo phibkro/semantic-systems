@@ -2,7 +2,7 @@
 
 <!-- Generated. Edit model sources, not this file. -->
 
-Ready parallel work items: **17**.
+Ready parallel work items: **18**.
 
 | Work item | Phase | Status | Ready | Score | Recommendation | Blockers |
 |---|---|---|---:|---:|---|---|
@@ -32,6 +32,7 @@ Ready parallel work items: **17**.
 | Build PBK Technologies portfolio Control Room | implementation | in_progress | yes | 72 | delegate with review |  |
 | Define relational fact export | design | ready | yes | 94 | delegate directly |  |
 | Recut the independent resolution checker | design | complete | no | 83 | delegate with review |  |
+| Establish the semantic artifact store tracer | implementation | in_progress | yes | 87 | delegate with review |  |
 | Specify semantic attestation profile | design | ready | no | 87 | delegate with review | Define normalized theory identity |
 | Establish the Semantic surface language | implementation | in_progress | yes | 87 | delegate with review |  |
 | Specify STM effect and handler laws | research | in_progress | yes | 49 | bounded spike |  |
