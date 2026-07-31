@@ -1,0 +1,10 @@
+kernel "semantic.kernel-calculus/0018/v1";
+
+effect fresh.allocate : Unit -> Int;
+
+run handle fresh (
+  perform[1] fresh.allocate(())
+) with {
+  return result => return[1] result;
+  operation allocate(argument, continuation) => resume continuation(7);
+}
