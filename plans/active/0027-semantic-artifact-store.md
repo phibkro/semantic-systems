@@ -129,6 +129,17 @@ bun scripts/accept/0027-semantic-artifact-store.ts
   frozen global artifact bound. Focused counterexamples cover all four paths;
   the suite passes 15 journeys and 114 assertions. Exact reacceptance and final
   corrected-head review remain pending.
+- 2026-08-01: exact acceptance at `ee281eb` passed 677 Bun tests with one
+  explicit optional-oracle skip, 68 reference-custody Python tests, TypeScript,
+  lint, formatting, model gates, and genuine Node parity. The corrected-head
+  audit then supplied a moving-view counterexample: an array could admit length
+  zero, grow to 1,025 dense elements, and make bulk descriptor capture traverse
+  every new element before rejection. Structural capture now admits the bounded
+  own-key set first and reads only the expected record fields or admitted array
+  indices. The stateful regression observes one length-descriptor read and one
+  own-key read before typed rejection. The focused suite passes 16 journeys and
+  118 assertions; final exact reacceptance and corrected-head review remain
+  pending.
 
 ## Open review questions
 

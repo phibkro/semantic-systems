@@ -114,22 +114,23 @@ const requireRecordDescriptors = (
   if (prototype !== Object.prototype && prototype !== null) {
     return rejectSnapshotInput("snapshot input must contain plain records");
   }
-  const descriptors = Object.getOwnPropertyDescriptors(input) as DescriptorRecord;
-  const keys = Reflect.ownKeys(descriptors);
+  const keys = Reflect.ownKeys(input);
   if (
     keys.some((key) => typeof key === "symbol") ||
     keys.length !== expectedKeys.length ||
-    expectedKeys.some((key) => !Object.hasOwn(descriptors, key))
+    expectedKeys.some((key) => !keys.includes(key))
   ) {
     return rejectSnapshotInput("snapshot input record shape is not closed");
   }
+  const descriptors: Record<string, PropertyDescriptor> = Object.create(null);
   for (const key of expectedKeys) {
-    const descriptor = descriptors[key]!;
-    if (!descriptor.enumerable || !("value" in descriptor)) {
+    const descriptor = Object.getOwnPropertyDescriptor(input, key);
+    if (descriptor === undefined || !descriptor.enumerable || !("value" in descriptor)) {
       return rejectSnapshotInput("snapshot input properties must be enumerable data");
     }
+    descriptors[key] = descriptor;
   }
-  return descriptors;
+  return Object.freeze(descriptors);
 };
 
 const requireArraySnapshot = <Value>(
@@ -158,8 +159,25 @@ const requireArraySnapshot = <Value>(
   if (admittedLength > maximum) {
     return rejectSnapshotInput(`snapshot exceeds ${reportedMaximum} ${limitLabel}`);
   }
-  const descriptors = Object.getOwnPropertyDescriptors(input) as DescriptorRecord;
-  const lengthDescriptor = descriptors["length"];
+  const keys = Reflect.ownKeys(input);
+  if (keys.length > maximum + 1) {
+    return rejectSnapshotInput(`snapshot exceeds ${reportedMaximum} ${limitLabel}`);
+  }
+  if (
+    keys.some((key) => typeof key === "symbol") ||
+    keys.length !== admittedLength + 1 ||
+    !keys.includes("length") ||
+    keys.some(
+      (key) =>
+        key !== "length" &&
+        (typeof key !== "string" ||
+          !/^(?:0|[1-9][0-9]*)$/.test(key) ||
+          Number(key) >= admittedLength),
+    )
+  ) {
+    return rejectSnapshotInput("snapshot arrays must be dense and contain no extra properties");
+  }
+  const lengthDescriptor = Object.getOwnPropertyDescriptor(input, "length");
   if (
     lengthDescriptor === undefined ||
     !("value" in lengthDescriptor) ||
@@ -174,19 +192,9 @@ const requireArraySnapshot = <Value>(
   if (length > maximum) {
     return rejectSnapshotInput(`snapshot exceeds ${reportedMaximum} ${limitLabel}`);
   }
-  const keys = Reflect.ownKeys(descriptors);
-  if (
-    keys.some((key) => typeof key === "symbol") ||
-    keys.length !== length + 1 ||
-    keys.some(
-      (key) => key !== "length" && (typeof key !== "string" || !/^(?:0|[1-9][0-9]*)$/.test(key)),
-    )
-  ) {
-    return rejectSnapshotInput("snapshot arrays must be dense and contain no extra properties");
-  }
   const output: Value[] = [];
   for (let index = 0; index < length; index += 1) {
-    const descriptor = descriptors[String(index)];
+    const descriptor = Object.getOwnPropertyDescriptor(input, String(index));
     if (descriptor === undefined || !descriptor.enumerable || !("value" in descriptor)) {
       return rejectSnapshotInput("snapshot arrays must contain enumerable data elements");
     }

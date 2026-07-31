@@ -571,6 +571,50 @@ describe("language-build semantic store", () => {
     } else throw new Error("oversized dense snapshot must fail");
   });
 
+  test("bounds descriptor capture when an admitted array grows before key capture", async () => {
+    let descriptorReads = 0;
+    let keyReads = 0;
+    const target: unknown[] = [];
+    const growing = new Proxy(target, {
+      getOwnPropertyDescriptor: (current, key) => {
+        descriptorReads += 1;
+        const descriptor = Reflect.getOwnPropertyDescriptor(current, key);
+        if (key === "length" && current.length === 0) {
+          current.push(
+            ...Array.from({ length: semanticStoreReplayBounds.semanticValues + 1 }, () => null),
+          );
+        }
+        return descriptor;
+      },
+      ownKeys: (current) => {
+        keyReads += 1;
+        return Reflect.ownKeys(current);
+      },
+    });
+    const result = await runStore(
+      Effect.gen(function* () {
+        const store = yield* SemanticStore;
+        const before = yield* store.snapshot;
+        const replay = yield* store
+          .replay({
+            format: before.format,
+            version: before.version,
+            semantic_values: growing,
+            name_bindings: [],
+          })
+          .pipe(Effect.result);
+        return { before, after: yield* store.snapshot, replay };
+      }),
+    );
+
+    expect(descriptorReads).toBe(1);
+    expect(keyReads).toBe(1);
+    expect(result.after).toEqual(result.before);
+    if (Result.isFailure(result.replay)) {
+      expect(result.replay.failure).toBeInstanceOf(SemanticStoreSnapshotRejected);
+    } else throw new Error("growing snapshot array must fail");
+  });
+
   test("decodes the one bounded descriptor snapshot of a stateful proxy", async () => {
     const source = await runStore(
       Effect.gen(function* () {
