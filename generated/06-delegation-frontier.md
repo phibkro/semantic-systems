@@ -2,7 +2,7 @@
 
 <!-- Generated. Edit model sources, not this file. -->
 
-Ready parallel work items: **12**.
+Ready parallel work items: **13**.
 
 | Work item | Phase | Status | Ready | Score | Recommendation | Blockers |
 |---|---|---|---:|---:|---|---|
@@ -26,6 +26,7 @@ Ready parallel work items: **12**.
 | Design lossless incremental frontend | design | planned | yes | 75 | delegate with review |  |
 | Specify normalized core artifact | validation | complete | no | 45 | bounded spike |  |
 | Implement package and evidence resolver | implementation | in_progress | no | 72 | delegate with review | Define normalized theory identity |
+| Build PBK Technologies portfolio Control Room | implementation | in_progress | yes | 72 | delegate with review |  |
 | Define relational fact export | design | ready | yes | 94 | delegate directly |  |
 | Recut the independent resolution checker | design | complete | no | 83 | delegate with review |  |
 | Specify semantic attestation profile | design | ready | no | 87 | delegate with review | Define normalized theory identity |

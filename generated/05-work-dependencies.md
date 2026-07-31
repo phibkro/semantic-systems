@@ -11,6 +11,7 @@ flowchart LR
     work_actor_runtime["Implement minimal actor runtime"]
     work_agent_facing_kernel_json["Design agent-facing kernel JSON"]
     work_autonomous_development_loop["Establish the autonomous development control loop"]
+    work_control_room_reconstruction["Reconstruct the Control Room on TypeScript and Effect v4"]
     work_core_checker["Implement core checker"]
     work_deterministic_simulator_spec["Design deterministic concurrency simulator"]
     work_executable_semantic_system_kernel["Build the executable semantic system kernel"]
@@ -26,6 +27,7 @@ flowchart LR
     work_lossless_frontend_spec["Design lossless incremental frontend"]
     work_normalized_core_format["Specify normalized core artifact"]
     work_package_resolver["Implement package and evidence resolver"]
+    work_pbk_portfolio_control_room["Build PBK Technologies portfolio Control Room"]
     work_relational_fact_schema["Define relational fact export"]
     work_semantic_attestation_profile["Specify semantic attestation profile"]
     work_stm_laws["Specify STM effect and handler laws"]
@@ -37,6 +39,7 @@ flowchart LR
     decision_gated_autonomous_merges -->|informs| work_autonomous_development_loop
     work_executable_semantic_system_kernel -->|blocks| work_actor_runtime
     work_inventory_resolution_tracer -->|requires| decision_theory_identity
+    work_pbk_portfolio_control_room -->|requires| work_control_room_reconstruction
     work_normalized_core_format -->|blocks| work_kernel_spec
     work_lossless_frontend_spec -->|blocks| work_normalized_core_format
     work_agent_facing_kernel_json -->|blocks| work_normalized_core_format
