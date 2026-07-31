@@ -5,7 +5,7 @@
       "kind": "work_item",
       "name": "Build the executable semantic system kernel",
       "summary": "Author and validate one reusable open-protocol component through direct and accepted-actor realizations.",
-      "status": "in_progress",
+      "status": "complete",
       "tags": ["semantic-system", "inventory", "effects", "actors"],
       "attributes": {
         "phase": "validation",
@@ -20,6 +20,13 @@
           "Portable closure, Node and Bun parity, inherited regressions, and full repository gates pass",
           "Reports preserve unsupported claims and evidence categories"
         ],
+        "completion": {
+          "implementation_head": "6942c53aedee61a8e889f344619aa4753d6a6167",
+          "integration_head": "362f2ecd451c4f7b8c7cfef313dc49db11d0bf36",
+          "feature_acceptance": "runtime_validation",
+          "integration_gate": "test_and_static_analysis",
+          "independent_review": "assertion"
+        },
         "delegation": {
           "specification_completeness": 5,
           "context_locality": 5,
