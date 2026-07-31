@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0027-semantic-artifact-store.md`](../../design-specs/0027-semantic-artifact-store.md).
 This execution record cannot redefine that contract.
 
-Status: review-correction candidate; exact reacceptance and follow-up review pending
+Status: accepted candidate; exact acceptance and independent review passed
 
 Owner: primary Semantic Systems language lead
 
@@ -140,6 +140,12 @@ bun scripts/accept/0027-semantic-artifact-store.ts
   own-key read before typed rejection. The focused suite passes 16 journeys and
   118 assertions; final exact reacceptance and corrected-head review remain
   pending.
+- 2026-08-01: exact acceptance at `0b3aa23` passed 678 Bun tests with one
+  explicit optional-oracle skip, 68 reference-custody Python tests, TypeScript
+  7 with Effect diagnostics, Oxlint, Oxfmt, model gates, and genuine Node
+  parity. Revision-pinned independent review reported no remaining blocker or
+  major after direct hostile-value, inert-leaf, moving-length, aggregate-limit,
+  and atomic-state probes. This candidate is accepted for completion review.
 
 ## Open review questions
 
