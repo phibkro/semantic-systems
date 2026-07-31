@@ -4,8 +4,7 @@ Canonical frozen contract:
 [`design-specs/0016-executable-semantic-system-kernel.md`](../../design-specs/0016-executable-semantic-system-kernel.md).
 This mutable execution record cannot redefine that contract.
 
-Status: accepted candidate integrated on the independently accepted 0015 base;
-merge-head gates passed and final integration-custody audit is pending
+Status: integrated and independently accepted on the accepted 0015 base
 
 Owner: primary Semantic Systems lead
 
@@ -230,3 +229,12 @@ unsupported authority claims fail the gate.
   passed 393 Bun tests/2,177 expectations, zero Effect diagnostics, and 68
   transitional Python custody checks. Final integration-custody audit remains
   pending.
+- 2026-07-31: final read-only Fable 5 integration-custody audit ACCEPTED exact
+  ledger head `3a4a61ab9c9f8a45cce6c4f37802c53e039244e8`. It independently verified
+  the clean head, exact two-parent topology, candidate/merge tree identity,
+  plan-only ledger delta, and ledger truth, then reproduced exact acceptance
+  at 34 tests/183 expectations and full integration at 393 Bun tests/2,177
+  expectations plus 68 transitional custody checks. A lingering write-capable
+  process was isolated to the superseded candidate worktree rather than the
+  audited primary tree; both trees remained clean, and the process, completed
+  Herdr workspace, and integrated worktree were removed after review.
