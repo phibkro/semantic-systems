@@ -150,6 +150,53 @@ Flue can own scheduling, policies, receipts, and recursive supervision. Herdr
 can own native runtime placement. The installed harness remains the model
 execution boundary.
 
+## Harness adapter architecture
+
+A harness needs no plugin when it acts only as a managed child. Herdr can
+launch, resume, message, and observe that harness from outside its process.
+
+A harness needs a native adapter when it acts as a supervisor. The adapter
+must connect child events to that harness's own turn and notification model.
+
+```text
+canonical supervisor model
+  +-- typed protocol schemas
+  +-- durable event and receipt vocabulary
+  +-- TypeScript client and conformance kit
+  +-- generated Agent Skill knowledge
+  +-- harness adapters
+       +-- Codex plugin
+       +-- Claude Code plugin and channel bridge
+       +-- OpenCode plugin
+       +-- Pi extension
+```
+
+The canonical model is the only source for supervision semantics. Each adapter
+declares capabilities and translates host-specific observations.
+
+An adapter may implement:
+
+- native session discovery and resume;
+- delivery of a parent message into a harness turn;
+- mapping host lifecycle observations to canonical events;
+- model-visible notification or automatic turn scheduling;
+- local display of child state and evidence;
+- storage of the supervisor resume capability.
+
+The adapter must report unsupported capabilities. It must not imitate a wake,
+resume, or observation that the host cannot prove.
+
+The shared knowledge has two projections:
+
+1. Machine-readable schemas define legal messages, states, and receipts.
+2. Generated Agent Skills explain how a model should use those messages.
+
+Native plugin code stays small and hand-reviewed. Repeated schema, event, and
+skill text should be generated from the canonical package.
+
+Every adapter must pass the same conformance tracer. Host-specific acceptance
+then proves model visibility and automatic wake separately.
+
 ## First tracer
 
 The first end-to-end tracer should prove one recursive path:
