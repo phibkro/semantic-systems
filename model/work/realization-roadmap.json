@@ -64,6 +64,35 @@
       }
     },
     {
+      "id": "work.agent-facing-kernel-json",
+      "kind": "work_item",
+      "name": "Design agent-facing kernel JSON",
+      "summary": "Freeze recursive JSON as the stable agent-facing kernel interface: raw documents, an explicit checked observation recorded by the 0018 checker seam, one JSON Schema, strict boundaries, and storage independence.",
+      "status": "in_progress",
+      "tags": ["compiler", "tooling"],
+      "attributes": {
+        "phase": "design",
+        "effort": 8,
+        "design_spec": "design-specs/0020-agent-facing-kernel-json.md",
+        "plan": "plans/active/0020-agent-facing-kernel-json.md",
+        "acceptance": [
+          "Raw documents carry no inferred fact and no storage detail",
+          "The checked view makes binder context and judgments explicit",
+          "The strict decoder and the 0018 checker remain the authorities",
+          "Any internal storage change is observationally invisible"
+        ],
+        "delegation": {
+          "specification_completeness": 4,
+          "context_locality": 5,
+          "testability": 4,
+          "reversibility": 4,
+          "integration_independence": 4,
+          "blast_radius": 3,
+          "human_review": true
+        }
+      }
+    },
+    {
       "id": "work.lean-evidence-adapter",
       "kind": "work_item",
       "name": "Specify Lean evidence adapter",
@@ -273,6 +302,27 @@
       "target": "work.normalized-core-format",
       "kind": "blocks",
       "summary": "Source-to-core correspondence depends on the normalized target shape.",
+      "attributes": {}
+    },
+    {
+      "source": "work.agent-facing-kernel-json",
+      "target": "work.normalized-core-format",
+      "kind": "blocks",
+      "summary": "The frozen JSON reuses the normalized 0018 term vocabulary and its accepted checker seam.",
+      "attributes": {}
+    },
+    {
+      "source": "work.agent-facing-kernel-json",
+      "target": "component.kernel",
+      "kind": "changes",
+      "summary": "Defines the agent-facing kernel document and check-observation boundary and the additive 0018 judgment-recording seam.",
+      "attributes": {}
+    },
+    {
+      "source": "work.agent-facing-kernel-json",
+      "target": "work.lossless-frontend-spec",
+      "kind": "informs",
+      "summary": "The frozen JSON interface constrains, but does not own, the future lossless surface frontend.",
       "attributes": {}
     },
     {

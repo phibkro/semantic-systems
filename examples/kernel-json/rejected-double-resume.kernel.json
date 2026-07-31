@@ -1,0 +1,49 @@
+{
+  "format": "semantic.kernel-json",
+  "kernel": "semantic.kernel-calculus/0018/v1",
+  "program": {
+    "computation": {
+      "argument": { "tag": "unit" },
+      "grade": "1",
+      "label": "fresh",
+      "operation": "allocate",
+      "tag": "operation"
+    },
+    "label": "fresh",
+    "operation_clauses": [
+      {
+        "body": {
+          "body": {
+            "resumption_distance": 0,
+            "tag": "resume",
+            "value": { "tag": "int", "value": 8 }
+          },
+          "bound": {
+            "resumption_distance": 0,
+            "tag": "resume",
+            "value": { "tag": "int", "value": 7 }
+          },
+          "tag": "let"
+        },
+        "operation": "allocate"
+      }
+    ],
+    "return_clause": {
+      "body": {
+        "grade": "1",
+        "tag": "return",
+        "value": { "distance": 0, "tag": "bound-value" }
+      }
+    },
+    "tag": "handle"
+  },
+  "signature": [
+    {
+      "argument_type": { "tag": "unit" },
+      "label": "fresh",
+      "operation": "allocate",
+      "result_type": { "tag": "int" }
+    }
+  ],
+  "version": 1
+}

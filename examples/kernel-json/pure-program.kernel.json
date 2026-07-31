@@ -1,0 +1,15 @@
+{
+  "format": "semantic.kernel-json",
+  "kernel": "semantic.kernel-calculus/0018/v1",
+  "program": {
+    "body": {
+      "grade": "1",
+      "tag": "return",
+      "value": { "distance": 0, "tag": "bound-value" }
+    },
+    "bound": { "grade": "1", "tag": "return", "value": { "tag": "int", "value": 42 } },
+    "tag": "let"
+  },
+  "signature": [],
+  "version": 1
+}
