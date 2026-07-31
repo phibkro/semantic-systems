@@ -26,7 +26,7 @@
 | responsibility | 2 |
 | runtime | 8 |
 | theory | 12 |
-| work_item | 31 |
+| work_item | 32 |
 
 - [System map](01-system-map.md)
 - [Theory-realization map](02-theory-realization.md)

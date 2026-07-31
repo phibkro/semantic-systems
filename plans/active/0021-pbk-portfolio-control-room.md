@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0021-pbk-portfolio-control-room.md`](../../design-specs/0021-pbk-portfolio-control-room.md).
 This execution record cannot redefine that contract.
 
-Status: implementation accepted; pinned Alchemy v2 command correction in review
+Status: contract frozen; implementation intentionally absent
 
 Owner: primary Semantic Systems and PBK Technologies portfolio lead
 
@@ -106,8 +106,3 @@ then fail on the first absent implementation artifact,
   authority while exposing progressively richer metadata.
 - 2026-07-31: no implementation, adjacent-repository write, provider action,
   deployment, or public cutover occurred during contract freeze.
-- 2026-07-31: the portfolio implementation and Control Room publication were
-  accepted and merged as `ee9423a4496e92e616aad9b5719566402f132a2a`.
-- 2026-07-31: production rollout exposed one exact adapter mismatch. Pinned
-  Alchemy 2.0.0-beta.64 has no `--yes` option. The correction removes it from
-  deploy and cleanup and adds a workflow command-shape regression check.
