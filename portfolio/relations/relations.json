@@ -82,6 +82,28 @@
       "schema_version": "pbk.portfolio-row/v1",
       "record_type": "relation",
       "value": {
+        "id": "relation.pagu.02",
+        "source_id": "work.pagu.environment-federation",
+        "target_id": "work.pagu.environment-runtime",
+        "kind": "requires",
+        "summary": "Federation composes independently governed EnvironmentPort instances; it does not replace or weaken their local identity, observation, and lease authority."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "relation",
+      "value": {
+        "id": "relation.pagu.03",
+        "source_id": "work.pagu.environment-federation",
+        "target_id": "work.pagu.heterogeneous-placement",
+        "kind": "contains",
+        "summary": "The federation milestone contains research into topology-aware matching across heterogeneous local devices and host roles."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "relation",
+      "value": {
         "id": "relation.semantic.01",
         "source_id": "work.semantic.language-kernel",
         "target_id": "work.semantic.kernel-json",

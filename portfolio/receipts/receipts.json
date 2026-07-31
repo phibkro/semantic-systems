@@ -78,6 +78,32 @@
         "evidence_refs": ["artifact.semantic.kernel-json-spec"],
         "snapshot_id": null
       }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "receipt",
+      "value": {
+        "id": "receipt.semantic.kernel-interpreter",
+        "work_id": "work.semantic.kernel-interpreter",
+        "outcome": "accepted",
+        "commit": "b48563fc1780e6bf76f06b5e0fa0ee6c6d4fac10",
+        "observed_at": "2026-07-31T19:45:01Z",
+        "evidence_refs": ["artifact.semantic.kernel-interpreter-acceptance"],
+        "snapshot_id": null
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "receipt",
+      "value": {
+        "id": "receipt.semantic.kernel-diagnostic-fact-custody",
+        "work_id": "work.semantic.kernel-diagnostic-fact-custody",
+        "outcome": "accepted",
+        "commit": "b48563fc1780e6bf76f06b5e0fa0ee6c6d4fac10",
+        "observed_at": "2026-07-31T19:45:01Z",
+        "evidence_refs": ["artifact.semantic.kernel-diagnostic-fact-custody"],
+        "snapshot_id": null
+      }
     }
   ]
 }

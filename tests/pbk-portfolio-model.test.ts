@@ -38,7 +38,7 @@ describe("PBK portfolio boundary", () => {
   test("assembles strict rows into a frozen portfolio observation", () => {
     expect(portfolio.studio.name).toBe("PBK Technologies");
     expect(portfolio.projects).toHaveLength(9);
-    expect(portfolio.work).toHaveLength(21);
+    expect(portfolio.work).toHaveLength(23);
     expect(Object.isFrozen(portfolio)).toBe(true);
     expect(Object.isFrozen(portfolio.work[0])).toBe(true);
   });
@@ -106,10 +106,10 @@ describe("PBK portfolio boundary", () => {
       priorities: [
         ...portfolio.priorities,
         {
-          id: "priority.pbk-control-room.02",
+          id: "priority.pbk-control-room.03",
           work_id: "work.semantic.pbk-control-room",
           rank: 2,
-          asserted_at: "2026-07-31T15:30:00Z",
+          asserted_at: "2026-07-31T20:00:00Z",
           reason: "A later assertion is append-only.",
         },
       ],

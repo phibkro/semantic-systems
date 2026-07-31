@@ -108,6 +108,30 @@
         "href": "https://github.com/phibkro/semantic-systems/blob/49c471195af3a877f488f14bc467d314537480f7/design-specs/0021-pbk-portfolio-control-room.md",
         "revision": "49c471195af3a877f488f14bc467d314537480f7"
       }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "artifact",
+      "value": {
+        "id": "artifact.semantic.kernel-interpreter-acceptance",
+        "work_id": "work.semantic.kernel-interpreter",
+        "kind": "evidence",
+        "title": "Kernel reference interpreter acceptance gate",
+        "href": "https://github.com/phibkro/semantic-systems/blob/b48563fc1780e6bf76f06b5e0fa0ee6c6d4fac10/scripts/accept/0022-kernel-reference-interpreter.ts",
+        "revision": "b48563fc1780e6bf76f06b5e0fa0ee6c6d4fac10"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "artifact",
+      "value": {
+        "id": "artifact.semantic.kernel-diagnostic-fact-custody",
+        "work_id": "work.semantic.kernel-diagnostic-fact-custody",
+        "kind": "evidence",
+        "title": "Kernel diagnostic-fact custody regression suite",
+        "href": "https://github.com/phibkro/semantic-systems/blob/b48563fc1780e6bf76f06b5e0fa0ee6c6d4fac10/tests/kernel-json-diagnostic-fact-custody.test.ts",
+        "revision": "b48563fc1780e6bf76f06b5e0fa0ee6c6d4fac10"
+      }
     }
   ]
 }

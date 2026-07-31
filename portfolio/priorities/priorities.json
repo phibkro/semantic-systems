@@ -44,6 +44,105 @@
         "asserted_at": "2026-07-31T15:28:13Z",
         "reason": "PBK repositories should converge on reusable quality and delivery shape through Reef."
       }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "priority",
+      "value": {
+        "id": "priority.pbk-control-room.02",
+        "work_id": "work.semantic.pbk-control-room",
+        "rank": 1,
+        "asserted_at": "2026-07-31T19:45:01Z",
+        "reason": "Publish and verify the accepted portfolio Control Room so the operator can steer PBK from the live dependency horizon."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "priority",
+      "value": {
+        "id": "priority.kernel-interpreter.01",
+        "work_id": "work.semantic.kernel-interpreter",
+        "rank": 2,
+        "asserted_at": "2026-07-31T19:45:01Z",
+        "reason": "The independently accepted interpreter is the executable semantic oracle for subsequent language work."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "priority",
+      "value": {
+        "id": "priority.herdr-fleet-resource.01",
+        "work_id": "work.herdr.fleet-resource",
+        "rank": 3,
+        "asserted_at": "2026-07-31T19:45:01Z",
+        "reason": "The accepted local fleet governor makes capacity-aware agent work observable; remote publication remains a separate operator-authorized transition."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "priority",
+      "value": {
+        "id": "priority.surface-language.02",
+        "work_id": "work.semantic.surface-language",
+        "rank": 4,
+        "asserted_at": "2026-07-31T19:45:01Z",
+        "reason": "Begin surface-language interpretation against the now-accepted kernel oracle before optimizing compilation."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "priority",
+      "value": {
+        "id": "priority.optimized-compiler.01",
+        "work_id": "work.semantic.optimized-compiler",
+        "rank": 5,
+        "asserted_at": "2026-07-31T19:45:01Z",
+        "reason": "Compiler optimization follows interpreter semantics and will be checked against the reference oracle."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "priority",
+      "value": {
+        "id": "priority.reef-shape.02",
+        "work_id": "work.reef.repository-shape",
+        "rank": 6,
+        "asserted_at": "2026-07-31T19:45:01Z",
+        "reason": "Reef remains the reusable repository policy and delivery-shape frontier after the live product and language lanes."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "priority",
+      "value": {
+        "id": "priority.kernel-json.02",
+        "work_id": "work.semantic.kernel-json",
+        "rank": 7,
+        "asserted_at": "2026-07-31T19:45:01Z",
+        "reason": "The kernel JSON boundary is accepted history and remains foundational rather than an active frontier."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "priority",
+      "value": {
+        "id": "priority.environment-federation.01",
+        "work_id": "work.pagu.environment-federation",
+        "rank": 8,
+        "asserted_at": "2026-07-31T19:45:01Z",
+        "reason": "Preserve the multi-host direction without pulling federation complexity into the current one-environment runtime."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "priority",
+      "value": {
+        "id": "priority.heterogeneous-placement.01",
+        "work_id": "work.pagu.heterogeneous-placement",
+        "rank": 9,
+        "asserted_at": "2026-07-31T19:45:01Z",
+        "reason": "Research explainable placement across CPU classes, accelerators, locality, devices, and differentiated host roles after federation boundaries are warranted."
+      }
     }
   ]
 }

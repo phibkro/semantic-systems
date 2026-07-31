@@ -37,8 +37,8 @@
         "name": "Herdr MCP",
         "summary": "Stable programmatic lifecycle and supervision surface over native agent harnesses.",
         "repository_url": "https://github.com/phibkro/herdr-mcp",
-        "head": "2b5c507226a1e297ce3456fc9d287ffd58839caf",
-        "observed_at": "2026-07-31T18:22:37Z",
+        "head": "51e02af203fe3596ba86b2cf5089a7b714c1a8b2",
+        "observed_at": "2026-07-31T19:25:18Z",
         "status": "active",
         "preview_url": null
       }
@@ -107,8 +107,8 @@
         "name": "Semantic Systems",
         "summary": "Language, kernel, runtime, evidence, and semantic project-system development.",
         "repository_url": "https://github.com/phibkro/semantic-systems",
-        "head": "87c532ee7d91db825427a87bfd7357778254e1e9",
-        "observed_at": "2026-07-31T18:22:37Z",
+        "head": "4b033b76452519534ff7918ca43516144d45b2e3",
+        "observed_at": "2026-07-31T19:48:48Z",
         "status": "active",
         "preview_url": "https://semantic.phibkro.org"
       }

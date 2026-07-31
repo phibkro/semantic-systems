@@ -82,7 +82,7 @@
         "kind": "feature",
         "title": "Fleet resource observations and leases",
         "summary": "Publish synchronized machine observations and atomically admit registered task identities against finite resource pools.",
-        "status": "active",
+        "status": "ready",
         "definition_of_done": [
           "All harness adapters observe the same fresh resource facts and cannot obtain a partial resource vector or a second lease beyond a registered pool.",
           "The interface states that lease admission does not prove execution while ordinary shell launch remains available."
@@ -90,7 +90,8 @@
         "attributes": {
           "work.discipline": "engineering",
           "work.layer": "environment",
-          "work.agent-facing": true
+          "work.agent-facing": true,
+          "work.publication-state": "accepted locally at 51e02af; remote publication pending operator-authorized workflow"
         }
       }
     },
@@ -166,13 +167,72 @@
         "status": "planned",
         "definition_of_done": [
           "Every fleet member sees the same typed environment identity, facilities, limits, live facts, missing facts, and published limitations.",
-          "Each mutable resource has one owning serialization point and all other views are freshness-bounded projections."
+          "Each mutable resource has one owning serialization point and all other views are freshness-bounded projections.",
+          "Observed environment facts, task requirements, allocation policy, and granted leases remain distinct records with explicit provenance and revision custody.",
+          "A task can submit a typed scheduling manifest for resource vectors, exclusivity, phase changes, and service class without overriding fleet fairness policy.",
+          "The agent control plane follows a user-space microkernel boundary: a small authority owns identity, lifecycle, resource ledgers, and the event journal while workspace, build, browser, network, and harness adapters remain replaceable services.",
+          "NixOS and Linux remain the host substrate; systemd and cgroup-v2 task scopes provide the first enforceable resource domains, with microVM execution available as an explicit higher-boundary task class rather than the universal default.",
+          "Multiple host environments federate through versioned messages and observations as a multikernel-style system without pretending that their mutable state is shared."
         ],
         "attributes": {
           "work.discipline": "engineering",
           "work.layer": "environment",
           "work.agent-facing": true,
-          "work.prior-art": "Barrelfish multikernel"
+          "work.prior-art": "Barrelfish multikernel: System Knowledge Base and scheduling manifests"
+        }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
+        "id": "work.pagu.environment-federation",
+        "project_id": "project.pagu",
+        "kind": "milestone",
+        "title": "Federated environment directory and placement",
+        "summary": "Register multiple independently governed machine environments and place work through explicit observations and local lease grants without introducing shared mutable capacity.",
+        "status": "candidate",
+        "definition_of_done": [
+          "The single-host runtime is one EnvironmentPort instance identified by an opaque stable environment ID; no caller relies on an ambient global environment.",
+          "Every observation, task manifest, lease, receipt, and event carries environment identity, boot incarnation, schema version, local revision, and observation time where applicable.",
+          "An EnvironmentDirectory projects registered descriptors and freshness without becoming the authority for any environment's local resource ledger.",
+          "A placement planner compares freshness-bounded candidate observations, requests an idempotent local reservation from the selected environment, and compensates unused or failed reservations without claiming a cross-host atomic transaction.",
+          "Environment disappearance, restart, partition, and stale observation remain distinct explicit states; a hostname or transport connection is never treated as durable environment identity.",
+          "Capabilities remain issuer-scoped and non-transferable by default; supervisors can delegate only a narrowed child grant within the issuing environment unless an explicit cross-environment protocol produces a new local grant.",
+          "Control Room can project environment topology, capacity bands, placements, leases, and evidence while linking every projection to its local authority and revision."
+        ],
+        "attributes": {
+          "work.discipline": "architecture",
+          "work.layer": "environment-federation",
+          "work.agent-facing": true,
+          "work.prior-art": "Barrelfish multikernel, distributed lease protocols, and scheduler placement manifests"
+        }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
+        "id": "work.pagu.heterogeneous-placement",
+        "project_id": "project.pagu",
+        "kind": "feature",
+        "title": "Heterogeneous capability topology and placement research",
+        "summary": "Match task needs and preferences against typed compute, accelerator, storage, network, device, locality, and host-role capabilities within and across environments.",
+        "status": "candidate",
+        "definition_of_done": [
+          "An environment describes a resource topology rather than one flat capacity number: CPU classes and affinity, GPU or accelerator devices and memory, storage and data locality, network position, attached facilities, and declared host role remain separately typed.",
+          "Discovered facts, operator-declared roles, benchmark observations, and planner assumptions retain different evidence kinds and freshness; device presence alone never implies a usable runtime, driver, toolchain, or workload fit.",
+          "Capability kinds distinguish an agent execution slot, a typed service or device operation, an observation source, and artifact or data locality, so using a router or media-server facility does not require launching a general agent on that host.",
+          "Task manifests distinguish hard requirements from ranked preferences, fallbacks, affinity or anti-affinity, data locality, expected phases, and disruption tolerance.",
+          "Placement produces an explainable candidate ranking and an explicit no-fit result before requesting a local lease; media, routing, workstation, build, browser, and accelerator hosts can therefore keep different role policies.",
+          "A granted device or accelerator slice has one local owner and an issuer-scoped lease; cross-host planning never fabricates a portable GPU, storage, or network capability.",
+          "A deterministic tracer covers homogeneous cores, heterogeneous CPU cores, a GPU or AI accelerator, a storage-local media task, a network-local appliance task, capability disappearance, and an honest no-fit rejection."
+        ],
+        "attributes": {
+          "work.discipline": "research",
+          "work.layer": "placement",
+          "work.agent-facing": true,
+          "work.research-direction": "heterogeneous computing and topology-aware scheduling"
         }
       }
     },
@@ -313,7 +373,7 @@
         "kind": "feature",
         "title": "Kernel reference interpreter",
         "summary": "Execute the frozen kernel interface through a small reference semantics with explicit bounded observations.",
-        "status": "review",
+        "status": "accepted",
         "definition_of_done": [
           "Valid kernel programs evaluate deterministically and invalid programs preserve the frozen diagnostic and observation boundaries.",
           "The public API, portable facts, proxy observations, and all acceptance gates survive independent review."
@@ -334,10 +394,11 @@
         "kind": "feature",
         "title": "Kernel diagnostic-fact custody correction",
         "summary": "Restore the frozen type and label reference semantics for rejected checker observations so every interpreter outcome crosses its own canonical boundary.",
-        "status": "active",
+        "status": "accepted",
         "definition_of_done": [
           "Type-valued and row-valued diagnostic facts register through the existing strict table-reference decoder and reject malformed or dangling references.",
-          "Generated invalid programs and a byte-exact cross-host fixture prove that every returned rejection satisfies the public guard and canonical encoders."
+          "Generated invalid programs and a byte-exact cross-host fixture prove that every returned rejection satisfies the public guard and canonical encoders.",
+          "Open diagnostic-fact records traverse keys in Unicode code-point order, so value and canonical-byte decoding preserve the same first-encounter table authority."
         ],
         "attributes": {
           "work.discipline": "engineering",
