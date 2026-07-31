@@ -1,0 +1,41 @@
+{
+  "entities": [
+    {
+      "id": "work.control-room-pinned-alchemy-workspace",
+      "kind": "work_item",
+      "name": "Bind Control Room deploy to pinned Alchemy",
+      "summary": "Invoke the lockfile-owned workspace binary and reject an empty provider keyring before deploy or cleanup.",
+      "status": "in_progress",
+      "tags": ["control-room", "deployment", "alchemy", "correction"],
+      "attributes": {
+        "phase": "validation",
+        "effort": 1,
+        "design_spec": "design-specs/0029-control-room-pinned-alchemy-workspace.md",
+        "plan": "plans/active/0029-control-room-pinned-alchemy-workspace.md",
+        "acceptance": [
+          "Trusted workflow invokes the pinned workspace Alchemy binary",
+          "Empty provider credentials reject before the provider command",
+          "Production reports deployed only from exact served bytes"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 5,
+          "testability": 5,
+          "reversibility": 5,
+          "integration_independence": 4,
+          "blast_radius": 4,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source": "work.control-room-pinned-alchemy-workspace",
+      "target": "work.control-room-alchemy-cli-compat",
+      "kind": "requires",
+      "summary": "The new observation corrects the earlier command-surface conclusion.",
+      "attributes": {}
+    }
+  ]
+}
