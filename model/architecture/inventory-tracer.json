@@ -6,14 +6,11 @@
       "name": "Standing broken inventory realization",
       "summary": "Deliberately ignores the insufficient-stock guard so the conformance gate has a permanent negative subject.",
       "status": "rejected_fixture",
-      "tags": [
-        "inventory",
-        "counterexample"
-      ],
+      "tags": ["inventory", "counterexample"],
       "attributes": {
         "manifest": "examples/inventory/realizations/broken.json",
-        "identity": "sha256:e30c8e4be3a26655ed8b6019c6c4b557367bf64d53e1b248b95f801a08e3b06c",
-        "expected_result": "five of six example cases pass"
+        "identity": "sha256:44bc84e17c9abaab229cc3a6fb143ebeb3a6a6655e014eec60c0d7fbe0c029c0",
+        "expected_result": "seven of nine example cases pass"
       }
     }
   ],

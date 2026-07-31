@@ -42,14 +42,14 @@
       "path": ".githooks/commit-msg",
       "kind": "exclusive_path",
       "executable": true,
-      "contentDigest": "sha256:2d014b0921cda151d3a6131c7a280b5637300643623ab380c0c500032b833fa2"
+      "contentDigest": "sha256:e5d969a4651e7145f7472d9d4c41262095649004ceb8b4fd800e1aa527e4dd2c"
     },
     {
       "claimId": "githooks/pre-commit",
       "path": ".githooks/pre-commit",
       "kind": "exclusive_path",
       "executable": true,
-      "contentDigest": "sha256:07dee35752c192c53afbb08253eaca5cb8ab52ef5ae4e211643844c115ef6c58"
+      "contentDigest": "sha256:7e1fbf459999cc4f47445c867e4c44069f9c1d17e9a8b37caf231a557de44f24"
     },
     {
       "claimId": "commitlint-config",
@@ -100,10 +100,16 @@
       "path": ".githooks/pre-push",
       "kind": "exclusive_path",
       "executable": true,
-      "contentDigest": "sha256:eb9e699f7331da5bf648adae500131d179250ed49719ca3a4b2933efc94c660d"
+      "contentDigest": "sha256:360e81283a596d99d8c1866afed76fcf6224f6396ca6b40c7ea45f559eba8ef8"
     }
   ],
   "adaptations": [
+    {
+      "id": "commit-msg-bun-runtime",
+      "path": ".githooks/commit-msg",
+      "upstreamClaimId": "githooks/commit-msg",
+      "rationale": "Migration 0010 preserves the upstream Commitlint invocation while replacing the Bash wrapper with an executable Bun TypeScript hook."
+    },
     {
       "id": "commitlint-default-ignores-disabled",
       "path": "commitlint.config.ts",
@@ -117,20 +123,20 @@
       "rationale": "GitHub forms a squash body from the feature report after the protected PR gates run. Conventional Commit identity is carried by the validated squash title, so prose line wrapping must not create a post-merge-only rejection."
     },
     {
-      "id": "pre-commit-fast-loop",
+      "id": "pre-commit-bun-fast-loop",
       "path": ".githooks/pre-commit",
       "upstreamClaimId": "githooks/pre-commit",
-      "rationale": "After exact staged-file formatting and linting, the advisory pre-commit transition runs the repository fast loop required by design spec 0005."
+      "rationale": "Migration 0010 preserves exact staged-file formatting and linting, then invokes the Bun fast-loop entrypoint without a Bash runtime."
     },
     {
-      "id": "pre-push-integration",
+      "id": "pre-push-bun-integration",
       "path": ".githooks/pre-push",
-      "rationale": "The project adds an advisory pre-push hook that clears Git hook-local repository variables before invoking the pinned Nix integration gate; this path is project-owned and absent from the upstream block."
+      "rationale": "The project-owned Bun hook clears Git hook-local repository variables before invoking the pinned Nix integration gate; this path is absent from the upstream block."
     }
   ],
   "deviationsFromBlock": [
-    "commitlint.config.ts and .githooks/pre-commit begin from upstream renders but are intentionally hardened as recorded adaptations, so they are not claimed byte-identical to Clamor.",
-    ".githooks/pre-push is a project-owned lifecycle hook, not an upstream block claim.",
+    "commitlint.config.ts and the commit-msg/pre-commit hooks begin from upstream renders but are intentionally adapted to the Bun runtime and hardened as recorded, so they are not claimed byte-identical to Clamor.",
+    ".githooks/pre-push is a project-owned Bun lifecycle hook, not an upstream block claim.",
     "The package also pins Bun, Oxfmt, Oxlint, and stable TypeScript 7 for this repository; those choices are outside the upstream block's claim set."
   ],
   "conformance": {

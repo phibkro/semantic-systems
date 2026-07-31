@@ -1,0 +1,65 @@
+{
+  "entities": [
+    {
+      "id": "work.executable-semantic-system-kernel",
+      "kind": "work_item",
+      "name": "Build the executable semantic system kernel",
+      "summary": "Author and validate one reusable open-protocol component through direct and accepted-actor realizations.",
+      "status": "complete",
+      "tags": ["semantic-system", "inventory", "effects", "actors"],
+      "attributes": {
+        "phase": "validation",
+        "effort": 13,
+        "design_spec": "design-specs/0016-executable-semantic-system-kernel.md",
+        "plan": "plans/active/0016-executable-semantic-system-kernel.md",
+        "acceptance": [
+          "Semantic input and output categories remain distinct and schema-backed",
+          "Effect requests remain protocol data until an exact registered interpreter handles them",
+          "The bounded driver retains an exact causal trace and honest suspended work",
+          "Direct and accepted-actor inventory journeys normalize equally",
+          "Portable closure, Node and Bun parity, inherited regressions, and full repository gates pass",
+          "Reports preserve unsupported claims and evidence categories"
+        ],
+        "completion": {
+          "implementation_head": "6942c53aedee61a8e889f344619aa4753d6a6167",
+          "integration_head": "362f2ecd451c4f7b8c7cfef313dc49db11d0bf36",
+          "feature_acceptance": "runtime_validation",
+          "integration_gate": "test_and_static_analysis",
+          "independent_review": "assertion"
+        },
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 5,
+          "testability": 5,
+          "reversibility": 4,
+          "integration_independence": 2,
+          "blast_radius": 4,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source": "work.executable-semantic-system-kernel",
+      "target": "component.semantic-system-kernel",
+      "kind": "implements",
+      "summary": "The frozen tracer establishes the first executable realization of the component boundary.",
+      "attributes": {}
+    },
+    {
+      "source": "work.executable-semantic-system-kernel",
+      "target": "work.actor-runtime",
+      "kind": "blocks",
+      "summary": "The actor journey depends on the already accepted actor ownership and lifecycle contract.",
+      "attributes": {}
+    },
+    {
+      "source": "work.executable-semantic-system-kernel",
+      "target": "component.inventory",
+      "kind": "changes",
+      "summary": "The inventory tracer gains explicit pending request and returned-observation protocol state without changing accepted guards.",
+      "attributes": {}
+    }
+  ]
+}

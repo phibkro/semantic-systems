@@ -3,15 +3,68 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
+    "moduleDetection": "force",
     "allowImportingTsExtensions": true,
     "lib": ["ES2022"],
     "types": ["bun"],
     "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noUnusedLocals": true,
     "noEmit": true,
     "esModuleInterop": true,
+    "verbatimModuleSyntax": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        "diagnostics": true,
+        "ignoreEffectWarningsInTscExitCode": false,
+        "ignoreEffectErrorsInTscExitCode": false,
+        "overrides": [
+          {
+            "include": ["src/project-model/**/*.ts", "src/tracer/**/*.ts", "src/stm/**/*.ts"],
+            "exclude": [
+              "src/project-model/main-bun.ts",
+              "src/project-model/main-node.ts",
+              "src/tracer/main-bun.ts",
+              "src/tracer/main-node.ts",
+              "src/stm/main-bun.ts",
+              "src/stm/main-node.ts"
+            ],
+            "options": {
+              "diagnosticSeverity": {
+                "anyUnknownInErrorContext": "error",
+                "cryptoRandomUUIDInEffect": "error",
+                "floatingEffect": "error",
+                "globalConsoleInEffect": "error",
+                "globalDateInEffect": "error",
+                "globalFetchInEffect": "error",
+                "globalRandomInEffect": "error",
+                "globalTimersInEffect": "error",
+                "leakingRequirements": "error",
+                "nodeBuiltinImport": "error",
+                "outdatedApi": "error",
+                "processEnvInEffect": "error",
+                "strictEffectProvide": "error",
+                "unsafeEffectTypeAssertion": "error"
+              }
+            }
+          },
+          {
+            "include": ["src/project-model/loader.ts", "src/tracer/loader.ts"],
+            "options": {
+              "diagnosticSeverity": {
+                "preferSchemaOverJson": "error"
+              }
+            }
+          }
+        ]
+      }
+    ]
   },
-  "include": ["scripts/**/*.ts", "commitlint.config.ts"]
+  "include": ["src/**/*.ts", "tests/**/*.ts", "scripts/**/*.ts", "commitlint.config.ts"],
+  "exclude": ["apps/control-room"]
 }

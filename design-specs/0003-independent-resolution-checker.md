@@ -21,17 +21,21 @@ For a fixed authored theory, complete realization set, lossless evidence-result
 set, and evidence policy, an independent checker accepts a serialized
 resolution claim if and only if:
 
-1. theory, realization, recipe, evidence, and policy bindings are exact;
+1. theory, realization, evidence, and policy bindings plus recipe-identity
+   propagation derivable from the declared checker inputs are exact;
 2. every candidate is represented once;
 3. evidence result truth values and counts derive from full case results;
 4. candidate eligibility and reasons follow the frozen policy;
 5. zero, one, or multiple eligible candidates produce the declared terminal
    result;
-6. selected identity and assumptions are complete; and
-7. the canonical project-model bindings agree.
+6. selected identity and assumptions are complete.
 
-Any single semantic-field mutation produces a stable named violation and
-prevents execution.
+The composite checker-and-adapter gate additionally requires the canonical
+project-model bindings to agree before execution.
+
+Any single semantic-field mutation whose expected value is derivable from the
+relevant declared inputs produces a stable named violation and prevents
+execution.
 
 ## Values
 
@@ -53,7 +57,8 @@ Required minimal rejections:
 - a conformance recipe supplied where an evidence result is required;
 - an `example_test` result relabeled as `proof`;
 - a failing case stored with `passed: true`;
-- a copied pure result rebound to the broken realization;
+- a copied pure result with stale or internally inconsistent subject bindings
+  rebound to the broken realization;
 - an eligible bit or reason set changed;
 - selected ID or identity changed or omitted;
 - a candidate omitted or duplicated;
@@ -61,9 +66,13 @@ Required minimal rejections:
 - policy content changed without recomputing the claim;
 - canonical model identity or case count changed by one character.
 
-Required subtle adversarial case: a structurally valid pure evidence result is
-copied, assigned the broken realization identity, and retains its passing case
-payload. Exact subject and derived result checks must reject it.
+Required subtle adversarial distinction: a copied pure evidence result rebound
+to the broken realization with any stale subject, aggregate, claim, or result
+identity must be rejected. If every declared field and identity is refreshed
+self-consistently, the oracle must expose that observation authenticity is not
+derivable from the generic checker inputs, and the checker must not fabricate a
+violation. This is a spec-level evidence limit, not an additional checker-report
+field.
 
 ## Frozen deep-module contract
 
@@ -125,25 +134,38 @@ Lexical order is never a fallback selection rule.
 
 ### Independent checker
 
-The checker receives authored theory, realization, and policy documents plus
-the evidence packets and serialized claim. It:
+The generic checker receives authored theory, realization, and policy documents
+plus the evidence packets and serialized claim. It:
 
 1. recomputes theory and realization identities;
 2. recomputes policy content identity;
 3. requires complete unique candidate coverage;
-4. validates exact evidence subjects and at most one result per
-   realization/obligation;
-5. derives evidence aggregates from non-empty case results;
-6. applies category and assumption policy;
-7. re-derives every candidate reason set and eligibility;
-8. derives the zero/one/multiple-candidate terminal result;
-9. verifies selected identity and assumption projection; and
-10. reports deterministic violations.
+4. validates exact evidence subjects derivable from its inputs and requires at
+   most one result per realization/obligation;
+5. validates a nonempty recipe identity and its exact propagation through the
+   evidence result and claim, without claiming authored-recipe source binding;
+6. derives evidence aggregates from non-empty full case results;
+7. applies category and assumption policy;
+8. re-derives every candidate reason set and eligibility;
+9. derives the zero/one/multiple-candidate terminal result;
+10. verifies selected identity and assumption projection; and
+11. reports deterministic violations.
+
+All supplied evidence packets must be consumed exactly once or rejected as
+missing, duplicate, malformed, foreign, or unbound. Candidate and reason
+ordering remains presentation-only.
 
 The checker must not import the production resolver, demo orchestration,
 conformance runner, operation registry, domain semantics, or execution module.
 It performs no realization execution, plugin loading, network access, or
 filesystem mutation.
+
+The checker establishes consistency of serialized observations with authored
+subjects, policy, and claim fields. It has no execution, canonical-model,
+recipe-source, provenance, signature, freshness, or observation-authentication
+authority. It must reject stale or internally inconsistent subject rebinding,
+but it must not report a fully refreshed self-consistent observation forgery as
+detectable without an additional custodied input.
 
 Sharing canonical JSON and exact identity functions is a visible correlated-TCB
 assumption, not independent proof of hashing correctness.
@@ -163,12 +185,28 @@ Violation ordering is presentation-only. An invalid report blocks execution.
 
 ### Canonical project-model binding
 
-A thin inventory-specific adapter compares the checked result with canonical
-model identities, evidence subjects, case counts, policy, deployment lock, and
-selected realization. The generic checker contains no project-graph logic.
+A thin inventory-specific adapter compares the valid generic-checker result
+with canonical model identities, canonical evidence subjects and case counts,
+policy, deployment lock, and selected realization. The generic checker contains
+no project-graph logic.
 
-This is a test/runtime validation rung. A later generator may make the
-executable result lock the canonical source for derived graph fields.
+The adapter can report disagreement between the submitted evidence result and a
+separately custodied canonical record, including the canonical broken
+realization's `7/9` result and named counterexamples. Such disagreement is a
+canonical-binding violation. Agreement is not proof that the underlying
+observation is true, authentic, independently witnessed, signed, or current.
+
+This remains implementation slice 7. It is a test/runtime-validation rung. A
+later generator may make the executable result lock the canonical source for
+derived graph fields.
+
+### Recipe-source custody
+
+A separate adapter may receive an authored recipe, recompute its identity, and
+compare it with the result's `recipeIdentity`. The generic checker does not
+receive authored recipes and therefore cannot make this claim. Recipe-source
+custody establishes content equality only; it does not establish that the
+recipe was executed or that its observation is authentic.
 
 ## Independence and size gate
 
@@ -181,10 +219,17 @@ code. Kill or recut the design if independent recomputation needs the same
 execution dependencies or equal decision complexity. A declarative eligibility
 table that generates both implementations is the preferred fallback.
 
+This authority recut does not change the compared checker and production
+adjudication surfaces. It does not authorize changing the 70% threshold,
+padding the production denominator, omitting checker-side structural
+validation, or counting unlike semantic regions. Any later surface definition
+must classify every validity-affecting executable region on both sides under
+identical inclusion and exclusion rules.
+
 ## Visible command
 
 ```bash
-PYTHONPATH=src python -m semantic_tracer verify-resolution examples/inventory
+bun run semantic-tracer -- verify-resolution examples/inventory
 ```
 
 It reports the exact theory, policy, evidence result identities, selected
@@ -194,34 +239,53 @@ nonzero before execution if either check fails.
 ## Acceptance
 
 1. The positive development result is accepted and then executes the oracle.
-2. Every required mutation reports its stable violation and prevents
-   execution.
+2. Every required mutation derivable from the relevant declared inputs reports
+   its stable violation and prevents execution.
 3. Production resolution consumes precomputed evidence packets and imports no
    evidence producer or execution adapter.
 4. The checker satisfies its forbidden-import and capability restrictions.
 5. Lossless serialization round-trips case details and derives aggregates.
 6. Policy changes alter eligibility without invalidating the historical
    evidence result.
-7. Canonical model drift fails the binding gate.
+7. Canonical model drift fails the slice-7 binding gate. A fully refreshed
+   observation that disagrees with a separately custodied canonical record is
+   reported as canonical disagreement, not generic-checker detection of
+   forgery.
 8. Existing inventory tracer behavior and counterexamples remain covered.
-9. The checker meets the independence and size gate.
+9. The checker meets the unchanged symmetric independence and 70% size gate.
 10. Full repository checks and generated-view checks pass.
+11. A recipe supplied as an evidence result is rejected, while authored-recipe
+    source binding is reported only by the recipe-custody adapter.
+12. The oracle corpus distinguishes stale or internally inconsistent rebinding
+    from a fully refreshed self-consistent rebound whose authenticity is not
+    derivable from the generic checker inputs.
 
 ## Evidence claim and limits
 
 Positive and mutation fixtures provide `example_test` evidence. Executing the
-checker provides `runtime_validation`. Neither is proof.
+checker and binding adapters provides `runtime_validation`. Neither is proof.
 
-This tracer establishes internal consistency for frozen v1 artifacts. It does
-not establish:
+The generic checker establishes internal consistency for frozen v1 artifacts
+relative to its declared authored theory, realization, policy, evidence-packet,
+and claim inputs. It does not establish:
 
+- authored-recipe source binding;
+- truth, authenticity, provenance, freshness, or independent custody of
+  producer observations;
+- that a fully refreshed self-consistent result was produced by executing the
+  claimed realization or recipe;
 - universal inventory correctness;
-- truth or authenticity of producer observations;
 - proof validity;
 - external signatures or revocation;
-- collision resistance or canonicalizer correctness;
-- Python runtime correctness;
+- collision resistance or canonicalizer correctness; or
 - production runtime suitability.
+
+A recipe-custody adapter can establish equality between an authored recipe's
+recomputed identity and the result's `recipeIdentity`; it does not establish
+that execution occurred. A canonical-model adapter can establish agreement with
+a separately custodied canonical record; it does not authenticate either
+record. Observation provenance or authenticity belongs to a future explicitly
+named observation-custody and authentication frontier.
 
 ## Frozen boundaries and non-goals
 
@@ -234,7 +298,8 @@ kernel calculus.
 
 - A recipe is accepted as evidence.
 - A one-field subject, policy, case, verdict, selection, assumption, or model
-  mutation is accepted.
+  mutation whose expected value is derivable from the relevant declared inputs
+  is accepted.
 - Candidate omission or duplication is accepted.
 - The checker trusts stored aggregates or verdicts instead of deriving them.
 - Invalid checking does not block execution.
@@ -243,13 +308,36 @@ kernel calculus.
   demonstrated trust reduction.
 - Model drift remains only a hand-maintained assertion rather than a reusable
   violation.
+- The generic checker claims authored-recipe source binding without receiving
+  the authored recipe.
+- The generic checker claims to detect a fully refreshed self-consistent
+  observation forgery without execution, custody, authentication, or an
+  independently authoritative observation input.
+- Canonical-model disagreement is reported as proof of observation forgery or
+  authenticity.
+- Recipe custody, generic claim checking, canonical-model binding, and
+  execution gating are collapsed into one unnamed authority.
 
 ## Semantic diff
 
-This bullet adds typed serializable evidence results, serialized resolution
-claims, an independent validation gate, exact selected identities, and a
-canonical-model binding check. It moves conformance production out of policy
-resolution.
+This recut preserves typed serializable evidence results, serialized resolution
+claims, complete authored-candidate coverage, exact subject checks derivable
+from declared inputs, independent policy and terminal recomputation, exact
+selected identities and assumptions, deterministic violations, execution
+blocking, and a separate canonical-model binding check.
 
-It does not change theory meaning, laws, effects, identity v0, evidence
-categories, policy rules, or inventory behavior.
+It clarifies that the generic checker validates recipe-identity presence and
+propagation but does not bind that identity to an absent authored recipe.
+Authored-recipe source binding moves to a separately named recipe-custody
+adapter.
+
+It separates stale or internally inconsistent result rebinding, which the
+generic checker rejects, from a fully refreshed self-consistent observation
+forgery, which the generic checker cannot distinguish. Canonical-model
+disagreement remains a slice-7 consistency violation. Observation provenance
+and authenticity move to a future observation-custody and authentication
+frontier.
+
+The recut does not change theory meaning, laws, effects, identity v0, evidence
+categories, policy rules, inventory behavior, slice-6 execution/CLI ownership,
+slice-7 canonical-model ownership, or the 70% checker-size gate.

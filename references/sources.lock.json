@@ -2,6 +2,102 @@
   "generator": "semantic_references/0.1.0",
   "schema": "reference-lock-v1",
   "sources": {
+    "agda": {
+      "acquisition": "remote",
+      "catalog_digest": "28de33df5d6802a90e58592c5f3c51009a1f5bc8c296b59a26ab53dc225b2281",
+      "commit": "3d04bacca842729f9c0869b9287256321b5f450f",
+      "licenses": {
+        "LICENSE": {
+          "mode": "100644",
+          "sha256": "a07da943d7a2a735b2c9ad6cd3a7bdb8d4908e4160d43787c7365f871e30b7d9",
+          "size": 2532
+        }
+      },
+      "object_format": "sha1",
+      "origin": "https://github.com/agda/agda.git",
+      "origin_verified": true,
+      "resolved_ref": "refs/tags/v2.8.0",
+      "retrieved_at": "2026-07-30T01:35:29Z",
+      "track": "v2.8.0",
+      "tree": "760052e57d631695595e7d6e382230a75b74b900"
+    },
+    "flux": {
+      "acquisition": "local-object-cache",
+      "catalog_digest": "7e36b62d59b12fb276d3f075aed65a9d746be60ebe4c867f1f961ce01f3be8ce",
+      "commit": "3f6c680f3d2b51519d4d252aa61e7948727c606e",
+      "licenses": {
+        "LICENSE": {
+          "mode": "100644",
+          "sha256": "f9c4c77baa3828004ee54b8a4f2db2e88ed44a6237a493965bf551fac0fcb62d",
+          "size": 1023
+        },
+        "crates/flux-macros/src/diagnostics/LICENSE-MIT.md": {
+          "mode": "100644",
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+          "size": 1023
+        },
+        "crates/flux-macros/src/diagnostics/LICENSE.md": {
+          "mode": "100644",
+          "sha256": "c0ce5ce075f0c7a11d459014da736dda939e427a31690aca957cf8b10efa6ae0",
+          "size": 68
+        },
+        "tools/vscode/LICENSE": {
+          "mode": "100644",
+          "sha256": "f9c4c77baa3828004ee54b8a4f2db2e88ed44a6237a493965bf551fac0fcb62d",
+          "size": 1023
+        }
+      },
+      "object_format": "sha1",
+      "origin": "https://github.com/flux-rs/flux.git",
+      "origin_verified": false,
+      "resolved_ref": "refs/heads/main",
+      "retrieved_at": "2026-07-30T02:57:59Z",
+      "track": "main",
+      "tree": "957f4df6d19dedb4510909994fe0c4cf30285a74"
+    },
+    "idris2": {
+      "acquisition": "remote",
+      "catalog_digest": "6529b4cd95576d1d1a2a8035ea8664b0b6d59744f864408304bbbbdba6bc064c",
+      "commit": "15a3e4e70843f7a34100f6470c04b791330788df",
+      "licenses": {
+        "LICENSE": {
+          "mode": "100644",
+          "sha256": "6dec8feaa6386137e58e0785a633e9cd995768e00c7b4eae710f883f2b8e5c69",
+          "size": 1602
+        }
+      },
+      "object_format": "sha1",
+      "origin": "https://github.com/idris-lang/Idris2.git",
+      "origin_verified": true,
+      "resolved_ref": "refs/tags/v0.8.0",
+      "retrieved_at": "2026-07-29T22:11:19Z",
+      "track": "v0.8.0",
+      "tree": "7ada9585d271a90c40c12d65f1e7220b6aafc2a1"
+    },
+    "liquid-haskell": {
+      "acquisition": "remote",
+      "catalog_digest": "02f6fceed2c08a7e52d2107068643774c029e47cf360e6123b470e915d098247",
+      "commit": "1c2a820d84f58d67eeb25aef9de26043d8cb55d6",
+      "licenses": {
+        "LICENSE": {
+          "mode": "100644",
+          "sha256": "73463da713ec513255b133640d1dbb1bb79484a020ff95d172e19fc04076e1c5",
+          "size": 1527
+        },
+        "LICENSE_Z3": {
+          "mode": "100644",
+          "sha256": "df8df2463c701adbd755c6767270c7acc4655d220b2f2d8fa47f0d648d8d5795",
+          "size": 1095
+        }
+      },
+      "object_format": "sha1",
+      "origin": "https://github.com/ucsd-progsys/liquidhaskell.git",
+      "origin_verified": true,
+      "resolved_ref": "refs/tags/v0.9.14.1",
+      "retrieved_at": "2026-07-29T21:29:00Z",
+      "track": "v0.9.14.1",
+      "tree": "7420e4c42b0dab693db6dea1a17c9a8eaf8a96fd"
+    },
     "local.lang-bang": {
       "acquisition": "local-sibling",
       "catalog_digest": "6005459a097d48bbff74d174c914267c9c71a282993c8de063c31b54b3161e59",

@@ -1,0 +1,158 @@
+{
+  "schema_version": "pbk.portfolio-row-set/v1",
+  "rows": [
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "membership",
+      "value": {
+        "id": "membership.01",
+        "work_id": "work.semantic.kernel-json",
+        "label_id": "label.engineering"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "membership",
+      "value": {
+        "id": "membership.02",
+        "work_id": "work.semantic.kernel-json",
+        "label_id": "label.agent-facing"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "membership",
+      "value": {
+        "id": "membership.03",
+        "work_id": "work.semantic.kernel-json",
+        "label_id": "label.language"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "membership",
+      "value": {
+        "id": "membership.04",
+        "work_id": "work.semantic.surface-language",
+        "label_id": "label.design"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "membership",
+      "value": {
+        "id": "membership.05",
+        "work_id": "work.semantic.surface-language",
+        "label_id": "label.language"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "membership",
+      "value": {
+        "id": "membership.06",
+        "work_id": "work.semantic.pbk-control-room",
+        "label_id": "label.engineering"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "membership",
+      "value": {
+        "id": "membership.07",
+        "work_id": "work.semantic.pbk-control-room",
+        "label_id": "label.operator-facing"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "membership",
+      "value": {
+        "id": "membership.08",
+        "work_id": "work.herdr.stable-facade",
+        "label_id": "label.engineering"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "membership",
+      "value": {
+        "id": "membership.09",
+        "work_id": "work.herdr.stable-facade",
+        "label_id": "label.agent-facing"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "membership",
+      "value": {
+        "id": "membership.10",
+        "work_id": "work.herdr.codex-session",
+        "label_id": "label.testing"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "membership",
+      "value": {
+        "id": "membership.11",
+        "work_id": "work.herdr.supervisor",
+        "label_id": "label.design"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "membership",
+      "value": {
+        "id": "membership.12",
+        "work_id": "work.flow.autonomous-studio",
+        "label_id": "label.design"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "membership",
+      "value": {
+        "id": "membership.13",
+        "work_id": "work.mastra.preview",
+        "label_id": "label.research"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "membership",
+      "value": {
+        "id": "membership.14",
+        "work_id": "work.reef.repository-shape",
+        "label_id": "label.delivery"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "membership",
+      "value": {
+        "id": "membership.15",
+        "work_id": "work.qeffect.resource-tracer",
+        "label_id": "label.testing"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "membership",
+      "value": {
+        "id": "membership.16",
+        "work_id": "work.workgraph.journeys",
+        "label_id": "label.testing"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "membership",
+      "value": {
+        "id": "membership.17",
+        "work_id": "work.course.decision-product",
+        "label_id": "label.engineering"
+      }
+    }
+  ]
+}

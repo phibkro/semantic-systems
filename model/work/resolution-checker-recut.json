@@ -3,38 +3,39 @@
     {
       "id": "question.resolution-checker-recut",
       "kind": "question",
-      "name": "How can resolution be checked independently within the size bound?",
-      "summary": "Compare generated rule evaluators, certificate validation, and a narrower claim after the first implementation exceeded the frozen checker-size gate.",
-      "status": "open",
-      "tags": [
-        "resolution",
-        "evidence",
-        "independence"
-      ],
+      "name": "Can a shared policy contract preserve independent checking within the size bound?",
+      "summary": "Resolved negatively: the declarative shared-policy experiment remained at least 144.2% of production under conservative symmetric accounting, so no checker architecture satisfies the frozen 70% gate.",
+      "status": "resolved_negative",
+      "tags": ["resolution", "evidence", "independence"],
       "attributes": {
         "record": "uncertainties/0004-independent-checker-recut.md",
-        "failed_experiment": "b9cea28"
+        "failed_experiment": "b9cea28",
+        "resolving_experiment": "219ee7c",
+        "review_limitations": "1d30fcf"
       }
     },
     {
       "id": "work.resolution-checker-recut",
       "kind": "work_item",
       "name": "Recut the independent resolution checker",
-      "summary": "Prototype and measure compact independently observable checker boundaries without weakening the frozen claim or size gate.",
-      "status": "ready",
-      "tags": [
-        "resolution",
-        "evidence",
-        "experiment"
-      ],
+      "summary": "Completed as rejected counterevidence; the current checker frontier is stopped until an explicit design revision replaces the incompatible size/trust claim.",
+      "status": "complete",
+      "tags": ["resolution", "evidence", "experiment"],
       "attributes": {
         "phase": "design",
         "effort": 5,
+        "result": "rejected",
+        "recorded_ratio_percent": 156.2,
+        "conservative_review_ratio_percent": 144.2,
+        "integrated_experiment_commit": "219ee7c",
+        "independent_review_record_commit": "1d30fcf",
         "acceptance": [
-          "Behavior and mutation corpus remains unchanged",
-          "Checker imports no production adjudicator or execution machinery",
-          "Adjudication decision core is at most 70% of production",
-          "Shared inputs and correlated defects remain explicit",
+          "Complete v1 claim, report, mutation, and presentation-order corpus passes",
+          "Generic checker, recipe custody, canonical binding, execution, and observation authority remain separate",
+          "Exhaustive symmetric classification catches an unclassified validity path",
+          "Checker imports no production adjudicator, model adapter, or execution machinery",
+          "Adjudication decision core is at most 70% of production under identical accounting",
+          "The shared policy contract and correlated defects remain explicit",
           "Failed experiment b9cea28 remains rejected"
         ],
         "delegation": {

@@ -37,10 +37,15 @@
       "kind": "artifact",
       "name": "Normalized semantic core artifact",
       "summary": "Canonical project-owned representation consumed by checkers, evidence producers, analyzers, and backends.",
-      "status": "research",
+      "status": "current",
       "tags": ["semantics", "contract"],
       "attributes": {
         "canonical": true,
+        "format": "semantic.normalized-core",
+        "version": 1,
+        "design_spec": "design-specs/0019-normalized-core-format.md",
+        "implementation": "src/normalized-core/index.ts",
+        "example": "examples/normalized-core/handled-program.expected.json",
         "requirements": [
           "deterministic normalization",
           "stable entity identities",
@@ -90,11 +95,7 @@
       "status": "planned",
       "tags": ["compiler", "optimization"],
       "attributes": {
-        "responsibilities": [
-          "multi-level lowering",
-          "translation validation",
-          "backend isolation"
-        ],
+        "responsibilities": ["multi-level lowering", "translation validation", "backend isolation"],
         "preferred_pattern": "project IR with optional MLIR and LLVM adapters"
       }
     },
@@ -169,7 +170,7 @@
       "kind": "component",
       "name": "Semantic project explorer",
       "summary": "Interactive projection of recursive components, contracts, evidence, source explanations, and work dependencies.",
-      "status": "in_progress",
+      "status": "planned",
       "tags": ["tooling", "visualization"],
       "attributes": {
         "responsibilities": [

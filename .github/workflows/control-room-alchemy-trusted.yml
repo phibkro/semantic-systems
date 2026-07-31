@@ -1,0 +1,177 @@
+name: Control Room Trusted Deploy
+
+# `workflow_run` executes this file from the default branch with privileged
+# context. It must never check out or execute candidate code. GitHub's artifact
+# is downloaded outside the workspace, digest-checked by the pinned action,
+# then read as bounded static data by trusted default-branch tooling.
+on:
+  workflow_run:
+    workflows: [Control Room Static Artifact]
+    types: [completed]
+  pull_request:
+    branches: [main]
+    types: [closed]
+
+permissions:
+  contents: read
+
+env:
+  TZ: UTC
+  LC_ALL: C.UTF-8
+
+jobs:
+  deploy-static:
+    name: deploy validated static artifact
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: write
+    concurrency:
+      group: control-room-alchemy-${{ github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.pull_requests[0].number && format('p{0}', github.event.workflow_run.pull_requests[0].number) || 'prod' }}
+      cancel-in-progress: false
+    steps:
+      - name: Check out trusted default branch
+        timeout-minutes: 2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/heads/main
+          persist-credentials: false
+      - name: Install pinned Nix
+        timeout-minutes: 8
+        uses: DeterminateSystems/nix-installer-action@ef8a148080ab6020fd15196c2084a2eea5ff2d25 # v22
+        with:
+          determinate: false
+          source-tag: v3.21.8
+          nix-package-url: https://releases.nixos.org/nix/nix-2.34.8/nix-2.34.8-x86_64-linux.tar.xz
+          diagnostic-endpoint: ""
+      - name: Verify trusted checkout and install dependencies
+        timeout-minutes: 8
+        run: >-
+          test "$(git branch --show-current)" = main &&
+          test -z "$(git status --porcelain)" &&
+          nix develop --command bun install --frozen-lockfile --ignore-scripts
+      - name: Validate same-repository provenance and immutable artifact identity
+        id: provenance
+        timeout-minutes: 2
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          nix develop --command bun apps/control-room/tooling/workflow-run-custody.ts
+          workflow-run "${GITHUB_EVENT_PATH}" "${GITHUB_REPOSITORY}" "${GITHUB_OUTPUT}"
+      - name: Download exact immutable artifact outside the workspace
+        timeout-minutes: 2
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          artifact-ids: ${{ steps.provenance.outputs.artifact_id }}
+          path: ${{ runner.temp }}/control-room-static
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.provenance.outputs.run_id }}
+          digest-mismatch: error
+      - name: Validate candidate bytes as inert static data
+        timeout-minutes: 2
+        env:
+          CONTROL_ROOM_ARTIFACT_COMMIT: ${{ steps.provenance.outputs.commit }}
+          CONTROL_ROOM_STATIC_DIR: ${{ runner.temp }}/control-room-static
+        run: >-
+          nix develop --command bun apps/control-room/tooling/scan-public-payload.ts
+          "${CONTROL_ROOM_STATIC_DIR}" "${CONTROL_ROOM_ARTIFACT_COMMIT}"
+      - name: Deploy validated bytes with trusted Alchemy code
+        id: provider
+        timeout-minutes: 17
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CONTROL_ROOM_ARTIFACT_COMMIT: ${{ steps.provenance.outputs.commit }}
+          CONTROL_ROOM_STATIC_DIR: ${{ runner.temp }}/control-room-static
+        run: >-
+          timeout --signal=TERM --kill-after=60s 15m
+          nix develop --command bunx alchemy deploy
+          apps/control-room/tooling/deploy-static.run.ts
+          --stage "${{ steps.provenance.outputs.stage }}" --yes
+      - name: Observe served snapshot and target after provider effect
+        id: observation
+        if: always() && steps.provider.outcome != 'skipped'
+        timeout-minutes: 3
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          nix develop --command bun apps/control-room/tooling/workflow-run-custody.ts
+          workflow-run-post-effect "${GITHUB_EVENT_PATH}" "${GITHUB_REPOSITORY}"
+          "${GITHUB_OUTPUT}" "${{ steps.provider.outcome }}"
+          "${{ runner.temp }}/control-room-static"
+          "${{ steps.provenance.outputs.artifact_digest }}"
+      - name: Report observed preview snapshot
+        if: >-
+          steps.provenance.outputs.kind == 'preview' &&
+          steps.observation.outputs.effect_observation == 'DeploymentObserved'
+        timeout-minutes: 2
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh pr comment "${{ steps.provenance.outputs.pr_number }}" --edit-last --create-if-none
+          --body "Control Room served snapshot ${{ steps.observation.outputs.served_snapshot_digest }} was observed at commit ${{ steps.provenance.outputs.commit }} from digest-custodied artifact ${{ steps.provenance.outputs.artifact_digest }}."
+
+  cleanup-preview:
+    name: cleanup trusted preview stage
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    permissions:
+      contents: read
+      pull-requests: read
+    concurrency:
+      group: control-room-alchemy-p${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+    steps:
+      - name: Check out trusted default branch
+        timeout-minutes: 2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/heads/main
+          persist-credentials: false
+      - name: Install pinned Nix
+        timeout-minutes: 8
+        uses: DeterminateSystems/nix-installer-action@ef8a148080ab6020fd15196c2084a2eea5ff2d25 # v22
+        with:
+          determinate: false
+          source-tag: v3.21.8
+          nix-package-url: https://releases.nixos.org/nix/nix-2.34.8/nix-2.34.8-x86_64-linux.tar.xz
+          diagnostic-endpoint: ""
+      - name: Verify trusted checkout and install dependencies
+        timeout-minutes: 8
+        run: >-
+          test "$(git branch --show-current)" = main &&
+          test -z "$(git status --porcelain)" &&
+          nix develop --command bun install --frozen-lockfile --ignore-scripts
+      - name: Validate same-repository closed-preview identity
+        id: cleanup
+        timeout-minutes: 2
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          nix develop --command bun apps/control-room/tooling/workflow-run-custody.ts
+          closed-preview "${GITHUB_EVENT_PATH}" "${GITHUB_REPOSITORY}" "${GITHUB_OUTPUT}"
+      - name: Destroy preview stage with trusted Alchemy code
+        id: provider
+        timeout-minutes: 10
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: >-
+          timeout --signal=TERM --kill-after=60s 8m
+          nix develop --command bunx alchemy destroy apps/control-room/alchemy.run.ts
+          --stage "${{ steps.cleanup.outputs.stage }}" --yes
+      - name: Observe preview removal and target after provider effect
+        id: observation
+        if: always() && steps.provider.outcome != 'skipped'
+        timeout-minutes: 2
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          nix develop --command bun apps/control-room/tooling/workflow-run-custody.ts
+          closed-preview-post-effect "${GITHUB_EVENT_PATH}" "${GITHUB_REPOSITORY}"
+          "${GITHUB_OUTPUT}" "${{ steps.provider.outcome }}"

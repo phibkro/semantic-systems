@@ -1,0 +1,18 @@
+{
+  "schema_version": "pbk.portfolio-row-set/v1",
+  "rows": [
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "snapshot",
+      "value": {
+        "id": "snapshot.semantic.control-room-0017",
+        "project_id": "project.semantic",
+        "work_id": "work.semantic.control-room-0017",
+        "commit": "165295c59831e95f68d28fb56801685d415ab394",
+        "digest": "a442c0d282133eaaa6e7c2d8ed490d853bbee4abe31317bb8369361921fc1dd3",
+        "observed_at": "2026-07-31T14:24:06Z",
+        "preview_url": "https://semantic.phibkro.org"
+      }
+    }
+  ]
+}

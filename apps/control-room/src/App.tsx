@@ -1,37 +1,24 @@
-import {
-  Activity,
-  Boxes,
-  BriefcaseBusiness,
-  CheckCircle2,
-  Clock3,
-  FileWarning,
-  FlaskConical,
-  GitCommitHorizontal,
-  RefreshCw,
-  Search,
-  ShieldCheck,
-  WifiOff,
-  X,
-} from "lucide-react";
-import { Dialog as DialogPrimitive } from "radix-ui";
-import { useMemo, useState } from "react";
-
-import { Badge } from "@/components/ui/badge";
+import { useMachine } from "@xstate/react";
+import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import type {
-  DataState,
-  PublicEntity,
-  PublicRelation,
-  PublicSnapshot,
-  SnapshotState,
-} from "@/model";
-import { useSnapshot } from "@/use-snapshot";
+import { controlRoomMachine, type ControlRoomScope } from "./control-room-machine.ts";
+import type { DataState, PublicEntity, PublicSnapshot, SnapshotState } from "./model.ts";
+import Portfolio from "./Portfolio.tsx";
+import type { PortfolioState } from "./portfolio-snapshot.ts";
+import { useSnapshot } from "./use-snapshot.ts";
 
 type View = "pulse" | "systems" | "semantics" | "evidence" | "work";
 
-const VIEW_KINDS: Record<Exclude<View, "pulse">, Set<string>> = {
+const VIEWS: ReadonlyArray<{ readonly id: View; readonly label: string; readonly glyph: string }> =
+  [
+    { id: "pulse", label: "Pulse", glyph: "◉" },
+    { id: "systems", label: "Systems", glyph: "⬡" },
+    { id: "semantics", label: "Semantics", glyph: "◇" },
+    { id: "evidence", label: "Evidence", glyph: "✓" },
+    { id: "work", label: "Work", glyph: "↗" },
+  ];
+
+const VIEW_KINDS: Record<Exclude<View, "pulse">, ReadonlySet<string>> = {
   systems: new Set([
     "artifact",
     "component",
@@ -57,734 +44,532 @@ const VIEW_KINDS: Record<Exclude<View, "pulse">, Set<string>> = {
   work: new Set(["agent", "gate", "human", "milestone", "responsibility", "work_item"]),
 };
 
-const NAVIGATION: Array<{
-  id: View;
-  label: string;
-  icon: typeof Activity;
-}> = [
-  { id: "pulse", label: "Pulse", icon: Activity },
-  { id: "systems", label: "Systems", icon: Boxes },
-  { id: "semantics", label: "Semantics", icon: FlaskConical },
-  { id: "evidence", label: "Evidence", icon: ShieldCheck },
-  { id: "work", label: "Work", icon: BriefcaseBusiness },
-];
-
-const STATE_COPY: Record<DataState, { label: string; description: string }> = {
-  current: { label: "Current", description: "Snapshot is within its freshness window" },
+const STATE_COPY: Record<DataState, { readonly label: string; readonly detail: string }> = {
+  current: { label: "Current", detail: "Digest-valid observation within its freshness window." },
   update_available: {
     label: "Update available",
-    description: "A newer complete snapshot has been verified",
+    detail: "A newer digest-valid snapshot is ready for explicit activation.",
   },
-  stale: { label: "Stale", description: "Last valid snapshot is beyond its freshness window" },
-  offline: { label: "Offline", description: "Using the last valid snapshot stored on this device" },
-  invalid: { label: "Unavailable", description: "No complete, valid snapshot can be displayed" },
-  loading: { label: "Loading", description: "Checking the published public snapshot" },
+  stale: { label: "Stale", detail: "Using the last valid snapshot beyond its freshness window." },
+  offline: {
+    label: "Offline",
+    detail: "Using the last valid snapshot while the network is offline.",
+  },
+  invalid: {
+    label: "Invalid update rejected",
+    detail: "The candidate failed schema, provenance, or digest validation.",
+  },
+  unavailable: {
+    label: "Unavailable",
+    detail: "No valid snapshot is available from this origin.",
+  },
+  loading: { label: "Loading", detail: "Validating a content-addressed project observation." },
 };
 
-function statusTone(status: string | null): "default" | "secondary" | "outline" | "destructive" {
-  if (status === "blocked" || status === "failed") return "destructive";
-  if (status === "complete" || status === "accepted" || status === "passed") return "default";
-  if (status === "ready" || status === "active" || status === "in_progress") return "secondary";
-  return "outline";
-}
+const sourceLabel = (source: PublicSnapshot["metadata"]["observation_source"]): string => {
+  if (source === "main_ci_assertion") return "Main CI assertion";
+  if (source === "pr_ci_assertion") return "PR CI assertion";
+  return "Local preview";
+};
 
-function StatusBanner({
+const statusClass = (status: string | null): string => {
+  if (["accepted", "complete", "completed", "passing", "ready"].includes(status ?? "")) {
+    return "badge badge-good";
+  }
+  if (["blocked", "failed", "rejected"].includes(status ?? "")) return "badge badge-bad";
+  return "badge";
+};
+
+const EntityButton = ({
+  entity,
+  onSelect,
+}: {
+  readonly entity: PublicEntity;
+  readonly onSelect: (entity: PublicEntity) => void;
+}) => (
+  <button className="entity-card" type="button" onClick={() => onSelect(entity)}>
+    <span className="entity-card-top">
+      <span className="kind">{entity.kind.replaceAll("_", " ")}</span>
+      <span className={statusClass(entity.status)}>{entity.status ?? "unspecified"}</span>
+    </span>
+    <strong>{entity.name}</strong>
+    <span className="summary">{entity.summary || "No public summary."}</span>
+    <code>{entity.id}</code>
+  </button>
+);
+
+const IdentityList = ({
+  title,
+  ids,
+  snapshot,
+  onSelect,
+}: {
+  readonly title: string;
+  readonly ids: ReadonlyArray<string>;
+  readonly snapshot: PublicSnapshot;
+  readonly onSelect: (entity: PublicEntity) => void;
+}) => {
+  const entities = new Map(snapshot.entities.map((entity) => [entity.id, entity]));
+  return (
+    <section className="pulse-section">
+      <h2>
+        {title} <span>{ids.length}</span>
+      </h2>
+      {ids.length === 0 ? (
+        <p className="empty">No canonical identities in this projection.</p>
+      ) : (
+        <div className="compact-grid">
+          {ids.map((id) => {
+            const entity = entities.get(id);
+            return entity === undefined ? (
+              <code key={id}>{id}</code>
+            ) : (
+              <EntityButton key={id} entity={entity} onSelect={onSelect} />
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+};
+
+const Pulse = ({
+  snapshot,
+  onSelect,
+}: {
+  readonly snapshot: PublicSnapshot;
+  readonly onSelect: (entity: PublicEntity) => void;
+}) => (
+  <div className="stack">
+    <section className="hero-card">
+      <div>
+        <p className="eyebrow">Observed projection</p>
+        <h2>{sourceLabel(snapshot.metadata.observation_source)}</h2>
+        <p>
+          Publisher assertion only. Deployment success, branch protection, and served-origin
+          identity are not inferred.
+        </p>
+      </div>
+      <dl className="provenance">
+        <div>
+          <dt>Commit</dt>
+          <dd>
+            <code>{snapshot.metadata.commit}</code>
+          </dd>
+        </div>
+        <div>
+          <dt>Snapshot digest</dt>
+          <dd>
+            <code>{snapshot.metadata.digest}</code>
+          </dd>
+        </div>
+        <div>
+          <dt>Observed</dt>
+          <dd>{snapshot.metadata.observed_at}</dd>
+        </div>
+        <div>
+          <dt>Deployment check</dt>
+          <dd>{snapshot.metadata.deployed_check_status.replaceAll("_", " ")}</dd>
+        </div>
+      </dl>
+    </section>
+    <section className="metric-grid" aria-label="Projection counts">
+      {Object.entries(snapshot.counts_by_kind).map(([kind, count]) => (
+        <div className="metric" key={kind}>
+          <strong>{count}</strong>
+          <span>{kind.replaceAll("_", " ")}</span>
+        </div>
+      ))}
+    </section>
+    <IdentityList
+      title="Ready frontier"
+      ids={snapshot.ready_work_ids}
+      snapshot={snapshot}
+      onSelect={onSelect}
+    />
+    <IdentityList
+      title="Active work"
+      ids={snapshot.active_work_ids}
+      snapshot={snapshot}
+      onSelect={onSelect}
+    />
+    <IdentityList
+      title="Blocked work"
+      ids={snapshot.blocked_work_ids}
+      snapshot={snapshot}
+      onSelect={onSelect}
+    />
+    <IdentityList
+      title="Completed work"
+      ids={snapshot.completed_work_ids}
+      snapshot={snapshot}
+      onSelect={onSelect}
+    />
+    <IdentityList
+      title="Unsupported claims"
+      ids={snapshot.unsupported_claim_ids}
+      snapshot={snapshot}
+      onSelect={onSelect}
+    />
+  </div>
+);
+
+const EntityView = ({
+  view,
+  snapshot,
+  query,
+  status,
+  onSelect,
+}: {
+  readonly view: Exclude<View, "pulse">;
+  readonly snapshot: PublicSnapshot;
+  readonly query: string;
+  readonly status: string;
+  readonly onSelect: (entity: PublicEntity) => void;
+}) => {
+  const terms = query.trim().toLowerCase();
+  const visible = snapshot.entities.filter(
+    (entity) =>
+      VIEW_KINDS[view].has(entity.kind) &&
+      (status === "" || entity.status === status) &&
+      (terms === "" ||
+        [entity.id, entity.name, entity.summary, entity.kind, ...entity.tags]
+          .join(" ")
+          .toLowerCase()
+          .includes(terms)),
+  );
+  return (
+    <section aria-label={`${view} entities`}>
+      <p className="result-count">
+        {visible.length} {view} {visible.length === 1 ? "record" : "records"}
+      </p>
+      <div className="entity-grid">
+        {visible.map((entity) => (
+          <EntityButton key={entity.id} entity={entity} onSelect={onSelect} />
+        ))}
+      </div>
+      {visible.length === 0 && <p className="empty panel">No records match this query.</p>}
+    </section>
+  );
+};
+
+const WorkFrontier = ({
+  snapshot,
+  onSelect,
+}: {
+  readonly snapshot: PublicSnapshot;
+  readonly onSelect: (entity: PublicEntity) => void;
+}) => (
+  <section className="frontier" aria-label="Canonical work frontier">
+    <p>
+      Ready and blocked identities are scheduler-derived in the public exporter. This view does not
+      infer readiness.
+    </p>
+    <div className="frontier-columns">
+      <IdentityList
+        title="Ready frontier"
+        ids={snapshot.ready_work_ids}
+        snapshot={snapshot}
+        onSelect={onSelect}
+      />
+      <IdentityList
+        title="Scheduler-blocked work"
+        ids={snapshot.blocked_work_ids}
+        snapshot={snapshot}
+        onSelect={onSelect}
+      />
+    </div>
+  </section>
+);
+
+const Detail = ({
+  entity,
+  snapshot,
+  onClose,
+}: {
+  readonly entity: PublicEntity;
+  readonly snapshot: PublicSnapshot;
+  readonly onClose: () => void;
+}) => {
+  const relations = snapshot.relations.filter(
+    (relation) => relation.source_id === entity.id || relation.target_id === entity.id,
+  );
+  const names = new Map(snapshot.entities.map((item) => [item.id, item.name]));
+  return (
+    <div className="dialog-backdrop">
+      <dialog open aria-describedby="entity-detail-summary" aria-modal="true" className="detail">
+        <header>
+          <div>
+            <span className="kind">{entity.kind.replaceAll("_", " ")}</span>
+            <h2>{entity.name}</h2>
+            <code>{entity.id}</code>
+          </div>
+          <button aria-label="Close details" className="close" type="button" onClick={onClose}>
+            ×
+          </button>
+        </header>
+        <p id="entity-detail-summary">{entity.summary || "No public summary."}</p>
+        <div className="tags">
+          <span className={statusClass(entity.status)}>{entity.status ?? "unspecified"}</span>
+          {entity.evidence_category !== null && (
+            <span className="badge">evidence: {entity.evidence_category}</span>
+          )}
+          {entity.tags.map((tag) => (
+            <span className="badge" key={tag}>
+              {tag}
+            </span>
+          ))}
+        </div>
+        <h3>Assumptions</h3>
+        {entity.assumptions.length === 0 ? (
+          <p className="empty">None exported for this record.</p>
+        ) : (
+          <ul>
+            {entity.assumptions.map((assumption) => (
+              <li key={assumption}>{assumption}</li>
+            ))}
+          </ul>
+        )}
+        <h3>Typed relations</h3>
+        {relations.length === 0 ? (
+          <p className="empty">No public relations.</p>
+        ) : (
+          <ul className="relations">
+            {relations.map((relation) => (
+              <li key={`${relation.source_id}:${relation.kind}:${relation.target_id}`}>
+                <span className="kind">{relation.kind.replaceAll("_", " ")}</span>
+                <p>
+                  {names.get(relation.source_id) ?? relation.source_id} →{" "}
+                  {names.get(relation.target_id) ?? relation.target_id}
+                </p>
+                <code>
+                  {relation.source_id} → {relation.target_id}
+                </code>
+                {relation.summary !== "" && <p>{relation.summary}</p>}
+                <a href={relation.source_url} rel="noreferrer" target="_blank">
+                  Open relation source at exact commit
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+        <a className="source-link" href={entity.source_url} rel="noreferrer" target="_blank">
+          Open canonical source at exact commit
+        </a>
+      </dialog>
+    </div>
+  );
+};
+
+const StatusBanner = ({
   result,
   onRefresh,
   onApply,
 }: {
-  result: SnapshotState;
-  onRefresh: () => void;
-  onApply: () => void;
-}) {
+  readonly result: SnapshotState;
+  readonly onRefresh: () => void;
+  readonly onApply: () => void;
+}) => {
   const copy = STATE_COPY[result.state];
-  const localPreview = result.snapshot?.metadata.observation_source === "local_preview";
-  const mainCiAssertion = result.snapshot?.metadata.observation_source === "main_ci_assertion";
-  const label =
-    result.state === "current" && localPreview
-      ? "Local preview"
-      : result.state === "current" && mainCiAssertion
-        ? "Main CI assertion"
-        : copy.label;
-  const description =
-    result.state === "current" && localPreview
-      ? "Clean committed worktree; main-CI publication not claimed"
-      : result.state === "current" && mainCiAssertion
-        ? "The main workflow asserts this source; the field is not proof of acceptance"
-        : copy.description;
-  const Icon =
-    result.state === "offline" ? WifiOff : result.state === "current" ? CheckCircle2 : Clock3;
   return (
-    <section
-      aria-label="Snapshot freshness"
-      className="border-border/80 bg-card/95 sticky top-0 z-20 border-b px-4 py-2 backdrop-blur"
-    >
-      <div className="mx-auto flex max-w-4xl items-center gap-2">
-        <Icon aria-hidden="true" className="size-4 shrink-0" />
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold">{label}</p>
-          <p className="text-muted-foreground truncate text-xs">{description}</p>
-        </div>
-        {result.state === "update_available" ? (
-          <Button size="sm" onClick={onApply}>
+    <aside className={`status-banner status-${result.state}`} aria-live="polite">
+      <div>
+        <strong>{copy.label}</strong>
+        <span>
+          {copy.detail}
+          {result.detail === undefined ? "" : ` ${result.detail}`}
+        </span>
+      </div>
+      <div className="status-actions">
+        {result.pending !== null && (
+          <button type="button" onClick={onApply}>
             Apply
-          </Button>
-        ) : (
-          <Button aria-label="Refresh snapshot" size="icon-sm" variant="ghost" onClick={onRefresh}>
-            <RefreshCw aria-hidden="true" />
-          </Button>
-        )}
-      </div>
-    </section>
-  );
-}
-
-function Metric({
-  label,
-  value,
-  detail,
-}: {
-  label: string;
-  value: number | string;
-  detail: string;
-}) {
-  return (
-    <Card>
-      <CardHeader className="pb-1">
-        <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">{label}</p>
-        <CardTitle className="text-3xl">{value}</CardTitle>
-      </CardHeader>
-      <CardContent className="text-muted-foreground text-sm">{detail}</CardContent>
-    </Card>
-  );
-}
-
-function Pulse({
-  snapshot,
-  onSelect,
-}: {
-  snapshot: PublicSnapshot;
-  onSelect: (entity: PublicEntity) => void;
-}) {
-  const entities = new Map(snapshot.entities.map((entity) => [entity.id, entity]));
-  const completed = snapshot.completed_work_ids.flatMap((id) => {
-    const entity = entities.get(id);
-    return entity ? [entity] : [];
-  });
-  const unsupported = snapshot.unsupported_claim_ids.flatMap((id) => {
-    const entity = entities.get(id);
-    return entity ? [entity] : [];
-  });
-  return (
-    <div className="space-y-4" data-testid="view-pulse">
-      <div className="grid grid-cols-2 gap-3">
-        <Metric
-          label="Active work"
-          value={snapshot.active_work_ids.length}
-          detail={`${snapshot.ready_work_ids.length} ready`}
-        />
-        <Metric
-          label="Blocked"
-          value={snapshot.blocked_work_ids.length}
-          detail="Scheduler-derived blockers"
-        />
-        <Metric
-          label="Unsupported"
-          value={snapshot.unsupported_claim_ids.length}
-          detail="Claims without support relations"
-        />
-        <Metric
-          label="Gate"
-          value={snapshot.metadata.deployed_check_status.replace("_", " ")}
-          detail="Deployed-check observation"
-        />
-      </div>
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <GitCommitHorizontal aria-hidden="true" className="size-4" />
-            Exact committed observation
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm">
-          <div>
-            <p className="text-muted-foreground text-xs">Commit</p>
-            <code className="break-all">{snapshot.metadata.commit}</code>
-          </div>
-          <div>
-            <p className="text-muted-foreground text-xs">Snapshot digest</p>
-            <code className="break-all">{snapshot.metadata.digest}</code>
-          </div>
-          <div>
-            <p className="text-muted-foreground text-xs">Observed at</p>
-            <time dateTime={snapshot.metadata.observed_at}>{snapshot.metadata.observed_at}</time>
-          </div>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <h2 className="text-base font-semibold">Unsupported claims ({unsupported.length})</h2>
-        </CardHeader>
-        <CardContent>
-          {unsupported.length ? (
-            <ul className="space-y-2">
-              {unsupported.map((entity) => (
-                <li key={entity.id}>
-                  <button
-                    className="text-destructive min-h-11 text-left text-sm font-semibold underline underline-offset-4"
-                    type="button"
-                    onClick={() => onSelect(entity)}
-                  >
-                    {entity.name} <span className="font-mono text-xs">({entity.id})</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-muted-foreground text-sm">No unsupported claims exported.</p>
-          )}
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <h2 className="text-base font-semibold">Completed work ({completed.length})</h2>
-        </CardHeader>
-        <CardContent>
-          <ul className="space-y-2">
-            {completed.map((entity) => (
-              <li key={entity.id}>
-                <button
-                  className="min-h-11 text-left text-sm font-semibold underline underline-offset-4"
-                  type="button"
-                  onClick={() => onSelect(entity)}
-                >
-                  {entity.name} <span className="font-mono text-xs">({entity.id})</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-function EntityList({
-  snapshot,
-  view,
-  query,
-  statusFilter,
-  onSelect,
-}: {
-  snapshot: PublicSnapshot;
-  view: Exclude<View, "pulse">;
-  query: string;
-  statusFilter: string;
-  onSelect: (entity: PublicEntity) => void;
-}) {
-  const entities = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    return snapshot.entities.filter(
-      (entity) =>
-        VIEW_KINDS[view].has(entity.kind) &&
-        (!statusFilter || entity.status === statusFilter) &&
-        (!needle ||
-          `${entity.id} ${entity.name} ${entity.summary} ${entity.kind} ${entity.status ?? ""}`
-            .toLowerCase()
-            .includes(needle)),
-    );
-  }, [query, snapshot, statusFilter, view]);
-
-  return (
-    <section aria-label={`${view} entities`} className="space-y-2">
-      <p aria-live="polite" className="text-muted-foreground text-xs">
-        {entities.length} items · select one for relations and provenance
-      </p>
-      {entities.map((entity) => (
-        <button
-          key={entity.id}
-          type="button"
-          className="border-border bg-card hover:border-primary/50 focus-visible:ring-ring w-full rounded-xl border p-3 text-left shadow-xs transition focus-visible:ring-2"
-          onClick={() => onSelect(entity)}
-        >
-          <span className="flex items-start justify-between gap-2">
-            <span className="min-w-0">
-              <span className="block font-semibold">{entity.name}</span>
-              <span className="text-muted-foreground block truncate text-xs">{entity.id}</span>
-            </span>
-            <Badge variant={statusTone(entity.status)}>{entity.status ?? "unspecified"}</Badge>
-          </span>
-          {snapshot.unsupported_claim_ids.includes(entity.id) && (
-            <Badge className="mt-2" variant="destructive">
-              unsupported
-            </Badge>
-          )}
-          <span className="text-muted-foreground mt-2 line-clamp-2 block text-sm">
-            {entity.summary || "No public summary."}
-          </span>
-          <span className="mt-2 block text-xs font-medium">{entity.kind.replaceAll("_", " ")}</span>
-        </button>
-      ))}
-      {entities.length === 0 && (
-        <Card>
-          <CardContent className="text-muted-foreground py-8 text-center text-sm">
-            No items match this view, search, and status filter.
-          </CardContent>
-        </Card>
-      )}
-    </section>
-  );
-}
-
-function WorkFrontier({
-  snapshot,
-  onSelect,
-}: {
-  snapshot: PublicSnapshot;
-  onSelect: (entity: PublicEntity) => void;
-}) {
-  const entities = new Map(snapshot.entities.map((entity) => [entity.id, entity]));
-  const groups = [
-    {
-      title: "Ready frontier",
-      ids: snapshot.ready_work_ids,
-      description: "Derived by the canonical dependency scheduler.",
-      empty: "No work is currently scheduler-ready.",
-    },
-    {
-      title: "Scheduler-blocked work",
-      ids: snapshot.blocked_work_ids,
-      description: "Scheduler-derived blockers; canonical item status may differ.",
-      empty: "No work currently has scheduler-derived blockers.",
-    },
-  ];
-
-  return (
-    <section aria-label="Canonical work frontier" className="mb-5 grid gap-3 sm:grid-cols-2">
-      {groups.map((group) => {
-        const items = group.ids.flatMap((id) => {
-          const entity = entities.get(id);
-          return entity ? [entity] : [];
-        });
-        return (
-          <Card key={group.title}>
-            <CardHeader>
-              <h2 className="text-sm font-semibold">
-                {group.title} ({items.length})
-              </h2>
-              <p className="text-muted-foreground text-xs">{group.description}</p>
-            </CardHeader>
-            <CardContent>
-              {items.length ? (
-                <ul className="space-y-2">
-                  {items.map((entity) => (
-                    <li key={entity.id}>
-                      <button
-                        className="min-h-11 text-left text-sm font-semibold underline underline-offset-4"
-                        type="button"
-                        onClick={() => onSelect(entity)}
-                      >
-                        {entity.name}{" "}
-                        <span className="text-muted-foreground font-mono text-xs">
-                          ({entity.id})
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-muted-foreground text-sm">{group.empty}</p>
-              )}
-            </CardContent>
-          </Card>
-        );
-      })}
-    </section>
-  );
-}
-
-function ComponentTree({
-  snapshot,
-  onSelect,
-}: {
-  snapshot: PublicSnapshot;
-  onSelect: (entity: PublicEntity) => void;
-}) {
-  const entities = new Map(
-    snapshot.entities
-      .filter((entity) => VIEW_KINDS.systems.has(entity.kind))
-      .map((entity) => [entity.id, entity]),
-  );
-  const children = new Map<string, string[]>();
-  const childIds = new Set<string>();
-  for (const relation of snapshot.relations) {
-    if (
-      relation.kind !== "contains" ||
-      !entities.has(relation.source_id) ||
-      !entities.has(relation.target_id)
-    )
-      continue;
-    children.set(relation.source_id, [
-      ...(children.get(relation.source_id) ?? []),
-      relation.target_id,
-    ]);
-    childIds.add(relation.target_id);
-  }
-  const roots = [...entities.values()]
-    .filter((entity) => !childIds.has(entity.id) && children.has(entity.id))
-    .sort((left, right) => left.id.localeCompare(right.id));
-
-  const branch = (entity: PublicEntity, ancestors: ReadonlySet<string>) => {
-    if (ancestors.has(entity.id)) return null;
-    const nextAncestors = new Set(ancestors).add(entity.id);
-    const nested = (children.get(entity.id) ?? [])
-      .flatMap((id) => {
-        const child = entities.get(id);
-        return child ? [child] : [];
-      })
-      .sort((left, right) => left.id.localeCompare(right.id));
-    return (
-      <li key={entity.id}>
-        <details
-          className="border-border bg-card rounded-lg border px-3 py-2"
-          data-testid={`tree-${entity.id}`}
-          open={!ancestors.size}
-        >
-          <summary className="min-h-11 cursor-pointer content-center font-semibold">
-            {entity.name}{" "}
-            <span className="text-muted-foreground font-mono text-xs">({entity.id})</span>
-          </summary>
-          <button
-            className="text-primary min-h-11 text-sm font-semibold underline underline-offset-4"
-            type="button"
-            onClick={() => onSelect(entity)}
-          >
-            Inspect {entity.name}
           </button>
-          {nested.length > 0 && (
-            <ul className="mt-1 space-y-2 border-l pl-3">
-              {nested.map((child) => branch(child, nextAncestors))}
-            </ul>
-          )}
-        </details>
-      </li>
-    );
-  };
-
-  if (!roots.length) return null;
-  return (
-    <section aria-label="Recursive components" className="mb-5">
-      <h2 className="mb-2 text-sm font-semibold">Recursive components</h2>
-      <ul className="space-y-2">{roots.map((root) => branch(root, new Set()))}</ul>
-    </section>
-  );
-}
-
-function RelationList({
-  title,
-  relations,
-  snapshot,
-}: {
-  title: string;
-  relations: PublicRelation[];
-  snapshot: PublicSnapshot;
-}) {
-  const names = new Map(snapshot.entities.map((entity) => [entity.id, entity.name]));
-  const [kindFilter, setKindFilter] = useState("");
-  const kinds = [...new Set(relations.map((relation) => relation.kind))].sort();
-  const visible = relations.filter((relation) => !kindFilter || relation.kind === kindFilter);
-  return (
-    <section>
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold">
-          {title} ({visible.length}/{relations.length})
-        </h3>
-        {kinds.length > 1 && (
-          <select
-            aria-label={`Filter ${title.toLowerCase()} by kind`}
-            className="border-input bg-background h-9 max-w-36 rounded-lg border px-2 text-xs"
-            value={kindFilter}
-            onChange={(event) => setKindFilter(event.target.value)}
-          >
-            <option value="">All relation kinds</option>
-            {kinds.map((kind) => (
-              <option key={kind} value={kind}>
-                {kind.replaceAll("_", " ")}
-              </option>
-            ))}
-          </select>
         )}
+        <button aria-label="Refresh snapshot" type="button" onClick={onRefresh}>
+          Refresh
+        </button>
       </div>
-      <ul className="space-y-2">
-        {visible.map((relation) => (
-          <li
-            key={`${relation.source_id}:${relation.kind}:${relation.target_id}`}
-            className="bg-muted/70 rounded-lg p-2 text-sm"
-          >
-            <Badge variant="outline">{relation.kind}</Badge>
-            <p className="mt-1">
-              {names.get(relation.source_id)} → {names.get(relation.target_id)}
-            </p>
-            <code className="text-muted-foreground mt-1 block break-all text-xs">
-              {relation.source_id} → {relation.target_id}
-            </code>
-            {relation.summary && (
-              <p className="text-muted-foreground mt-1 text-xs">{relation.summary}</p>
-            )}
-            <a
-              className="text-primary mt-1 inline-flex min-h-11 items-center text-xs font-semibold underline underline-offset-4"
-              href={relation.source_url}
-              rel="noreferrer"
-              target="_blank"
-            >
-              Open relation source at exact commit
-            </a>
-          </li>
-        ))}
-      </ul>
-    </section>
+    </aside>
   );
-}
+};
 
-function Detail({
-  entity,
-  snapshot,
-  restoreFocusTo,
-  onClose,
+const SemanticRoom = ({
+  provided,
+  scopeControls,
 }: {
-  entity: PublicEntity;
-  snapshot: PublicSnapshot;
-  restoreFocusTo: HTMLElement | null;
-  onClose: () => void;
-}) {
-  const incoming = snapshot.relations.filter((relation) => relation.target_id === entity.id);
-  const outgoing = snapshot.relations.filter((relation) => relation.source_id === entity.id);
-  const close = () => {
-    onClose();
-    queueMicrotask(() => restoreFocusTo?.focus());
-  };
-  return (
-    <DialogPrimitive.Root open onOpenChange={(open) => !open && close()}>
-      <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-slate-950/45" />
-        <DialogPrimitive.Content
-          aria-describedby="detail-description"
-          className="bg-background fixed right-0 bottom-0 left-0 z-50 max-h-[88svh] overflow-y-auto rounded-t-2xl p-4 shadow-2xl sm:top-1/2 sm:right-auto sm:bottom-auto sm:left-1/2 sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl"
-        >
-          <header className="mb-4 flex items-start gap-3">
-            <div className="min-w-0 flex-1">
-              <Badge variant="outline">{entity.kind}</Badge>
-              <DialogPrimitive.Title className="mt-2 text-xl font-semibold">
-                {entity.name}
-              </DialogPrimitive.Title>
-              <p className="text-muted-foreground break-all text-xs">{entity.id}</p>
-            </div>
-            <DialogPrimitive.Close asChild>
-              <Button aria-label="Close details" size="icon" variant="ghost">
-                <X aria-hidden="true" />
-              </Button>
-            </DialogPrimitive.Close>
-          </header>
-          <div className="space-y-5">
-            <DialogPrimitive.Description id="detail-description" className="text-sm">
-              {entity.summary || "No public summary."}
-            </DialogPrimitive.Description>
-            <div className="flex flex-wrap gap-2">
-              <Badge variant={statusTone(entity.status)}>{entity.status ?? "unspecified"}</Badge>
-              {entity.evidence_category && (
-                <Badge variant="secondary">evidence: {entity.evidence_category}</Badge>
-              )}
-              {entity.tags.map((tag) => (
-                <Badge key={tag} variant="outline">
-                  {tag}
-                </Badge>
-              ))}
-            </div>
-            <section>
-              <h3 className="mb-2 text-sm font-semibold">Assumptions</h3>
-              {entity.assumptions.length ? (
-                <ul className="list-disc space-y-1 pl-5 text-sm">
-                  {entity.assumptions.map((assumption) => (
-                    <li key={assumption}>{assumption}</li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-muted-foreground text-sm">None exported for this item.</p>
-              )}
-            </section>
-            <RelationList title="Incoming relations" relations={incoming} snapshot={snapshot} />
-            <RelationList title="Outgoing relations" relations={outgoing} snapshot={snapshot} />
-            <a
-              className="text-primary inline-flex min-h-11 items-center text-sm font-semibold underline underline-offset-4"
-              href={entity.source_url}
-              rel="noreferrer"
-              target="_blank"
-            >
-              Open canonical source at exact commit
-            </a>
-          </div>
-        </DialogPrimitive.Content>
-      </DialogPrimitive.Portal>
-    </DialogPrimitive.Root>
-  );
-}
-
-export default function App({ provided }: { provided?: SnapshotState }) {
+  readonly provided?: SnapshotState;
+  readonly scopeControls: ReactNode;
+}) => {
   const live = useSnapshot();
   const result = provided ?? live;
   const [view, setView] = useState<View>("pulse");
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [status, setStatus] = useState("");
   const [selected, setSelected] = useState<PublicEntity | null>(null);
-  const [restoreFocusTo, setRestoreFocusTo] = useState<HTMLElement | null>(null);
-  const selectEntity = (entity: PublicEntity) => {
-    setRestoreFocusTo(
-      document.activeElement instanceof HTMLElement ? document.activeElement : null,
-    );
-    setSelected(entity);
-  };
-  const statusOptions = useMemo(() => {
-    if (!result.snapshot || view === "pulse") return [];
-    return [
-      ...new Set(
-        result.snapshot.entities
-          .filter((entity) => VIEW_KINDS[view].has(entity.kind))
-          .map((entity) => entity.status)
-          .filter((status): status is string => status !== null),
-      ),
-    ].sort();
-  }, [result.snapshot, view]);
+  const statuses =
+    result.snapshot === null || view === "pulse"
+      ? []
+      : [
+          ...new Set(
+            result.snapshot.entities
+              .filter((entity) => VIEW_KINDS[view].has(entity.kind))
+              .flatMap((entity) => (entity.status === null ? [] : [entity.status])),
+          ),
+        ].sort();
 
   return (
-    <div className="pb-24">
+    <div className="app-shell semantic-room">
       <StatusBanner
         result={result}
-        onApply={provided ? () => undefined : live.applyUpdate}
-        onRefresh={provided ? () => undefined : () => void live.refresh()}
+        onApply={provided === undefined ? live.applyUpdate : () => undefined}
+        onRefresh={provided === undefined ? () => void live.refresh() : () => undefined}
       />
-      <header className="mx-auto max-w-4xl px-4 pt-5 pb-4">
-        <p className="text-muted-foreground text-xs font-semibold tracking-[0.18em] uppercase">
-          Semantic Systems
-        </p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Control Room</h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Read-only{" "}
-          {result.snapshot?.metadata.observation_source === "main_ci_assertion"
-            ? "main-CI-asserted"
-            : "committed local"}{" "}
-          project projection
-        </p>
+      <header className="masthead">
+        {scopeControls}
+        <p className="eyebrow">Semantic Systems</p>
+        <h1>Control Room</h1>
+        <p>Read-only views over a digest-valid, provenance-linked public projection.</p>
       </header>
-      <main className="mx-auto max-w-4xl px-4">
-        {result.snapshot ? (
+      <main>
+        {result.snapshot === null ? (
+          <section className="panel unavailable">
+            <span aria-hidden="true">◇</span>
+            <h2>{STATE_COPY[result.state].label}</h2>
+            <p>{result.detail ?? STATE_COPY[result.state].detail}</p>
+          </section>
+        ) : (
           <>
             {view !== "pulse" && (
-              <div className="mb-4 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
-                <label className="relative block">
-                  <span className="sr-only">Search {view}</span>
-                  <Search
-                    aria-hidden="true"
-                    className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2"
-                  />
-                  <Input
-                    className="h-11 pl-9"
-                    placeholder={`Search ${view}`}
+              <section className="query-bar" aria-label={`${view} queries`}>
+                <label>
+                  <span>Search {view}</span>
+                  <input
+                    aria-label={`Search ${view}`}
                     type="search"
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
                   />
                 </label>
                 <label>
-                  <span className="sr-only">Filter {view} by status</span>
+                  <span>Status</span>
                   <select
                     aria-label={`Filter ${view} by status`}
-                    className="border-input bg-background focus-visible:border-ring focus-visible:ring-ring/50 h-11 max-w-36 rounded-lg border px-3 text-sm focus-visible:ring-3"
-                    value={statusFilter}
-                    onChange={(event) => {
-                      setStatusFilter(event.target.value);
-                      setSelected(null);
-                    }}
+                    value={status}
+                    onChange={(event) => setStatus(event.target.value)}
                   >
-                    <option value="">All statuses</option>
-                    {statusOptions.map((status) => (
-                      <option key={status} value={status}>
-                        {status.replaceAll("_", " ")}
+                    <option value="">All</option>
+                    {statuses.map((item) => (
+                      <option key={item} value={item}>
+                        {item.replaceAll("_", " ")}
                       </option>
                     ))}
                   </select>
                 </label>
-              </div>
+              </section>
             )}
             {view === "pulse" ? (
-              <Pulse snapshot={result.snapshot} onSelect={selectEntity} />
+              <Pulse snapshot={result.snapshot} onSelect={setSelected} />
             ) : (
               <>
-                {view === "systems" && (
-                  <ComponentTree snapshot={result.snapshot} onSelect={selectEntity} />
-                )}
                 {view === "work" && (
-                  <WorkFrontier snapshot={result.snapshot} onSelect={selectEntity} />
+                  <WorkFrontier snapshot={result.snapshot} onSelect={setSelected} />
                 )}
-                <EntityList
-                  snapshot={result.snapshot}
+                <EntityView
                   view={view}
+                  snapshot={result.snapshot}
                   query={query}
-                  statusFilter={statusFilter}
-                  onSelect={selectEntity}
+                  status={status}
+                  onSelect={setSelected}
                 />
               </>
             )}
           </>
-        ) : (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <FileWarning aria-hidden="true" className="mx-auto mb-3 size-8" />
-              <p className="font-semibold">{STATE_COPY[result.state].label}</p>
-              <p className="text-muted-foreground mt-1 text-sm">
-                {result.detail ?? STATE_COPY[result.state].description}
-              </p>
-            </CardContent>
-          </Card>
         )}
       </main>
-      <nav
-        aria-label="Control Room views"
-        className="safe-bottom border-border bg-card/95 fixed inset-x-0 bottom-0 z-30 border-t px-1 pt-2 backdrop-blur"
-      >
-        <div className="mx-auto grid max-w-lg grid-cols-5">
-          {NAVIGATION.map((item) => {
-            const Icon = item.icon;
-            const active = view === item.id;
-            return (
-              <button
-                key={item.id}
-                aria-current={active ? "page" : undefined}
-                className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg text-[0.68rem] font-semibold ${
-                  active ? "bg-primary text-primary-foreground" : "text-muted-foreground"
-                }`}
-                type="button"
-                onClick={() => {
-                  setView(item.id);
-                  setQuery("");
-                  setStatusFilter("");
-                  setSelected(null);
-                }}
-              >
-                <Icon aria-hidden="true" className="size-4" />
-                {item.label}
-              </button>
-            );
-          })}
-        </div>
+      <nav aria-label="Control Room views">
+        {VIEWS.map((item) => (
+          <button
+            aria-current={view === item.id ? "page" : undefined}
+            key={item.id}
+            type="button"
+            onClick={() => {
+              setView(item.id);
+              setQuery("");
+              setStatus("");
+              setSelected(null);
+            }}
+          >
+            <span aria-hidden="true">{item.glyph}</span>
+            {item.label}
+          </button>
+        ))}
       </nav>
-      {selected && result.snapshot && (
-        <Detail
-          entity={selected}
-          snapshot={result.snapshot}
-          restoreFocusTo={restoreFocusTo}
-          onClose={() => setSelected(null)}
-        />
+      {selected !== null && result.snapshot !== null && (
+        <Detail entity={selected} snapshot={result.snapshot} onClose={() => setSelected(null)} />
       )}
     </div>
+  );
+};
+
+const ScopeSwitch = ({
+  scope,
+  onChange,
+}: {
+  readonly scope: ControlRoomScope;
+  readonly onChange: (scope: ControlRoomScope) => void;
+}) => (
+  <div className="flex w-fit gap-1 rounded-lg bg-muted p-1" aria-label="Control Room scope">
+    <Button
+      aria-pressed={scope === "portfolio"}
+      size="sm"
+      type="button"
+      variant={scope === "portfolio" ? "default" : "ghost"}
+      onClick={() => onChange("portfolio")}
+    >
+      PBK Technologies
+    </Button>
+    <Button
+      aria-pressed={scope === "semantic"}
+      size="sm"
+      type="button"
+      variant={scope === "semantic" ? "default" : "ghost"}
+      onClick={() => onChange("semantic")}
+    >
+      Semantic Systems
+    </Button>
+  </div>
+);
+
+export default function App({
+  provided,
+  providedPortfolio,
+  initialScope,
+}: {
+  readonly provided?: SnapshotState;
+  readonly providedPortfolio?: PortfolioState;
+  readonly initialScope?: ControlRoomScope;
+}) {
+  const [shell, send] = useMachine(controlRoomMachine, {
+    input: { scope: initialScope ?? (provided === undefined ? "portfolio" : "semantic") },
+  });
+  const scope: ControlRoomScope = shell.matches("portfolio") ? "portfolio" : "semantic";
+  const controls = (
+    <ScopeSwitch
+      scope={scope}
+      onChange={(next) =>
+        send(next === "portfolio" ? { type: "scope.portfolio" } : { type: "scope.semantic" })
+      }
+    />
+  );
+  return scope === "portfolio" ? (
+    <div className="app-shell">
+      <Portfolio
+        {...(providedPortfolio === undefined ? {} : { provided: providedPortfolio })}
+        scopeControls={controls}
+      />
+    </div>
+  ) : (
+    <SemanticRoom {...(provided === undefined ? {} : { provided })} scopeControls={controls} />
   );
 }

@@ -7,6 +7,8 @@ Problem owner: operator and main research/integration agent
 Semantic frontier: development governance, verification, merge authority, and
 operator feedback
 
+Design-Lens-Version: open-semantic-system-v1
+
 ## User journey
 
 The operator delegates an outcome and can observe its contract and progress
@@ -33,6 +35,67 @@ The claim is falsified by a merged feature with stale or missing checks,
 self-issued semantic validity, an unrecorded contract change, absent completion
 feedback, or leaked finished execution state.
 
+## Open semantic system design lens
+
+### Boundary and warranted state
+
+The declared system is the repository development-control loop from frozen
+contract through exact-head integration, operator feedback, and cleanup. It
+owns checked-in workflow policy and recorded execution state. GitHub, Herdr,
+agent harnesses, reviewers, credentials, and operator decisions remain
+environmental.
+
+### Semantic inputs
+
+Commands request implementation, review, merge, publication, or cleanup.
+Observations include Git diffs and identities, check results, review findings,
+preview probes, external deployment state, and session topology. A green check
+observes one bounded gate at one commit; it does not establish semantic
+correctness or future behavior. Queries derive readiness, blockers, and
+completion reports from maintained records.
+
+### Semantic outputs
+
+Domain events record admitted workflow transitions such as contract freeze,
+review acceptance, merge, and cleanup. Plans, reports, previews, Pulse updates,
+and generated project views are artifacts. Tool calls, CI dispatch, merge,
+deployment, notifications, and session cleanup are effect requests whose
+worldly outcomes require later observations.
+
+### Effect protocols and uncertainty
+
+Every external action distinguishes requested, accepted, rejected, interrupted,
+timed out, unknown, and later reconciled outcomes as applicable. Exact commit
+and idempotency identities bind retries. Unknown merge, deployment, message, or
+cleanup outcomes are inspected before retry; timeout never means the action was
+not performed. Operator-owned effects remain gated.
+
+### Components and orthogonal structures
+
+Contract ownership, work delegation, Git history, CI execution, independent
+review, deployment, human approval, notifications, and Herdr lifecycle are
+separate components joined by typed records. A repository observation becomes
+a gate verdict or work transition only through explicit validation. The
+feature loop terminates in completion, rejection/rework, explicit wait, or
+operator handoff; persistent project leadership is an intentional outer
+process rather than a hidden cycle.
+
+### Bounded autonomy and resources
+
+Each feature has one frozen contract, one active plan, one acceptance program,
+bounded writer concurrency, isolated worktrees, explicit ownership, and finite
+gate runs. Retry, review depth, agent lifetime, and cleanup are bounded by plan
+policy and operator gates. Repository size, hosted-runner capacity, network
+availability, and model resources remain environmental.
+
+### Evidence, assumptions, and unsupported claims
+
+Types, lint, tests, model checks, runtime probes, independent review, and human
+approval retain their declared categories. Exact-head binding and branch policy
+are assumptions until observed on the relevant host. The loop does not prove
+semantic validity, complete sensor coverage, reviewer independence, successful
+external effects, or absence of correlated defects.
+
 ## Frozen deep-module contract
 
 ### One unit of intent
@@ -43,7 +106,7 @@ It owns one numeric ID across:
 ```text
 design-specs/<id>-<slug>.md
 plans/active/<id>-<slug>.md
-scripts/accept/<id>-<slug>.sh
+scripts/accept/<id>-<slug>.ts
 one feature branch
 one pull request
 ```
@@ -54,6 +117,14 @@ invalidation statement, and renewed review.
 
 Trivial formatting, typo, generated refresh, and mechanically equivalent
 maintenance may skip the feature loop, but must still pass integration checks.
+
+A cross-cutting carrier or toolchain migration may update existing contract
+artifacts under one owning feature only when its frozen design spec contains
+one exact `Migrates-Feature-IDs:` declaration. Every declared ID must change,
+every changed secondary contract ID must be declared, and range replay runs
+the owning acceptance program rather than obsolete migrated programs.
+Undeclared, duplicate, cyclic, ownerless, or stale migration scope fails
+closed. The declaration is scope metadata, not semantic approval.
 
 ### Feedback ladder
 
@@ -98,20 +169,20 @@ merge.
 
 Checks attach to the transition they can observe:
 
-| Event | Required observation | Authority |
-|---|---|---|
-| Spec frozen | unique ID, falsifiers, ownership, dependencies, acceptance | implementation may start |
-| File save/watch | focused parse, type, format, and red/green oracle | advisory |
-| Commit message | checked-in Conventional Commits policy | bypassable local guard |
-| Pre-commit | fast read-only checks and targeted tests | bypassable local guard |
-| Pre-push | pinned integration suite and architecture boundaries | bypassable local guard |
-| PR open/synchronize/reopen | exact-head integration and feature acceptance | required server gate |
-| Review/finding resolution | independent counterexample and assumption audit | required semantic gate |
-| Merge queue `merge_group` | prospective merged-tree acceptance | publication gate |
-| Push to `main` | accepted scenario replay and projection consistency | post-merge drift signal |
-| Release tag | reproducibility and claim-specific deep assurance | release authority |
-| Schedule/dependency update | drift, fuzzing, model checking, benchmark trend | opens work only |
-| Agent done | committed-artifact gate, harvest, and safe cleanup | cleanup authority only |
+| Event                      | Required observation                                       | Authority                |
+| -------------------------- | ---------------------------------------------------------- | ------------------------ |
+| Spec frozen                | unique ID, falsifiers, ownership, dependencies, acceptance | implementation may start |
+| File save/watch            | focused parse, type, format, and red/green oracle          | advisory                 |
+| Commit message             | checked-in Conventional Commits policy                     | bypassable local guard   |
+| Pre-commit                 | fast read-only checks and targeted tests                   | bypassable local guard   |
+| Pre-push                   | pinned integration suite and architecture boundaries       | bypassable local guard   |
+| PR open/synchronize/reopen | exact-head integration and feature acceptance              | required server gate     |
+| Review/finding resolution  | independent counterexample and assumption audit            | required semantic gate   |
+| Merge queue `merge_group`  | prospective merged-tree acceptance                         | publication gate         |
+| Push to `main`             | accepted scenario replay and projection consistency        | post-merge drift signal  |
+| Release tag                | reproducibility and claim-specific deep assurance          | release authority        |
+| Schedule/dependency update | drift, fuzzing, model checking, benchmark trend            | opens work only          |
+| Agent done                 | committed-artifact gate, harvest, and safe cleanup         | cleanup authority only   |
 
 Client hooks improve latency but never authorize merge because they are
 bypassable. Server gates verify without modifying: they do not format, repair,
@@ -126,6 +197,10 @@ gate.
 
 Specialized triggers include:
 
+- a new or changed design contract requires the
+  `open-semantic-system-v1` shape: declared boundary/warranted state, semantic
+  inputs and outputs, effect uncertainty, orthogonal component structures,
+  bounded autonomy, and evidence limits;
 - contract changes invalidate bound implementations and evidence;
 - canonical model changes require generated-view equality;
 - generated changes without their canonical source edge are rejected;
@@ -296,3 +371,25 @@ semantics, evidence category meaning, or trust claim.
 Revision 1, 2026-07-29: the operator added deterministic lifecycle hooks. This
 strengthens where existing gates run and clarifies their authority; it does not
 change the merge-authority boundary or evidence meanings.
+
+Revision 2, 2026-07-30: the operator selected executable Bun TypeScript for
+repository-owned orchestration and Just as the declarative task surface.
+Acceptance identity now ends in `.ts`; the validator, dispatcher, hooks, CI,
+tests, contributor commands, and all existing acceptance programs are
+invalidated until they agree on that extension and runtime. This changes the
+execution carrier, not the feature identity, merge-authority boundary, or
+evidence meanings.
+
+Revision 3, 2026-07-30: design spec 0015 adds a shape-only observation to the
+PR contract gate. Any selected or explicitly migrated design spec changed in
+the PR range must contain exactly one
+`Design-Lens-Version: open-semantic-system-v1` marker and the required
+non-placeholder worksheet sections. Unchanged legacy contracts remain valid.
+This makes system boundaries and claims reviewable; it does not establish
+semantic correctness, change merge authority, or change evidence meanings.
+
+Revision 4, 2026-07-30: the migrated contract now contains the worksheet shape
+that revision 3 requires. This exposes existing development-loop boundaries,
+messages, effects, bounds, and evidence limits without changing workflow
+authority. Earlier acceptance is invalidated pending real-range replay and
+renewed independent review.
