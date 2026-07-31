@@ -4,18 +4,16 @@ Canonical frozen contract:
 [`design-specs/0016-executable-semantic-system-kernel.md`](../../design-specs/0016-executable-semantic-system-kernel.md).
 This mutable execution record cannot redefine that contract.
 
-Status: final corrected head accepted by independent review; one focused
-interruption regression and this ledger correction await exact-head recheck
-before integration
+Status: accepted candidate integrated on the independently accepted 0015 base;
+merge-head gates passed and final integration-custody audit is pending
 
 Owner: primary Semantic Systems lead
 
 ## Dependency
 
-Feature 0016 depends on the accepted meaning and authoring worksheet of feature 0015. This worktree currently descends from exact 0015 candidate
-`513bd855f051986b9ebc0d00919d242a6ed119c5`; it must be rebased or
-reconstructed on the independently accepted and integrated 0015 head before
-0016 integration.
+Feature 0016 depends on the accepted meaning and authoring worksheet of feature
+0015. The final candidate was reconstructed on independently accepted and
+integrated 0015 head `02547b02a0ec9f0dbd8d6851eb8e99b5ec82ccca`.
 
 ## Discovery evidence
 
@@ -216,3 +214,19 @@ unsupported authority claims fail the gate.
   driver suite: a blocked interpreter is interrupted only after entering,
   its finalizer runs, and its exit cause remains interruption-only instead of
   becoming an unknown interpreter outcome. No production behavior changed.
+- 2026-07-31: clean candidate
+  `6942c53aedee61a8e889f344619aa4753d6a6167` passed exact 0016 acceptance
+  with 34 tests/183 expectations and full integration with 393 Bun tests/2,177
+  expectations, zero Effect diagnostics, and 68 transitional Python custody
+  checks. A narrow Fable 5 exact-head re-review ACCEPTED the committed
+  interruption regression as race-free and discriminating, independently
+  reproduced the focused, exact, and full gates, and reported no blocking or
+  low-severity findings.
+- 2026-07-31: candidate `6942c53` was merged without conflict as
+  `362f2ecd451c4f7b8c7cfef313dc49db11d0bf36`, whose parents are the exact
+  accepted 0015 integration head `02547b0` and the exact accepted 0016
+  candidate. On that merge head, exact 0016 acceptance again passed 34
+  tests/183 expectations with genuine Node parity; full `just check` again
+  passed 393 Bun tests/2,177 expectations, zero Effect diagnostics, and 68
+  transitional Python custody checks. Final integration-custody audit remains
+  pending.
