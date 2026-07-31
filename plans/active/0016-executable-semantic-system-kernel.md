@@ -166,3 +166,15 @@ unsupported authority claims fail the gate.
   rejected 0015 candidate; it must be reconstructed on the independently
   accepted and integrated 0015 head, rerun, committed at a clean head, and
   independently reviewed before 0016 integration.
+- 2026-07-31: the frozen 0016 chain was reconstructed onto independently
+  accepted 0015 integration head `02547b0`. The only source/test conflict was
+  additive: both the accepted STM domain and the semantic-system domain remain
+  covered by the portable Effect lint boundary. Canonical project-model truth
+  required one deterministic regeneration of the delegation-frontier view,
+  which now reports eight ready work items.
+- 2026-07-31: reconstructed exact acceptance passes with 31 focused tests/165
+  expectations, including genuine Node parity and inherited inventory/actor
+  gates. Full integration passes with 390 Bun tests/2,159 expectations, zero
+  Effect diagnostics, model validation at 122 entities/177 relations, eight
+  checked generated views, and 68 transitional Python custody checks. Clean
+  exact-head independent review remains pending.
