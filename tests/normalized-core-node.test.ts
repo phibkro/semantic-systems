@@ -87,12 +87,22 @@ test("genuine Node emits and validates the frozen host-neutral bytes", async () 
   assert.equal(typeof expectedBase64, "string");
   if (typeof expectedBase64 !== "string") throw new Error("expected base64 fixture string");
   assert.deepEqual(result.bytes, Uint8Array.from(Buffer.from(expectedBase64, "base64")));
-  assert.equal(
-    (
-      await Effect.runPromise(
-        validateNormalizedCoreBytes(result.bytes).pipe(Effect.provide(NodeCrypto.layer)),
-      )
-    ).status,
-    "accepted",
+  const validation = await Effect.runPromise(
+    validateNormalizedCoreBytes(result.bytes).pipe(Effect.provide(NodeCrypto.layer)),
   );
+  assert.equal(validation.status, "accepted");
+  const report = {
+    artifact_identity: result.artifact.artifact_identity,
+    byte_length: result.bytes.byteLength,
+    semantic_identity: result.artifact.semantic_identity,
+    summary: result.artifact.summary,
+    validation_status: validation.status,
+  };
+  const expectedReport = Schema.decodeUnknownSync(Schema.UnknownFromJsonString)(
+    await readFile(
+      new URL("../examples/normalized-core/handled-program.expected.report.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  assert.deepEqual(report, expectedReport);
 });

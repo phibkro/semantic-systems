@@ -326,7 +326,21 @@ describe("normalized-core custody and hostile boundaries", () => {
       diagnostics: [{ code: "byte.hostile-input" }],
     });
 
-    const callerBytes = emitted.bytes;
+    let capturedSpecies: Uint8Array | undefined;
+    const captureSpecies = (value: Uint8Array): void => {
+      capturedSpecies = value;
+    };
+    class SpeciesInput extends Uint8Array {}
+    Object.defineProperty(SpeciesInput, Symbol.species, {
+      value: class extends Uint8Array {
+        constructor(length: number) {
+          super(length);
+          captureSpecies(this);
+        }
+      },
+    });
+    const callerBytes = new SpeciesInput(emitted.bytes.byteLength);
+    callerBytes.set(emitted.bytes);
     let mutated = false;
     const mutatingCrypto = Layer.succeed(
       Crypto.Crypto,
@@ -336,6 +350,9 @@ describe("normalized-core custody and hostile boundaries", () => {
           if (!mutated) {
             mutated = true;
             callerBytes[0] = "[".charCodeAt(0);
+            if (capturedSpecies !== undefined) {
+              capturedSpecies[0] = "[".charCodeAt(0);
+            }
           }
           return Effect.succeed(new Bun.CryptoHasher("sha256").update(data).digest());
         },
@@ -346,6 +363,7 @@ describe("normalized-core custody and hostile boundaries", () => {
     );
     expect(validated.status).toBe("accepted");
     expect(callerBytes[0]).toBe("[".charCodeAt(0));
+    expect(capturedSpecies).toBeUndefined();
     if (validated.status !== "accepted") return;
     expect(validated.bytes[0]).toBe("{".charCodeAt(0));
     const validationExposure = validated.bytes;
@@ -372,5 +390,47 @@ describe("normalized-core custody and hostile boundaries", () => {
     );
     expect(Exit.isFailure(exit)).toBeTrue();
     if (Exit.isFailure(exit)) expect(String(exit.cause)).toContain("invalid SHA-256 digest length");
+
+    class HostileDigest extends Uint8Array {
+      override [Symbol.iterator](): ArrayIterator<number> {
+        return [0][Symbol.iterator]();
+      }
+    }
+    const hostileCrypto = Layer.succeed(
+      Crypto.Crypto,
+      Crypto.make({
+        randomBytes: (size) => new Uint8Array(size),
+        digest: () => Effect.succeed(new HostileDigest(32)),
+      }),
+    );
+    const hostileResult = await Effect.runPromise(
+      emitNormalizedCore(checked.program, emptyMetadata()).pipe(Effect.provide(hostileCrypto)),
+    );
+    expect(hostileResult).toMatchObject({
+      status: "emitted",
+      artifact: {
+        semantic_identity: `sha256:${"0".repeat(64)}`,
+        artifact_identity: `sha256:${"0".repeat(64)}`,
+      },
+    });
+
+    for (const hostile of [new Proxy(new Uint8Array(32), {}), { byteLength: 32 }]) {
+      const invalidCrypto = Layer.succeed(
+        Crypto.Crypto,
+        Crypto.make({
+          randomBytes: (size) => new Uint8Array(size),
+          digest: () => Effect.succeed(hostile as Uint8Array),
+        }),
+      );
+      expect(
+        Exit.isFailure(
+          await Effect.runPromiseExit(
+            emitNormalizedCore(checked.program, emptyMetadata()).pipe(
+              Effect.provide(invalidCrypto),
+            ),
+          ),
+        ),
+      ).toBeTrue();
+    }
   });
 });

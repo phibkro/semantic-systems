@@ -1,3 +1,25 @@
+const typedArrayPrototype = Object.getPrototypeOf(Uint8Array.prototype) as object;
+const typedArrayTag = Object.getOwnPropertyDescriptor(typedArrayPrototype, Symbol.toStringTag)?.get;
+const typedArrayLength = Object.getOwnPropertyDescriptor(typedArrayPrototype, "byteLength")?.get;
+
+export const trustedUint8ArrayCopy = (input: unknown): Uint8Array | undefined => {
+  try {
+    if (
+      typedArrayTag === undefined ||
+      typedArrayLength === undefined ||
+      typedArrayTag.call(input) !== "Uint8Array"
+    ) {
+      return undefined;
+    }
+    const length = typedArrayLength.call(input) as number;
+    const output = new Uint8Array(length);
+    Uint8Array.prototype.set.call(output, input as Uint8Array);
+    return output;
+  } catch {
+    return undefined;
+  }
+};
+
 export type CanonicalJsonValue =
   | null
   | boolean

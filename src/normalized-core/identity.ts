@@ -1,5 +1,5 @@
 import { Crypto, Data, Effect } from "effect";
-import { canonicalBytes, type CanonicalJsonValue } from "./canonical.ts";
+import { canonicalBytes, trustedUint8ArrayCopy, type CanonicalJsonValue } from "./canonical.ts";
 import type { Identity } from "./schema.ts";
 
 export const identityDomains = Object.freeze({
@@ -15,8 +15,13 @@ export class NormalizedCoreDigestFailure extends Data.TaggedError("NormalizedCor
   readonly cause: unknown;
 }> {}
 
-const toHex = (bytes: Uint8Array): string =>
-  Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+const toHex = (bytes: Uint8Array): string => {
+  let output = "";
+  for (let index = 0; index < bytes.byteLength; index += 1) {
+    output += bytes[index]!.toString(16).padStart(2, "0");
+  }
+  return output;
+};
 
 export const deriveIdentity = (
   domain: (typeof identityDomains)[keyof typeof identityDomains],
@@ -39,11 +44,12 @@ export const deriveIdentity = (
           }),
       ),
     );
-    if (digest.byteLength !== 32) {
+    const trustedDigest = trustedUint8ArrayCopy(digest);
+    if (trustedDigest === undefined || trustedDigest.byteLength !== 32) {
       return yield* new NormalizedCoreDigestFailure({
         message: `invalid SHA-256 digest length for ${domain}`,
-        cause: { expectedBytes: 32, actualBytes: digest.byteLength },
+        cause: { expectedBytes: 32, actualBytes: trustedDigest?.byteLength },
       });
     }
-    return `sha256:${toHex(digest)}` as Identity;
+    return `sha256:${toHex(trustedDigest)}` as Identity;
   });

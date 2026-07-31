@@ -41,6 +41,7 @@ import {
   canonicalJson,
   compareCodePoints,
   scanJson,
+  trustedUint8ArrayCopy,
   type CanonicalJsonValue,
 } from "./canonical.ts";
 import { deriveIdentity, identityDomains, type NormalizedCoreDigestFailure } from "./identity.ts";
@@ -165,23 +166,13 @@ const parseJson = (input: string): Attempt<unknown> => {
 };
 
 const snapshotBytes = (input: unknown): Attempt<Uint8Array> => {
-  try {
-    if (!(input instanceof Uint8Array)) {
-      return {
+  const snapshot = trustedUint8ArrayCopy(input);
+  return snapshot === undefined
+    ? {
         status: "failure",
-        diagnostic: diagnostic("byte.expected-array", "$", "expected a byte array"),
-      };
-    }
-    return {
-      status: "success",
-      value: Uint8Array.prototype.slice.call(input) as Uint8Array,
-    };
-  } catch {
-    return {
-      status: "failure",
-      diagnostic: diagnostic("byte.hostile-input", "$", "byte input could not be snapshotted"),
-    };
-  }
+        diagnostic: diagnostic("byte.hostile-input", "$", "byte input could not be snapshotted"),
+      }
+    : { status: "success", value: snapshot };
 };
 
 const withImmutableBytes = <

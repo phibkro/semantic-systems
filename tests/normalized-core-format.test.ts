@@ -33,6 +33,7 @@ import {
   decodeNormalizedCoreBytes,
   defaultNormalizedCoreBounds,
   emitNormalizedCore,
+  encodeNormalizedCore,
   validateNormalizedCore,
   validateNormalizedCoreBytes,
   type EmissionMetadataInput,
@@ -181,16 +182,36 @@ describe("semantic.normalized-core version 1", () => {
       Schema.decodeUnknownSync(Schema.UnknownFromJsonString)(expected) as NormalizedCoreArtifact,
     );
     expect(result.bytes).toEqual(await expectedHandledBytes());
+    const decoded = await run(decodeNormalizedCoreBytes(result.bytes));
+    expect(decoded.status).toBe("decoded");
+    if (decoded.status !== "decoded") throw new Error("fixture must strictly decode");
+    expect(encodeNormalizedCore(decoded.value)).toEqual(result.bytes);
     expect(result.artifact.semantic_identity).toBe(
       "sha256:154ff23841b0efd87075d176b3d807c67e9d2449880e5bce1c4d69421de99b78",
     );
     expect(result.artifact.artifact_identity).toBe(
       "sha256:86a6357e12434de54ed7f917ebd091f606f2074bfd8da3130668e251fd5e1eb1",
     );
-    expect(await run(validateNormalizedCoreBytes(result.bytes))).toMatchObject({
+    const validation = await run(validateNormalizedCoreBytes(result.bytes));
+    expect(validation).toMatchObject({
       status: "accepted",
       checkSummary: { effects: [], usage: [] },
     });
+    const report = {
+      artifact_identity: result.artifact.artifact_identity,
+      byte_length: result.bytes.byteLength,
+      semantic_identity: result.artifact.semantic_identity,
+      summary: result.artifact.summary,
+      validation_status: validation.status,
+    };
+    expect(report).toEqual(
+      await Bun.file(
+        new URL(
+          "../examples/normalized-core/handled-program.expected.report.json",
+          import.meta.url,
+        ),
+      ).json(),
+    );
   });
 
   test("round-trips signed integers and preserves negative zero", async () => {
@@ -354,6 +375,10 @@ describe("semantic.normalized-core version 1", () => {
           ? (artifact.term.computation as unknown as Record<string, unknown>)
           : (artifact as unknown as Record<string, unknown>),
       (artifact: NormalizedCoreArtifact) =>
+        artifact.term.tag === "handle" && artifact.term.computation.tag === "operation"
+          ? (artifact.term.computation.argument as unknown as Record<string, unknown>)
+          : (artifact as unknown as Record<string, unknown>),
+      (artifact: NormalizedCoreArtifact) =>
         artifact.term.tag === "handle"
           ? (artifact.term.return_clause as unknown as Record<string, unknown>)
           : (artifact as unknown as Record<string, unknown>),
@@ -368,6 +393,8 @@ describe("semantic.normalized-core version 1", () => {
       (artifact: NormalizedCoreArtifact) =>
         artifact.source.correspondence[0]! as unknown as Record<string, unknown>,
       (artifact: NormalizedCoreArtifact) => artifact.summary as unknown as Record<string, unknown>,
+      (artifact: NormalizedCoreArtifact) =>
+        artifact.summary.type as unknown as Record<string, unknown>,
       (artifact: NormalizedCoreArtifact) => artifact.source as unknown as Record<string, unknown>,
     ] as const;
     for (const select of records) {
