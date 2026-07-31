@@ -41,11 +41,13 @@
       "kind": "work_item",
       "name": "Design lossless incremental frontend",
       "summary": "Specify immutable source trees, stable identities, recovery, query invalidation, and source-to-core provenance.",
-      "status": "planned",
+      "status": "in_progress",
       "tags": ["compiler", "tooling"],
       "attributes": {
         "phase": "design",
         "effort": 8,
+        "design_spec": "design-specs/0020-lossless-kernel-source.md",
+        "plan": "plans/active/0020-lossless-kernel-source.md",
         "acceptance": [
           "Formatting and malformed source remain representable",
           "Typed views do not become the canonical source tree",
