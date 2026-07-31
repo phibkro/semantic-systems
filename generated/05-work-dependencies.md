@@ -9,6 +9,7 @@ flowchart LR
     decision_stm_library["STM is a library effect"]
     decision_theory_identity["Laws participate in semantic identity"]
     work_actor_runtime["Implement minimal actor runtime"]
+    work_agent_facing_kernel_json["Design agent-facing kernel JSON"]
     work_autonomous_development_loop["Establish the autonomous development control loop"]
     work_core_checker["Implement core checker"]
     work_deterministic_simulator_spec["Design deterministic concurrency simulator"]
@@ -22,7 +23,7 @@ flowchart LR
     work_inventory_stm["Implement inventory STM realization"]
     work_kernel_spec["Specify minimal kernel calculus"]
     work_lean_evidence_adapter["Specify Lean evidence adapter"]
-    work_lossless_frontend_spec["Design agent-facing kernel JSON"]
+    work_lossless_frontend_spec["Design lossless incremental frontend"]
     work_normalized_core_format["Specify normalized core artifact"]
     work_package_resolver["Implement package and evidence resolver"]
     work_relational_fact_schema["Define relational fact export"]
@@ -38,6 +39,8 @@ flowchart LR
     work_inventory_resolution_tracer -->|requires| decision_theory_identity
     work_normalized_core_format -->|blocks| work_kernel_spec
     work_lossless_frontend_spec -->|blocks| work_normalized_core_format
+    work_agent_facing_kernel_json -->|blocks| work_normalized_core_format
+    work_agent_facing_kernel_json -->|informs| work_lossless_frontend_spec
     work_lean_evidence_adapter -->|blocks| work_normalized_core_format
     work_translation_validation_spec -->|blocks| work_normalized_core_format
     work_semantic_attestation_profile -->|blocks| work_theory_identity

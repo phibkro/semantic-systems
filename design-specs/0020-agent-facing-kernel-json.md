@@ -15,7 +15,7 @@ Design-Lens-Version: open-semantic-system-v1
 
 The accepted 0018 calculus checks and runs terms, and the accepted 0019 format
 freezes checked artifacts. Neither gives a user or an agent a stable way to
-*write* a kernel program, or to *read back* what the checker judged and why.
+_write_ a kernel program, or to _read back_ what the checker judged and why.
 
 The earlier 0020 checkpoint froze an S-expression source format. The operator
 decision recuts that boundary: recursive JSON is the stable user and
@@ -59,7 +59,10 @@ Feature 0020 owns:
 - the exact `semantic.kernel-check` version 1 observation contract;
 - one JSON Schema Draft 2020-12 artifact describing both;
 - strict bounded byte and object decoding, canonical encoding, and immutable
-  snapshots; and
+  snapshots;
+- one exact additive judgment-recording seam inside the accepted 0018
+  checker, frozen below, which records the agent-facing facts during the
+  authoritative check; and
 - the projection from a decoded document through the existing 0018 checker to
   an agent-facing checked view.
 
@@ -91,7 +94,7 @@ document does not establish scope safety, signature agreement, typing,
 effects, usage discipline, or handler completeness. Those judgments belong to
 the 0018 checker alone.
 
-An accepted observation supplied *to* the decoder is inert data. Decoding it
+An accepted observation supplied _to_ the decoder is inert data. Decoding it
 warrants only representation validity, never that its judgments were produced
 by the checker for any particular document.
 
@@ -141,7 +144,7 @@ unknown bytes or object
   -> strict bounded decoder
   -> immutable KernelDocument
   -> inert 0018 signature and term projection
-  -> existing 0018 checker
+  -> existing 0018 checker with the judgment-recording seam
   -> KernelCheckObservation
   -> canonical UTF-8 bytes
 ```
@@ -149,9 +152,10 @@ unknown bytes or object
 Each arrow has one owner. The decoder owns representation validation. The
 projection owns the translation to inert 0018 data and calls the existing 0018
 decoders; it cannot return a `CheckedProgram`. The existing `check` function
-owns every semantic judgment. The observation layer owns the agent-facing
-projection of that judgment. The existing 0019 module keeps sole authority
-over normalized artifacts and identities.
+owns every semantic judgment and, through the frozen seam, records the
+agent-facing facts while it derives them. The observation layer owns only the
+representation translation of that recorded judgment. The existing 0019 module
+keeps sole authority over normalized artifacts and identities.
 
 These structures remain distinct:
 
@@ -176,6 +180,9 @@ Runtime decoding tests, schema-artifact tests, golden-example tests,
 adversarial custody tests, and Bun-versus-Node byte fixtures establish
 selected representation behavior. Composition tests establish that selected
 documents produce the recorded observations through the real 0018 checker.
+Focused kernel-calculus tests establish that the judgment-recording seam
+preserves 0018 acceptance and rejection observations, normalized report
+bytes, machine behavior, and checked-program custody.
 A storage-differential test establishes observational equality between the
 reference recursive implementation and any alternative internal
 representation for selected fixtures.
@@ -310,13 +317,13 @@ Ordinary value binders and one-shot resumption binders live in two separate
 contexts with separate de Bruijn distances. Version 1 freezes every
 binder-introducing position:
 
-| Introducing position         | Context    | Binds at distance 0        |
-| ---------------------------- | ---------- | -------------------------- |
-| `lambda` body                | value      | the function argument      |
-| `let` body                   | value      | the bound `F[q] A` result  |
-| `handle` return-clause body  | value      | the handled result value   |
-| `handle` operation-clause body | value    | the operation argument     |
-| `handle` operation-clause body | resumption | the one-shot resumption  |
+| Introducing position           | Context    | Binds at distance 0       |
+| ------------------------------ | ---------- | ------------------------- |
+| `lambda` body                  | value      | the function argument     |
+| `let` body                     | value      | the bound `F[q] A` result |
+| `handle` return-clause body    | value      | the handled result value  |
+| `handle` operation-clause body | value      | the operation argument    |
+| `handle` operation-clause body | resumption | the one-shot resumption   |
 
 Reference meaning:
 
@@ -428,8 +435,10 @@ Exact meanings:
 - `occurrence_path` is a strict RFC 6901 JSON Pointer into the checked
   `KernelDocument`, rooted at `/program` for term occurrences and
   `/signature/N` for declaration references. Tokens must equal exact schema
-  field names or canonical array indexes; leading zeroes, signs, `-`, other
-  escape sequences than `~0` and `~1`, and out-of-range indexes are rejected.
+  field names or canonical array indexes. Every version 1 field token comes
+  from a closed ASCII vocabulary containing no `~` and no `/`, so RFC 6901
+  escape sequences are forbidden entirely: any `~` in a pointer is rejected,
+  as are leading zeroes, signs, `-`, and out-of-range indexes.
   Paths are revision-scoped: they are meaningful only against the exact
   document supplied to the check call that produced the observation, and
   against nothing else. The observation embeds no identity, hash, or node
@@ -459,19 +468,99 @@ Exact meanings:
   for `computation.operation`; the first declaration under the handled label
   for `handler.deep`).
 - `code` and `rule` in a diagnostic are surfaced verbatim from the 0018
-  checker, whose closed diagnostic-code list is their single source of truth
-  (for example `scope.variable-out-of-range`, `signature.operation-unknown`,
-  `type.argument-mismatch`, `usage.affine-duplicated`,
-  `effect.foreign-tunneling`, `resumption.escape`,
-  `handler.clauses-inexact`). `occurrence_path` is the checker's term path
-  translated into document pointer coordinates. `message` is presentation
-  text; tests and callers bind to `code` and `occurrence_path`. `expected`
-  and `actual` are bounded inert JSON values copied from the checker
-  diagnostic when present.
+  checker and are frozen as closed version 1 enums. The complete
+  `DiagnosticCode` vocabulary is: `checker.invalid-input`,
+  `handler.clauses-inexact`, `handler.label-unknown`, `resumption.escape`,
+  `scope.resumption-out-of-range`, `scope.variable-out-of-range`,
+  `signature.duplicate-operation`, `signature.empty-name`,
+  `signature.operation-unknown`, `term.expected-computation`,
+  `type.argument-mismatch`, `type.expected-function`, `type.expected-return`,
+  `type.expected-thunk`, `type.handler-clause-mismatch`,
+  `type.handler-grade-mismatch`, `type.operation-argument-mismatch`,
+  `type.resumption-argument-mismatch`, `usage.affine-duplicated`,
+  `usage.exceeds-grade`, `value.integer-out-of-range`. The complete
+  `DiagnosticRule` vocabulary is: `checker.boundary`, `computation.apply`,
+  `computation.family`, `computation.force`, `computation.lambda`,
+  `computation.let`, `computation.operation`, `computation.resume`,
+  `handler.input`, `handler.operation`, `handler.return`,
+  `handler.signature`, `signature`, `value.int`,
+  `value.resumption-forbidden`, `value.variable`. These are exactly the
+  codes and rules reachable from the 0018 `check` function at the pinned
+  head; `checkEffectAssertion`-only codes (`checked-program.required`,
+  `effect.foreign-tunneling`, `effect.row-mismatch`) are outside the version
+  1 observation vocabulary because check composition never calls that
+  function. New checker vocabulary is not silently accepted: surfacing a new
+  code or rule requires an explicit interface version decision, and the
+  strict decoder rejects values outside these enums. `occurrence_path` is
+  the checker's term path translated into document pointer coordinates.
+  `message` is presentation text; tests and callers bind to `code` and
+  `occurrence_path`. `expected` and `actual`, when present, are
+  `DiagnosticFact` values copied from the checker diagnostic.
+
+`DiagnosticFact` is the recursive bounded inert fact grammar:
+
+```text
+DiagnosticFact :=
+  null | Boolean | SignedSafeInteger | BoundedString
+  | [DiagnosticFact...]
+  | {BoundedKey: DiagnosticFact, ...}
+```
+
+A `BoundedString` and a `BoundedKey` hold at most 4,096 UTF-8 bytes of
+Unicode scalar values. A fact array holds at most 256 elements; a fact record
+holds at most 256 properties; fact nesting counts against the document depth
+bound. Fact record keys are a deliberate open vocabulary — they mirror the
+checker's fact records, which name expected and actual features per rule —
+but every key, scalar, array, and record is bounded and inert, and the strict
+decoder enforces every one of these limits. No other JSON value form
+(fractions, exponents, unsafe integers) is accepted inside a fact.
 
 The raw `KernelDocument` never carries any of these inferred facts; the
 observation is their only home. The observation never carries the program
 term; agents correlate through occurrence paths.
+
+### Checker observation seam
+
+The accepted 0018 public evidence (`Derivation` with `rule`, `path`,
+`conclusion`, `premises`, plus root type, effects, and usage) does not expose
+per-occurrence contexts, structured types, usage vectors, binder origins, or
+signature origins. Reconstructing those facts in `src/kernel-json` would be a
+second checker and trip this contract's own kill criterion. Version 1
+therefore freezes exactly one additive, backward-compatible amendment to the
+0018 kernel-calculus module — a judgment-recording seam inside the
+authoritative checker:
+
+- `CheckAccepted` gains one new readonly field `judgments`: a deeply
+  immutable, inert record table produced during the single authoritative
+  check pass, one record per derivation node, in the derivation's preorder.
+- Each record carries the structured facts the checker already holds at the
+  exact point where it constructs the matching derivation node: the rule
+  name; the 0018 term path; the structured value or computation type; the
+  effect row for computation rules; the usage and resumption-usage vectors;
+  the exact value and resumption contexts, each entry with its introducing
+  term path, origin kind, type, and usage limit; the consulted signature
+  operation index when the rule is `computation.operation` or
+  `handler.deep`; and the premise indexes into the same table in derivation
+  order.
+- Recording happens only at the existing derivation construction points in
+  the same pass. The seam performs no second traversal, parses no
+  `conclusion` string, and duplicates no semantic rule. For the handler
+  fixed point, only the final iteration's records survive, exactly matching
+  the final derivation.
+- The table is bounded by construction: at most one record per decoded 0018
+  term node, so the existing 0018 decode bounds bound its length, and each
+  context is bounded by the term depth.
+- `check` keeps its exact acceptance and rejection semantics, diagnostic
+  codes, derivation shape, normalized report bytes, machine behavior, and
+  `CheckedProgram` custody. Existing consumers observe no difference unless
+  they read the new field. The rejection observation shape is unchanged.
+
+`src/kernel-json` translates the recorded table into the frozen JSON
+observation: 0018 term paths become document occurrence pointers, grades and
+tags keep the frozen spellings, and signature indexes become `/signature/N`
+pointers. The kernel-json layer must not re-derive any context, type, usage,
+premise, or origin fact. If a recorded fact cannot be translated, check
+composition fails with a typed error; it never substitutes its own judgment.
 
 ### JSON Schema artifact
 
@@ -480,8 +569,12 @@ Schema Draft 2020-12 artifact:
 
 ```text
 spec/kernel-json/kernel-json-v1.schema.json
-$id = https://example.invalid/semantic.kernel-json.v1.schema.json
+$id = https://semantic.phibkro.org/spec/kernel-json/kernel-json-v1.schema.json
 ```
+
+The `$id` is a project-controlled stable identifier. It identifies the
+artifact; it does not make remote availability, retrieval, or any remote
+schema validation an authority.
 
 The schema root accepts exactly a `KernelDocument` or a
 `KernelCheckObservation`, discriminated by `format`. Every object schema is
@@ -500,8 +593,16 @@ enforce:
 - typing, effect rows, usage discipline, or handler completeness;
 - sorted array order, duplicate-free rows, total node and depth bounds,
   UTF-8 strictness, duplicate-key rejection, or negative-zero distinction;
-- occurrence-path resolvability, premise-link well-foundedness, or agreement
-  between `inferred` and judgment 0; and
+- occurrence-path resolvability, premise-link well-foundedness (strictly
+  increasing, in-range indexes), or agreement between `inferred` and
+  judgment 0;
+- the conditional presence of `signature_origin` exactly for
+  `computation.operation` and `handler.deep` rules, its `/signature/N`
+  range, or agreement between a binder entry's `origin_kind`, its
+  `binder_origin` target, and the introducing term;
+- diagnostic-fact nesting depth (fact record keys are deliberately open, but
+  keys, scalars, arrays, and records are bounded; only depth escapes the
+  schema); and
 - that any observation was produced by the authoritative checker.
 
 Schema validity is a courtesy pre-check for agents. The strict decoder and
@@ -597,9 +698,11 @@ Exact obligations:
   has no filesystem authority;
 - `projectKernelProgram` returns inert 0018 signature and term data through
   the existing 0018 public decoders; it cannot return a `CheckedProgram`;
-- `checkKernelDocument` composes projection with the existing 0018 `check`
-  and returns the complete `KernelCheckObservation`; the recorded judgments
-  must agree with the 0018 derivation; and
+- `checkKernelDocument` composes projection with the existing 0018 `check`,
+  translates the judgment table recorded by the checker observation seam
+  without re-deriving any fact, and returns the complete
+  `KernelCheckObservation`; the emitted judgments must agree with the 0018
+  derivation node-for-node; and
 - no export accepts a forged document or observation as authority, exposes a
   raw checked-program or resumption constructor, or reaches 0019 emission.
 
@@ -647,9 +750,15 @@ Byte decoding fails in this order:
 5. JSON grammar and duplicate keys;
 6. generic depth, node, string, and collection bounds;
 7. exact closed schema shape, tags, enums, and safe integers;
-8. cross-field rules: version markers, sorted orders, duplicate signature
-   pairs, duplicate clauses, judgment premise links, and
-   `inferred`-versus-judgment-0 agreement; and
+8. cross-field rules, in this order: version markers; sorted effect rows,
+   signature order, and clause order; duplicate signature pairs and
+   duplicate clauses; occurrence-path token validity; premise links strictly
+   increasing and in range; `inferred`-versus-judgment-0 agreement;
+   `signature_origin` present exactly for `computation.operation` and
+   `handler.deep` and within `/signature/N` range; binder-entry
+   `origin_kind` agreement with its `binder_origin` token shape; diagnostic
+   `code` and `rule` membership in the closed version 1 enums; and
+   diagnostic-fact string, array, record, and depth bounds; and
 9. immutable document construction.
 
 Object decoding starts at step 6 with the repeated-reference rule. Check
@@ -684,13 +793,19 @@ The implementation must retain focused rejection observations for:
     checker, not the schema;
 12. a schema-valid document rejected for signature disagreement, typing,
     usage, and handler inexactness;
-13. a malformed occurrence path, broken premise link, or judgment table
-    disagreeing with `inferred`;
-14. a forged or caller-mutated document failing to enter projection or check
+13. a malformed occurrence path, an escaped `~` pointer token, a broken
+    premise link, or a judgment table disagreeing with `inferred`;
+14. a missing or extraneous `signature_origin`, or one outside the
+    `/signature/N` range;
+15. a diagnostic code or rule outside the closed version 1 enums;
+16. a diagnostic fact over the string, array, record, or depth bound;
+17. a forged or caller-mutated document failing to enter projection or check
     composition;
-15. parsing or schema validation attempting to mint checked or 0019
-    authority; and
-16. two internal representations producing different bytes or observations
+18. parsing or schema validation attempting to mint checked or 0019
+    authority;
+19. a seam-recorded judgment table disagreeing with the final 0018
+    derivation in rule, order, or premise shape; and
+20. two internal representations producing different bytes or observations
     for one fixture.
 
 Positive observations must include:
@@ -705,8 +820,11 @@ Positive observations must include:
 5. whitespace, key-order, and escape variants of one document decoding to
    equal documents and identical canonical bytes;
 6. schema validation accepting all golden documents and rejecting each
-   closed-shape mutation; and
-7. Bun and genuine Node returning byte-identical documents, observations,
+   closed-shape mutation;
+7. the 0018 seam recording every golden judgment fact during the single
+   authoritative check pass, with all prior 0018 acceptance observations,
+   normalized report bytes, and custody tests unchanged; and
+8. Bun and genuine Node returning byte-identical documents, observations,
    and canonical encodings.
 
 ## Acceptance
@@ -720,7 +838,8 @@ Feature 0020 is accepted only when:
 3. canonical encoding is deterministic and byte-identical on Bun and genuine
    Node;
 4. check composition reproduces every golden observation through the real
-   0018 checker;
+   0018 checker, using only the judgment-recording seam for per-occurrence
+   facts, while every prior 0018 acceptance stays green;
 5. the schema artifact matches the exported schema observation byte-for-byte
    and documents its non-enforcement list;
 6. no public path mints checked or 0019 authority from parsed input;
@@ -784,6 +903,10 @@ explicit, one JSON Schema description, golden fixtures, strict boundaries,
 and a storage-independence rule that keeps any future Merkle DAG invisible.
 
 The 0018 typing, usage, effect, handler, and custody semantics and the 0019
-normalized artifact and identity semantics do not change. The earlier 0020
+normalized artifact and identity semantics do not change. The 0018 accepted
+observation gains one additive judgment-recording field so the authoritative
+checker, not a downstream reconstruction, supplies every agent-facing fact;
+its acceptance, rejection, report bytes, and custody behavior are
+unchanged. The earlier 0020
 S-expression contract is superseded, not erased: its checkpoint remains in
 history, and this contract replaces it as the single active 0020 lineage.

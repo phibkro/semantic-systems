@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://example.invalid/semantic.kernel-json.v1.schema.json",
+  "$id": "https://semantic.phibkro.org/spec/kernel-json/kernel-json-v1.schema.json",
   "title": "Semantic agent-facing kernel JSON v1",
-  "description": "Complete structural contract for the two frozen agent-facing documents of design spec 0020: the raw recursive semantic.kernel-json KernelDocument and the semantic.kernel-check KernelCheckObservation. Schema validity is a structural courtesy pre-check only. This schema CANNOT enforce: de Bruijn scope validity of distance or resumption_distance; agreement between operation terms, handler clauses, and the declared signature; typing, effect rows, usage discipline, or handler completeness; sorted array order and duplicate-free rows; total node and depth bounds; strict UTF-8, duplicate-key rejection, or the negative-zero distinction; occurrence-path resolvability, premise-link well-foundedness, or agreement between the inferred summary and judgment 0; or that an observation was produced by the authoritative checker. The strict decoder and the accepted 0018 checker remain the sole authorities for those judgments.",
+  "description": "Complete structural contract for the two frozen agent-facing documents of design spec 0020: the raw recursive semantic.kernel-json KernelDocument and the semantic.kernel-check KernelCheckObservation. The $id is a project-controlled stable identifier; it does not make remote availability or remote validation an authority. Schema validity is a structural courtesy pre-check only. This schema CANNOT enforce: de Bruijn scope validity of distance or resumption_distance; agreement between operation terms, handler clauses, and the declared signature; typing, effect rows, usage discipline, or handler completeness; sorted array order and duplicate-free rows; total node and depth bounds; strict UTF-8, duplicate-key rejection, or the negative-zero distinction; occurrence-path resolvability; premise-link well-foundedness (strictly increasing, in-range indexes); agreement between the inferred summary and judgment 0; the conditional presence of signature_origin exactly for computation.operation and handler.deep rules, its /signature/N range, or agreement between a binder entry's origin_kind and its binder_origin target; diagnostic-fact nesting depth (fact record keys are a deliberate open vocabulary, but every key, scalar, array, and record is bounded); or that an observation was produced by the authoritative checker. The strict decoder and the accepted 0018 checker remain the sole authorities for those judgments.",
   "oneOf": [{ "$ref": "#/$defs/kernel_document" }, { "$ref": "#/$defs/kernel_check_observation" }],
   "$defs": {
     "grade": {
@@ -336,7 +336,7 @@
       "additionalProperties": false
     },
     "occurrence_path": {
-      "description": "Strict RFC 6901 JSON Pointer into the checked KernelDocument, rooted at /program or /signature. Revision-scoped: meaningful only against the exact document supplied to the check call that produced the observation. Resolvability is decoder- and checker-territory; the pattern is structural only.",
+      "description": "Strict RFC 6901 JSON Pointer subset into the checked KernelDocument, rooted at /program or /signature. Every version 1 field token comes from a closed ASCII vocabulary containing no ~ and no /, so RFC 6901 escape sequences (~0, ~1, or any ~) are forbidden entirely, as are leading zeroes, signs, and '-'. Revision-scoped: meaningful only against the exact document supplied to the check call that produced the observation. Resolvability is decoder- and checker-territory; the pattern is structural only.",
       "type": "string",
       "pattern": "^/(program|signature)(/(0|[1-9][0-9]*|[a-z][a-z0-9_]*))*$",
       "maxLength": 4096
@@ -513,24 +513,79 @@
       "required": ["type", "effects", "usage"],
       "additionalProperties": false
     },
+    "diagnostic_code": {
+      "description": "Closed version 1 diagnostic-code vocabulary: exactly the codes reachable from the 0018 check function at the pinned head. Surfacing any new checker code requires an explicit interface version decision.",
+      "enum": [
+        "checker.invalid-input",
+        "handler.clauses-inexact",
+        "handler.label-unknown",
+        "resumption.escape",
+        "scope.resumption-out-of-range",
+        "scope.variable-out-of-range",
+        "signature.duplicate-operation",
+        "signature.empty-name",
+        "signature.operation-unknown",
+        "term.expected-computation",
+        "type.argument-mismatch",
+        "type.expected-function",
+        "type.expected-return",
+        "type.expected-thunk",
+        "type.handler-clause-mismatch",
+        "type.handler-grade-mismatch",
+        "type.operation-argument-mismatch",
+        "type.resumption-argument-mismatch",
+        "usage.affine-duplicated",
+        "usage.exceeds-grade",
+        "value.integer-out-of-range"
+      ]
+    },
+    "diagnostic_rule": {
+      "description": "Closed version 1 diagnostic-rule vocabulary: exactly the rule names the 0018 check function attaches to rejection diagnostics at the pinned head. Surfacing any new checker rule requires an explicit interface version decision.",
+      "enum": [
+        "checker.boundary",
+        "computation.apply",
+        "computation.family",
+        "computation.force",
+        "computation.lambda",
+        "computation.let",
+        "computation.operation",
+        "computation.resume",
+        "handler.input",
+        "handler.operation",
+        "handler.return",
+        "handler.signature",
+        "signature",
+        "value.int",
+        "value.resumption-forbidden",
+        "value.variable"
+      ]
+    },
+    "diagnostic_fact": {
+      "description": "Recursive bounded inert diagnostic fact: null, boolean, safe integer, bounded string, bounded array of facts, or bounded record of facts. Record keys are a deliberate open vocabulary mirroring the checker's per-rule fact records, but every key, scalar, array, and record is bounded; nesting depth is decoder-enforced because JSON Schema cannot bound recursion depth.",
+      "oneOf": [
+        { "type": "null" },
+        { "type": "boolean" },
+        { "$ref": "#/$defs/safe_integer" },
+        { "type": "string", "maxLength": 4096 },
+        {
+          "type": "array",
+          "items": { "$ref": "#/$defs/diagnostic_fact" },
+          "maxItems": 256
+        },
+        {
+          "type": "object",
+          "propertyNames": { "maxLength": 4096 },
+          "additionalProperties": { "$ref": "#/$defs/diagnostic_fact" },
+          "maxProperties": 256
+        }
+      ]
+    },
     "check_diagnostic": {
       "type": "object",
-      "description": "Stable typed rejection diagnostic surfaced verbatim from the 0018 checker, whose closed code list is the single source of truth. Bind to code and occurrence_path; message is presentation text.",
+      "description": "Stable typed rejection diagnostic surfaced verbatim from the 0018 checker. Bind to code and occurrence_path; message is presentation text.",
       "properties": {
-        "code": {
-          "description": "Stable 0018 diagnostic code, for example usage.affine-duplicated or scope.variable-out-of-range.",
-          "type": "string",
-          "pattern": "^[a-z][a-z0-9-]*\\.[a-z0-9-]+$",
-          "minLength": 3,
-          "maxLength": 256
-        },
-        "rule": {
-          "description": "0018 rule or rule family in force when the check failed.",
-          "type": "string",
-          "pattern": "^[a-z][a-z0-9.-]*$",
-          "minLength": 1,
-          "maxLength": 256
-        },
+        "code": { "$ref": "#/$defs/diagnostic_code" },
+        "rule": { "$ref": "#/$defs/diagnostic_rule" },
         "occurrence_path": { "$ref": "#/$defs/occurrence_path" },
         "message": {
           "type": "string",
@@ -538,10 +593,12 @@
           "maxLength": 4096
         },
         "expected": {
-          "description": "Optional inert JSON value describing the expected fact; bounded by the decoder, not by this schema."
+          "$ref": "#/$defs/diagnostic_fact",
+          "description": "Optional bounded inert fact describing the expected feature."
         },
         "actual": {
-          "description": "Optional inert JSON value describing the observed fact; bounded by the decoder, not by this schema."
+          "$ref": "#/$defs/diagnostic_fact",
+          "description": "Optional bounded inert fact describing the observed feature."
         }
       },
       "required": ["code", "rule", "occurrence_path", "message"],

@@ -38,11 +38,22 @@ and a storage-independence rule that keeps any future Merkle DAG internal.
 - `examples/kernel-json/**`
 - `src/kernel-json/**`
 - `tests/kernel-json-*.test.ts`
-- the exact model entry for `work.lossless-frontend-spec`
+- the judgment-recording seam only, inside `src/kernel-calculus/checker.ts`
+  and its export in `src/kernel-calculus/index.ts`, exactly as frozen in the
+  contract's "Checker observation seam" section
+- focused seam assertions in `tests/kernel-calculus-checker.test.ts`
+- the exact model entries for `work.agent-facing-kernel-json` and
+  `work.lossless-frontend-spec`
+- focused scheduler assertions in `tests/project-model.test.ts`
 
 ## Forbidden changes
 
-Do not change the 0018 type, term, checker, or machine contract.
+Do not change 0018 typing, usage, effect, or handler semantics, acceptance
+or rejection observations, diagnostic codes, derivation shape, normalized
+report bytes, machine behavior, or `CheckedProgram` custody. The only
+permitted 0018 change is the additive judgment-recording seam frozen in the
+contract, and it must leave every existing 0018 test and acceptance
+observation unchanged.
 
 Do not change the 0019 normalized artifact schema or identity rules.
 
@@ -61,15 +72,19 @@ Do not add Python source or scripts.
 2. Commission an independent contract review.
 3. Correct each rejected contract head.
 4. Add red decode, canonicalization, custody, check-view, and Node tests.
-5. Implement bounds and the strict byte and object decoders.
-6. Implement canonical encoding for both documents.
-7. Implement the inert 0018 projection and check composition.
-8. Implement the agent-facing judgments projection and observation encoding.
-9. Add the schema-artifact equality and golden-example tests.
-10. Add the storage-independence differential observation.
-11. Run focused acceptance and the full pinned gate.
-12. Commission an independent implementation review.
-13. Correct each rejected implementation head before integration.
+5. Implement the additive 0018 judgment-recording seam with focused tests
+   proving all existing 0018 observations unchanged.
+6. Implement bounds and the strict byte and object decoders.
+7. Implement canonical encoding for both documents.
+8. Implement the inert 0018 projection and check composition over the
+   recorded judgment table, with no fact re-derivation in kernel-json.
+9. Implement the agent-facing judgments translation and observation
+   encoding.
+10. Add the schema-artifact equality and golden-example tests.
+11. Add the storage-independence differential observation.
+12. Run focused acceptance and the full pinned gate.
+13. Commission an independent implementation review.
+14. Correct each rejected implementation head before integration.
 
 ## Acceptance command
 
@@ -102,3 +117,17 @@ failure is not a warning.
   before freezing the fixtures.
 - 2026-07-31: no production decoder, checker extension, or storage
   implementation was written during this design checkpoint.
+- 2026-07-31 (correction): independent review found the checked view
+  unimplementable from the accepted 0018 public evidence; the contract now
+  freezes one additive, backward-compatible judgment-recording seam inside
+  the authoritative 0018 checker, with exact kernel-calculus paths
+  authorized above, instead of a second downstream checker.
+- 2026-07-31 (correction): `work.lossless-frontend-spec` was restored to its
+  original lossless-frontend identity and truthful relations; the recut now
+  lives under a new `work.agent-facing-kernel-json` identity. Semantic IDs
+  are never reused for different work items.
+- 2026-07-31 (correction): diagnostic `expected`/`actual` are a recursive
+  bounded inert fact grammar; diagnostic codes and rules are closed version
+  1 enums; the schema `$id` moved to the project-controlled
+  `https://semantic.phibkro.org/` namespace; occurrence paths forbid RFC
+  6901 escapes in prose and schema alike.

@@ -2,12 +2,13 @@
 
 <!-- Generated. Edit model sources, not this file. -->
 
-Ready parallel work items: **11**.
+Ready parallel work items: **12**.
 
 | Work item | Phase | Status | Ready | Score | Recommendation | Blockers |
 |---|---|---|---:|---:|---|---|
 | Implement minimal actor runtime | validation | complete | no | 75 | delegate with review |  |
 | Bound actor trace retention | implementation | complete | no | 83 | delegate with review |  |
+| Design agent-facing kernel JSON | design | in_progress | yes | 75 | delegate with review |  |
 | Establish the autonomous development control loop | implementation | in_progress | yes | 83 | delegate with review |  |
 | Reconstruct the Control Room on TypeScript and Effect v4 | validation | complete | no | 72 | delegate with review |  |
 | Implement core checker | implementation | planned | yes | 65 | delegate with review |  |
@@ -22,7 +23,7 @@ Ready parallel work items: **11**.
 | Implement inventory STM realization | implementation | planned | no | 94 | delegate directly | Implement minimal STM runtime |
 | Specify minimal kernel calculus | validation | complete | no | 53 | bounded spike |  |
 | Specify Lean evidence adapter | research | planned | yes | 60 | delegate with review |  |
-| Design agent-facing kernel JSON | design | in_progress | yes | 75 | delegate with review |  |
+| Design lossless incremental frontend | design | planned | yes | 75 | delegate with review |  |
 | Specify normalized core artifact | validation | complete | no | 45 | bounded spike |  |
 | Implement package and evidence resolver | implementation | in_progress | no | 72 | delegate with review | Define normalized theory identity |
 | Define relational fact export | design | ready | yes | 94 | delegate directly |  |

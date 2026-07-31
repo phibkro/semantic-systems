@@ -11,7 +11,7 @@ const root = resolve(import.meta.dirname, "../..");
 const nodeExecutable = process.env.SEMANTIC_NODE_BIN ?? "node";
 
 const schemaArtifact = "spec/kernel-json/kernel-json-v1.schema.json";
-const schemaIdentifier = "https://example.invalid/semantic.kernel-json.v1.schema.json";
+const schemaIdentifier = "https://semantic.phibkro.org/spec/kernel-json/kernel-json-v1.schema.json";
 
 const goldenExamples = [
   ["examples/kernel-json/pure-program.kernel.json", "semantic.kernel-json"],

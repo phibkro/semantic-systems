@@ -39,8 +39,35 @@
     {
       "id": "work.lossless-frontend-spec",
       "kind": "work_item",
+      "name": "Design lossless incremental frontend",
+      "summary": "Specify immutable source trees, stable identities, recovery, query invalidation, and source-to-core provenance.",
+      "status": "planned",
+      "tags": ["compiler", "tooling"],
+      "attributes": {
+        "phase": "design",
+        "effort": 8,
+        "acceptance": [
+          "Formatting and malformed source remain representable",
+          "Typed views do not become the canonical source tree",
+          "Incremental query inputs and invalidation rules are explicit",
+          "Diagnostics trace through elaboration to source ranges"
+        ],
+        "delegation": {
+          "specification_completeness": 4,
+          "context_locality": 5,
+          "testability": 4,
+          "reversibility": 4,
+          "integration_independence": 4,
+          "blast_radius": 3,
+          "human_review": true
+        }
+      }
+    },
+    {
+      "id": "work.agent-facing-kernel-json",
+      "kind": "work_item",
       "name": "Design agent-facing kernel JSON",
-      "summary": "Freeze recursive JSON as the stable agent-facing kernel interface: raw documents, an explicit checked observation, one JSON Schema, strict boundaries, and storage independence.",
+      "summary": "Freeze recursive JSON as the stable agent-facing kernel interface: raw documents, an explicit checked observation recorded by the 0018 checker seam, one JSON Schema, strict boundaries, and storage independence.",
       "status": "in_progress",
       "tags": ["compiler", "tooling"],
       "attributes": {
@@ -275,6 +302,27 @@
       "target": "work.normalized-core-format",
       "kind": "blocks",
       "summary": "Source-to-core correspondence depends on the normalized target shape.",
+      "attributes": {}
+    },
+    {
+      "source": "work.agent-facing-kernel-json",
+      "target": "work.normalized-core-format",
+      "kind": "blocks",
+      "summary": "The frozen JSON reuses the normalized 0018 term vocabulary and its accepted checker seam.",
+      "attributes": {}
+    },
+    {
+      "source": "work.agent-facing-kernel-json",
+      "target": "component.kernel",
+      "kind": "changes",
+      "summary": "Defines the agent-facing kernel document and check-observation boundary and the additive 0018 judgment-recording seam.",
+      "attributes": {}
+    },
+    {
+      "source": "work.agent-facing-kernel-json",
+      "target": "work.lossless-frontend-spec",
+      "kind": "informs",
+      "summary": "The frozen JSON interface constrains, but does not own, the future lossless surface frontend.",
       "attributes": {}
     },
     {
