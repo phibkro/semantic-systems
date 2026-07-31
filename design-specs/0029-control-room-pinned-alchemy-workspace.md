@@ -46,25 +46,51 @@ The package lock warrants which Alchemy package is installed. A root-level
 package runner does not warrant that it selected that package. A nonempty
 credential check warrants only presence, not validity or scope.
 
-### Semantic inputs and outputs
+### Semantic inputs
 
 Inputs are the accepted artifact custody receipt, exact stage, pinned workspace
-installation, and two provider credentials. The provider step emits a bounded
-process outcome. The existing observer emits the final deployed, unknown, or
-failed observation.
+installation, and two provider credentials. The workflow decodes the trusted
+event and stage before it exposes credentials to the provider step.
 
-### Effects and uncertainty
+### Semantic outputs
+
+The provider step emits a bounded process outcome. The existing observer emits
+the final deployed, unknown, or failed observation. Neither credential presence
+nor provider-process success is represented as a deployment observation.
+
+### Effect protocols and uncertainty
 
 No provider request occurs when either credential is empty. A present but
 invalid credential can still fail inside Alchemy. A successful Alchemy exit can
 still lead to `DeploymentUnknown` until public bytes and target state agree.
 There is no automatic retry.
 
-### Bounded resources
+### Components and orthogonal structures
+
+```text
+artifact custody + exact stage + credential presence
+  -> pinned workspace Alchemy process
+  -> provider process outcome
+  -> served-byte and target observation
+```
+
+Artifact custody, command selection, provider execution, and served-state
+observation remain separate components. Preview cleanup uses the same command
+selection boundary but retains its independent absence observation.
+
+### Bounded autonomy and resources
 
 Deploy retains its 15-minute outer bound. Cleanup retains its 8-minute outer
 bound. Both retain a 60-second termination allowance, stage serialization, and
 reserved observation time.
+
+### Evidence, assumptions, and unsupported claims
+
+The installed help output and workflow tests establish the pinned command
+shape. Local acceptance establishes deterministic workflow structure and the
+existing mobile Control Room journeys. They do not establish credential
+validity, provider mutation, DNS state, or successful production deployment.
+Those claims require the trusted workflow and exact served-byte observation.
 
 ## Executable contract
 
