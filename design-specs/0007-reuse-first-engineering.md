@@ -6,6 +6,52 @@ Problem owner: operator and main research/integration agent
 
 Frontier: developer delegation and implementation discipline
 
+Design-Lens-Version: open-semantic-system-v1
+
+## Open semantic system design lens
+
+### Boundary and warranted state
+
+This contract owns checked-in delegation guidance and its static acceptance
+check. Repositories, tool catalogs, licenses, workers, and their conduct remain
+environmental.
+
+### Semantic inputs
+
+An engineering assignment supplies a bounded outcome, ownership, and relevant
+constraints. Repository observations and worker reports supply attributed
+reuse candidates and decisions.
+
+### Semantic outputs
+
+The system derives a delegation packet and a reuse report. Searching tools,
+copying compatible material, or changing source are separately authorized
+effects, not consequences of the report alone.
+
+### Effect protocols and uncertainty
+
+Candidate discovery records found, rejected, selected, unavailable, and
+unknown outcomes. A timeout or missing catalog does not establish that no
+reusable option exists.
+
+### Components and orthogonal structures
+
+Outcome ownership, prior-art discovery, license judgment, implementation,
+verification, and provenance are distinct concerns. Reuse cannot become
+semantic authority merely because it reduces implementation work.
+
+### Bounded autonomy and resources
+
+Search breadth, automation effort, worker count, and task duration are bounded
+by the assignment. Open-ended tooling work terminates as a reported candidate
+rather than silently replacing product work.
+
+### Evidence, assumptions, and unsupported claims
+
+Static checks establish the presence of required prompt clauses only. Reports
+and reviews remain assertions and do not prove license compatibility, complete
+discovery, or future agent compliance.
+
 ## User journey
 
 When an implementation task is delegated, the engineer is explicitly prompted

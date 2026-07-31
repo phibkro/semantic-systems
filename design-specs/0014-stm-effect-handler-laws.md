@@ -4,6 +4,54 @@ Status: frozen for tracer implementation
 
 Date: 2026-07-30
 
+Design-Lens-Version: open-semantic-system-v1
+
+## Open semantic system design lens
+
+### Boundary and warranted state
+
+The model owns transaction-local journals, read and write sets, retry
+dependencies, staged commit actions, deterministic schedules, and verdicts.
+Effect's runtime, clocks, storage, threads, and optimized STM remain
+environmental.
+
+### Semantic inputs
+
+Programs supply typed reads, writes, alternatives, retry, and staged action
+values over one transaction domain. A deterministic schedule supplies
+conflict, wake-up, and commit observations.
+
+### Semantic outputs
+
+The model derives commit, retry, conflict, rollback, rejection, and staged
+action results. Publishing writes and executing commit-only actions are
+distinct effects admitted only after successful validation.
+
+### Effect protocols and uncertainty
+
+Attempt failure, explicit retry, validation conflict, commit failure, and
+post-commit action failure remain distinct outcomes. A schedule timeout does
+not prove deadlock or absence of another valid execution.
+
+### Components and orthogonal structures
+
+Journal semantics, retry dependency tracking, alternatives, validation,
+publication, staged actions, schedule exploration, and runtime realization are
+independent structures. The reference model does not inherit semantics from
+an implementation API surface.
+
+### Bounded autonomy and resources
+
+Cells, transactions, attempts, schedules, retry dependencies, and staged
+actions are bounded by each scenario. Exploration terminates at explicit
+bounds and reports uncovered schedules rather than upgrading them to proofs.
+
+### Evidence, assumptions, and unsupported claims
+
+Executable laws, counterexamples, property tests, and bounded schedules retain
+their evidence categories. They do not prove serializability for arbitrary
+programs, fairness, or equivalence with an optimized runtime.
+
 ## Problem
 
 Semantic Systems names STM as a library effect, but the current design does not

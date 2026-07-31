@@ -26,6 +26,52 @@ observations are retained in a declared bounded window rather than an
 append-only lifetime array. It does not change mailbox ordering, delivery,
 state ownership, transition, failure-stop, or inventory semantics.
 
+Design-Lens-Version: open-semantic-system-v1
+
+## Open semantic system design lens
+
+### Boundary and warranted state
+
+The actor owns its bounded trace window, exact lifetime counters, sequence
+identity, and public trace snapshot. Consumers, clocks, storage, and runtime
+memory pressure remain environmental.
+
+### Semantic inputs
+
+Lifecycle events enter in actor-linearized order with a configured retention
+capacity. Snapshot requests observe the current window and exact counter
+projection without mutating actor semantics.
+
+### Semantic outputs
+
+The system derives a versioned bounded snapshot with retained entries,
+dropped counts, lifetime counts, and sequence bounds. Export or display of the
+snapshot is a separate effect.
+
+### Effect protocols and uncertainty
+
+Snapshot observation distinguishes current actor state from stale exported
+data and closed actors. Counter projection is canonical and exact; host memory
+usage remains an observation rather than a derived guarantee.
+
+### Components and orthogonal structures
+
+Lifecycle ordering, retention policy, lifetime accounting, public encoding,
+realization identity, and consumer pagination are separate concerns. Changing
+retention cannot silently change mailbox or transition semantics.
+
+### Bounded autonomy and resources
+
+Retained entries are bounded by declared capacity while lifetime counters may
+grow without loss of integer precision. Snapshot work is proportional to the
+retained window, not actor lifetime.
+
+### Evidence, assumptions, and unsupported claims
+
+Property tests, boundary tests, identity checks, and resource probes establish
+their stated observations. They do not prove constant host allocation,
+fairness, or behavior beyond the admitted value and runtime subsets.
+
 ## Problem and observed counterexample
 
 The accepted actor runtime stores its trace in

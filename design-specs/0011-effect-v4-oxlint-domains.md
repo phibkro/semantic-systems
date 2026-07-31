@@ -6,6 +6,52 @@ Problem owner: operator and main integration agent
 
 Semantic frontier: reusable static architecture policy for Effect v4 programs
 
+Design-Lens-Version: open-semantic-system-v1
+
+## Open semantic system design lens
+
+### Boundary and warranted state
+
+The package owns rule definitions, composable domain profiles, diagnostics,
+fixtures, and its compiled plugin entrypoint. Consumer layouts, TypeScript
+program truth, runtime behavior, and Oxlint execution remain environmental.
+
+### Semantic inputs
+
+Consumers supply source syntax, selected technology, role, platform, and
+boundary domains, plus explicit severity overrides. Companion type-aware
+diagnostics arrive as attributed observations rather than hidden assumptions.
+
+### Semantic outputs
+
+Rules derive bounded diagnostics with rule and domain identities. Loading the
+plugin, editing code, or blocking a merge are effects owned by the consuming
+toolchain.
+
+### Effect protocols and uncertainty
+
+Plugin loading and analysis distinguish unsupported syntax, invalid
+configuration, unavailable type information, diagnostics, and clean results.
+A clean syntax rule cannot stand in for a required type-aware check.
+
+### Components and orthogonal structures
+
+Effect technology, architectural role, runtime platform, semantic boundary,
+severity, and suppression are independent dimensions. Profiles compose these
+dimensions without encoding one repository's paths as policy.
+
+### Bounded autonomy and resources
+
+Rules inspect bounded syntax regions and cannot execute programs or acquire
+ambient capabilities. Domain selection and suppression are explicit consumer
+inputs with finite diagnostic output.
+
+### Evidence, assumptions, and unsupported claims
+
+Fixture diagnostics and consumer smoke tests establish observed static cases.
+They do not prove program correctness, architectural completeness, or stable
+behavior across untested Oxlint and TypeScript releases.
+
 ## User journey
 
 A TypeScript project installs one compiled Oxlint JavaScript plugin and selects

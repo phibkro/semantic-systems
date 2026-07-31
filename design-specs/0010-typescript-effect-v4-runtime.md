@@ -6,7 +6,53 @@ Problem owner: operator and main integration agent
 
 Semantic frontier: repository implementation language and effect boundary
 
+Design-Lens-Version: open-semantic-system-v1
+
 Migrates-Feature-IDs: 0002-reference-baselines-deep-research, 0005-autonomous-development-control-loop, 0007-reuse-first-engineering
+
+## Open semantic system design lens
+
+### Boundary and warranted state
+
+The repository owns its TypeScript programs, schemas, services, Layers,
+platform adapters, pinned environment, and generated artifacts. Bun, Node,
+filesystems, processes, networks, and package registries remain environmental.
+
+### Semantic inputs
+
+Decoded JSON and TOML, CLI arguments, configuration, repository files, and
+platform observations enter through explicit Effect boundaries. Runtime
+selection is supplied as a Layer rather than inferred from ambient globals.
+
+### Semantic outputs
+
+Portable programs return typed values and failures; CLIs render terminal exit
+behavior and checked artifacts. Filesystem, process, network, logging, and
+clock operations remain effect requests until their outcomes are observed.
+
+### Effect protocols and uncertainty
+
+External operations retain typed success, rejection, interruption, timeout,
+and defect distinctions. Replacing a platform Layer must preserve the portable
+program's declared observations without claiming identical host behavior.
+
+### Components and orthogonal structures
+
+Schema decoding, semantic cores, services, runtime Layers, CLI presentation,
+and build policy are separate modules. Bun defaulting does not couple portable
+logic to Bun-specific capabilities.
+
+### Bounded autonomy and resources
+
+Each command and gate has bounded inputs, concurrency, retries, and lifetime.
+Resource ownership follows Effect scopes and structured concurrency; final
+runtimes are provided only at composition roots.
+
+### Evidence, assumptions, and unsupported claims
+
+Types, lint, parity tests, runtime tests, and artifact drift checks retain
+their evidence categories. They do not prove equivalence on every platform or
+absence of defects in Effect, TypeScript, Bun, Node, or the host.
 
 ## User journey
 

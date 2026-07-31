@@ -9,6 +9,17 @@ operator feedback
 
 Design-Lens-Version: open-semantic-system-v1
 
+Revision 2026-07-31 semantic diff: contract migration now distinguishes a
+current design from a historical contract that predates the design lens. The
+new pre-lens class is eligible only when the exact contract existed at the pull
+request base and that base version had no design-lens marker. Numbering alone
+does not establish lineage. A deleted migrated design must remain under
+`design-specs/superseded/` with an explicit superseding owner and invalidation
+statement. This revision invalidates the earlier assumption that the single
+current-contract marker could honestly classify every historical migration.
+It does not authorize a migration semantically; exact scope, retention,
+acceptance replay, and renewed independent review remain required.
+
 ## User journey
 
 The operator delegates an outcome and can observe its contract and progress
@@ -125,6 +136,18 @@ every changed secondary contract ID must be declared, and range replay runs
 the owning acceptance program rather than obsolete migrated programs.
 Undeclared, duplicate, cyclic, ownerless, or stale migration scope fails
 closed. The declaration is scope metadata, not semantic approval.
+
+`Migrates-Pre-Lens-Feature-IDs:` is a narrower migration class for contracts
+that verifiably predate the design lens. Each declared root design must exist
+at the pull-request base and its base content must not contain a
+`Design-Lens-Version` marker. The classes must not overlap. A new low-numbered
+contract cannot acquire historical status, and a contract that already has a
+lens must use `Migrates-Feature-IDs:`. A pre-lens design can migrate without a
+retroactive lens rewrite, but deleting its root file requires a changed
+`design-specs/superseded/<id>.md` record with `Status: superseded`, the exact
+`Superseded-By:` owner, and a nonempty `Invalidation:` statement. Both classes
+remain exact, single-use scope declarations and replay only the owning
+acceptance program.
 
 ### Feedback ladder
 

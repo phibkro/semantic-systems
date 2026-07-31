@@ -344,43 +344,145 @@ describe("autonomous development control loop", () => {
     expect(text(result)).toContain("design-lens shape");
   });
 
-  test("admits only exact pre-0015 contract migrations without a retroactive lens", async () => {
+  test("admits a PR-base pre-lens contract and replays the migration owner", async () => {
+    const fixture = await featureFixture();
+    const ownerDesign = join(fixture.repo, "design-specs", "0005-fixture.md");
+    const carrierDesign = join(fixture.repo, "design-specs", "0006-carrier.md");
+    await Bun.write(carrierDesign, "# historical contract without a retroactive lens\n");
+    await Bun.write(join(fixture.repo, "plans", "active", "0006-carrier.md"), "# historical\n");
+    const migrated = join(fixture.repo, "scripts", "accept", "0006-carrier.ts");
+    await Bun.write(migrated, "#!/usr/bin/env bun\nprocess.exit(29);\n");
+    await Bun.spawn(["chmod", "+x", migrated]).exited;
+    const historicalBase = commit(fixture.repo, "docs: accept historical pre-lens carrier");
+
+    await Bun.write(
+      ownerDesign,
+      `${await Bun.file(ownerDesign).text()}\nMigrates-Pre-Lens-Feature-IDs: 0006-carrier\n`,
+    );
+    await Bun.write(join(fixture.repo, "plans", "active", "0005-fixture.md"), "# migrate owner\n");
+    await Bun.write(carrierDesign, "# migrated historical contract without a retroactive lens\n");
+    await Bun.write(join(fixture.repo, "plans", "active", "0006-carrier.md"), "# migrated\n");
+    const payload = await Bun.file(fixture.event).json();
+    payload.pull_request.base.sha = historicalBase;
+    const head = commit(fixture.repo, "refactor: migrate pre-lens carrier");
+    payload.pull_request.head.sha = head;
+    await Bun.write(fixture.event, JSON.stringify(payload));
+
+    const accepted = runFeatureTool(FEATURE_POLICY, fixture.repo, "--event", fixture.event);
+    if (accepted.exitCode !== 0) throw new Error(text(accepted));
+    expect(accepted.exitCode).toBe(0);
+    expect(text(accepted)).toContain("0006-carrier");
+
+    const replay = runFeatureTool(
+      FEATURE_RUNNER,
+      fixture.repo,
+      "--mode",
+      "range",
+      "--base",
+      historicalBase,
+      "--head",
+      head,
+    );
+    expect(replay.exitCode).toBe(0);
+    expect(text(replay)).toContain("contract migrations owned by 0005-fixture");
+    expect(text(replay)).toContain("fixture accepted");
+
+    await Bun.write(join(fixture.repo, "plans", "active", "0005-fixture.md"), "# later owner\n");
+    await Bun.write(join(fixture.repo, "plans", "active", "0006-carrier.md"), "# later carrier\n");
+    const laterHead = commit(fixture.repo, "test: reject stale pre-lens migration reuse");
+    payload.pull_request.base.sha = head;
+    payload.pull_request.head.sha = laterHead;
+    await Bun.write(fixture.event, JSON.stringify(payload));
+    const stale = runFeatureTool(FEATURE_POLICY, fixture.repo, "--event", fixture.event);
+    expect(stale.exitCode).not.toBe(0);
+    expect(text(stale)).toContain("cannot reuse contract migrations");
+  });
+
+  test("rejects a newly added low-number contract as invented pre-lens lineage", async () => {
     const fixture = await featureFixture();
     const ownerDesign = join(fixture.repo, "design-specs", "0005-fixture.md");
     await Bun.write(
       ownerDesign,
       `${await Bun.file(ownerDesign).text()}\nMigrates-Pre-Lens-Feature-IDs: 0006-carrier\n`,
     );
-    await Bun.write(
-      join(fixture.repo, "design-specs", "0006-carrier.md"),
-      "# historical contract without a retroactive lens\n",
-    );
-    await Bun.write(join(fixture.repo, "plans", "active", "0006-carrier.md"), "# migrated\n");
-    const migrated = join(fixture.repo, "scripts", "accept", "0006-carrier.ts");
-    await Bun.write(migrated, "#!/usr/bin/env bun\nprocess.exit(0);\n");
-    await Bun.spawn(["chmod", "+x", migrated]).exited;
+    await Bun.write(join(fixture.repo, "plans", "active", "0005-fixture.md"), "# retire carrier\n");
+    await Bun.write(join(fixture.repo, "design-specs", "0006-carrier.md"), "# invented past\n");
+    await Bun.write(join(fixture.repo, "plans", "active", "0006-carrier.md"), "# invented\n");
+    const acceptance = join(fixture.repo, "scripts", "accept", "0006-carrier.ts");
+    await Bun.write(acceptance, "#!/usr/bin/env bun\nprocess.exit(0);\n");
+    await Bun.spawn(["chmod", "+x", acceptance]).exited;
     const payload = await Bun.file(fixture.event).json();
-    payload.pull_request.head.sha = commit(fixture.repo, "refactor: import pre-lens carrier");
-    await Bun.write(fixture.event, JSON.stringify(payload));
-
-    const accepted = runFeatureTool(FEATURE_POLICY, fixture.repo, "--event", fixture.event);
-    expect(accepted.exitCode).toBe(0);
-    expect(text(accepted)).toContain("0006-carrier");
-
-    await Bun.write(
-      ownerDesign,
-      (await Bun.file(ownerDesign).text()).replace("0006-carrier", "0015-carrier"),
-    );
-    await Bun.write(
-      join(fixture.repo, "design-specs", "0015-carrier.md"),
-      "# post-lens contract\n",
-    );
-    await Bun.write(join(fixture.repo, "plans", "active", "0015-carrier.md"), "# migrated\n");
-    payload.pull_request.head.sha = commit(fixture.repo, "test: reject post-lens exemption");
+    payload.pull_request.head.sha = commit(fixture.repo, "test: reject invented pre-lens lineage");
     await Bun.write(fixture.event, JSON.stringify(payload));
     const rejected = runFeatureTool(FEATURE_POLICY, fixture.repo, "--event", fixture.event);
     expect(rejected.exitCode).not.toBe(0);
-    expect(text(rejected)).toContain("malformed Migrates-Pre-Lens-Feature-IDs");
+    expect(text(rejected)).toContain("did not exist at PR base");
+  });
+
+  test("requires a migrated deletion to retain an explicit supersession record", async () => {
+    const fixture = await featureFixture();
+    const ownerDesign = join(fixture.repo, "design-specs", "0005-fixture.md");
+    const carrierDesign = join(fixture.repo, "design-specs", "0006-carrier.md");
+    await Bun.write(carrierDesign, "# historical pre-lens carrier\n");
+    const historicalBase = commit(fixture.repo, "docs: accept historical carrier");
+    await Bun.write(
+      ownerDesign,
+      `${await Bun.file(ownerDesign).text()}\nMigrates-Pre-Lens-Feature-IDs: 0006-carrier\n`,
+    );
+    await Bun.write(join(fixture.repo, "plans", "active", "0005-fixture.md"), "# retire carrier\n");
+    await rm(carrierDesign);
+    const payload = await Bun.file(fixture.event).json();
+    payload.pull_request.base.sha = historicalBase;
+    payload.pull_request.head.sha = commit(fixture.repo, "refactor: erase historical carrier");
+    await Bun.write(fixture.event, JSON.stringify(payload));
+    const erased = runFeatureTool(FEATURE_POLICY, fixture.repo, "--event", fixture.event);
+    expect(erased.exitCode).not.toBe(0);
+    expect(text(erased)).toContain("without preserving");
+
+    const superseded = join(fixture.repo, "design-specs", "superseded", "0006-carrier.md");
+    await mkdir(join(fixture.repo, "design-specs", "superseded"), { recursive: true });
+    await Bun.write(
+      superseded,
+      "# historical pre-lens carrier\n\nStatus: superseded\n\nSuperseded-By: 0005-fixture\n\nInvalidation: The owner replaces this contract while retaining its historical record.\n",
+    );
+    payload.pull_request.head.sha = commit(fixture.repo, "docs: retain superseded carrier");
+    await Bun.write(fixture.event, JSON.stringify(payload));
+    const retained = runFeatureTool(FEATURE_POLICY, fixture.repo, "--event", fixture.event);
+    if (retained.exitCode !== 0) throw new Error(text(retained));
+    expect(retained.exitCode).toBe(0);
+
+    const replay = runFeatureTool(
+      FEATURE_RUNNER,
+      fixture.repo,
+      "--mode",
+      "range",
+      "--base",
+      historicalBase,
+      "--head",
+      payload.pull_request.head.sha,
+    );
+    expect(replay.exitCode).toBe(0);
+    expect(text(replay)).toContain("contract migrations owned by 0005-fixture");
+  });
+
+  test("rejects overlap between current and pre-lens migration classes", async () => {
+    const fixture = await featureFixture();
+    const ownerDesign = join(fixture.repo, "design-specs", "0005-fixture.md");
+    await Bun.write(
+      ownerDesign,
+      `${await Bun.file(ownerDesign).text()}\nMigrates-Feature-IDs: 0006-carrier\nMigrates-Pre-Lens-Feature-IDs: 0006-carrier\n`,
+    );
+    await Bun.write(join(fixture.repo, "design-specs", "0006-carrier.md"), completeDesignLens());
+    await Bun.write(join(fixture.repo, "plans", "active", "0006-carrier.md"), "# overlap\n");
+    const acceptance = join(fixture.repo, "scripts", "accept", "0006-carrier.ts");
+    await Bun.write(acceptance, "#!/usr/bin/env bun\nprocess.exit(0);\n");
+    await Bun.spawn(["chmod", "+x", acceptance]).exited;
+    const payload = await Bun.file(fixture.event).json();
+    payload.pull_request.head.sha = commit(fixture.repo, "test: reject migration class overlap");
+    await Bun.write(fixture.event, JSON.stringify(payload));
+    const rejected = runFeatureTool(FEATURE_POLICY, fixture.repo, "--event", fixture.event);
+    expect(rejected.exitCode).not.toBe(0);
+    expect(text(rejected)).toContain("both current and pre-lens classes");
   });
 
   test("rejects reuse of a stale contract migration marker", async () => {

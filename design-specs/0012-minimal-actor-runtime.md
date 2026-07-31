@@ -39,6 +39,53 @@ capacity. A send begun after observing the failure is rejected as
 Semantic frontier: isolated state ownership, typed actor messaging, mailbox
 ordering, and inventory-realization equivalence
 
+Design-Lens-Version: open-semantic-system-v1
+
+## Open semantic system design lens
+
+### Boundary and warranted state
+
+One actor owns its validated definition snapshot, cloned state, mailbox,
+lifecycle, and receipts. Callers, schedulers, clocks, runtimes, and external
+effects remain environmental.
+
+### Semantic inputs
+
+Spawn supplies an actor definition and initial value; send supplies a cloned
+message. Close, transition results, interruption, and capacity observations
+enter as explicit messages or attributed runtime observations.
+
+### Semantic outputs
+
+The actor derives accepted, started, committed, failed, rejected, and closed
+receipts plus cloned state observations. Any external action requested by a
+transition remains separate from the committed state value.
+
+### Effect protocols and uncertainty
+
+Every send distinguishes admission from completion and preserves typed
+failure, interruption, and closure. Failure-stop is linearized before the
+failed receipt releases capacity, while already admitted envelopes retain
+their distinct pending outcome.
+
+### Components and orthogonal structures
+
+Identity, definition custody, state ownership, mailbox order, transition
+semantics, lifecycle, tracing, and runtime placement are separate structures.
+An opaque reference does not itself establish alias isolation.
+
+### Bounded autonomy and resources
+
+Mailbox capacity, concurrent sends, cloned value subset, actor lifetime, and
+shutdown behavior are explicit. Fibers are scoped and child work cannot
+silently outlive actor ownership.
+
+### Evidence, assumptions, and unsupported claims
+
+Schema checks, adversarial ownership tests, schedule probes, and trace
+comparison establish their observed cases. They do not prove all schedules,
+host clone equivalence, fairness, or distributed delivery guarantees.
+
 ## User journey
 
 A developer runs one bounded inventory scenario through a single actor under

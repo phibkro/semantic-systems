@@ -103,6 +103,19 @@ const runGit = (root: string, args: string[]): string => {
   return result.stdout;
 };
 
+const fileAtRevision = (root: string, revision: string, path: string): string | undefined => {
+  const result = spawnSync("git", ["show", `${revision}:${path}`], {
+    cwd: root,
+    encoding: "utf8",
+    shell: false,
+  });
+  if (result.status === 0) return result.stdout;
+  if (result.status === 128) return undefined;
+  throw new Error(
+    `git show ${revision}:${path} failed: ${(result.stderr || result.error?.message || "").trim()}`,
+  );
+};
+
 export const changedPathsForRange = (
   root: string,
   base: string,
@@ -564,6 +577,51 @@ export const contractMigrationsFor = (root: string, featureId: string): string[]
   return [...declarations.current, ...declarations.preLens].sort();
 };
 
+const validatePreLensLineage = (
+  root: string,
+  base: string,
+  featureId: string,
+  migration: string,
+): void => {
+  const designPath = `design-specs/${migration}.md`;
+  const historicalDesign = fileAtRevision(root, base, designPath);
+  if (historicalDesign === undefined) {
+    throw new Error(
+      `feature ${featureId} declares ${migration} as pre-lens, but ${designPath} did not exist at PR base ${base}`,
+    );
+  }
+  if (/^Design-Lens-Version:\s*/m.test(historicalDesign)) {
+    throw new Error(
+      `feature ${featureId} declares ${migration} as pre-lens, but its PR-base contract already has a design lens`,
+    );
+  }
+};
+
+const validateSupersededDesign = (
+  root: string,
+  changedPaths: ReadonlyArray<string>,
+  featureId: string,
+  migration: string,
+): void => {
+  const supersededPath = `design-specs/superseded/${migration}.md`;
+  if (!changedPaths.includes(supersededPath) || !existsSync(resolve(root, supersededPath))) {
+    throw new Error(
+      `feature ${featureId} deletes design-specs/${migration}.md without preserving ${supersededPath}`,
+    );
+  }
+  const contents = readFileSync(resolve(root, supersededPath), "utf8");
+  const required = [
+    /^Status:\s*superseded\s*$/m,
+    new RegExp(`^Superseded-By:\\s*${featureId}\\s*$`, "m"),
+    /^Invalidation:\s*\S.*$/m,
+  ];
+  if (required.some((pattern) => !pattern.test(contents))) {
+    throw new Error(
+      `${supersededPath} must record Status: superseded, Superseded-By: ${featureId}, and a nonempty Invalidation statement`,
+    );
+  }
+};
+
 export const validatePullRequestEvent = (root: string, eventPath: string): FeatureSelection => {
   const payload = JSON.parse(readFileSync(eventPath, "utf8")) as PullRequestPayload;
   const pullRequest = payload.pull_request;
@@ -620,14 +678,18 @@ export const validatePullRequestEvent = (root: string, eventPath: string): Featu
       `feature ${featureId} declares unchanged contract migrations: ${unchangedDeclarations.join(", ")}`,
     );
   }
+  for (const migration of migrationDeclarations.preLens) {
+    validatePreLensLineage(root, base, featureId, migration);
+  }
   for (const changedFeatureId of [featureId, ...contractMigrations]) {
-    if (migrationDeclarations.preLens.includes(changedFeatureId)) continue;
     const changedDesignPath = `design-specs/${changedFeatureId}.md`;
     if (!changedPaths.includes(changedDesignPath)) continue;
     const absoluteDesignPath = resolve(root, changedDesignPath);
     if (!existsSync(absoluteDesignPath)) {
-      throw new Error(`changed design contract is missing at ${changedDesignPath}`);
+      validateSupersededDesign(root, changedPaths, featureId, changedFeatureId);
+      continue;
     }
+    if (migrationDeclarations.preLens.includes(changedFeatureId)) continue;
     validateDesignLensText(readFileSync(absoluteDesignPath, "utf8"), changedDesignPath);
   }
   if (!changedPaths.includes(artifacts.planPath)) {
