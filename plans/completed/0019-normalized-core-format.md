@@ -40,7 +40,7 @@ No upstream source was copied during contract work.
 ## Owned paths
 
 - `design-specs/0019-normalized-core-format.md`
-- `plans/active/0019-normalized-core-format.md`
+- `plans/completed/0019-normalized-core-format.md`
 - `scripts/accept/0019-normalized-core-format.ts`
 - future `src/normalized-core/**`
 - future `tests/normalized-core-*.test.ts`
@@ -99,9 +99,9 @@ deployment behavior, hand-edited generated views, and user `AGENTS.md`.
 bun scripts/accept/0019-normalized-core-format.ts
 ```
 
-At this design-only checkpoint the command must fail because
-`src/normalized-core/index.ts` does not exist. A missing implementation is not
-downgraded to a warning.
+The completed feature keeps this command as its exact acceptance gate. A
+missing implementation, byte mismatch, custody failure, Node divergence, or
+full-gate regression is never downgraded to a warning.
 
 ## Evidence ledger
 
@@ -131,3 +131,18 @@ downgraded to a warning.
   precedence consistent with post-normalization pointer resolution. The final
   recut makes those exact corrections and does not change 0018 or begin
   implementation.
+- 2026-07-31: implementation and two custody corrections converged at exact
+  clean candidate `a57d853db84e31a2e4ecccdd5506c030d84a59b5`.
+  Independent review accepted its species-independent byte snapshots, trusted
+  indexed digest normalization, strict excess-field rejection, exact
+  decode-to-encode bytes, and Bun/Node parity.
+- 2026-07-31: exact acceptance passed with 20 focused Bun tests and 195
+  expectations plus one genuine Node test. The full pinned gate passed with
+  502 Bun tests, 2,834 expectations, and 68 Python compatibility tests.
+  TypeScript, strict lint, formatting, the project model, generated views, and
+  prior 0018 acceptance were green. The pre-existing unsupported
+  `claim.kernel.safety` warning remained visible.
+- 2026-07-31: the accepted lineage was integrated at
+  `2959681e01df2acc4ea1318b8ce634b9ccf7d10c`. The normalized artifact now
+  unblocks the lossless frontend, Lean evidence adapter, translation
+  validation, and WIT mapping contracts without beginning those features.

@@ -44,7 +44,7 @@ No provider mutation is authorized by this plan.
 ## Owned paths
 
 - `design-specs/0017-control-room-reconstruction.md`
-- `plans/active/0017-control-room-reconstruction.md`
+- `plans/completed/0017-control-room-reconstruction.md`
 - `scripts/accept/0017-control-room-reconstruction.ts`
 - `model/work/control-room-reconstruction.json`
 - generated projections derived from that model file
@@ -281,3 +281,13 @@ attempt to substitute deployment claims for observations.
 - 2026-07-31: no provider plan/apply/destroy, Cloudflare/DNS mutation, GitHub
   secret mutation, push, pull request, preview, or production operation ran
   during reconstruction or recut.
+- 2026-07-31: independent review accepted the exact implementation lineage
+  through `3af60bc6fce579dcc1eb3a7931a180e308513243`. The reconstruction was
+  integrated at `26a7625ad4fdd5538efdbec3f28eaa7e0885c38a`. Exact acceptance and
+  the full pinned repository gate passed on the integrated lineage.
+- 2026-07-31: the operator later authorized a public production deployment.
+  The scanned static artifact built from
+  `f461cb38960493c044459c58374d6d1aa12bda3b` was observed at
+  `https://semantic.phibkro.org` with exact version and snapshot bytes. This
+  observation records one served artifact; it does not claim continuing
+  availability or replace the deployment workflow's reconciliation rules.

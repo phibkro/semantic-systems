@@ -41,7 +41,7 @@ No upstream source was copied during contract work.
 ## Owned paths
 
 - `design-specs/0018-minimal-kernel-calculus.md`
-- `plans/active/0018-minimal-kernel-calculus.md`
+- `plans/completed/0018-minimal-kernel-calculus.md`
 - `scripts/accept/0018-minimal-kernel-calculus.ts`
 - `src/kernel-calculus/**`
 - `tests/kernel-calculus-*.test.ts`
@@ -175,3 +175,5 @@ authority, Node divergence, model drift, or an unrun required tool.
   `f461cb38960493c044459c58374d6d1aa12bda3b` passed exact feature acceptance
   and the full repository gate. The accepted program custody seam now unblocks
   normalized-core format 0019.
+- 2026-07-31: the completed plan moved to the durable ledger after normalized
+  core 0019 integrated without changing the accepted 0018 contract.

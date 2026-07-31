@@ -2,14 +2,14 @@
 
 <!-- Generated. Edit model sources, not this file. -->
 
-Ready parallel work items: **9**.
+Ready parallel work items: **11**.
 
 | Work item | Phase | Status | Ready | Score | Recommendation | Blockers |
 |---|---|---|---:|---:|---|---|
 | Implement minimal actor runtime | validation | complete | no | 75 | delegate with review |  |
 | Bound actor trace retention | implementation | complete | no | 83 | delegate with review |  |
 | Establish the autonomous development control loop | implementation | in_progress | yes | 83 | delegate with review |  |
-| Reconstruct the Control Room on TypeScript and Effect v4 | implementation | in_progress | yes | 72 | delegate with review |  |
+| Reconstruct the Control Room on TypeScript and Effect v4 | validation | complete | no | 72 | delegate with review |  |
 | Implement core checker | implementation | planned | yes | 65 | delegate with review |  |
 | Design deterministic concurrency simulator | design | planned | no | 68 | delegate with review | Specify STM effect and handler laws |
 | Build the executable semantic system kernel | validation | complete | no | 72 | delegate with review |  |
@@ -21,9 +21,9 @@ Ready parallel work items: **9**.
 | Complete inventory evidence-resolution tracer | validation | complete | no | 87 | delegate with review |  |
 | Implement inventory STM realization | implementation | planned | no | 94 | delegate directly | Implement minimal STM runtime |
 | Specify minimal kernel calculus | validation | complete | no | 53 | bounded spike |  |
-| Specify Lean evidence adapter | research | planned | no | 60 | delegate with review | Specify normalized core artifact |
-| Design lossless incremental frontend | design | planned | no | 75 | delegate with review | Specify normalized core artifact |
-| Specify normalized core artifact | design | in_progress | yes | 45 | bounded spike |  |
+| Specify Lean evidence adapter | research | planned | yes | 60 | delegate with review |  |
+| Design lossless incremental frontend | design | planned | yes | 75 | delegate with review |  |
+| Specify normalized core artifact | validation | complete | no | 45 | bounded spike |  |
 | Implement package and evidence resolver | implementation | in_progress | no | 72 | delegate with review | Define normalized theory identity |
 | Define relational fact export | design | ready | yes | 94 | delegate directly |  |
 | Recut the independent resolution checker | design | complete | no | 83 | delegate with review |  |
@@ -32,5 +32,5 @@ Ready parallel work items: **9**.
 | Model-check STM interleavings | validation | planned | no | 94 | delegate with review | Implement minimal STM runtime |
 | Implement minimal STM runtime | implementation | planned | no | 68 | delegate with review | Specify STM effect and handler laws |
 | Define normalized theory identity | design | in_progress | yes | 41 | bounded spike |  |
-| Specify translation-validation seams | research | planned | no | 45 | bounded spike | Specify normalized core artifact |
-| Research semantic contracts to WIT mapping | research | planned | no | 86 | delegate directly | Specify normalized core artifact |
+| Specify translation-validation seams | research | planned | yes | 45 | bounded spike |  |
+| Research semantic contracts to WIT mapping | research | planned | yes | 86 | delegate directly |  |

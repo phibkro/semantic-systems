@@ -5,13 +5,21 @@
       "kind": "work_item",
       "name": "Reconstruct the Control Room on TypeScript and Effect v4",
       "summary": "Restore the accepted phone-first public projection and reviewed Alchemy description on the current canonical lineage without restoring Python or shell authorities.",
-      "status": "in_progress",
+      "status": "complete",
       "tags": ["control-room", "pwa", "typescript", "effect", "alchemy"],
       "attributes": {
-        "phase": "implementation",
+        "phase": "validation",
         "effort": 13,
         "design_spec": "design-specs/0017-control-room-reconstruction.md",
-        "plan": "plans/active/0017-control-room-reconstruction.md",
+        "plan": "plans/completed/0017-control-room-reconstruction.md",
+        "completion": {
+          "implementation_head": "3af60bc6fce579dcc1eb3a7931a180e308513243",
+          "integration_head": "26a7625ad4fdd5538efdbec3f28eaa7e0885c38a",
+          "feature_acceptance": "runtime_validation",
+          "integration_gate": "test_and_static_analysis",
+          "independent_review": "assertion",
+          "public_url": "https://semantic.phibkro.org"
+        },
         "acceptance": [
           "Current canonical model derives one allowlisted content-addressed public snapshot",
           "Phone-first Pulse, Systems, Semantics, Evidence, and Work views expose provenance and freshness",

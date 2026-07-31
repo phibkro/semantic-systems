@@ -23,3 +23,4 @@ stacklit.html
 # Bun/JS tooling: installed from the checked-in lockfile, never committed.
 node_modules/
 bun-debug-*.log
+.alchemy/

@@ -37,13 +37,15 @@
       "kind": "artifact",
       "name": "Normalized semantic core artifact",
       "summary": "Canonical project-owned representation consumed by checkers, evidence producers, analyzers, and backends.",
-      "status": "design",
+      "status": "current",
       "tags": ["semantics", "contract"],
       "attributes": {
         "canonical": true,
         "format": "semantic.normalized-core",
         "version": 1,
         "design_spec": "design-specs/0019-normalized-core-format.md",
+        "implementation": "src/normalized-core/index.ts",
+        "example": "examples/normalized-core/handled-program.expected.json",
         "requirements": [
           "deterministic normalization",
           "stable entity identities",

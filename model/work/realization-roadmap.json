@@ -5,13 +5,20 @@
       "kind": "work_item",
       "name": "Specify normalized core artifact",
       "summary": "Define the canonical checked representation, identity rules, source correspondence, and assumption encoding.",
-      "status": "in_progress",
+      "status": "complete",
       "tags": ["semantics", "compiler"],
       "attributes": {
-        "phase": "design",
+        "phase": "validation",
         "effort": 8,
         "design_spec": "design-specs/0019-normalized-core-format.md",
-        "plan": "plans/active/0019-normalized-core-format.md",
+        "plan": "plans/completed/0019-normalized-core-format.md",
+        "completion": {
+          "implementation_head": "a57d853db84e31a2e4ecccdd5506c030d84a59b5",
+          "integration_head": "2959681e01df2acc4ea1318b8ce634b9ccf7d10c",
+          "feature_acceptance": "runtime_validation",
+          "integration_gate": "test_and_static_analysis",
+          "independent_review": "assertion"
+        },
         "acceptance": [
           "Normalization is deterministic and documented",
           "Every entity and obligation has stable identity",

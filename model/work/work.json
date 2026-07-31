@@ -63,7 +63,7 @@
         "phase": "validation",
         "effort": 8,
         "design_spec": "design-specs/0018-minimal-kernel-calculus.md",
-        "plan": "plans/active/0018-minimal-kernel-calculus.md",
+        "plan": "plans/completed/0018-minimal-kernel-calculus.md",
         "completion": {
           "implementation_head": "d436176d3b652b81b19ec81716dcde88dda848ca",
           "integration_head": "f461cb38960493c044459c58374d6d1aa12bda3b",
