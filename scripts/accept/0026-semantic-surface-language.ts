@@ -58,7 +58,12 @@ const program = Effect.gen(function* () {
       "model/work/semantic-surface-language.json",
       "examples/surface-language",
     ],
-    ["bun", "scripts/accept/0022-kernel-reference-interpreter.ts"],
+    [
+      "bun",
+      "test",
+      "tests/kernel-json-format.test.ts",
+      "tests/kernel-reference-interpreter.test.ts",
+    ],
     ["just", "check"],
   ] as const) {
     yield* runCommand(command, { cwd: root });

@@ -295,7 +295,9 @@ Feature 0026 is accepted when:
 8. selected programs agree with the 0022 reference interpreter;
 9. Bun and genuine Node selected outputs are byte-identical;
 10. no ambient capability appears in the portable module;
-11. 0020 and 0022 acceptance remain green; and
+11. the accepted 0020 and 0022 receipts remain dependencies, while their
+    relevant current kernel JSON and interpreter tests remain green without
+    requiring the original phases' machine-local context; and
 12. exact feature acceptance and the full integration gate pass at one clean
     head.
 

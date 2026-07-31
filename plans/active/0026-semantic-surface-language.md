@@ -55,7 +55,7 @@ deploying.
 7. Add constructor, rejection, precedence, ambiguity, scope, and interpreter
    agreement tests.
 8. Add Bun and genuine Node selected-fixture parity.
-9. Run exact acceptance, dependent acceptance, and full integration gates.
+9. Run exact acceptance, focused dependent tests, and full integration gates.
 10. Commit one clean conventional feature and request independent review.
 
 ## Acceptance command
@@ -91,3 +91,8 @@ bun scripts/accept/0026-semantic-surface-language.ts
   kernel document has deterministic canonical bytes, and definition
   dependencies, recursive groups, domain-separated hashing, and build policy
   remain owned by a later feature.
+- 2026-08-01: GitHub replay exposed hidden predecessor context. Recursively
+  running 0022 acceptance also reopened 0018 and required a machine-local
+  `lang-bang` oracle path. The 0026 boundary now consumes the accepted
+  predecessor receipts and reruns the relevant current kernel JSON and
+  interpreter tests. The original external-oracle receipt remains preserved.
