@@ -1,0 +1,838 @@
+/**
+ * Generated verbatim from spec/kernel-json/kernel-json-v1.schema.json.
+ * A test proves this embedded literal byte-equal to the checked-in file:
+ * the portable module has no filesystem authority, so the frozen schema
+ * artifact ships as inert TypeScript data instead of a runtime file read.
+ */
+export const kernelJsonSchemaData = {
+  $schema: "https://json-schema.org/draft/2020-12/schema",
+  $id: "https://semantic.phibkro.org/spec/kernel-json/kernel-json-v1.schema.json",
+  title: "Semantic agent-facing kernel JSON v1",
+  description:
+    "Complete structural contract for the two frozen agent-facing documents of design spec 0020: the raw recursive semantic.kernel-json KernelDocument and the semantic.kernel-check KernelCheckObservation. The $id is a project-controlled stable identifier; it does not make remote availability or remote validation an authority. Schema validity is a structural courtesy pre-check only. This schema CANNOT enforce: de Bruijn scope validity of distance or resumption_distance; agreement between operation terms, handler clauses, and the declared signature; typing, effect rows, usage discipline, or handler completeness; sorted array order and duplicate-free rows; total node and depth bounds; strict UTF-8, duplicate-key rejection, or the negative-zero distinction; occurrence-path resolvability; premise-link well-foundedness (strictly increasing, in-range indexes); agreement between the inferred summary and judgment 0; the conditional presence of signature_origins exactly for computation.operation (one entry) and handler.deep (every declaration under the handled label, complete and in canonical order), each entry's /signature/N range, or agreement between a binder entry's origin_kind and its binder_origin target; label- and type-table discipline (sorted unique labels, child type indexes strictly below parents, maximal structural sharing, the frozen first-encounter traversal order, index range validity); diagnostic-fact kind rules and nesting depth (fact record keys are a deliberate open vocabulary, but every key, scalar, array, and record is bounded); or that an observation was produced by the authoritative checker. The strict decoder and the accepted 0018 checker remain the sole authorities for those judgments.",
+  oneOf: [{ $ref: "#/$defs/kernel_document" }, { $ref: "#/$defs/kernel_check_observation" }],
+  $defs: {
+    grade: {
+      description:
+        'Quantitative usage grade from the 0018 calculus: "0" permits no use, "1" permits at most one use, "omega" permits any finite use.',
+      enum: ["0", "1", "omega"],
+    },
+    kernel_name: {
+      description:
+        "Nonempty effect label or operation name. Exact Unicode scalar sequence; no normalization is applied; the decoder additionally rejects lone surrogates.",
+      type: "string",
+      minLength: 1,
+      maxLength: 4096,
+    },
+    safe_integer: {
+      description:
+        "Signed safe integer. The decoder additionally rejects fractions, exponents, plus signs, and leading zeroes, and preserves -0 as distinct from 0; JSON Schema cannot express that distinction.",
+      type: "integer",
+      minimum: -9007199254740991,
+      maximum: 9007199254740991,
+    },
+    nonnegative_safe_integer: {
+      description: "Nonnegative safe integer used for de Bruijn distances and judgment indexes.",
+      type: "integer",
+      minimum: 0,
+      maximum: 9007199254740991,
+    },
+    effect_row: {
+      description:
+        "Finite effect row: labels sorted by Unicode code-point order with no duplicates. The decoder rejects unsorted or duplicated rows; this schema can express only uniqueness.",
+      type: "array",
+      items: { $ref: "#/$defs/kernel_name" },
+      uniqueItems: true,
+      maxItems: 256,
+    },
+    value_type: {
+      description:
+        "0018 value type. A closed tagged record; unknown tags and extra fields are rejected.",
+      oneOf: [
+        {
+          type: "object",
+          description: "Unit value type.",
+          properties: { tag: { const: "unit" } },
+          required: ["tag"],
+          additionalProperties: false,
+        },
+        {
+          type: "object",
+          description: "Boolean value type.",
+          properties: { tag: { const: "bool" } },
+          required: ["tag"],
+          additionalProperties: false,
+        },
+        {
+          type: "object",
+          description: "Safe-integer value type.",
+          properties: { tag: { const: "int" } },
+          required: ["tag"],
+          additionalProperties: false,
+        },
+        {
+          type: "object",
+          description: "Pair of two value types.",
+          properties: {
+            tag: { const: "pair" },
+            first: { $ref: "#/$defs/value_type" },
+            second: { $ref: "#/$defs/value_type" },
+          },
+          required: ["tag", "first", "second"],
+          additionalProperties: false,
+        },
+        {
+          type: "object",
+          description:
+            "Thunk type U(effects, computation): forcing it runs the computation with the recorded latent effect row.",
+          properties: {
+            tag: { const: "thunk" },
+            effects: { $ref: "#/$defs/effect_row" },
+            computation: { $ref: "#/$defs/computation_type" },
+          },
+          required: ["tag", "effects", "computation"],
+          additionalProperties: false,
+        },
+      ],
+    },
+    computation_type: {
+      description:
+        "0018 computation type: a graded returner F[q] A or a computation-level function.",
+      oneOf: [
+        {
+          type: "object",
+          description:
+            "Returner type F[grade] value: the computation returns one value whose consumer demand is the grade.",
+          properties: {
+            tag: { const: "return" },
+            grade: { $ref: "#/$defs/grade" },
+            value: { $ref: "#/$defs/value_type" },
+          },
+          required: ["tag", "grade", "value"],
+          additionalProperties: false,
+        },
+        {
+          type: "object",
+          description:
+            "Function type parameter ->[grade] (effects, result): applying it produces the result computation with the recorded latent effect row; the argument has the recorded usage grade.",
+          properties: {
+            tag: { const: "function" },
+            parameter: { $ref: "#/$defs/value_type" },
+            grade: { $ref: "#/$defs/grade" },
+            effects: { $ref: "#/$defs/effect_row" },
+            result: { $ref: "#/$defs/computation_type" },
+          },
+          required: ["tag", "parameter", "grade", "effects", "result"],
+          additionalProperties: false,
+        },
+      ],
+    },
+    value_term: {
+      description:
+        "Raw 0018 value term. bound-value references an ordinary value binder by de Bruijn distance; the raw resumption variant is structurally representable and always semantically rejected by the checker because a resumption is not a value.",
+      oneOf: [
+        {
+          type: "object",
+          description:
+            "Reference to the ordinary value binder introduced `distance` value-binder positions outward. Scope validity is a checker judgment, not a schema judgment.",
+          properties: {
+            tag: { const: "bound-value" },
+            distance: { $ref: "#/$defs/nonnegative_safe_integer" },
+          },
+          required: ["tag", "distance"],
+          additionalProperties: false,
+        },
+        {
+          type: "object",
+          description: "Unit value.",
+          properties: { tag: { const: "unit" } },
+          required: ["tag"],
+          additionalProperties: false,
+        },
+        {
+          type: "object",
+          description: "Boolean value.",
+          properties: {
+            tag: { const: "bool" },
+            value: { type: "boolean" },
+          },
+          required: ["tag", "value"],
+          additionalProperties: false,
+        },
+        {
+          type: "object",
+          description: "Safe-integer value; -0 is preserved as distinct from 0.",
+          properties: {
+            tag: { const: "int" },
+            value: { $ref: "#/$defs/safe_integer" },
+          },
+          required: ["tag", "value"],
+          additionalProperties: false,
+        },
+        {
+          type: "object",
+          description: "Pair of two values.",
+          properties: {
+            tag: { const: "pair" },
+            first: { $ref: "#/$defs/value_term" },
+            second: { $ref: "#/$defs/value_term" },
+          },
+          required: ["tag", "first", "second"],
+          additionalProperties: false,
+        },
+        {
+          type: "object",
+          description: "Suspended computation. Forcing the thunk runs the body.",
+          properties: {
+            tag: { const: "thunk" },
+            body: { $ref: "#/$defs/computation_term" },
+          },
+          required: ["tag", "body"],
+          additionalProperties: false,
+        },
+        {
+          type: "object",
+          description:
+            "Raw 0018 spelling of a resumption reference in value position. The checker rejects every occurrence (resumption.escape or a scope diagnostic): a resumption cannot enter a pair, thunk, return value, operation argument, or result.",
+          properties: {
+            tag: { const: "resumption" },
+            distance: { $ref: "#/$defs/nonnegative_safe_integer" },
+          },
+          required: ["tag", "distance"],
+          additionalProperties: false,
+        },
+      ],
+    },
+    computation_term: {
+      description:
+        "Raw 0018 computation term. Binder-introducing positions: lambda body (argument), let body (bound result), handle return-clause body (handled value), handle operation-clause body (operation argument plus one one-shot resumption binder).",
+      oneOf: [
+        {
+          type: "object",
+          description:
+            "Return a value with consumer-demand grade; type F[grade] A with the empty effect row.",
+          properties: {
+            tag: { const: "return" },
+            grade: { $ref: "#/$defs/grade" },
+            value: { $ref: "#/$defs/value_term" },
+          },
+          required: ["tag", "grade", "value"],
+          additionalProperties: false,
+        },
+        {
+          type: "object",
+          description:
+            "Sequence two computations. The body binds the bound computation's returned value at value distance 0; its usage limit is q1 * atLeastOnce(q2).",
+          properties: {
+            tag: { const: "let" },
+            bound: { $ref: "#/$defs/computation_term" },
+            body: { $ref: "#/$defs/computation_term" },
+          },
+          required: ["tag", "bound", "body"],
+          additionalProperties: false,
+        },
+        {
+          type: "object",
+          description: "Force a thunk value, exposing its latent effect row.",
+          properties: {
+            tag: { const: "force" },
+            value: { $ref: "#/$defs/value_term" },
+          },
+          required: ["tag", "value"],
+          additionalProperties: false,
+        },
+        {
+          type: "object",
+          description:
+            "Computation-level function. The body binds the argument at value distance 0 with the declared parameter type and usage grade.",
+          properties: {
+            tag: { const: "lambda" },
+            parameter_type: { $ref: "#/$defs/value_type" },
+            grade: { $ref: "#/$defs/grade" },
+            body: { $ref: "#/$defs/computation_term" },
+          },
+          required: ["tag", "parameter_type", "grade", "body"],
+          additionalProperties: false,
+        },
+        {
+          type: "object",
+          description: "Apply a function computation to an argument value.",
+          properties: {
+            tag: { const: "apply" },
+            computation: { $ref: "#/$defs/computation_term" },
+            argument: { $ref: "#/$defs/value_term" },
+          },
+          required: ["tag", "computation", "argument"],
+          additionalProperties: false,
+        },
+        {
+          type: "object",
+          description:
+            "Perform one declared operation. Agreement with the declared signature is a checker judgment; the row contributed is exactly {label}.",
+          properties: {
+            tag: { const: "operation" },
+            grade: { $ref: "#/$defs/grade" },
+            label: { $ref: "#/$defs/kernel_name" },
+            operation: { $ref: "#/$defs/kernel_name" },
+            argument: { $ref: "#/$defs/value_term" },
+          },
+          required: ["tag", "grade", "label", "operation", "argument"],
+          additionalProperties: false,
+        },
+        {
+          type: "object",
+          description:
+            "Deep handler for one label. Clauses are sorted by operation name with no duplicates (decoder-enforced); exact agreement with the signature's operations under the label is a checker judgment.",
+          properties: {
+            tag: { const: "handle" },
+            label: { $ref: "#/$defs/kernel_name" },
+            computation: { $ref: "#/$defs/computation_term" },
+            return_clause: { $ref: "#/$defs/return_clause" },
+            operation_clauses: {
+              type: "array",
+              description:
+                "One clause per declared operation under the handled label, sorted by operation name.",
+              items: { $ref: "#/$defs/operation_clause" },
+              maxItems: 256,
+            },
+          },
+          required: ["tag", "label", "computation", "return_clause", "operation_clauses"],
+          additionalProperties: false,
+        },
+        {
+          type: "object",
+          description:
+            "Consume the one-shot resumption binder introduced `resumption_distance` operation-clause bodies outward, supplying a value of the declared operation result type.",
+          properties: {
+            tag: { const: "resume" },
+            resumption_distance: { $ref: "#/$defs/nonnegative_safe_integer" },
+            value: { $ref: "#/$defs/value_term" },
+          },
+          required: ["tag", "resumption_distance", "value"],
+          additionalProperties: false,
+        },
+      ],
+    },
+    return_clause: {
+      type: "object",
+      description:
+        "Handler return clause. The body binds the handled result value at value distance 0.",
+      properties: {
+        body: { $ref: "#/$defs/computation_term" },
+      },
+      required: ["body"],
+      additionalProperties: false,
+    },
+    operation_clause: {
+      type: "object",
+      description:
+        "Handler operation clause. The body binds the operation argument at value distance 0 and one one-shot resumption binder at resumption distance 0.",
+      properties: {
+        operation: { $ref: "#/$defs/kernel_name" },
+        body: { $ref: "#/$defs/computation_term" },
+      },
+      required: ["operation", "body"],
+      additionalProperties: false,
+    },
+    signature_operation: {
+      type: "object",
+      description:
+        "One declared operation: (label, operation) maps to one argument type and one result type. The signature array is sorted by (label, operation) with no duplicate pairs (decoder-enforced).",
+      properties: {
+        label: { $ref: "#/$defs/kernel_name" },
+        operation: { $ref: "#/$defs/kernel_name" },
+        argument_type: { $ref: "#/$defs/value_type" },
+        result_type: { $ref: "#/$defs/value_type" },
+      },
+      required: ["label", "operation", "argument_type", "result_type"],
+      additionalProperties: false,
+    },
+    kernel_document: {
+      type: "object",
+      description:
+        "Raw agent-facing kernel document: one declared operation signature and one program term. It carries no inferred fact and no identity, hash, node reference, cache, store, or bundle detail of any kind.",
+      properties: {
+        format: { const: "semantic.kernel-json" },
+        version: { const: 1 },
+        kernel: { const: "semantic.kernel-calculus/0018/v1" },
+        signature: {
+          type: "array",
+          description: "Declared operation signature, sorted by (label, operation).",
+          items: { $ref: "#/$defs/signature_operation" },
+          maxItems: 256,
+        },
+        program: { $ref: "#/$defs/computation_term" },
+      },
+      required: ["format", "version", "kernel", "signature", "program"],
+      additionalProperties: false,
+    },
+    label_index: {
+      description:
+        "Index into the observation's labels table. Aligned with maximumLabels = 1,048,576, the safe ceiling derived from the 1 MiB raw input bound: every distinct label is nonempty and spelled at least once in the input. Range validity against the actual table is decoder-enforced.",
+      type: "integer",
+      minimum: 0,
+      maximum: 1048575,
+    },
+    type_index: {
+      description:
+        "Index into the observation's maximally shared types table. The observation never spells an inferred type inline: a let chain of pair doublings makes inline types exponential, so all type content is table-shared. Range validity is decoder-enforced.",
+      type: "integer",
+      minimum: 0,
+      maximum: 16383,
+    },
+    label_table: {
+      description:
+        "Every distinct effect label the observation mentions, sorted by Unicode code-point order with no duplicates (decoder-enforced). All effect rows in the observation are arrays of indexes into this table. Capacity 1,048,576 is the observation-envelope maximumLabels, derived from the 1 MiB raw input byte bound (each distinct label is nonempty and spelled at least once in the input); the tight lemma bounds real tables at 349,525 because each first spelling is a quoted string of at least three disjoint input bytes.",
+      type: "array",
+      items: { type: "string", minLength: 1, maxLength: 256 },
+      uniqueItems: true,
+      maxItems: 1048576,
+    },
+    label_index_row: {
+      description:
+        "Effect row as label indexes, sorted by the referenced labels' code-point order (decoder-enforced).",
+      type: "array",
+      items: { $ref: "#/$defs/label_index" },
+      uniqueItems: true,
+      maxItems: 256,
+    },
+    type_node: {
+      description:
+        "One entry of the shared type table: the frozen type grammar with child positions replaced by type indexes. Children have strictly smaller indexes (acyclic by construction); no two entries are structurally equal (maximal sharing); entries appear in first-encounter postorder under the frozen traversal. All three rules are decoder-enforced.",
+      oneOf: [
+        {
+          type: "object",
+          description: "Unit value type.",
+          properties: { tag: { const: "unit" } },
+          required: ["tag"],
+          additionalProperties: false,
+        },
+        {
+          type: "object",
+          description: "Boolean value type.",
+          properties: { tag: { const: "bool" } },
+          required: ["tag"],
+          additionalProperties: false,
+        },
+        {
+          type: "object",
+          description: "Safe-integer value type.",
+          properties: { tag: { const: "int" } },
+          required: ["tag"],
+          additionalProperties: false,
+        },
+        {
+          type: "object",
+          description: "Pair of two value types, by table index.",
+          properties: {
+            tag: { const: "pair" },
+            first: { $ref: "#/$defs/type_index" },
+            second: { $ref: "#/$defs/type_index" },
+          },
+          required: ["tag", "first", "second"],
+          additionalProperties: false,
+        },
+        {
+          type: "object",
+          description:
+            "Thunk type U(effects, computation), rows as label indexes, child by table index.",
+          properties: {
+            tag: { const: "thunk" },
+            effects: { $ref: "#/$defs/label_index_row" },
+            computation: { $ref: "#/$defs/type_index" },
+          },
+          required: ["tag", "effects", "computation"],
+          additionalProperties: false,
+        },
+        {
+          type: "object",
+          description: "Returner type F[grade] value, child by table index.",
+          properties: {
+            tag: { const: "return" },
+            grade: { $ref: "#/$defs/grade" },
+            value: { $ref: "#/$defs/type_index" },
+          },
+          required: ["tag", "grade", "value"],
+          additionalProperties: false,
+        },
+        {
+          type: "object",
+          description:
+            "Function type parameter ->[grade] (effects, result), rows as label indexes, children by table index.",
+          properties: {
+            tag: { const: "function" },
+            parameter: { $ref: "#/$defs/type_index" },
+            grade: { $ref: "#/$defs/grade" },
+            effects: { $ref: "#/$defs/label_index_row" },
+            result: { $ref: "#/$defs/type_index" },
+          },
+          required: ["tag", "parameter", "grade", "effects", "result"],
+          additionalProperties: false,
+        },
+      ],
+    },
+    type_table: {
+      description: "The observation's maximally shared type table.",
+      type: "array",
+      items: { $ref: "#/$defs/type_node" },
+      maxItems: 16384,
+    },
+    occurrence_path: {
+      description:
+        "Strict RFC 6901 JSON Pointer subset into the checked KernelDocument, rooted at /program or /signature. Every version 1 field token comes from a closed ASCII vocabulary containing no ~ and no /, so RFC 6901 escape sequences (~0, ~1, or any ~) are forbidden entirely, as are leading zeroes, signs, and '-'. Revision-scoped: meaningful only against the exact document supplied to the check call that produced the observation. Resolvability is decoder- and checker-territory; the pattern is structural only.",
+      type: "string",
+      pattern: "^/(program|signature)(/(0|[1-9][0-9]*|[a-z][a-z0-9_]*))*$",
+      maxLength: 4096,
+    },
+    usage_vector: {
+      description:
+        "Inferred usage grades aligned index-for-index with a binder context: index i records the use of the binder at de Bruijn distance i.",
+      type: "array",
+      items: { $ref: "#/$defs/grade" },
+      maxItems: 256,
+    },
+    value_binder_entry: {
+      type: "object",
+      description:
+        "One ordinary value binder in scope, at the de Bruijn distance equal to its context index (innermost first).",
+      properties: {
+        binder_origin: { $ref: "#/$defs/occurrence_path" },
+        origin_kind: {
+          description: "Which binder-introducing position created this binder.",
+          enum: [
+            "lambda-parameter",
+            "let-result",
+            "return-clause-result",
+            "operation-clause-argument",
+          ],
+        },
+        value_type: {
+          $ref: "#/$defs/type_index",
+          description: "The binder's value type, by shared-table index.",
+        },
+        usage_limit: {
+          $ref: "#/$defs/grade",
+          description:
+            "Exact 0018 usage limit: the declared grade for lambda-parameter, q1 * atLeastOnce(q2) for let-result, the handled result grade for return-clause-result, omega for operation-clause-argument.",
+        },
+      },
+      required: ["binder_origin", "origin_kind", "value_type", "usage_limit"],
+      additionalProperties: false,
+    },
+    resumption_binder_entry: {
+      type: "object",
+      description:
+        'One one-shot resumption binder in scope, at the resumption de Bruijn distance equal to its context index (innermost first). Always has usage limit "1".',
+      properties: {
+        binder_origin: { $ref: "#/$defs/occurrence_path" },
+        origin_kind: { const: "operation-clause-resumption" },
+        label: { $ref: "#/$defs/kernel_name" },
+        operation: { $ref: "#/$defs/kernel_name" },
+        result_type: {
+          $ref: "#/$defs/type_index",
+          description:
+            "Declared operation result type, by shared-table index: the value a resume must supply.",
+        },
+        continuation_type: {
+          $ref: "#/$defs/type_index",
+          description:
+            "Computation type produced by resuming, by shared-table index: the handler's return-clause result type.",
+        },
+        continuation_effects: {
+          $ref: "#/$defs/label_index_row",
+          description:
+            "Effect row produced by resuming under the same deep handler, as label indexes.",
+        },
+        usage_limit: { const: "1" },
+      },
+      required: [
+        "binder_origin",
+        "origin_kind",
+        "label",
+        "operation",
+        "result_type",
+        "continuation_type",
+        "continuation_effects",
+        "usage_limit",
+      ],
+      additionalProperties: false,
+    },
+    judgment_rule: {
+      description: "Closed 0018 derivation rule name for a successful judgment.",
+      enum: [
+        "value.variable",
+        "value.unit",
+        "value.bool",
+        "value.int",
+        "value.pair",
+        "value.thunk",
+        "computation.return",
+        "computation.let",
+        "computation.force",
+        "computation.lambda",
+        "computation.apply",
+        "computation.operation",
+        "computation.resume",
+        "handler.deep",
+      ],
+    },
+    premise_links: {
+      description:
+        "Indexes of the judgment's immediate subderivations in the judgments table, in 0018 derivation order. Every premise index is strictly greater than the judgment's own index (preorder table), which this schema cannot verify.",
+      type: "array",
+      items: { $ref: "#/$defs/nonnegative_safe_integer" },
+      maxItems: 4096,
+    },
+    value_judgment: {
+      type: "object",
+      description:
+        "One accepted value-term occurrence: its exact contexts, inferred value type, and aligned usage vectors.",
+      properties: {
+        tag: { const: "value-judgment" },
+        occurrence_path: { $ref: "#/$defs/occurrence_path" },
+        rule: { $ref: "#/$defs/judgment_rule" },
+        value_context: {
+          type: "array",
+          items: { $ref: "#/$defs/value_binder_entry" },
+          maxItems: 256,
+        },
+        resumption_context: {
+          type: "array",
+          items: { $ref: "#/$defs/resumption_binder_entry" },
+          maxItems: 256,
+        },
+        value_type: {
+          $ref: "#/$defs/type_index",
+          description: "Inferred value type, by shared-table index.",
+        },
+        usage: { $ref: "#/$defs/usage_vector" },
+        resumption_usage: { $ref: "#/$defs/usage_vector" },
+        premises: { $ref: "#/$defs/premise_links" },
+      },
+      required: [
+        "tag",
+        "occurrence_path",
+        "rule",
+        "value_context",
+        "resumption_context",
+        "value_type",
+        "usage",
+        "resumption_usage",
+        "premises",
+      ],
+      additionalProperties: false,
+    },
+    computation_judgment: {
+      type: "object",
+      description:
+        "One accepted computation-term occurrence: its exact contexts, inferred computation type, effect row, and aligned usage vectors. signature_origins is present exactly when the rule is computation.operation (exactly one entry: the performed declaration) or handler.deep (every declaration under the handled label, complete and in canonical signature order) and lists the consulted /signature/N declarations.",
+      properties: {
+        tag: { const: "computation-judgment" },
+        occurrence_path: { $ref: "#/$defs/occurrence_path" },
+        rule: { $ref: "#/$defs/judgment_rule" },
+        value_context: {
+          type: "array",
+          items: { $ref: "#/$defs/value_binder_entry" },
+          maxItems: 256,
+        },
+        resumption_context: {
+          type: "array",
+          items: { $ref: "#/$defs/resumption_binder_entry" },
+          maxItems: 256,
+        },
+        computation_type: {
+          $ref: "#/$defs/type_index",
+          description: "Inferred computation type, by shared-table index.",
+        },
+        effects: { $ref: "#/$defs/label_index_row" },
+        usage: { $ref: "#/$defs/usage_vector" },
+        resumption_usage: { $ref: "#/$defs/usage_vector" },
+        premises: { $ref: "#/$defs/premise_links" },
+        signature_origins: {
+          type: "array",
+          description: "Complete ordered list of consulted /signature/N declarations.",
+          items: { $ref: "#/$defs/occurrence_path" },
+          minItems: 1,
+          maxItems: 256,
+        },
+      },
+      required: [
+        "tag",
+        "occurrence_path",
+        "rule",
+        "value_context",
+        "resumption_context",
+        "computation_type",
+        "effects",
+        "usage",
+        "resumption_usage",
+        "premises",
+      ],
+      additionalProperties: false,
+    },
+    inferred_summary: {
+      type: "object",
+      description:
+        "Root inferred facts for the closed program. Must agree exactly with judgment 0; that agreement is decoder-enforced, not schema-enforceable.",
+      properties: {
+        type: {
+          $ref: "#/$defs/type_index",
+          description: "Root inferred computation type, by shared-table index.",
+        },
+        effects: { $ref: "#/$defs/label_index_row" },
+        usage: { $ref: "#/$defs/usage_vector" },
+      },
+      required: ["type", "effects", "usage"],
+      additionalProperties: false,
+    },
+    diagnostic_code: {
+      description:
+        "Closed version 1 diagnostic-code vocabulary: exactly the codes reachable from the 0018 check function at the pinned head. Surfacing any new checker code requires an explicit interface version decision.",
+      enum: [
+        "checker.invalid-input",
+        "handler.clauses-inexact",
+        "handler.label-unknown",
+        "resumption.escape",
+        "scope.resumption-out-of-range",
+        "scope.variable-out-of-range",
+        "signature.duplicate-operation",
+        "signature.empty-name",
+        "signature.operation-unknown",
+        "term.expected-computation",
+        "type.argument-mismatch",
+        "type.expected-function",
+        "type.expected-return",
+        "type.expected-thunk",
+        "type.handler-clause-mismatch",
+        "type.handler-grade-mismatch",
+        "type.operation-argument-mismatch",
+        "type.resumption-argument-mismatch",
+        "usage.affine-duplicated",
+        "usage.exceeds-grade",
+        "value.integer-out-of-range",
+      ],
+    },
+    diagnostic_rule: {
+      description:
+        "Closed version 1 diagnostic-rule vocabulary: exactly the rule names the 0018 check function attaches to rejection diagnostics at the pinned head. Surfacing any new checker rule requires an explicit interface version decision.",
+      enum: [
+        "checker.boundary",
+        "computation.apply",
+        "computation.family",
+        "computation.force",
+        "computation.lambda",
+        "computation.let",
+        "computation.operation",
+        "computation.resume",
+        "handler.input",
+        "handler.operation",
+        "handler.return",
+        "handler.signature",
+        "signature",
+        "value.int",
+        "value.resumption-forbidden",
+        "value.variable",
+      ],
+    },
+    diagnostic_fact: {
+      description:
+        'Recursive bounded inert diagnostic fact: null, boolean, safe integer, bounded string, bounded array of facts, or bounded record of facts. Frozen kind rules (decoder-enforced) keep every fact provably bounded: type-valued facts are {"type_index": n} records into the shared type table (never inline or rendered types), row-valued facts are {"label_indexes": [...]} records, names are 0018 strings of at most 256 code units, grades and shape literals are fixed strings, and non-safe numerics are rendered decimal/exponent strings of at most 32 bytes. Record keys are a deliberate open vocabulary mirroring the checker\'s per-rule fact records, but every key, scalar, array, and record is bounded; kind agreement and nesting depth are decoder-enforced because JSON Schema cannot express them.',
+      oneOf: [
+        { type: "null" },
+        { type: "boolean" },
+        { $ref: "#/$defs/safe_integer" },
+        { type: "string", maxLength: 4096 },
+        {
+          type: "array",
+          items: { $ref: "#/$defs/diagnostic_fact" },
+          maxItems: 256,
+        },
+        {
+          type: "object",
+          propertyNames: { maxLength: 4096 },
+          additionalProperties: { $ref: "#/$defs/diagnostic_fact" },
+          maxProperties: 256,
+        },
+      ],
+    },
+    check_diagnostic: {
+      type: "object",
+      description:
+        "Stable typed rejection diagnostic surfaced verbatim from the 0018 checker. Bind to code and occurrence_path; message is presentation text.",
+      properties: {
+        code: { $ref: "#/$defs/diagnostic_code" },
+        rule: { $ref: "#/$defs/diagnostic_rule" },
+        occurrence_path: { $ref: "#/$defs/occurrence_path" },
+        message: {
+          type: "string",
+          minLength: 1,
+          maxLength: 4096,
+        },
+        expected: {
+          $ref: "#/$defs/diagnostic_fact",
+          description: "Optional bounded inert fact describing the expected feature.",
+        },
+        actual: {
+          $ref: "#/$defs/diagnostic_fact",
+          description: "Optional bounded inert fact describing the observed feature.",
+        },
+      },
+      required: ["code", "rule", "occurrence_path", "message"],
+      additionalProperties: false,
+    },
+    check_accepted: {
+      type: "object",
+      description:
+        "Accepted observation: shared label and type tables, the root inferred summary, and the derivation-preorder judgments table, one judgment per checked term occurrence with explicit binder contexts and premise links. All types and effect rows are table indexes; inline inferred types are unrepresentable because they are exponential in the worst case.",
+      properties: {
+        tag: { const: "accepted" },
+        labels: { $ref: "#/$defs/label_table" },
+        types: { $ref: "#/$defs/type_table" },
+        inferred: { $ref: "#/$defs/inferred_summary" },
+        judgments: {
+          type: "array",
+          items: {
+            oneOf: [{ $ref: "#/$defs/value_judgment" }, { $ref: "#/$defs/computation_judgment" }],
+          },
+          minItems: 1,
+          maxItems: 16384,
+        },
+      },
+      required: ["tag", "labels", "types", "inferred", "judgments"],
+      additionalProperties: false,
+    },
+    check_rejected: {
+      type: "object",
+      description:
+        "Rejected observation: shared label and type tables plus stable typed diagnostics whose type facts reference the tables. A rejection is a successful observation of the check, not a transport failure, and is always representable within the observation bounds.",
+      properties: {
+        tag: { const: "rejected" },
+        labels: { $ref: "#/$defs/label_table" },
+        types: { $ref: "#/$defs/type_table" },
+        diagnostics: {
+          type: "array",
+          items: { $ref: "#/$defs/check_diagnostic" },
+          minItems: 1,
+          maxItems: 1024,
+        },
+      },
+      required: ["tag", "labels", "types", "diagnostics"],
+      additionalProperties: false,
+    },
+    kernel_check_observation: {
+      type: "object",
+      description:
+        "Checked view of one KernelDocument revision, produced through the accepted 0018 checker. Decoding this shape warrants representation validity only, never checker provenance. It embeds no document identity: occurrence paths bind it to the exact document supplied to the producing check call.",
+      properties: {
+        format: { const: "semantic.kernel-check" },
+        version: { const: 1 },
+        kernel: { const: "semantic.kernel-calculus/0018/v1" },
+        observation: {
+          oneOf: [{ $ref: "#/$defs/check_accepted" }, { $ref: "#/$defs/check_rejected" }],
+        },
+      },
+      required: ["format", "version", "kernel", "observation"],
+      additionalProperties: false,
+    },
+  },
+} as const;

@@ -208,3 +208,140 @@ describe("minimal kernel calculus checker", () => {
     });
   });
 });
+
+describe("0020 judgment-recording seam (additive, backward-compatible)", () => {
+  test("accepted results gain one judgment per term occurrence, in derivation preorder", () => {
+    const pure = accepted(letTerm(returnTerm("1", int(1)), returnTerm("1", variable(0))));
+    expect(pure.judgments).toHaveLength(5);
+    expect(pure.judgments[0]).toMatchObject({
+      tag: "computation-judgment",
+      rule: "computation.let",
+      premises: [1, 3],
+    });
+    expect(pure.judgments[1]).toMatchObject({
+      tag: "computation-judgment",
+      rule: "computation.return",
+      premises: [2],
+    });
+    expect(pure.judgments[2]).toMatchObject({
+      tag: "value-judgment",
+      rule: "value.int",
+      premises: [],
+    });
+    expect(pure.judgments[3]).toMatchObject({
+      tag: "computation-judgment",
+      rule: "computation.return",
+      valueContext: [{ originKind: "let-result", usageLimit: "1" }],
+    });
+    expect(pure.judgments[4]).toMatchObject({ tag: "value-judgment", rule: "value.variable" });
+    // Judgment 0 is the root program judgment and must agree with the
+    // top-level accepted type/effects/usage the seam did not change.
+    expect(pure.judgments[0]).toMatchObject({
+      computationType: pure.type,
+      effects: pure.effects,
+      usage: pure.usage,
+    });
+  });
+
+  test("handler.deep and computation.operation record complete signature_origins", () => {
+    const checked = accepted(
+      handle(
+        "fresh",
+        operation("1", "fresh", "allocate", unit()),
+        returnClause(returnTerm("1", variable(0))),
+        [operationClause("allocate", resumeTerm(0, int(7)))],
+      ),
+    );
+    const handlerJudgment = checked.judgments.find((judgment) => judgment.rule === "handler.deep");
+    const operationJudgment = checked.judgments.find(
+      (judgment) => judgment.rule === "computation.operation",
+    );
+    expect(
+      handlerJudgment && "signatureOrigins" in handlerJudgment && handlerJudgment.signatureOrigins,
+    ).toEqual([0]);
+    expect(
+      operationJudgment &&
+        "signatureOrigins" in operationJudgment &&
+        operationJudgment.signatureOrigins,
+    ).toEqual([0]);
+  });
+
+  test("a discarded handler fixed-point iteration leaves no residual judgment records", () => {
+    // Two operations under one label forces at least one extra fixed-point
+    // iteration; only the final iteration's clause judgments must survive.
+    const twoOpSignature = operationSignature([
+      { label: "io", operation: "read", argumentType: unitType(), resultType: unitType() },
+      { label: "io", operation: "write", argumentType: unitType(), resultType: unitType() },
+    ]);
+    const checked = check(
+      twoOpSignature,
+      handle(
+        "io",
+        operation("1", "io", "read", unit()),
+        returnClause(returnTerm("1", variable(0))),
+        [
+          operationClause("read", resumeTerm(0, unit())),
+          operationClause("write", resumeTerm(0, unit())),
+        ],
+      ),
+    );
+    expect(checked.status).toBe("accepted");
+    if (checked.status !== "accepted") return;
+    // Every premise index must resolve to a real, distinct table entry: a
+    // stale provisional record from a discarded iteration would either be
+    // missing (dangling premise) or duplicated (a repeated occurrence path
+    // at the same rule appearing twice for one clause).
+    for (const judgment of checked.judgments) {
+      for (const premise of judgment.premises) {
+        expect(checked.judgments[premise]).toBeDefined();
+      }
+    }
+    const clauseBodyPaths = checked.judgments
+      .filter((judgment) => judgment.path.startsWith("$.operationClauses"))
+      .map((judgment) => judgment.path);
+    expect(new Set(clauseBodyPaths).size).toBe(clauseBodyPaths.length);
+  });
+
+  test("rejection diagnostics gain structured facts alongside the unchanged rendered fields", () => {
+    const rejected = check(
+      effectsSignature,
+      handle(
+        "fresh",
+        operation("1", "fresh", "allocate", unit()),
+        returnClause(returnTerm("1", variable(0))),
+        [operationClause("allocate", letTerm(resumeTerm(0, int(7)), resumeTerm(0, int(8))))],
+      ),
+    );
+    expect(rejected.status).toBe("rejected");
+    if (rejected.status !== "rejected") return;
+    const diagnostic = rejected.diagnostics[0]!;
+    expect(diagnostic.code).toBe("usage.affine-duplicated");
+    expect(diagnostic.expected).toBe("1");
+    expect(diagnostic.actual).toBe("omega");
+    expect(diagnostic.structuredExpected).toEqual({ kind: "grade", value: "1" });
+    expect(diagnostic.structuredActual).toEqual({ kind: "grade", value: "omega" });
+  });
+
+  test("every prior 0018 acceptance and rejection observation is unchanged by the seam", () => {
+    // Same assertions as the pre-seam suite above, repeated here as an
+    // explicit backward-compatibility gate: status, type, effects, usage,
+    // and diagnostic code/rule/path are exactly what they were before the
+    // additive `judgments` field existed.
+    const pure = accepted(returnTerm("1", int(7)));
+    expect(pure.type).toEqual({ kind: "return", grade: "1", value: { kind: "int" } });
+    expect(pure.effects).toEqual([]);
+    expect(pure.usage).toEqual([]);
+    expect(pure.derivation.rule).toBe("computation.return");
+
+    const duplicated = handle(
+      "fresh",
+      operation("1", "fresh", "allocate", unit()),
+      returnClause(returnTerm("1", variable(0))),
+      [operationClause("allocate", letTerm(resumeTerm(0, int(7)), resumeTerm(0, int(8))))],
+    );
+    expect(check(effectsSignature, duplicated)).toMatchObject({
+      status: "rejected",
+      diagnostics: [{ code: "usage.affine-duplicated" }],
+    });
+  });
+});

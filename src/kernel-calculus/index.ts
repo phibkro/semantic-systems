@@ -126,6 +126,13 @@ export type {
   Derivation,
   EffectAssertionResult,
   KernelDiagnostic,
+  RecordedComputationJudgment,
+  RecordedJudgment,
+  RecordedValueJudgment,
+  ResolvedResumptionContextEntry,
+  ResolvedValueContextEntry,
+  StructuredFact,
+  ValueBinderOriginKind,
 } from "./checker.ts";
 export type { EffectRow } from "./effect-row.ts";
 export type { Grade, Usage } from "./grade.ts";

@@ -3,6 +3,7 @@ import {
   operationSignature,
   type ComputationTerm,
   type ComputationType,
+  type KernelType,
   type OperationDeclaration,
   type OperationSignature,
   type ValueTerm,
@@ -24,8 +25,54 @@ import {
   multiplyGrades,
   scaleUsage,
   zeroUsage,
+  type Grade,
   type Usage,
 } from "./grade.ts";
+
+/**
+ * Bounded inert structured fact recorded alongside a rendered diagnostic
+ * fact. This is the additive judgment-recording seam's own representation;
+ * `src/kernel-json` translates it into the frozen `DiagnosticFact` JSON
+ * grammar (type references become shared-table indexes) without
+ * re-deriving any judgment.
+ */
+export type StructuredFact =
+  | { readonly kind: "type"; readonly type: KernelType }
+  | { readonly kind: "row"; readonly labels: EffectRow }
+  | { readonly kind: "name"; readonly value: string }
+  | { readonly kind: "grade"; readonly value: Grade }
+  | { readonly kind: "count"; readonly value: number }
+  | { readonly kind: "integer"; readonly value: number }
+  | { readonly kind: "malformed-number"; readonly rendered: string }
+  | { readonly kind: "shape"; readonly value: "F[q] A" | "U(effects, C)" | "A ->[q] (effects, C)" }
+  | { readonly kind: "list"; readonly items: ReadonlyArray<StructuredFact> }
+  | { readonly kind: "record"; readonly fields: Readonly<Record<string, StructuredFact>> };
+
+const typeFact = (type: KernelType): StructuredFact => ({ kind: "type", type });
+const nameFact = (value: string): StructuredFact => ({ kind: "name", value });
+const gradeFact = (value: Grade): StructuredFact => ({ kind: "grade", value });
+const countFact = (value: number): StructuredFact => ({ kind: "count", value });
+const shapeFact = (value: "F[q] A" | "U(effects, C)" | "A ->[q] (effects, C)"): StructuredFact => ({
+  kind: "shape",
+  value,
+});
+const listFact = (items: ReadonlyArray<StructuredFact>): StructuredFact => ({
+  kind: "list",
+  items,
+});
+const recordFact = (fields: Readonly<Record<string, StructuredFact>>): StructuredFact => ({
+  kind: "record",
+  fields,
+});
+const numberFact = (value: number): StructuredFact =>
+  Number.isSafeInteger(value)
+    ? { kind: "integer", value }
+    : { kind: "malformed-number", rendered: renderMalformedNumber(value) };
+
+const renderMalformedNumber = (value: number): string => {
+  const rendered = Number.isFinite(value) ? value.toString() : String(value);
+  return rendered.length > 32 ? rendered.slice(0, 32) : rendered;
+};
 
 export interface KernelDiagnostic {
   readonly code: string;
@@ -34,6 +81,8 @@ export interface KernelDiagnostic {
   readonly message: string;
   readonly expected?: unknown;
   readonly actual?: unknown;
+  readonly structuredExpected?: StructuredFact;
+  readonly structuredActual?: StructuredFact;
 }
 
 export interface Derivation {
@@ -42,6 +91,100 @@ export interface Derivation {
   readonly conclusion: string;
   readonly premises: ReadonlyArray<Derivation>;
 }
+
+/** Origin kind for one ordinary value binder, recorded by the seam. */
+export type ValueBinderOriginKind =
+  | "lambda-parameter"
+  | "let-result"
+  | "return-clause-result"
+  | "operation-clause-argument";
+
+class UsageLimitCell {
+  value: Grade | undefined = undefined;
+}
+
+export interface ResolvedValueContextEntry {
+  readonly binderOrigin: string;
+  readonly originKind: ValueBinderOriginKind;
+  readonly type: ValueType;
+  readonly usageLimit: Grade;
+}
+
+export interface ResolvedResumptionContextEntry {
+  readonly binderOrigin: string;
+  readonly originKind: "operation-clause-resumption";
+  readonly label: string;
+  readonly operation: string;
+  readonly resultType: ValueType;
+  readonly continuationType: ComputationType;
+  readonly continuationEffects: EffectRow;
+  readonly usageLimit: "1";
+}
+
+export interface RecordedValueJudgment {
+  readonly tag: "value-judgment";
+  readonly path: string;
+  readonly rule: string;
+  readonly valueContext: ReadonlyArray<ResolvedValueContextEntry>;
+  readonly resumptionContext: ReadonlyArray<ResolvedResumptionContextEntry>;
+  readonly valueType: ValueType;
+  readonly usage: Usage;
+  readonly resumptionUsage: Usage;
+  readonly premises: ReadonlyArray<number>;
+}
+
+export interface RecordedComputationJudgment {
+  readonly tag: "computation-judgment";
+  readonly path: string;
+  readonly rule: string;
+  readonly valueContext: ReadonlyArray<ResolvedValueContextEntry>;
+  readonly resumptionContext: ReadonlyArray<ResolvedResumptionContextEntry>;
+  readonly computationType: ComputationType;
+  readonly effects: EffectRow;
+  readonly usage: Usage;
+  readonly resumptionUsage: Usage;
+  readonly premises: ReadonlyArray<number>;
+  readonly signatureOrigins?: ReadonlyArray<number>;
+}
+
+export type RecordedJudgment = RecordedValueJudgment | RecordedComputationJudgment;
+
+/**
+ * Draft table entries keep the live `ContextEntry`/`ResumptionExpectation`
+ * references (including any unresolved `let`-result `UsageLimitCell`)
+ * unfrozen until the whole program has been checked: a `let`-result usage
+ * limit depends on its body's own inferred grade, which is only known once
+ * the body — and every judgment recorded while checking it — has already
+ * been reserved. `check` resolves and freezes the draft table once, after
+ * the single authoritative check pass completes.
+ */
+interface DraftValueJudgment {
+  readonly tag: "value-judgment";
+  readonly path: string;
+  readonly rule: string;
+  readonly valueContext: ReadonlyArray<ContextEntry>;
+  readonly resumptionContext: ReadonlyArray<ResumptionExpectation>;
+  readonly valueType: ValueType;
+  readonly usage: Usage;
+  readonly resumptionUsage: Usage;
+  readonly premises: ReadonlyArray<number>;
+}
+
+interface DraftComputationJudgment {
+  readonly tag: "computation-judgment";
+  readonly path: string;
+  readonly rule: string;
+  readonly valueContext: ReadonlyArray<ContextEntry>;
+  readonly resumptionContext: ReadonlyArray<ResumptionExpectation>;
+  readonly computationType: ComputationType;
+  readonly effects: EffectRow;
+  readonly usage: Usage;
+  readonly resumptionUsage: Usage;
+  readonly premises: ReadonlyArray<number>;
+  readonly signatureOrigins?: ReadonlyArray<number>;
+}
+
+type DraftJudgment = DraftValueJudgment | DraftComputationJudgment;
 
 export interface CheckedProgram {
   readonly type: ComputationType;
@@ -55,6 +198,13 @@ export interface CheckAccepted {
   readonly usage: Usage;
   readonly derivation: Derivation;
   readonly program: CheckedProgram;
+  /**
+   * Additive judgment-recording seam output: one record per successfully
+   * judged term occurrence, in the derivation's preorder. Frozen 0018-owned
+   * data; `src/kernel-json` translates it into the agent-facing observation
+   * without re-deriving any fact.
+   */
+  readonly judgments: ReadonlyArray<RecordedJudgment>;
 }
 
 export interface CheckRejected {
@@ -123,12 +273,19 @@ const observedCheckResult = <Result extends CheckResult>(result: Result): Result
 export const isCheckResult = (result: unknown): result is CheckResult =>
   typeof result === "object" && result !== null && checkResultCustody.has(result);
 
+interface DiagnosticFacts {
+  readonly expected?: unknown;
+  readonly actual?: unknown;
+  readonly structuredExpected?: StructuredFact;
+  readonly structuredActual?: StructuredFact;
+}
+
 const diagnostic = (
   code: string,
   rule: string,
   path: string,
   message: string,
-  facts: { readonly expected?: unknown; readonly actual?: unknown } = {},
+  facts: DiagnosticFacts = {},
 ): KernelDiagnostic =>
   frozen({
     code,
@@ -137,6 +294,10 @@ const diagnostic = (
     message,
     ...(facts.expected === undefined ? {} : { expected: facts.expected }),
     ...(facts.actual === undefined ? {} : { actual: facts.actual }),
+    ...(facts.structuredExpected === undefined
+      ? {}
+      : { structuredExpected: facts.structuredExpected }),
+    ...(facts.structuredActual === undefined ? {} : { structuredActual: facts.structuredActual }),
   });
 
 class CheckFailure {
@@ -152,7 +313,7 @@ const fail = (
   rule: string,
   path: string,
   message: string,
-  facts?: { readonly expected?: unknown; readonly actual?: unknown },
+  facts?: DiagnosticFacts,
 ): never => {
   throw new CheckFailure(diagnostic(code, rule, path, message, facts));
 };
@@ -234,6 +395,16 @@ interface ResumptionExpectation {
   readonly input: ValueType;
   readonly output: ComputationType;
   readonly effects: EffectRow;
+  readonly binderOrigin: string;
+  readonly label: string;
+  readonly operation: string;
+}
+
+interface ContextEntry {
+  readonly type: ValueType;
+  readonly binderOrigin: string;
+  readonly originKind: ValueBinderOriginKind;
+  readonly usageLimit: Grade | UsageLimitCell;
 }
 
 interface CheckedValue {
@@ -241,6 +412,7 @@ interface CheckedValue {
   readonly usage: Usage;
   readonly resumptionUsage: Usage;
   readonly derivation: Derivation;
+  readonly judgmentIndex: number;
 }
 
 interface CheckedComputation {
@@ -249,6 +421,16 @@ interface CheckedComputation {
   readonly usage: Usage;
   readonly resumptionUsage: Usage;
   readonly derivation: Derivation;
+  readonly judgmentIndex: number;
+  readonly signatureOrigins?: ReadonlyArray<number>;
+}
+
+interface UncheckedValue extends Omit<CheckedValue, "judgmentIndex"> {
+  readonly premiseIndexes: ReadonlyArray<number>;
+}
+
+interface UncheckedComputation extends Omit<CheckedComputation, "judgmentIndex"> {
+  readonly premiseIndexes: ReadonlyArray<number>;
 }
 
 const mergeResumptionUsage = (left: Usage, right: Usage): Usage => addUsage(left, right);
@@ -256,10 +438,61 @@ const mergeResumptionUsage = (left: Usage, right: Usage): Usage => addUsage(left
 const operationKey = (label: string, operation: string): string =>
   JSON.stringify([label, operation]);
 
+const resolveContextEntry = (entry: ContextEntry): ResolvedValueContextEntry => ({
+  binderOrigin: entry.binderOrigin,
+  originKind: entry.originKind,
+  type: entry.type,
+  usageLimit:
+    entry.usageLimit instanceof UsageLimitCell ? entry.usageLimit.value! : entry.usageLimit,
+});
+
+const resolveResumption = (entry: ResumptionExpectation): ResolvedResumptionContextEntry => ({
+  binderOrigin: entry.binderOrigin,
+  originKind: "operation-clause-resumption",
+  label: entry.label,
+  operation: entry.operation,
+  resultType: entry.input,
+  continuationType: entry.output,
+  continuationEffects: entry.effects,
+  usageLimit: "1",
+});
+
+const resolveDraftJudgment = (draft: DraftJudgment): RecordedJudgment =>
+  draft.tag === "value-judgment"
+    ? {
+        tag: "value-judgment",
+        path: draft.path,
+        rule: draft.rule,
+        valueContext: draft.valueContext.map(resolveContextEntry),
+        resumptionContext: draft.resumptionContext.map(resolveResumption),
+        valueType: draft.valueType,
+        usage: draft.usage,
+        resumptionUsage: draft.resumptionUsage,
+        premises: draft.premises,
+      }
+    : {
+        tag: "computation-judgment",
+        path: draft.path,
+        rule: draft.rule,
+        valueContext: draft.valueContext.map(resolveContextEntry),
+        resumptionContext: draft.resumptionContext.map(resolveResumption),
+        computationType: draft.computationType,
+        effects: draft.effects,
+        usage: draft.usage,
+        resumptionUsage: draft.resumptionUsage,
+        premises: draft.premises,
+        ...(draft.signatureOrigins === undefined
+          ? {}
+          : { signatureOrigins: draft.signatureOrigins }),
+      };
+
 class AlgorithmicChecker {
   readonly #signature: OperationSignature;
   readonly #operations: ReadonlyMap<string, OperationDeclaration>;
+  readonly #operationIndexes: ReadonlyMap<string, number>;
   readonly valueTypes = new Map<object, ValueType>();
+  readonly #table: Array<DraftJudgment> = [];
+  #nextIndex = 0;
 
   constructor(signature: OperationSignature) {
     this.#signature = signature;
@@ -269,42 +502,71 @@ class AlgorithmicChecker {
         declaration,
       ]),
     );
+    this.#operationIndexes = new Map(
+      signature.operations.map((declaration, index) => [
+        operationKey(declaration.label, declaration.operation),
+        index,
+      ]),
+    );
+  }
+
+  get table(): ReadonlyArray<DraftJudgment> {
+    return this.#table;
   }
 
   value(
     term: ValueTerm,
-    context: ReadonlyArray<ValueType>,
+    context: ReadonlyArray<ContextEntry>,
     resumptions: ReadonlyArray<ResumptionExpectation>,
     path: string,
   ): CheckedValue {
+    const index = this.#nextIndex;
+    this.#nextIndex += 1;
     const checked = this.valueUnchecked(term, context, resumptions, path);
     this.valueTypes.set(term, checked.type);
-    return checked;
+    this.#table[index] = {
+      tag: "value-judgment",
+      path,
+      rule: checked.derivation.rule,
+      valueContext: context,
+      resumptionContext: resumptions,
+      valueType: checked.type,
+      usage: checked.usage,
+      resumptionUsage: checked.resumptionUsage,
+      premises: checked.premiseIndexes,
+    };
+    return { ...checked, judgmentIndex: index };
   }
 
   private valueUnchecked(
     term: ValueTerm,
-    context: ReadonlyArray<ValueType>,
+    context: ReadonlyArray<ContextEntry>,
     resumptions: ReadonlyArray<ResumptionExpectation>,
     path: string,
-  ): CheckedValue {
+  ): UncheckedValue {
     switch (term.kind) {
       case "variable": {
-        const type = context[term.index];
-        if (type === undefined) {
+        const entry = context[term.index];
+        if (entry === undefined) {
           return fail(
             "scope.variable-out-of-range",
             "value.variable",
             path,
             "variable index is outside the value context",
-            { expected: { contextLength: context.length }, actual: term.index },
+            {
+              expected: { contextLength: context.length },
+              actual: term.index,
+              structuredExpected: recordFact({ contextLength: countFact(context.length) }),
+              structuredActual: countFact(term.index),
+            },
           );
         }
         return {
-          type,
+          type: entry.type,
           usage: basisUsage(context.length, term.index),
           resumptionUsage: zeroUsage(resumptions.length),
-          derivation: derive("value.variable", path, showValueType(type)),
+          derivation: derive("value.variable", path, showValueType(entry.type)),
+          premiseIndexes: [],
         };
       }
       case "unit":
@@ -313,6 +575,7 @@ class AlgorithmicChecker {
           usage: zeroUsage(context.length),
           resumptionUsage: zeroUsage(resumptions.length),
           derivation: derive("value.unit", path, "Unit"),
+          premiseIndexes: [],
         };
       case "bool":
         return {
@@ -320,6 +583,7 @@ class AlgorithmicChecker {
           usage: zeroUsage(context.length),
           resumptionUsage: zeroUsage(resumptions.length),
           derivation: derive("value.bool", path, "Bool"),
+          premiseIndexes: [],
         };
       case "int":
         if (!Number.isSafeInteger(term.value)) {
@@ -328,7 +592,7 @@ class AlgorithmicChecker {
             "value.int",
             path,
             "integer literals must be safe integers",
-            { actual: term.value },
+            { actual: term.value, structuredActual: numberFact(term.value) },
           );
         }
         return {
@@ -336,6 +600,7 @@ class AlgorithmicChecker {
           usage: zeroUsage(context.length),
           resumptionUsage: zeroUsage(resumptions.length),
           derivation: derive("value.int", path, "Int"),
+          premiseIndexes: [],
         };
       case "pair": {
         const first = this.value(term.first, context, resumptions, `${path}.first`);
@@ -353,6 +618,7 @@ class AlgorithmicChecker {
             first.derivation,
             second.derivation,
           ]),
+          premiseIndexes: [first.judgmentIndex, second.judgmentIndex],
         };
       }
       case "thunk": {
@@ -367,6 +633,7 @@ class AlgorithmicChecker {
           usage: body.usage,
           resumptionUsage: body.resumptionUsage,
           derivation: derive("value.thunk", path, showValueType(type), [body.derivation]),
+          premiseIndexes: [body.judgmentIndex],
         };
       }
       case "resumption":
@@ -375,17 +642,44 @@ class AlgorithmicChecker {
           "value.resumption-forbidden",
           path,
           "a resumption binder can occur only as the first operand of resume",
-          { actual: term.index },
+          { actual: term.index, structuredActual: numberFact(term.index) },
         );
     }
   }
 
   computation(
     term: ComputationTerm,
-    context: ReadonlyArray<ValueType>,
+    context: ReadonlyArray<ContextEntry>,
     resumptions: ReadonlyArray<ResumptionExpectation>,
     path: string,
   ): CheckedComputation {
+    const index = this.#nextIndex;
+    this.#nextIndex += 1;
+    const checked = this.computationUnchecked(term, context, resumptions, path);
+    this.#table[index] = {
+      tag: "computation-judgment",
+      path,
+      rule: checked.derivation.rule,
+      valueContext: context,
+      resumptionContext: resumptions,
+      computationType: checked.type,
+      effects: checked.effects,
+      usage: checked.usage,
+      resumptionUsage: checked.resumptionUsage,
+      premises: checked.premiseIndexes,
+      ...(checked.signatureOrigins === undefined
+        ? {}
+        : { signatureOrigins: checked.signatureOrigins }),
+    };
+    return { ...checked, judgmentIndex: index };
+  }
+
+  private computationUnchecked(
+    term: ComputationTerm,
+    context: ReadonlyArray<ContextEntry>,
+    resumptions: ReadonlyArray<ResumptionExpectation>,
+    path: string,
+  ): UncheckedComputation {
     if (
       typeof term !== "object" ||
       term === null ||
@@ -416,6 +710,7 @@ class AlgorithmicChecker {
           derivation: derive("computation.return", path, `${showComputationType(type)} ; {}`, [
             value.derivation,
           ]),
+          premiseIndexes: [value.judgmentIndex],
         };
       }
       case "let": {
@@ -426,12 +721,26 @@ class AlgorithmicChecker {
             "computation.let",
             `${path}.bound`,
             "let requires a returned value computation",
-            { expected: "F[q] A", actual: showComputationType(bound.type) },
+            {
+              expected: "F[q] A",
+              actual: showComputationType(bound.type),
+              structuredExpected: shapeFact("F[q] A"),
+              structuredActual: typeFact(bound.type),
+            },
           );
         }
+        const usageLimit = new UsageLimitCell();
         const body = this.computation(
           term.body,
-          [bound.type.value, ...context],
+          [
+            {
+              type: bound.type.value,
+              binderOrigin: path,
+              originKind: "let-result",
+              usageLimit,
+            },
+            ...context,
+          ],
           resumptions,
           `${path}.body`,
         );
@@ -441,10 +750,16 @@ class AlgorithmicChecker {
             "computation.let",
             `${path}.body`,
             "let body must return a value",
-            { expected: "F[q] B", actual: showComputationType(body.type) },
+            {
+              expected: "F[q] B",
+              actual: showComputationType(body.type),
+              structuredExpected: shapeFact("F[q] A"),
+              structuredActual: typeFact(body.type),
+            },
           );
         }
         const limit = multiplyGrades(bound.type.grade, atLeastOnce(body.type.grade));
+        usageLimit.value = limit;
         const actual = body.usage[0]!;
         if (!gradeLessThanOrEqual(actual, limit)) {
           return fail(
@@ -452,7 +767,12 @@ class AlgorithmicChecker {
             "computation.let",
             `${path}.body`,
             "bound result usage exceeds its quantitative limit",
-            { expected: limit, actual },
+            {
+              expected: limit,
+              actual,
+              structuredExpected: gradeFact(limit),
+              structuredActual: gradeFact(actual),
+            },
           );
         }
         return {
@@ -472,6 +792,7 @@ class AlgorithmicChecker {
             `${showComputationType(body.type)} ; {${unionEffectRows(bound.effects, body.effects).join(",")}}`,
             [bound.derivation, body.derivation],
           ),
+          premiseIndexes: [bound.judgmentIndex, body.judgmentIndex],
         };
       }
       case "force": {
@@ -482,7 +803,12 @@ class AlgorithmicChecker {
             "computation.force",
             `${path}.value`,
             "force requires a thunk value",
-            { expected: "U(effects, C)", actual: showValueType(value.type) },
+            {
+              expected: "U(effects, C)",
+              actual: showValueType(value.type),
+              structuredExpected: shapeFact("U(effects, C)"),
+              structuredActual: typeFact(value.type),
+            },
           );
         }
         return {
@@ -496,12 +822,21 @@ class AlgorithmicChecker {
             `${showComputationType(value.type.computation)} ; {${value.type.effects.join(",")}}`,
             [value.derivation],
           ),
+          premiseIndexes: [value.judgmentIndex],
         };
       }
       case "lambda": {
         const body = this.computation(
           term.body,
-          [term.parameterType, ...context],
+          [
+            {
+              type: term.parameterType,
+              binderOrigin: path,
+              originKind: "lambda-parameter",
+              usageLimit: term.grade,
+            },
+            ...context,
+          ],
           resumptions,
           `${path}.body`,
         );
@@ -514,7 +849,12 @@ class AlgorithmicChecker {
             "computation.lambda",
             `${path}.body`,
             "function argument usage exceeds its declared grade",
-            { expected: term.grade, actual },
+            {
+              expected: term.grade,
+              actual,
+              structuredExpected: gradeFact(term.grade),
+              structuredActual: gradeFact(actual),
+            },
           );
         }
         const type: ComputationType = frozen({
@@ -532,6 +872,7 @@ class AlgorithmicChecker {
           derivation: derive("computation.lambda", path, `${showComputationType(type)} ; {}`, [
             body.derivation,
           ]),
+          premiseIndexes: [body.judgmentIndex],
         };
       }
       case "apply": {
@@ -547,7 +888,12 @@ class AlgorithmicChecker {
             "computation.apply",
             `${path}.computation`,
             "apply requires a computation-level function",
-            { expected: "A ->[q] (effects, C)", actual: showComputationType(computation.type) },
+            {
+              expected: "A ->[q] (effects, C)",
+              actual: showComputationType(computation.type),
+              structuredExpected: shapeFact("A ->[q] (effects, C)"),
+              structuredActual: typeFact(computation.type),
+            },
           );
         }
         const argument = this.value(term.argument, context, resumptions, `${path}.argument`);
@@ -560,6 +906,8 @@ class AlgorithmicChecker {
             {
               expected: showValueType(computation.type.parameter),
               actual: showValueType(argument.type),
+              structuredExpected: typeFact(computation.type.parameter),
+              structuredActual: typeFact(argument.type),
             },
           );
         }
@@ -577,6 +925,7 @@ class AlgorithmicChecker {
             `${showComputationType(computation.type.result)} ; {${unionEffectRows(computation.effects, computation.type.effects).join(",")}}`,
             [computation.derivation, argument.derivation],
           ),
+          premiseIndexes: [computation.judgmentIndex, argument.judgmentIndex],
         };
       }
       case "operation": {
@@ -587,7 +936,13 @@ class AlgorithmicChecker {
             "computation.operation",
             path,
             "operation is not present in the declared signature",
-            { actual: { label: term.label, operation: term.operation } },
+            {
+              actual: { label: term.label, operation: term.operation },
+              structuredActual: recordFact({
+                label: nameFact(term.label),
+                operation: nameFact(term.operation),
+              }),
+            },
           );
         }
         const argument = this.value(term.argument, context, resumptions, `${path}.argument`);
@@ -600,6 +955,8 @@ class AlgorithmicChecker {
             {
               expected: showValueType(declaration.argumentType),
               actual: showValueType(argument.type),
+              structuredExpected: typeFact(declaration.argumentType),
+              structuredActual: typeFact(argument.type),
             },
           );
         }
@@ -608,6 +965,9 @@ class AlgorithmicChecker {
           grade: term.grade,
           value: declaration.resultType,
         });
+        const declarationIndex = this.#operationIndexes.get(
+          operationKey(term.label, term.operation),
+        )!;
         return {
           type,
           effects: effectRow(term.label),
@@ -619,6 +979,8 @@ class AlgorithmicChecker {
             `${showComputationType(type)} ; {${term.label}}`,
             [argument.derivation],
           ),
+          premiseIndexes: [argument.judgmentIndex],
+          signatureOrigins: [declarationIndex],
         };
       }
       case "handle":
@@ -631,7 +993,12 @@ class AlgorithmicChecker {
             "computation.resume",
             path,
             "resumption index is outside the resumption context",
-            { expected: { contextLength: resumptions.length }, actual: term.resumption },
+            {
+              expected: { contextLength: resumptions.length },
+              actual: term.resumption,
+              structuredExpected: recordFact({ contextLength: countFact(resumptions.length) }),
+              structuredActual: countFact(term.resumption),
+            },
           );
         }
         const value = this.value(term.value, context, resumptions, `${path}.value`);
@@ -644,6 +1011,8 @@ class AlgorithmicChecker {
             {
               expected: showValueType(expectation.input),
               actual: showValueType(value.type),
+              structuredExpected: typeFact(expectation.input),
+              structuredActual: typeFact(value.type),
             },
           );
         }
@@ -661,6 +1030,7 @@ class AlgorithmicChecker {
             `${showComputationType(expectation.output)} ; {${expectation.effects.join(",")}}`,
             [value.derivation],
           ),
+          premiseIndexes: [value.judgmentIndex],
         };
       }
     }
@@ -668,10 +1038,10 @@ class AlgorithmicChecker {
 
   handler(
     term: Extract<ComputationTerm, { readonly kind: "handle" }>,
-    context: ReadonlyArray<ValueType>,
+    context: ReadonlyArray<ContextEntry>,
     resumptions: ReadonlyArray<ResumptionExpectation>,
     path: string,
-  ): CheckedComputation {
+  ): UncheckedComputation {
     const handled = this.computation(term.computation, context, resumptions, `${path}.computation`);
     if (handled.type.kind !== "return") {
       return fail(
@@ -679,7 +1049,12 @@ class AlgorithmicChecker {
         "handler.input",
         `${path}.computation`,
         "handler input must return a value",
-        { expected: "F[q] A", actual: showComputationType(handled.type) },
+        {
+          expected: "F[q] A",
+          actual: showComputationType(handled.type),
+          structuredExpected: shapeFact("F[q] A"),
+          structuredActual: typeFact(handled.type),
+        },
       );
     }
     const expectedOperations = this.#signature.operations
@@ -692,7 +1067,7 @@ class AlgorithmicChecker {
         "handler.signature",
         path,
         "handled label has no operations in the signature",
-        { actual: term.label },
+        { actual: term.label, structuredActual: nameFact(term.label) },
       );
     }
     const actualOperations = term.operationClauses.map((clause) => clause.operation).sort();
@@ -705,12 +1080,25 @@ class AlgorithmicChecker {
         "handler.signature",
         `${path}.operationClauses`,
         "handler requires exactly one clause for every operation under its label",
-        { expected: expectedOperations, actual: actualOperations },
+        {
+          expected: expectedOperations,
+          actual: actualOperations,
+          structuredExpected: listFact(expectedOperations.map(nameFact)),
+          structuredActual: listFact(actualOperations.map(nameFact)),
+        },
       );
     }
     const returned = this.computation(
       term.returnClause.body,
-      [handled.type.value, ...context],
+      [
+        {
+          type: handled.type.value,
+          binderOrigin: path,
+          originKind: "return-clause-result",
+          usageLimit: handled.type.grade,
+        },
+        ...context,
+      ],
       resumptions,
       `${path}.returnClause.body`,
     );
@@ -720,7 +1108,12 @@ class AlgorithmicChecker {
         "handler.return",
         `${path}.returnClause.body`,
         "handler return clause must return a value",
-        { expected: "F[q] B", actual: showComputationType(returned.type) },
+        {
+          expected: "F[q] B",
+          actual: showComputationType(returned.type),
+          structuredExpected: shapeFact("F[q] A"),
+          structuredActual: typeFact(returned.type),
+        },
       );
     }
     if (returned.type.grade !== handled.type.grade) {
@@ -729,7 +1122,12 @@ class AlgorithmicChecker {
         "handler.return",
         `${path}.returnClause.body`,
         "handler return grade must equal the handled computation grade",
-        { expected: handled.type.grade, actual: returned.type.grade },
+        {
+          expected: handled.type.grade,
+          actual: returned.type.grade,
+          structuredExpected: gradeFact(handled.type.grade),
+          structuredActual: gradeFact(returned.type.grade),
+        },
       );
     }
     const returnBinderUse = returned.usage[0]!;
@@ -741,24 +1139,43 @@ class AlgorithmicChecker {
         "handler.return",
         `${path}.returnClause.body`,
         "return-clause binder usage exceeds the handled result grade",
-        { expected: handled.type.grade, actual: returnBinderUse },
+        {
+          expected: handled.type.grade,
+          actual: returnBinderUse,
+          structuredExpected: gradeFact(handled.type.grade),
+          structuredActual: gradeFact(returnBinderUse),
+        },
       );
     }
 
     const residual = removeEffectLabel(handled.effects, term.label);
     let assumedEffects = unionEffectRows(residual, returned.effects);
     let clauses: ReadonlyArray<CheckedComputation> = [];
+    const preLoopIndex = this.#nextIndex;
     for (let iteration = 0; iteration <= this.#signature.operations.length; iteration += 1) {
+      this.#nextIndex = preLoopIndex;
+      this.#table.length = preLoopIndex;
       clauses = term.operationClauses.map((clause, index) => {
         const declaration = this.#operations.get(operationKey(term.label, clause.operation))!;
         const checked = this.computation(
           clause.body,
-          [declaration.argumentType, ...context],
+          [
+            {
+              type: declaration.argumentType,
+              binderOrigin: path,
+              originKind: "operation-clause-argument",
+              usageLimit: "omega",
+            },
+            ...context,
+          ],
           [
             {
               input: declaration.resultType,
               output: returned.type,
               effects: assumedEffects,
+              binderOrigin: path,
+              label: term.label,
+              operation: clause.operation,
             },
             ...resumptions,
           ],
@@ -773,6 +1190,8 @@ class AlgorithmicChecker {
             {
               expected: showComputationType(returned.type),
               actual: showComputationType(checked.type),
+              structuredExpected: typeFact(returned.type),
+              structuredActual: typeFact(checked.type),
             },
           );
         }
@@ -783,7 +1202,12 @@ class AlgorithmicChecker {
             "handler.operation",
             `${path}.operationClauses[${index}].body`,
             "one-shot resumption binder is used more than once",
-            { expected: "1", actual: resumptionUse },
+            {
+              expected: "1",
+              actual: resumptionUse,
+              structuredExpected: gradeFact("1"),
+              structuredActual: gradeFact(resumptionUse),
+            },
           );
         }
         return checked;
@@ -814,6 +1238,14 @@ class AlgorithmicChecker {
         `${showComputationType(returned.type)} ; {${assumedEffects.join(",")}}`,
         [handled.derivation, returned.derivation, ...clauses.map((clause) => clause.derivation)],
       ),
+      premiseIndexes: [
+        handled.judgmentIndex,
+        returned.judgmentIndex,
+        ...clauses.map((clause) => clause.judgmentIndex),
+      ],
+      signatureOrigins: this.#signature.operations
+        .map((declaration, index) => (declaration.label === term.label ? index : undefined))
+        .filter((index): index is number => index !== undefined),
     };
   }
 }
@@ -837,7 +1269,13 @@ const validateSignature = (signature: OperationSignature): KernelDiagnostic | un
         "signature",
         `$.signature.operations[${index}]`,
         "operation signature contains a duplicate label and operation pair",
-        { actual: { label: declaration.label, operation: declaration.operation } },
+        {
+          actual: { label: declaration.label, operation: declaration.operation },
+          structuredActual: recordFact({
+            label: nameFact(declaration.label),
+            operation: nameFact(declaration.operation),
+          }),
+        },
       );
     }
     seen.add(key);
@@ -875,6 +1313,7 @@ export const check = (
       usage: checked.usage,
       derivation: checked.derivation,
       program,
+      judgments: frozen(checker.table.map(resolveDraftJudgment)),
     });
   } catch (cause) {
     if (cause instanceof CheckFailure) {
