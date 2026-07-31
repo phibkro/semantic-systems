@@ -10,8 +10,10 @@ recut `86e9487b054bafdac464c1b8fb1ff4e6d5e9cdff` also received
 `CHANGES_REQUIRED`; first custody correction
 `4aef39ee8f42fc993c23973a22441e084aaceaaa` received `CHANGES_REQUIRED`;
 second custody correction `1837fa0d2cb7a0a8506ceffa20ebd7502f1cd360`
-received `CHANGES_REQUIRED`; third bounded custody correction is awaiting its
-commit hash, independent review, and sibling-lineage integration
+received `CHANGES_REQUIRED`; third custody implementation
+`a72da09bdd461e298eaa1ccdcf18b9e69e341f0d` received no code or workflow
+finding, but its pending ledger marker was rejected; this plan-only exact-ledger
+follow-up is awaiting review and sibling-lineage integration
 
 Owner: primary Semantic Systems lead
 
@@ -27,6 +29,8 @@ Owner: primary Semantic Systems lead
   `4aef39ee8f42fc993c23973a22441e084aaceaaa`;
 - rejected second custody correction
   `1837fa0d2cb7a0a8506ceffa20ebd7502f1cd360`;
+- independently reviewed third custody implementation
+  `a72da09bdd461e298eaa1ccdcf18b9e69e341f0d`;
 - accepted executable semantic-system integration and current TypeScript/Effect
   v4 project model;
 - historical accepted Control Room PWA lineage
@@ -247,9 +251,9 @@ attempt to substitute deployment claims for observations.
   from an incidental non-triggering pull request; its provider bounds did not
   bound preceding steps; post-effect GitHub fetches had no abort timeout; and
   this ledger did not identify the exact second correction.
-- 2026-07-31: third custody correction head
-  `THIRD-CORRECTION-COMMIT-PENDING` sequences served/provider and immutable
-  artifact observations before the final authoritative GitHub target
+- 2026-07-31: exact third custody implementation
+  `a72da09bdd461e298eaa1ccdcf18b9e69e341f0d` sequences served/provider and
+  immutable artifact observations before the final authoritative GitHub target
   observation. Focused adversarial readers change the PR head or reopen the PR
   during earlier observations and require the final result to remain
   `DeploymentUnknown`.
@@ -267,6 +271,13 @@ attempt to substitute deployment claims for observations.
   tooling TypeScript diagnostics, and diff check green. No Nix, exact
   acceptance, browser, full integration, provider, GitHub, secret, deployment,
   or network operation ran for this correction.
+- 2026-07-31: independent review of exact clean head
+  `a72da09bdd461e298eaa1ccdcf18b9e69e341f0d` found no code or workflow defect.
+  It rejected only the plan's `THIRD-CORRECTION-COMMIT-PENDING` marker because
+  exact lineage was not yet recorded. The current change is the plan-only
+  follow-up that binds the third implementation exactly; as a commit cannot
+  self-reference its own hash, this follow-up is described by role and remains
+  under review rather than inventing another hash placeholder.
 - 2026-07-31: no provider plan/apply/destroy, Cloudflare/DNS mutation, GitHub
   secret mutation, push, pull request, preview, or production operation ran
   during reconstruction or recut.
