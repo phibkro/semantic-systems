@@ -508,27 +508,60 @@ export const featureIdsFromContractPaths = (paths: string[]): string[] => {
   return [...ids].sort();
 };
 
-export const contractMigrationsFor = (root: string, featureId: string): string[] => {
-  const designPath = resolve(root, "design-specs", `${featureId}.md`);
-  if (!existsSync(designPath)) return [];
-  const contents = readFileSync(designPath, "utf8");
-  const markers = [...contents.matchAll(/^Migrates-Feature-IDs:\s*(.*?)\s*$/gm)];
+export type ContractMigrationDeclarations = {
+  readonly current: string[];
+  readonly preLens: string[];
+};
+
+const migrationsFromMarker = (
+  contents: string,
+  featureId: string,
+  marker: "Migrates-Feature-IDs" | "Migrates-Pre-Lens-Feature-IDs",
+): string[] => {
+  const markers = [...contents.matchAll(new RegExp(`^${marker}:\\s*(.*?)\\s*$`, "gm"))];
   if (markers.length === 0) return [];
   if (markers.length !== 1) {
-    throw new Error(`feature ${featureId} design must contain at most one migration marker`);
+    throw new Error(`feature ${featureId} design must contain at most one ${marker} marker`);
   }
   const migrations = (markers[0]?.[1] ?? "")
     .split(",")
     .map((value) => value.trim())
     .filter((value) => value.length > 0);
+  const includesPostLensFeature =
+    marker === "Migrates-Pre-Lens-Feature-IDs" &&
+    migrations.some((value) => Number.parseInt(value.slice(0, 4), 10) >= 15);
   if (
     migrations.length === 0 ||
     migrations.some((value) => !FEATURE_ID.test(value) || value === featureId) ||
-    new Set(migrations).size !== migrations.length
+    new Set(migrations).size !== migrations.length ||
+    includesPostLensFeature
   ) {
-    throw new Error(`feature ${featureId} has a malformed Migrates-Feature-IDs marker`);
+    throw new Error(`feature ${featureId} has a malformed ${marker} marker`);
   }
-  return migrations.sort();
+  return migrations;
+};
+
+export const contractMigrationDeclarationsFor = (
+  root: string,
+  featureId: string,
+): ContractMigrationDeclarations => {
+  const designPath = resolve(root, "design-specs", `${featureId}.md`);
+  if (!existsSync(designPath)) return { current: [], preLens: [] };
+  const contents = readFileSync(designPath, "utf8");
+  const current = migrationsFromMarker(contents, featureId, "Migrates-Feature-IDs");
+  const preLens = migrationsFromMarker(contents, featureId, "Migrates-Pre-Lens-Feature-IDs");
+  const overlap = current.filter((migration) => preLens.includes(migration));
+  if (overlap.length > 0) {
+    throw new Error(
+      `feature ${featureId} declares migrations in both current and pre-lens classes: ${overlap.join(", ")}`,
+    );
+  }
+  return { current: current.sort(), preLens: preLens.sort() };
+};
+
+export const contractMigrationsFor = (root: string, featureId: string): string[] => {
+  const declarations = contractMigrationDeclarationsFor(root, featureId);
+  return [...declarations.current, ...declarations.preLens].sort();
 };
 
 export const validatePullRequestEvent = (root: string, eventPath: string): FeatureSelection => {
@@ -560,7 +593,11 @@ export const validatePullRequestEvent = (root: string, eventPath: string): Featu
   const artifacts = validateFeatureArtifacts(root, featureId);
   const changedFeatureIds = featureIdsFromContractPaths(changedPaths);
   const conflictingIds = changedFeatureIds.filter((changedId) => changedId !== featureId);
-  const contractMigrations = contractMigrationsFor(root, featureId);
+  const migrationDeclarations = contractMigrationDeclarationsFor(root, featureId);
+  const contractMigrations = [
+    ...migrationDeclarations.current,
+    ...migrationDeclarations.preLens,
+  ].sort();
   const designPath = `design-specs/${featureId}.md`;
   if (contractMigrations.length > 0 && !changedPaths.includes(designPath)) {
     throw new Error(
@@ -584,6 +621,7 @@ export const validatePullRequestEvent = (root: string, eventPath: string): Featu
     );
   }
   for (const changedFeatureId of [featureId, ...contractMigrations]) {
+    if (migrationDeclarations.preLens.includes(changedFeatureId)) continue;
     const changedDesignPath = `design-specs/${changedFeatureId}.md`;
     if (!changedPaths.includes(changedDesignPath)) continue;
     const absoluteDesignPath = resolve(root, changedDesignPath);

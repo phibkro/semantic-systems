@@ -344,6 +344,45 @@ describe("autonomous development control loop", () => {
     expect(text(result)).toContain("design-lens shape");
   });
 
+  test("admits only exact pre-0015 contract migrations without a retroactive lens", async () => {
+    const fixture = await featureFixture();
+    const ownerDesign = join(fixture.repo, "design-specs", "0005-fixture.md");
+    await Bun.write(
+      ownerDesign,
+      `${await Bun.file(ownerDesign).text()}\nMigrates-Pre-Lens-Feature-IDs: 0006-carrier\n`,
+    );
+    await Bun.write(
+      join(fixture.repo, "design-specs", "0006-carrier.md"),
+      "# historical contract without a retroactive lens\n",
+    );
+    await Bun.write(join(fixture.repo, "plans", "active", "0006-carrier.md"), "# migrated\n");
+    const migrated = join(fixture.repo, "scripts", "accept", "0006-carrier.ts");
+    await Bun.write(migrated, "#!/usr/bin/env bun\nprocess.exit(0);\n");
+    await Bun.spawn(["chmod", "+x", migrated]).exited;
+    const payload = await Bun.file(fixture.event).json();
+    payload.pull_request.head.sha = commit(fixture.repo, "refactor: import pre-lens carrier");
+    await Bun.write(fixture.event, JSON.stringify(payload));
+
+    const accepted = runFeatureTool(FEATURE_POLICY, fixture.repo, "--event", fixture.event);
+    expect(accepted.exitCode).toBe(0);
+    expect(text(accepted)).toContain("0006-carrier");
+
+    await Bun.write(
+      ownerDesign,
+      (await Bun.file(ownerDesign).text()).replace("0006-carrier", "0015-carrier"),
+    );
+    await Bun.write(
+      join(fixture.repo, "design-specs", "0015-carrier.md"),
+      "# post-lens contract\n",
+    );
+    await Bun.write(join(fixture.repo, "plans", "active", "0015-carrier.md"), "# migrated\n");
+    payload.pull_request.head.sha = commit(fixture.repo, "test: reject post-lens exemption");
+    await Bun.write(fixture.event, JSON.stringify(payload));
+    const rejected = runFeatureTool(FEATURE_POLICY, fixture.repo, "--event", fixture.event);
+    expect(rejected.exitCode).not.toBe(0);
+    expect(text(rejected)).toContain("malformed Migrates-Pre-Lens-Feature-IDs");
+  });
+
   test("rejects reuse of a stale contract migration marker", async () => {
     const fixture = await featureFixture();
     const ownerDesign = join(fixture.repo, "design-specs", "0005-fixture.md");
