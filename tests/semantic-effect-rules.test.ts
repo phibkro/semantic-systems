@@ -24,6 +24,8 @@ const stmBunMain = { filename: "/repo/src/stm/main-bun.ts" };
 const portableSemanticSystem = { filename: "/repo/src/semantic-system/kernel.ts" };
 const portableKernelCalculus = { filename: "/repo/src/kernel-calculus/machine.ts" };
 const portableNormalizedCore = { filename: "/repo/src/normalized-core/normalize.ts" };
+const normalizedCoreBunMain = { filename: "/repo/src/normalized-core/main-bun.ts" };
+const normalizedCoreNodeMain = { filename: "/repo/src/normalized-core/main-node.ts" };
 
 const runAmbientConsole = (
   events: ReadonlyArray<readonly [visitor: string, node: unknown]>,
@@ -361,7 +363,7 @@ describe("Semantic Systems Effect Oxlint rules", () => {
       [
         {
           message:
-            "Portable semantic code must request Effect services; provide Bun or Node layers only in main entrypoints",
+            "Normalized core has no runtime-adapter exemption; request portable Effect services only",
         },
       ],
     );
@@ -387,11 +389,39 @@ describe("Semantic Systems Effect Oxlint rules", () => {
       ),
       [
         {
-          message:
-            "Keep Effect programs composable; execute them only in main-bun.ts or main-node.ts",
+          message: "Normalized core has no runtime entrypoint; keep Effect programs composable",
         },
       ],
     );
+    for (const forbiddenMain of [normalizedCoreBunMain, normalizedCoreNodeMain]) {
+      Testing.expectDiagnostics(
+        Testing.runRule(
+          portableRuntimeImports,
+          "ImportDeclaration",
+          Testing.importDecl("node:crypto"),
+          forbiddenMain,
+        ),
+        [
+          {
+            message:
+              "Normalized core has no runtime-adapter exemption; request portable Effect services only",
+          },
+        ],
+      );
+      Testing.expectDiagnostics(
+        Testing.runRule(
+          effectRuntimeBoundary,
+          "CallExpression",
+          Testing.callOfMember("Effect", "runPromise"),
+          forbiddenMain,
+        ),
+        [
+          {
+            message: "Normalized core has no runtime entrypoint; keep Effect programs composable",
+          },
+        ],
+      );
+    }
   });
 
   test("Effect execution is confined to composition entrypoints while internal composition remains open", () => {

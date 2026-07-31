@@ -259,10 +259,13 @@ Byte decoding has this failure precedence:
 10. artifact identity; and
 11. independent 0018 recheck.
 
-Emission checks bounds, 0018 custody, metadata shape, metadata references,
-structural projection, entity identities, semantic identity, artifact
-identity, then output byte length. A failure returns one stable
-`{code, path, message}` diagnostic and no partial artifact.
+Emission checks bounds, 0018 custody, metadata shape and snapshot, structural
+projection, entity identities and canonical array ordering, source-key
+resolution, JSON Pointer resolution, source ranges and duplicates, semantic
+identity, artifact identity, canonical bytes, then output byte length. Pointer
+resolution therefore always observes the completed normalized semantic
+payload. A failure returns one stable `{code, path, message}` diagnostic and no
+partial artifact.
 
 Emission snapshots every caller-owned input before the first digest. Returned
 objects and nested arrays are deeply immutable. Later input mutation cannot
@@ -441,8 +444,9 @@ Each normalized operation is:
 }
 ```
 
-Its identity is derived from the other four fields. Duplicate label and
-operation pairs or duplicate operation identities are rejected.
+Its identity is the domain-separated digest of the exact operation payload
+defined below. Duplicate label and operation pairs or duplicate operation
+identities are rejected.
 
 The summary is the exact 0018 inferred computation type, sorted effect row,
 and usage vector. It is a checked claim inside emitted artifacts. Validation
@@ -511,10 +515,10 @@ Each imported assumption is:
 }
 ```
 
-The identity is derived from `kind` and `statement`. Assumptions are sorted by
-identity and must be unique. A statement is inert text with a maximum of 4,096
-UTF-8 bytes and at least one Unicode scalar. Changing any assumption changes
-semantic identity.
+The identity is the domain-separated digest of the exact assumption payload
+defined below. Assumptions are sorted by identity and must be unique. A
+statement is inert text with a maximum of 4,096 UTF-8 bytes and at least one
+Unicode scalar. Changing any assumption changes semantic identity.
 
 The operation signature is declared semantic input, not proof and not an
 imported assumption. The 0018 checker validates only the signature and term.
@@ -535,9 +539,9 @@ Each source unit is:
 }
 ```
 
-`source_identity` is derived from the other three fields. `content_identity`
-is the caller's assertion about source bytes. The implementation does not read
-the URI or source bytes.
+`source_identity` is the domain-separated digest of the exact source-unit
+payload defined below. `content_identity` is the caller's assertion about
+source bytes. The implementation does not read the URI or source bytes.
 
 Each correspondence is:
 
@@ -570,6 +574,11 @@ semantic payload object. Only a resolved object value qualifies as a semantic
 node. The semantic root, arrays, scalar fields, and identity strings do not
 qualify. The normalizer owns structural resolution; the caller owns the
 assertion that the selected source range corresponds to that node.
+
+Every pointer is interpreted only in these normalized coordinates. If a
+numeric array index resolves after canonical sorting, it is valid regardless
+of the caller's prior input order or unobservable intent. The normalizer does
+not attempt to infer a pre-normalization target.
 
 A range must satisfy
 `start_byte <= end_byte <= byte_length` for its resolved source unit.
@@ -608,10 +617,77 @@ semantic.normalized-core/semantic/v1
 semantic.normalized-core/artifact/v1
 ```
 
-The semantic payload is the top-level document without `semantic_identity`,
-`artifact_identity`, or `source`. It includes all derived operation and
-assumption identities. The artifact payload is the complete document without
-`artifact_identity`. It includes `semantic_identity` and `source`.
+Each identity uses exactly one of these payload objects. The keys below appear
+in canonical Unicode code-point order. The displayed objects are literal
+scope definitions, not examples:
+
+```text
+operation payload := {
+  "argument_type": ValueType,
+  "label": String,
+  "operation": String,
+  "result_type": ValueType
+}
+
+assumption payload := {
+  "kind": "declared",
+  "statement": String
+}
+
+source-unit payload := {
+  "byte_length": NonnegativeSafeInteger,
+  "content_identity": Identity,
+  "uri": String
+}
+
+semantic payload := {
+  "assumptions": [ImportedAssumption...],
+  "format": "semantic.normalized-core",
+  "kernel": "semantic.kernel-calculus/0018/v1",
+  "obligations": [],
+  "signature": [NormalizedOperation...],
+  "summary": {
+    "effects": [Label...],
+    "type": ComputationType,
+    "usage": [Grade...]
+  },
+  "term": ComputationTerm,
+  "version": 1
+}
+
+artifact payload := {
+  "assumptions": [ImportedAssumption...],
+  "format": "semantic.normalized-core",
+  "kernel": "semantic.kernel-calculus/0018/v1",
+  "obligations": [],
+  "semantic_identity": Identity,
+  "signature": [NormalizedOperation...],
+  "source": {
+    "correspondence": [SourceCorrespondence...],
+    "units": [SourceUnit...]
+  },
+  "summary": {
+    "effects": [Label...],
+    "type": ComputationType,
+    "usage": [Grade...]
+  },
+  "term": ComputationTerm,
+  "version": 1
+}
+```
+
+The operation, assumption, and source-unit payload is exactly its displayed
+entity object with its own identity field omitted. The semantic payload is the
+top-level document with `semantic_identity`, `artifact_identity`, and `source`
+omitted. It includes derived operation and assumption identities. The artifact
+payload is the complete top-level document with only `artifact_identity`
+omitted. It includes `semantic_identity`, source-unit identities, and
+correspondences.
+
+Each payload is serialized by the exact canonical JSON grammar above, without
+the artifact's final line feed. Its shortest UTF-8 bytes follow the applicable
+ASCII domain and zero byte in the digest preimage. No tuple encoding, host
+object order, identity placeholder, or other field projection is permitted.
 
 The byte decoder uses a bounded JSON parser that reports duplicate keys before
 building an object. It parses strict UTF-8 and JSON, validates generic JSON
@@ -686,8 +762,8 @@ The implementation must retain focused rejection observations for:
 26. `-0` collapsing to `0` or a negative safe integer being rejected;
 27. a source key surviving into artifact bytes or failing deterministic
     identity replacement;
-28. a malformed, scalar-targeting, pre-normalization, or out-of-range JSON
-    Pointer being accepted; and
+28. a malformed, disallowed-root, array-targeting, scalar-targeting, or
+    out-of-range JSON Pointer being accepted; and
 29. normalized-core code reaching a runtime adapter through its transitive
     import closure.
 
@@ -709,7 +785,10 @@ Positive observations must include:
 12. byte-identical Bun and genuine Node reports;
 13. exact round trips for negative safe integers and distinct `-0`;
 14. identity-free metadata input deriving all owned identities; and
-15. a source-key rename with matching references preserving artifact bytes.
+15. a source-key rename with matching references preserving artifact bytes;
+    and
+16. reordered input resolving the same numeric pointer to the documented
+    normalized node.
 
 ## Acceptance
 

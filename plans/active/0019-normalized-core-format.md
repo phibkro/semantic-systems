@@ -125,3 +125,9 @@ downgraded to a warning.
   makes assumptions inert metadata, defines identity-free input and strict
   source-pointer resolution, adds normalized core to the portable lint domain,
   and freezes exact traversal and failure precedence. No implementation began.
+- 2026-07-31: final rereview required four narrow corrections at `9016225`:
+  literal entity digest payloads, observable normalized-coordinate pointer
+  cases, removal of normalized-core runtime-filename exemptions, and emission
+  precedence consistent with post-normalization pointer resolution. The final
+  recut makes those exact corrections and does not change 0018 or begin
+  implementation.
