@@ -1139,8 +1139,14 @@ class ObservationDecoder extends Decoder {
         ),
       });
     }
+    // Open-record fields are traversed and materialized in Unicode
+    // code-point key order — the same compareCodePoints order the canonical
+    // encoding serializes keys in — never JS insertion order. Table
+    // references nested under open keys therefore register with the
+    // first-encounter authority in the order the canonical bytes replay
+    // them, so a value and its own canonical encoding agree.
     const output: Record<string, DiagnosticFact> = {};
-    for (const key of keys) {
+    for (const key of [...keys].sort(compareCodePoints)) {
       if (utf8Bytes(key) > 4_096)
         this.fail("decode.string-exceeded", `${path}/${key}`, "fact key too long");
       output[key] = this.diagnosticFact(fields[key], `${path}/${key}`, depth + 1);

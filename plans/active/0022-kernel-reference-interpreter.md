@@ -154,3 +154,17 @@ Exact feature acceptance and independent review remain before integration.
     mutation, and snapshotting inside the guard would make it answer about
     a value the caller never receives. Collapsing the walks would therefore
     buy no caller-visible guarantee; the guard stays as is.
+- 2026-07-31 (correction slice 0025): the 0024 residual — an accepted
+  observation whose open diagnostic-fact record keys were inserted out of
+  code-point order failing its own canonical byte decode with
+  `decode.type-table-order` — was confirmed real and fixed at the 0020
+  boundary (see the 0020 plan's seventh correction): open fact records are
+  traversed and materialized in `compareCodePoints` key order, the canonical
+  encoding's own key order, on both the decode and observe seams. This is a
+  clarification of the frozen contract, not a semantic version change: the
+  canonical byte grammar already fixed the key order, so agents must not
+  infer insertion order for any fact-record traversal, including
+  interpreter-produced kernel-run observations that embed check
+  observations. No interpreter code changed on this slice; the 0022
+  acceptance run re-verifies the kernel-run goldens byte-exactly against
+  the corrected boundary.

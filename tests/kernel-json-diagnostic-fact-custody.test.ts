@@ -221,6 +221,153 @@ describe("reserved fact references participate in the frozen traversal order", (
   });
 });
 
+// Correction slice 0025: the 0024 residual was real. Open fact records are
+// an open key vocabulary, and the canonical encoding serializes their keys
+// in Unicode code-point order (compareCodePoints). The decoder's traversal
+// authority must therefore visit open-record fields in that same order —
+// never JS insertion order — or an accepted value's own canonical bytes can
+// change which table reference is encountered first and be rejected by
+// decode.type-table-order. Traversal AND materialization both follow
+// compareCodePoints, so value and byte representations agree by
+// construction.
+
+// U+FF5A FULLWIDTH LATIN SMALL LETTER Z sorts BELOW U+1D400 MATHEMATICAL
+// BOLD CAPITAL A in code-point order, but its single UTF-16 unit 0xFF5A
+// sorts ABOVE the surrogate pair 0xD835 0xDC00: default JS string order
+// and code-point order disagree on exactly this pair, so these keys pin
+// compareCodePoints as the authority.
+const fullwidthZ = "ｚ";
+const mathBoldA = "\u{1D400}";
+
+describe("open fact records traverse and materialize in canonical code-point key order", () => {
+  test("the 0024 residual counterexample rejects as a value exactly as its bytes reject", () => {
+    // Insertion order z,a with the type table in insertion-encounter order:
+    // formerly accepted as a value while its own canonical bytes rejected.
+    const candidate = rejectedObservation(
+      diagnosticWith({ expected: { z: { type_index: 0 }, a: { type_index: 1 } } }),
+      { types: [{ tag: "bool" }, { tag: "int" }] },
+    );
+    expectRejectedWith(candidate, "decode.type-table-order");
+    const byteDecoded = decodeKernelCheckObservationBytes(
+      encodeCanonicalKernelCheckObservation(candidate as unknown as KernelCheckObservation),
+    );
+    expect(byteDecoded.status).toBe("rejected");
+    if (byteDecoded.status !== "rejected") return;
+    expect(byteDecoded.diagnostics[0]?.code).toBe("decode.type-table-order");
+  });
+
+  test("the corrected table order survives value decode, canonical bytes, and re-encoding", () => {
+    // Same fact, table in code-point first-encounter order: key "a" is
+    // traversed first regardless of insertion order, so its type holds
+    // index 0.
+    const candidate = rejectedObservation(
+      diagnosticWith({ expected: { z: { type_index: 1 }, a: { type_index: 0 } } }),
+      { types: [{ tag: "int" }, { tag: "bool" }] },
+    );
+    const decoded = decodeKernelCheckObservationValue(candidate);
+    expect(decoded.status).toBe("decoded");
+    if (decoded.status !== "decoded") return;
+    const observation = decoded.value.observation;
+    expect(observation.tag).toBe("rejected");
+    if (observation.tag !== "rejected") return;
+    // Materialized open-record keys are in code-point order, not insertion
+    // order.
+    expect(Object.keys(observation.diagnostics[0]?.expected as object)).toEqual(["a", "z"]);
+    const canonical = encodeCanonicalKernelCheckObservation(decoded.value);
+    const byteDecoded = decodeKernelCheckObservationBytes(canonical);
+    expect(byteDecoded.status).toBe("decoded");
+    if (byteDecoded.status !== "decoded") return;
+    expect(encodeCanonicalKernelCheckObservation(byteDecoded.value)).toEqual(canonical);
+  });
+
+  test("type_index nested at different open-record depths registers in key order", () => {
+    // Pre-0025 the mirror failure: insertion order z,a rejected the value
+    // while the sorted canonical bytes decoded. Both must accept.
+    const candidate = rejectedObservation(
+      diagnosticWith({
+        actual: { z: { type_index: 1 }, a: { inner: { type_index: 0 } } },
+      }),
+      { types: [{ tag: "int" }, { tag: "bool" }] },
+    );
+    const decoded = decodeKernelCheckObservationValue(candidate);
+    expect(decoded.status).toBe("decoded");
+    if (decoded.status !== "decoded") return;
+    const canonical = encodeCanonicalKernelCheckObservation(decoded.value);
+    const byteDecoded = decodeKernelCheckObservationBytes(canonical);
+    expect(byteDecoded.status).toBe("decoded");
+    if (byteDecoded.status !== "decoded") return;
+    expect(encodeCanonicalKernelCheckObservation(byteDecoded.value)).toEqual(canonical);
+  });
+
+  test("label_indexes and type_index side by side in an open record stay range-custodied", () => {
+    const candidate = rejectedObservation(
+      diagnosticWith({
+        actual: {
+          z: { label_indexes: [0, 1] },
+          a: { type_index: 0 },
+        },
+      }),
+      { labels: ["alpha", "beta"], types: [{ tag: "int" }] },
+    );
+    const decoded = decodeKernelCheckObservationValue(candidate);
+    expect(decoded.status).toBe("decoded");
+    if (decoded.status !== "decoded") return;
+    const canonical = encodeCanonicalKernelCheckObservation(decoded.value);
+    const byteDecoded = decodeKernelCheckObservationBytes(canonical);
+    expect(byteDecoded.status).toBe("decoded");
+    if (byteDecoded.status !== "decoded") return;
+    expect(encodeCanonicalKernelCheckObservation(byteDecoded.value)).toEqual(canonical);
+  });
+
+  test("exotic keys where UTF-16 and code-point orders differ follow compareCodePoints", () => {
+    // Code-point traversal visits fullwidth z BEFORE mathematical bold A;
+    // a hand-rolled UTF-16 comparator would visit them in the opposite
+    // order and mis-assign the first-encounter indexes.
+    const candidate = rejectedObservation(
+      diagnosticWith({
+        expected: {
+          [mathBoldA]: { type_index: 1 },
+          [fullwidthZ]: { type_index: 0 },
+        },
+      }),
+      { types: [{ tag: "int" }, { tag: "bool" }] },
+    );
+    const decoded = decodeKernelCheckObservationValue(candidate);
+    expect(decoded.status).toBe("decoded");
+    if (decoded.status !== "decoded") return;
+    const observation = decoded.value.observation;
+    if (observation.tag !== "rejected") throw new Error("unreachable");
+    expect(Object.keys(observation.diagnostics[0]?.expected as object)).toEqual([
+      fullwidthZ,
+      mathBoldA,
+    ]);
+    const canonical = encodeCanonicalKernelCheckObservation(decoded.value);
+    const byteDecoded = decodeKernelCheckObservationBytes(canonical);
+    expect(byteDecoded.status).toBe("decoded");
+    if (byteDecoded.status !== "decoded") return;
+    expect(encodeCanonicalKernelCheckObservation(byteDecoded.value)).toEqual(canonical);
+  });
+
+  test("the UTF-16-first table order for exotic keys is rejected in both representations", () => {
+    const candidate = rejectedObservation(
+      diagnosticWith({
+        expected: {
+          [mathBoldA]: { type_index: 0 },
+          [fullwidthZ]: { type_index: 1 },
+        },
+      }),
+      { types: [{ tag: "int" }, { tag: "bool" }] },
+    );
+    expectRejectedWith(candidate, "decode.type-table-order");
+    const byteDecoded = decodeKernelCheckObservationBytes(
+      encodeCanonicalKernelCheckObservation(candidate as unknown as KernelCheckObservation),
+    );
+    expect(byteDecoded.status).toBe("rejected");
+    if (byteDecoded.status !== "rejected") return;
+    expect(byteDecoded.diagnostics[0]?.code).toBe("decode.type-table-order");
+  });
+});
+
 describe("the open fact vocabulary outside the reserved shapes is preserved", () => {
   test("an open record of names decodes exactly as before", () => {
     const decoded = decodeKernelCheckObservationValue(
