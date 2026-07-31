@@ -146,6 +146,13 @@ bun scripts/accept/0027-semantic-artifact-store.ts
   parity. Revision-pinned independent review reported no remaining blocker or
   major after direct hostile-value, inert-leaf, moving-length, aggregate-limit,
   and atomic-state probes. This candidate is accepted for completion review.
+- 2026-08-01: GitHub contract replay on PR 11 classified the new 0027
+  acceptance script as an exact-threshold 50% copy of the unchanged 0019
+  acceptance script, then reported a false 0019 contract migration. The 0027
+  runner now expresses its store, portable-boundary, predecessor-seam, and full
+  repository phases directly. Explicit copy detection no longer reports 0019,
+  and the reshaped runner again passes 678 Bun tests with one explicit skip and
+  68 Python tests. No accepted behavior or 0019 artifact changed.
 
 ## Open review questions
 
