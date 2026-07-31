@@ -4,8 +4,9 @@ Canonical frozen contract:
 [`design-specs/0015-open-semantic-system-design-lens.md`](../../design-specs/0015-open-semantic-system-design-lens.md).
 This mutable execution record cannot redefine that contract.
 
-Status: twelfth independent-review counterexamples corrected; exact-head
-acceptance and full integration pass; clean-head custody and re-review pending
+Status: thirteenth independent-review counterexamples corrected; exact-head
+acceptance and full integration pass; clean-head custody and Fable re-review
+pending
 
 Owner: primary Semantic Systems lead
 
@@ -345,6 +346,18 @@ state, and unrelated project-model changes.
   tests/118 expectations and the full integration gate passes with 338 Bun
   tests/1,768 expectations, zero Effect diagnostics, and 68 transitional
   Python custody checks. Clean-head custody and re-review remain pending.
+- 2026-07-31: thirteenth independent review rejected exact clean head
+  `6eb255d`. SVG, inherited fallback/popover/HTML, and CSS matrices had zero
+  unsafe accepts, but option-label substitution could hide an option's child
+  prose and MathML `semantics` hides secondary annotation children.
+- 2026-07-31: form-selection and MathML subtrees are now conservatively
+  excluded alongside SVG and replaced media. This bounds the gate to ordinary
+  static HTML prose instead of approximating widget or foreign-content
+  rendering, accepting intentional false rejects in those rich contexts.
+  Exact acceptance passes with 15 tests/120 expectations and full integration
+  passes with 338 Bun tests/1,770 expectations, zero Effect diagnostics, and
+  68 transitional Python custody checks. Clean-head custody and Fable
+  re-review remain pending.
 
 ## Acceptance command
 

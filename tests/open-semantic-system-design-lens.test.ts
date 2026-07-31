@@ -367,6 +367,8 @@ ${DESIGN_LENS_HEADINGS.map((heading) => `  ### ${heading}\n\n  Hidden account.`)
       "<svg>Concrete account.</svg>",
       "<svg><desc>Concrete account.</desc></svg>",
       "<svg><metadata>Concrete account.</metadata></svg>",
+      '<select><option selected label="TODO">Concrete account.</option></select>',
+      "<math><semantics><mtext>TODO</mtext><annotation>Concrete account.</annotation></semantics></math>",
     ]) {
       const lens = completeLens((heading) =>
         heading === DESIGN_LENS_HEADINGS[0] ? hiddenHtml : `Account for ${heading}.`,
