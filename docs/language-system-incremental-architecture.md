@@ -20,6 +20,11 @@ The language system has three nested feedback loops:
 Each loop has a different unit of work. Each loop also has a different useful
 cache lifetime. One universal cache model would hide these differences.
 
+The same nested-loop model also applies above the build system. Portfolio,
+project, feature, and agent supervisors operate at larger time scales. They
+exchange accepted receipts instead of sharing one universal work state. See
+[`autonomous-project-system-architecture.md`](autonomous-project-system-architecture.md).
+
 ```mermaid
 flowchart TB
     BUILD["Build system<br/>packages, actions, and module artifacts"]
