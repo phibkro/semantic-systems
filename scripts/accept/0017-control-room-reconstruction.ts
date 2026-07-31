@@ -40,7 +40,8 @@ const program = Effect.gen(function* () {
   for (const command of [
     ["bun", "test", "tests/public-export.test.ts"],
     ["bun", "run", "--cwd", "apps/control-room", "check"],
-    ["bun", "run", "--cwd", "apps/control-room", "test:browser"],
+    ["nix", "develop", "--command", "bun", "run", "--cwd", "apps/control-room", "test:browser"],
+    ["bun", "run", "--cwd", "apps/control-room", "scan"],
     ["bun", "run", "typecheck"],
     ["bun", "run", "lint"],
     [
@@ -55,7 +56,13 @@ const program = Effect.gen(function* () {
     ],
     ["bun", "run", "semproj", "--", "validate"],
     ["bun", "run", "semproj", "--", "generate", "--check"],
-    ["bun", "scripts/accept/0016-executable-semantic-system-kernel.ts"],
+    [
+      "nix",
+      "develop",
+      "--command",
+      "bun",
+      "scripts/accept/0016-executable-semantic-system-kernel.ts",
+    ],
   ] as const) {
     yield* runCommand(command, { cwd: root });
   }

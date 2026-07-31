@@ -39,6 +39,7 @@
                 # which hardcodes `#!/usr/bin/env node` shebangs for
                 # ./node_modules/.bin/{commitlint,oxfmt,oxlint}.
                 pkgs.nodejs
+                pkgs.playwright-test
                 pkgs.pyright
                 pkgs.ruff
                 pkgs.uv
@@ -50,6 +51,7 @@
               ];
 
             env.PYTHONPATH = "src";
+            env.PLAYWRIGHT_BROWSERS_PATH = pkgs.playwright-driver.browsers;
             env.TZ = "UTC";
             env.LC_ALL = "C.UTF-8";
             env.PYTHONHASHSEED = "0";
