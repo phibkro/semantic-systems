@@ -9,10 +9,10 @@
   "category": "example_test",
   "producer": {
     "id": "semantic-tracer",
-    "version": "0.1.0"
+    "version": "0.2.0"
   },
   "assumptions": [
-    "Python integer arithmetic is exact for fixture quantities.",
+    "All fixture quantities stay within JavaScript's exact safe-integer range.",
     "The nine authored cases adequately sample the v0 contract for development selection."
   ],
   "cases": [

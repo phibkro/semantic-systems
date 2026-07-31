@@ -15,10 +15,8 @@
   "handled_effects": {
     "effect.fresh": "scenario.fresh-identifiers"
   },
-  "platform_requirements": [
-    "python>=3.12"
-  ],
+  "platform_requirements": ["bun>=1.3.13"],
   "assumptions": [
-    "Operation binding names are interpreted by the in-process Python builtin registry."
+    "Operation binding names are interpreted by the in-process TypeScript builtin registry."
   ]
 }

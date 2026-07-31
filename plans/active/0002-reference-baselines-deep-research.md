@@ -101,9 +101,9 @@ experiment backlog.
 
 ```bash
 nix flake check
-nix develop --command ./scripts/check.sh
-PYTHONPATH=src python -m semantic_project_model validate
-PYTHONPATH=src python -m semantic_project_model generate --check
+nix develop --command just check
+bun run semproj -- validate
+bun run semproj -- generate --check
 ```
 
 Research-specific acceptance is the checklist in design spec 0002.

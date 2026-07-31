@@ -12,7 +12,6 @@ flowchart LR
     component_formal_evidence["Formal evidence adapters"]
     component_relational_analysis["Relational analysis plane"]
     component_resolver["Realization resolver"]
-    deployment_control_room_pages["Control Room GitHub Pages deployment"]
     obligation_inventory_conformance["Inventory conformance obligation"]
     package_semantic_attestation_profile["Semantic attestation profile"]
     runtime_actors["Actor runtime"]
@@ -34,5 +33,4 @@ flowchart LR
     runtime_inventory_outbox -->|sends| runtime_payment_actor
     runtime_actors -->|hosts| runtime_inventory_actor
     runtime_actors -->|hosts| runtime_payment_actor
-    component_explorer -->|publishes| deployment_control_room_pages
 ```

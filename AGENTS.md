@@ -19,6 +19,10 @@ platform, evidence, and trust policies.
 - Treat generated views as projections of canonical sources.
 - Require an executable tracer bullet for every important abstraction.
 - Expose unsupported claims and explain automated decisions.
+- Before freezing a software-system design, apply the
+  [open semantic system design lens](docs/open-semantic-system-design.md):
+  declare warranted state, typed inputs, artifacts versus effect requests,
+  returned observations, orthogonal component graphs, and bounded autonomy.
 - Advance independent semantic frontiers concurrently when their contracts,
   files, and acceptance gates do not overlap. Serialize only true dependency
   edges, shared semantic-boundary decisions, and final integration.
@@ -30,8 +34,10 @@ platform, evidence, and trust policies.
 - `docs/metamodel.md` — canonical graph vocabulary
 - `docs/*-spec.md` — subsystem contracts
 - `model/` — canonical project graph
-- `src/semantic_project_model/` — bootstrap graph tooling
+- `src/project-model/` — Bun/Effect v4 project graph tooling
 - `design-specs/` — frozen problem contracts
+- `design-specs/TEMPLATE.md` — required open-system worksheet for new or
+  changed contracts
 - `plans/active/` — mutable execution state linked to one design spec
 - `examples/` — executable tracer bullets and fixtures
 - `generated/` — deterministic projections; never edit by hand
@@ -43,21 +49,23 @@ iterating and the integration loop before opening or updating a pull request:
 
 ```bash
 bun install --frozen-lockfile --ignore-scripts
+bun run effect:setup
 bun run hooks:install
-./scripts/check-fast.sh
-./scripts/check.sh
-PYTHONPATH=src python -m semantic_project_model report
+just fast
+just check
+bun run semproj -- report
 ```
 
 For one frozen feature, run its exact acceptance script:
 
 ```bash
-./scripts/accept/<id>-<slug>.sh
+just accept <id>-<slug>
 ```
 
 A missing required tool fails these gates; it is never downgraded to a
-warning. `nix flake check` re-runs the hermetic subset (Python static checks,
-tests, and commit-policy conformance) as real sandboxed derivations. Commit
+warning. During migration 0010, `nix flake check` re-runs the remaining
+reference-custody Python checks and commit-policy conformance as real sandboxed
+derivations. Commit
 messages and pull-request titles follow the Conventional Commits policy in
 `commitlint.config.ts`; see `CONTRIBUTING.md` for the full loop and commit
 provenance. Targeted commands are documented in `CONTRIBUTING.md`. Report
@@ -67,9 +75,11 @@ checks that were not run or unavailable; never infer success.
 
 Inventory resolution 0001 is complete. Active frozen contracts are reference
 research 0002, independent resolution checking 0003, reference-source custody
-0004, the autonomous development loop 0005, and the control-room PWA 0006.
-Their plans under `plans/active/` own mutable execution state. Binder
-equivalence remains uncertainty 0001; do not silently expand `theory-norm-v0`.
+0004, the autonomous development loop 0005, and the TypeScript/Effect Control
+Room reconstruction 0017. The executable semantic-system kernel 0016 is
+integrated and accepted. Active plans under `plans/active/` own mutable
+execution state. Binder equivalence remains uncertainty 0001; do not silently
+expand `theory-norm-v0`.
 
 ## Delegation
 
@@ -83,12 +93,33 @@ semantic interface hiding substantial implementation freedom and surfacing
 composable abstractions. The integrating agent owns semantic decisions, reviews
 committed artifacts on a clean tree, and commissions independent review.
 
+Every developer or engineer assignment must also contain this implementation
+posture:
+
+- Work like a lazy senior engineer: search the repository and installed tooling
+  for an existing command, scaffold, generator, library, or established pattern
+  before hand-writing infrastructure.
+- Reuse or adapt license-compatible upstream code and techniques with source and
+  license provenance. Never copy an unattributed snippet or let copied code
+  silently define project semantics.
+- Automate deterministic, bounded, repeatable work when the automation is
+  cheaper to own than repeated manual execution.
+- Stop automating when it becomes an unbounded side quest; implement the
+  smallest direct solution that satisfies the frozen contract and record the
+  deferred automation opportunity.
+- Report which scaffold, command, dependency, or prior art was evaluated, what
+  was reused, and why any relevant established option was rejected.
+
 ## Model routing
 
 - Prefer GPT-5.6 Sol for audits, adversarial review, semantic analysis, and
   other complex reasoning.
 - Prefer Sonnet 5 for bounded mechanical implementation after the contract,
   owned paths, and executable acceptance commands are frozen.
+- Launch delegated Claude Code sessions with `--permission-mode auto`. Do not
+  use `dontAsk`: it converts routine read-only shell and network operations
+  into silent evidence gaps instead of routing them through the permission
+  classifier.
 - Let already-running delegated work finish unless it is blocked or has drifted
   outside its contract; apply this routing to new assignments.
 - Model output is advisory or contributory evidence, never semantic authority.

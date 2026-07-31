@@ -36,10 +36,7 @@
       "name": "Derive parallel semantic frontiers from dependencies",
       "summary": "Independent semantic hypotheses run concurrently; true dependencies and shared boundaries serialize.",
       "status": "accepted",
-      "tags": [
-        "work",
-        "delegation"
-      ],
+      "tags": ["work", "delegation"],
       "attributes": {
         "record": "decisions/0004-dependency-aware-parallel-frontiers.md"
       }
@@ -50,11 +47,7 @@
       "name": "Freeze semantic contracts as deep-module boundaries",
       "summary": "Compact semantic interfaces hide implementation depth and expose composable behavior and evidence obligations.",
       "status": "accepted",
-      "tags": [
-        "contracts",
-        "architecture",
-        "delegation"
-      ],
+      "tags": ["contracts", "architecture", "delegation"],
       "attributes": {
         "record": "decisions/0005-frozen-contracts-as-deep-modules.md"
       }
@@ -63,18 +56,26 @@
       "id": "work.kernel-spec",
       "kind": "work_item",
       "name": "Specify minimal kernel calculus",
-      "summary": "Write syntax, typing, usage, effects, and operational rules.",
-      "status": "ready",
-      "tags": [
-        "kernel"
-      ],
+      "summary": "Run a finite CBPV-style calculus with usage, effects, handlers, and typed observations.",
+      "status": "complete",
+      "tags": ["kernel"],
       "attributes": {
-        "phase": "research",
+        "phase": "validation",
         "effort": 8,
+        "design_spec": "design-specs/0018-minimal-kernel-calculus.md",
+        "plan": "plans/completed/0018-minimal-kernel-calculus.md",
+        "completion": {
+          "implementation_head": "d436176d3b652b81b19ec81716dcde88dda848ca",
+          "integration_head": "f461cb38960493c044459c58374d6d1aa12bda3b",
+          "feature_acceptance": "runtime_validation",
+          "integration_gate": "test_and_static_analysis",
+          "independent_review": "assertion"
+        },
         "acceptance": [
           "Judgments and syntax are explicit",
-          "Affine values and one-shot handlers interact soundly",
-          "Reference interpreter agrees with examples"
+          "Affine values and one-shot handlers reject duplicate use",
+          "Checked closed terms return, suspend, exhaust, or reject with typed observations",
+          "The reference evaluator agrees with pinned overlapping oracle fixtures"
         ],
         "delegation": {
           "specification_completeness": 4,
@@ -93,9 +94,7 @@
       "name": "Implement core checker",
       "summary": "Build typed AST, usage checking, and erasure validation.",
       "status": "planned",
-      "tags": [
-        "kernel"
-      ],
+      "tags": ["kernel"],
       "attributes": {
         "phase": "implementation",
         "effort": 13,
@@ -121,9 +120,7 @@
       "name": "Define normalized theory identity",
       "summary": "Specify content hashing and compatibility.",
       "status": "in_progress",
-      "tags": [
-        "packages"
-      ],
+      "tags": ["packages"],
       "attributes": {
         "phase": "design",
         "effort": 8,
@@ -149,9 +146,7 @@
       "name": "Implement package and evidence resolver",
       "summary": "Resolve realizations against target and trust policy.",
       "status": "in_progress",
-      "tags": [
-        "packages"
-      ],
+      "tags": ["packages"],
       "attributes": {
         "phase": "implementation",
         "effort": 13,
@@ -177,9 +172,7 @@
       "name": "Complete inventory domain contract",
       "summary": "Finalize messages, events, transitions, and invariant.",
       "status": "complete",
-      "tags": [
-        "inventory"
-      ],
+      "tags": ["inventory"],
       "attributes": {
         "phase": "design",
         "effort": 5,
@@ -205,9 +198,7 @@
       "name": "Implement pure inventory realization",
       "summary": "Implement deterministic update and replay.",
       "status": "complete",
-      "tags": [
-        "inventory"
-      ],
+      "tags": ["inventory"],
       "attributes": {
         "phase": "implementation",
         "effort": 5,
@@ -232,13 +223,19 @@
       "kind": "work_item",
       "name": "Implement minimal actor runtime",
       "summary": "Typed mailbox loop with unique actor-owned state.",
-      "status": "planned",
-      "tags": [
-        "actors"
-      ],
+      "status": "complete",
+      "tags": ["actors"],
       "attributes": {
-        "phase": "implementation",
+        "phase": "validation",
         "effort": 8,
+        "design_spec": "design-specs/0012-minimal-actor-runtime.md",
+        "plan": "plans/completed/0012-minimal-actor-runtime.md",
+        "completion": {
+          "implementation_head": "8ad9dfbd25fc54ea7e49dc192175c53b780d1503",
+          "feature_acceptance": "runtime_validation",
+          "integration_gate": "test_and_static_analysis",
+          "independent_review": "assertion"
+        },
         "acceptance": [
           "Simulation has deterministic mailbox ordering",
           "Actor state cannot be directly shared",
@@ -260,14 +257,18 @@
       "kind": "work_item",
       "name": "Implement inventory actor realization",
       "summary": "Wrap the domain machine in a typed actor protocol.",
-      "status": "planned",
-      "tags": [
-        "inventory",
-        "actors"
-      ],
+      "status": "complete",
+      "tags": ["inventory", "actors"],
       "attributes": {
-        "phase": "implementation",
+        "phase": "validation",
         "effort": 5,
+        "design_spec": "design-specs/0012-minimal-actor-runtime.md",
+        "plan": "plans/completed/0012-minimal-actor-runtime.md",
+        "completion": {
+          "implementation_head": "8ad9dfbd25fc54ea7e49dc192175c53b780d1503",
+          "equivalence_evidence": "runtime_validation",
+          "independent_review": "assertion"
+        },
         "acceptance": [
           "Actor and pure versions emit equivalent events",
           "Only the actor mutates private state",
@@ -285,17 +286,51 @@
       }
     },
     {
+      "id": "work.actor-trace-retention",
+      "kind": "work_item",
+      "name": "Bound actor trace retention",
+      "summary": "Replace lifetime trace accumulation with a declared bounded observation window and exact eviction evidence.",
+      "status": "complete",
+      "tags": ["actors", "resources", "validation"],
+      "attributes": {
+        "phase": "implementation",
+        "effort": 5,
+        "design_spec": "design-specs/0013-bounded-actor-trace-retention.md",
+        "plan": "plans/completed/0013-bounded-actor-trace-retention.md",
+        "completion": {
+          "implementation_head": "460d2b88993116d01d3901fc4f5a73c9ab671511",
+          "feature_acceptance": "runtime_validation",
+          "integration_gate": "test_and_static_analysis",
+          "independent_review": "assertion"
+        },
+        "acceptance": [
+          "Retained actor trace entries never exceed the declared capacity",
+          "Eviction and completeness counters remain exact",
+          "Actor delivery, ownership, failure-stop, and inventory equivalence remain unchanged"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 5,
+          "testability": 5,
+          "reversibility": 4,
+          "integration_independence": 4,
+          "blast_radius": 3,
+          "human_review": true
+        }
+      }
+    },
+    {
       "id": "work.stm-laws",
       "kind": "work_item",
       "name": "Specify STM effect and handler laws",
       "summary": "Define retry, rollback, commit actions, and serializability.",
-      "status": "planned",
-      "tags": [
-        "stm"
-      ],
+      "status": "in_progress",
+      "tags": ["stm"],
       "attributes": {
         "phase": "research",
         "effort": 8,
+        "design_spec": "design-specs/0014-stm-effect-handler-laws.md",
+        "plan": "plans/active/0014-stm-effect-handler-laws.md",
         "acceptance": [
           "Speculative and commit-only effects are separate",
           "Affine capture restrictions are explicit",
@@ -318,9 +353,7 @@
       "name": "Implement minimal STM runtime",
       "summary": "Versioned TVars, logs, validation, retry, and commit.",
       "status": "planned",
-      "tags": [
-        "stm"
-      ],
+      "tags": ["stm"],
       "attributes": {
         "phase": "implementation",
         "effort": 13,
@@ -346,10 +379,7 @@
       "name": "Implement inventory STM realization",
       "summary": "Compose domain transitions over a transactional store.",
       "status": "planned",
-      "tags": [
-        "inventory",
-        "stm"
-      ],
+      "tags": ["inventory", "stm"],
       "attributes": {
         "phase": "implementation",
         "effort": 5,
@@ -375,10 +405,7 @@
       "name": "Prove inventory invariant",
       "summary": "Produce proof evidence for every transition.",
       "status": "planned",
-      "tags": [
-        "inventory",
-        "proof"
-      ],
+      "tags": ["inventory", "proof"],
       "attributes": {
         "phase": "validation",
         "effort": 8,
@@ -404,10 +431,7 @@
       "name": "Model-check STM interleavings",
       "summary": "Explore bounded commit, abort, retry, and wake-up schedules.",
       "status": "planned",
-      "tags": [
-        "stm",
-        "validation"
-      ],
+      "tags": ["stm", "validation"],
       "attributes": {
         "phase": "validation",
         "effort": 8,
@@ -479,10 +503,17 @@
       "attributes": {}
     },
     {
+      "source": "work.actor-trace-retention",
+      "target": "work.actor-runtime",
+      "kind": "changes",
+      "summary": "Replaces append-only lifecycle observation retention without changing mailbox or transition semantics.",
+      "attributes": {}
+    },
+    {
       "source": "work.stm-laws",
       "target": "decision.stm-library",
-      "kind": "requires",
-      "summary": "",
+      "kind": "informs",
+      "summary": "The bounded law tracer supplies evidence for accepting, revising, or rejecting the library-effect decision.",
       "attributes": {}
     },
     {

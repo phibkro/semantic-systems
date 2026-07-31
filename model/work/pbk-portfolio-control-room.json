@@ -1,0 +1,55 @@
+{
+  "entities": [
+    {
+      "id": "work.pbk-portfolio-control-room",
+      "kind": "work_item",
+      "name": "Build PBK Technologies portfolio Control Room",
+      "summary": "Project one bounded, queryable portfolio model as Overview, Board, Features, dependency-first Roadmap, and persistent History with clickable evidence and product snapshots.",
+      "status": "in_progress",
+      "tags": ["pbk-technologies", "control-room", "portfolio", "roadmap", "query-algebra", "pwa"],
+      "attributes": {
+        "phase": "implementation",
+        "effort": 13,
+        "design_spec": "design-specs/0021-pbk-portfolio-control-room.md",
+        "plan": "plans/active/0021-pbk-portfolio-control-room.md",
+        "acceptance": [
+          "All views derive from one strict portfolio document",
+          "Roadmap visualizes dependencies without deadlines or a time axis",
+          "Working horizon and persistent accepted history remain distinct",
+          "Features expose research, design, definition of done, journeys, evidence, and snapshots",
+          "Operator priority cannot override dependency readiness",
+          "Course-platform Any/All/Exclude/Unlabeled label laws select the same identities for every presentation",
+          "Typed metadata supports bounded agent-authored queries without replacing dependency or evidence relations",
+          "Strict JSON rows assemble into one content-addressed snapshot and any database remains a derived index",
+          "Only evidence-backed acceptance receipts realize work output candidates as durable artifact values",
+          "Roadmap offers graph and semantic-zoom Mosaic renderers over exactly the same work identities"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 4,
+          "testability": 5,
+          "reversibility": 4,
+          "integration_independence": 3,
+          "blast_radius": 4,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source": "work.pbk-portfolio-control-room",
+      "target": "work.control-room-reconstruction",
+      "kind": "requires",
+      "summary": "The PBK portfolio views extend the accepted phone-first Control Room and its content-custody boundary.",
+      "attributes": {}
+    },
+    {
+      "source": "work.pbk-portfolio-control-room",
+      "target": "component.explorer",
+      "kind": "implements",
+      "summary": "The explorer gains dependency-first portfolio navigation over one immutable model.",
+      "attributes": {}
+    }
+  ]
+}

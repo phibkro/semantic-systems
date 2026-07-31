@@ -1,0 +1,9 @@
+{
+  "schema_version": "pbk.portfolio-row/v1",
+  "record_type": "studio",
+  "value": {
+    "id": "studio.pbk-technologies",
+    "name": "PBK Technologies",
+    "summary": "A portfolio of language, agent, developer-tool, and decision-support products developed through explicit dependency graphs and evidence-backed work receipts."
+  }
+}

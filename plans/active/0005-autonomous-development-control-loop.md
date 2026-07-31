@@ -40,7 +40,8 @@ limits, semantic diff, and kill criteria are frozen in design spec 0005.
 
 1. Development-loop guide and PR completion template.
 2. Required-tool fast and integration scripts.
-3. Feature acceptance-script convention.
+3. Feature acceptance-program convention (`scripts/accept/<id>.ts`) with Just
+   as the declarative task surface.
 4. CI jobs with exact-head reporting.
 5. Conventional Commit and lightweight contract/PR metadata validation from
    one checked-in configuration.
@@ -71,9 +72,9 @@ and required checks are stable.
 At minimum:
 
 ```bash
-nix develop --command ./scripts/check-fast.sh
-nix develop --command ./scripts/check.sh
-nix develop --command ./scripts/accept/<pilot-id>.sh
+nix develop --command just fast
+nix develop --command just check
+nix develop --command just accept <pilot-id>
 nix flake check
 ```
 
@@ -235,6 +236,12 @@ completion feedback, and cleanup.
   The correction disables body line length as a semantic gate, retains title,
   type, subject, and authored-message policy, and records the adaptation in
   the checked Clamor provenance graph.
+- 2026-07-30: operator revised the frozen execution-carrier boundary from
+  shell acceptance/check programs to executable Bun TypeScript, with a
+  declarative Just task surface. Validator, dispatcher, fixture oracles,
+  existing acceptance programs, hooks, CI commands, contributor guidance, and
+  checked provenance were migrated atomically; the semantic authority and
+  evidence categories are unchanged.
 
 ## Decisions and deviations
 

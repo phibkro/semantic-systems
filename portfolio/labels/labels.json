@@ -1,0 +1,60 @@
+{
+  "schema_version": "pbk.portfolio-row-set/v1",
+  "rows": [
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "label",
+      "value": {
+        "id": "label.agent-facing",
+        "name": "Agent-facing",
+        "color": "sky",
+        "derivation": null
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "label",
+      "value": { "id": "label.delivery", "name": "Delivery", "color": "amber", "derivation": null }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "label",
+      "value": { "id": "label.design", "name": "Design", "color": "heather", "derivation": null }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "label",
+      "value": {
+        "id": "label.engineering",
+        "name": "Engineering",
+        "color": "fjord",
+        "derivation": null
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "label",
+      "value": { "id": "label.language", "name": "Language", "color": "moss", "derivation": null }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "label",
+      "value": {
+        "id": "label.operator-facing",
+        "name": "Operator-facing",
+        "color": "heather",
+        "derivation": null
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "label",
+      "value": { "id": "label.research", "name": "Research", "color": "moss", "derivation": null }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "label",
+      "value": { "id": "label.testing", "name": "Testing", "color": "slate", "derivation": null }
+    }
+  ]
+}

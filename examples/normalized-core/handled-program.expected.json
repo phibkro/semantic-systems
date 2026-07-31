@@ -1,0 +1,79 @@
+{
+  "artifact_identity": "sha256:86a6357e12434de54ed7f917ebd091f606f2074bfd8da3130668e251fd5e1eb1",
+  "assumptions": [
+    {
+      "assumption_identity": "sha256:4b6f98cb61984ad23ef4cf552dfad816fd53a078045d3f76efc51a4ecd6aaf08",
+      "kind": "declared",
+      "statement": "SHA-256 is collision resistant"
+    }
+  ],
+  "format": "semantic.normalized-core",
+  "kernel": "semantic.kernel-calculus/0018/v1",
+  "obligations": [],
+  "semantic_identity": "sha256:154ff23841b0efd87075d176b3d807c67e9d2449880e5bce1c4d69421de99b78",
+  "signature": [
+    {
+      "argument_type": { "tag": "unit" },
+      "label": "fresh",
+      "operation": "allocate",
+      "operation_identity": "sha256:bd33d3a3c1ea1f8cd58fb84fa3d98a50114504dc13e70de4c4573d9826788c1c",
+      "result_type": { "tag": "int" }
+    }
+  ],
+  "source": {
+    "correspondence": [
+      {
+        "end_byte": 64,
+        "node_path": "/signature/0",
+        "role": "definition",
+        "source_identity": "sha256:a6bc816eb7c50fadd68661e5494da6efd6ea35dbda639f0f1d03aa4afe772fce",
+        "start_byte": 33
+      },
+      {
+        "end_byte": 32,
+        "node_path": "/term",
+        "role": "expression",
+        "source_identity": "sha256:a6bc816eb7c50fadd68661e5494da6efd6ea35dbda639f0f1d03aa4afe772fce",
+        "start_byte": 0
+      }
+    ],
+    "units": [
+      {
+        "byte_length": 64,
+        "content_identity": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "source_identity": "sha256:a6bc816eb7c50fadd68661e5494da6efd6ea35dbda639f0f1d03aa4afe772fce",
+        "uri": "memory:handled"
+      }
+    ]
+  },
+  "summary": {
+    "effects": [],
+    "type": { "grade": "1", "tag": "return", "value": { "tag": "int" } },
+    "usage": []
+  },
+  "term": {
+    "computation": {
+      "argument": { "tag": "unit" },
+      "grade": "1",
+      "label": "fresh",
+      "operation": "allocate",
+      "tag": "operation"
+    },
+    "label": "fresh",
+    "operation_clauses": [
+      {
+        "body": {
+          "resumption_distance": 0,
+          "tag": "resume",
+          "value": { "tag": "int", "value": 7 }
+        },
+        "operation": "allocate"
+      }
+    ],
+    "return_clause": {
+      "body": { "grade": "1", "tag": "return", "value": { "distance": 0, "tag": "bound-value" } }
+    },
+    "tag": "handle"
+  },
+  "version": 1
+}

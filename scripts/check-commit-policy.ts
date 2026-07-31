@@ -119,10 +119,11 @@ const EXPECTED_SEMANTIC_KEYS = new Map([
   ["package/scripts/commitlint", ["package.json", ["scripts", "commitlint"]] as const],
 ]);
 const EXPECTED_ADAPTATIONS = new Map([
+  ["commit-msg-bun-runtime", [".githooks/commit-msg", "githooks/commit-msg"] as const],
   ["commitlint-default-ignores-disabled", ["commitlint.config.ts", "commitlint-config"] as const],
   ["commitlint-squash-body-prose", ["commitlint.config.ts", "commitlint-config"] as const],
-  ["pre-commit-fast-loop", [".githooks/pre-commit", "githooks/pre-commit"] as const],
-  ["pre-push-integration", [".githooks/pre-push", undefined] as const],
+  ["pre-commit-bun-fast-loop", [".githooks/pre-commit", "githooks/pre-commit"] as const],
+  ["pre-push-bun-integration", [".githooks/pre-push", undefined] as const],
 ]);
 const REQUIRED_PROJECT_CLAIMS = new Set(["project/githooks/pre-push"]);
 

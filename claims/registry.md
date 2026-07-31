@@ -68,6 +68,16 @@ mutation, forbidden-import, lint, format, and type gates but failed the frozen
 checker-size gate. It is rejected for integration and does not establish this
 claim. Uncertainty 0004 records the recut alternatives.
 
+Observed result (2026-07-30): TypeScript recut `a373ae9` was independently
+rejected and reverted at `adf7e8d`. Its reported 68.07% size ratio compared
+asymmetric surfaces (194 checker lines against a 285-line resolver file that
+included excluded serialization/reporting); the resolver's symmetric
+adjudication region was 92 lines before excluded checker validation and
+semantic-diff code were counted. Review also found accepted foreign outcomes,
+an unsupported self-consistent rebound claim, policy-matching drift, duplicate
+authored candidates, and a non-transitive dependency oracle. This is
+counterevidence, not runtime validation, and does not establish the hypothesis.
+
 Invalidation: any change to the evidence-result schema, resolution-claim
 schema, policy rules, identity algorithm, checker algorithm, or canonical
 binding adapter requires the full mutation and independence gates to rerun.
@@ -98,13 +108,7 @@ pinned environment and normal validation passes with `.references/` absent.
 Consequence if falsified: do not treat source cards as provenance-ready; keep
 the catalog queued and redesign custody rather than weakening exactness.
 
-Observed result: the accepted custody implementation at commit `e8d771c`
-passes 68 focused custody tests and the 93-test repository gate. The real
-offline `local.lang-bang` observation binds commit
-`5b8e032bcffefb23a3a153d3f5cea99050e589c1`, tree
-`2156309abd48d19e433af8b302238a8424c360ab`, and the recorded license digest.
-This is example-test and one local runtime-validation observation, not proof
-of origin, authorship, legal compatibility, crash atomicity, or portability.
+Observed result: pending implementation.
 
 Invalidation: any change to the catalog custody fields, canonical record
 identity, lock schema, Git acquisition rules, license hashing, or custody-state
@@ -141,49 +145,3 @@ Observed result: pending implementation and pilot.
 
 Invalidation: changes to required gates, merge authority, completion notice,
 cleanup rules, or PR-to-spec identity require the pilot checks to rerun.
-
-## CLM-0005 — public-safe project control room
-
-Hypothesis: an installable phone-first PWA can project the canonical project
-graph and accepted control state from an exact commit without becoming a
-second source of truth, leaking private inputs, or displaying stale/offline
-state as current.
-
-Expected observation: the deployed Control Room exposes system, semantic,
-evidence, work, and pulse views; every item links to canonical identity and
-exact commit; the public payload contains only allowlisted fields; and update,
-stale, offline, and invalid states are visibly distinct.
-
-Counterexample: arbitrary model attributes or local paths reach the public
-artifact; the browser derives evidence meaning; a bad refresh replaces the last
-valid snapshot; displayed facts lack provenance; or a Pages snapshot is called
-live local state.
-
-Evaluation method: deterministic export fixtures, schema validation,
-secret/path/script sentinels, digest and rollback mutations, phone-sized
-browser/PWA tests, deployed probes, and independent semantic/security review.
-
-Success threshold: every design-spec 0006 acceptance condition through the
-default Pages deployment passes on the exact committed artifact; custom-domain
-health is either verified or remains an explicit external blocker.
-
-Consequence if falsified: do not publish or update the site; retain the last
-valid deployment, expose the failed gate, and recut the exporter or deployment
-boundary without weakening privacy or provenance.
-
-Observed result: local implementation at commit `50d00a6` passed deterministic
-export, allowlist and sentinel scans, 150 repository tests, six UI behavior
-tests, and three mobile Chromium/PWA scenarios. Independent review nevertheless
-rejected publication because the service worker could hide newer version data,
-the required status filter was absent, and this observation was initially
-attached to CLM-0003 instead of this claim. Those counterexamples are now the
-correction oracle. Corrected commit `2f60eee` passed its exact clean-tree local
-acceptance but independent re-review rejected three remaining claims: publisher
-assertion was presented as accepted provenance, browser tests could mutate the
-artifact after its final scan, and ready/blocked work identities were reduced
-to counts. The claim remains open pending a green successor, independent
-re-review, and default Pages deployment.
-
-Invalidation: any public schema, exporter, canonical model, freshness rule,
-service-worker update algorithm, workflow, or deployment-target change requires
-the relevant export, privacy, browser, and deployment gates to rerun.

@@ -76,6 +76,9 @@ questions = ["Pass validation", "semantic preservation", "license constraints"]
 id = "ghc"
 kind = "git"
 origin = "https://gitlab.haskell.org/ghc/ghc.git"
+origin_aliases = ["https://github.com/ghc/ghc.git"]
+track = "ghc-9.14.1-release"
+license_paths = ["LICENSE"]
 classes = ["system-f", "system-fc", "compiler-ir", "diagnostics"]
 questions = ["Typed core", "coercion evidence", "elaboration and optimization boundaries"]
 
@@ -83,6 +86,8 @@ questions = ["Typed core", "coercion evidence", "elaboration and optimization bo
 id = "liquid-haskell"
 kind = "git"
 origin = "https://github.com/ucsd-progsys/liquidhaskell.git"
+track = "v0.9.14.1"
+license_paths = ["LICENSE", "LICENSE_Z3"]
 classes = ["refinement-types", "smt", "diagnostics"]
 questions = ["Decidable refinement fragment", "obligation generation", "counterexamples"]
 
@@ -90,6 +95,13 @@ questions = ["Decidable refinement fragment", "obligation generation", "countere
 id = "flux"
 kind = "git"
 origin = "https://github.com/flux-rs/flux.git"
+track = "main"
+license_paths = [
+  "LICENSE",
+  "crates/flux-macros/src/diagnostics/LICENSE-MIT.md",
+  "crates/flux-macros/src/diagnostics/LICENSE.md",
+  "tools/vscode/LICENSE",
+]
 classes = ["refinement-types", "rust", "ownership"]
 questions = ["Refinements over ownership", "rustc integration seam", "diagnostics"]
 
@@ -97,6 +109,8 @@ questions = ["Refinements over ownership", "rustc integration seam", "diagnostic
 id = "fstar"
 kind = "git"
 origin = "https://github.com/FStarLang/FStar.git"
+track = "v2026.07.24"
+license_paths = ["LICENSE", "LICENSE-fsharp.txt"]
 classes = ["dependent-types", "refinement-types", "effects", "verification"]
 questions = ["Effectful dependent verification", "SMT boundary", "extraction"]
 
@@ -104,6 +118,8 @@ questions = ["Effectful dependent verification", "SMT boundary", "extraction"]
 id = "agda"
 kind = "git"
 origin = "https://github.com/agda/agda.git"
+track = "v2.8.0"
+license_paths = ["LICENSE"]
 classes = ["dependent-types", "proof", "diagnostics"]
 questions = ["Elaboration", "termination and positivity checking", "interactive errors"]
 
@@ -111,6 +127,8 @@ questions = ["Elaboration", "termination and positivity checking", "interactive 
 id = "idris2"
 kind = "git"
 origin = "https://github.com/idris-lang/Idris2.git"
+track = "v0.8.0"
+license_paths = ["LICENSE"]
 classes = ["dependent-types", "quantitative-types", "compiler"]
 questions = ["Quantitative type theory", "elaboration", "erasure and code generation"]
 

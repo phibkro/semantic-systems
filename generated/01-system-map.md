@@ -25,6 +25,7 @@ flowchart TD
     component_relational_analysis["Relational analysis plane"]
     component_resolver["Realization resolver"]
     component_runtime["Runtime system"]
+    component_semantic_system_kernel["Executable semantic system kernel"]
     component_syntax["Lossless syntax system"]
     handler_inventory_events["Inventory event handler"]
     realization_inventory_actor["Inventory actor realization"]
@@ -54,6 +55,7 @@ flowchart TD
     component_inventory -->|contains| realization_inventory_stm
     component_inventory -->|contains| handler_inventory_events
     component_inventory -->|contains| realization_inventory_broken
+    component_project -->|contains| component_semantic_system_kernel
     component_language -->|contains| component_syntax
     component_compiler -->|contains| component_incremental_queries
     component_compiler -->|contains| component_optimization_bridge
