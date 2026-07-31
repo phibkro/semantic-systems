@@ -7,6 +7,8 @@ Date: 2026-08-01
 Depends-On-Feature-IDs: 0017-control-room-reconstruction,
 0021-pbk-portfolio-control-room, 0028-control-room-alchemy-cli-compat
 
+Migrates-Feature-IDs: 0028-control-room-alchemy-cli-compat
+
 Design-Lens-Version: open-semantic-system-v1
 
 ## Problem
