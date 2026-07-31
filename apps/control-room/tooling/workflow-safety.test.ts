@@ -210,6 +210,19 @@ describe("Alchemy workflow safety", () => {
     expect(custody).toContain("signal: AbortSignal.timeout(GITHUB_OBSERVATION_TIMEOUT_MS)");
   });
 
+  test("uses the pinned Alchemy v2 noninteractive command surface", () => {
+    const workflow = trusted();
+    const deploy = workflow.jobs["deploy-static"]!.steps.find((step) => step.id === "provider")!;
+    const destroy = workflow.jobs["cleanup-preview"]!.steps.find((step) => step.id === "provider")!;
+
+    expect(deploy.run).toContain("alchemy deploy");
+    expect(deploy.run).toContain("--stage");
+    expect(deploy.run).not.toContain("--yes");
+    expect(destroy.run).toContain("alchemy destroy");
+    expect(destroy.run).toContain("--stage");
+    expect(destroy.run).not.toContain("--yes");
+  });
+
   test("the exact acceptance itself invokes the canonical full gate without recursion", () => {
     const acceptance = readFileSync(
       path.join(root, "scripts/accept/0017-control-room-reconstruction.ts"),

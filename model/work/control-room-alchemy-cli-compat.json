@@ -1,0 +1,41 @@
+{
+  "entities": [
+    {
+      "id": "work.control-room-alchemy-cli-compat",
+      "kind": "work_item",
+      "name": "Align Control Room with the pinned Alchemy CLI",
+      "summary": "Correct the trusted deploy and cleanup command shape while retaining artifact custody and served-state observation.",
+      "status": "in_progress",
+      "tags": ["control-room", "deployment", "alchemy", "correction"],
+      "attributes": {
+        "phase": "validation",
+        "effort": 1,
+        "design_spec": "design-specs/0028-control-room-alchemy-cli-compat.md",
+        "plan": "plans/active/0028-control-room-alchemy-cli-compat.md",
+        "acceptance": [
+          "Pinned deploy and destroy commands contain no unsupported option",
+          "Provider process exit remains separate from served-state observation",
+          "The merged production artifact is observed at the public endpoint"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 5,
+          "testability": 5,
+          "reversibility": 5,
+          "integration_independence": 4,
+          "blast_radius": 4,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source": "work.control-room-alchemy-cli-compat",
+      "target": "work.pbk-portfolio-control-room",
+      "kind": "requires",
+      "summary": "The correction deploys the already accepted portfolio artifact.",
+      "attributes": {}
+    }
+  ]
+}
