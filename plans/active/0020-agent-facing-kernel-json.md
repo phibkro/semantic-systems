@@ -155,8 +155,9 @@ failure is not a warning.
   0018 checker (the mechanism reproduces at 2 leaves × 3 labels; the old
   65,536 label cap breaks at 257 leaves; the old raw node cap 65,536 also
   rejected the byte-legal input itself). Raw-input and observation-envelope
-  bounds are now separate named families: raw `maximumNodes` = 524,288 (two
-  input bytes per JSON value occurrence), `maximumLabels` = 1,048,576
+  bounds are now separate named families: raw `maximumNodes` = 524,288
+  (structural-induction bound `nodes <= floor((bytes + 1) / 2)`),
+  `maximumLabels` = 1,048,576
   (simple byte-bound ceiling; tight lemma 349,525 at three bytes per
   distinct spelling), `maximumObservationNodes` = 4,194,304 (proven worst
   case 3,569,047), `maximumObservationCollectionLength` = 1,048,576, and
@@ -164,3 +165,12 @@ failure is not a warning.
   24,911,871). The counterexample and every bound derivation are committed
   as `tests/kernel-json-observation-bounds.test.ts`, aligned with the
   schema constants.
+- 2026-07-31 (fourth correction): primary review rejected the false claim
+  that every JSON value occurrence consumes two bytes and the stronger-than-
+  observed claim that arithmetic tests exercised runtime envelope rejection.
+  The contract now proves `2 × nodes <= compactBytes + 1` by JSON-grammar
+  induction. A generated dense array witnesses the exact byte/node boundary:
+  524,287 zeroes produce 1,048,575 bytes and 524,288 nodes; one more zero
+  produces 1,048,577 bytes and 524,289 nodes. The design checkpoint claims
+  arithmetic and grammar evidence only; real decoder/encoder fitting and
+  rejection cases remain mandatory implementation acceptance work.

@@ -887,10 +887,28 @@ checker bounds apply unchanged during projection and check composition, so a
 document within kernel-json bounds can still be rejected by the 0018
 authority.
 
-The raw `maximumNodes` is derived from the byte bound, not chosen: every
-JSON value occurrence in a byte input consumes at least two input bytes (its
-own shortest token plus one adjacent structural byte), so a 1,048,576-byte
-document has at most 524,288 value occurrences. The label-bound
+The raw `maximumNodes` is derived from the byte bound, not chosen. Let
+`N(v)` count JSON value occurrences, including each array or object, and let
+`C(v)` be the byte length of the same value with insignificant whitespace
+removed. Structural induction over the JSON grammar proves
+`2 × N(v) <= C(v) + 1`:
+
+- a scalar has one occurrence and a shortest spelling of one byte;
+- an empty array or object has one occurrence and two structural bytes;
+- for a nonempty array with `k` children, brackets and `k - 1` commas make
+  `C(v) = 2 + (k - 1) + Σ C(child)`, while the induction hypotheses give
+  `2 × N(v) <= 2 + Σ(C(child) + 1) = C(v) + 1`; and
+- an object has the same value-child contribution plus quoted keys, colons,
+  and commas, so it has strictly more structural bytes than the array case.
+
+Whitespace and multi-byte UTF-8 spellings only increase the input byte
+length. Therefore an input of `B` bytes contains at most
+`floor((B + 1) / 2)` occurrences. At `B = 1,048,576`, that is 524,288.
+The bound is tight below the even byte ceiling: a dense array of 524,287
+zeroes is 1,048,575 bytes and has 524,288 occurrences; adding one zero makes
+1,048,577 bytes and 524,289 occurrences, crossing the byte limit. This
+dense array witnesses the generic JSON byte/node relation only; the raw
+collection-length limit rejects it independently. The label-bound
 counterexample's 605,557-byte document holds 79,811 occurrences — over the
 previous 65,536 raw cap, which therefore also strangled byte-legal input,
 and comfortably under the derived cap. On the object path, which has no
@@ -1039,7 +1057,10 @@ The implementation must retain focused rejection observations for:
     `maximumTypeNodes`, `maximumObservationNodes`,
     `maximumObservationCollectionLength`, `maximumObservationBytes` — and
     at the derived raw `maximumNodes`, each with the worst-case arithmetic
-    checked executable, one fitting case, and one rejection;
+    checked executable and, once the implementation exists, one fitting
+    decoder or encoder case and one typed rejection; the frozen-design
+    checkpoint proves only the arithmetic and the generated dense-array
+    grammar witness, not runtime envelope enforcement;
 22. a forged or caller-mutated document failing to enter projection or check
     composition;
 23. parsing or schema validation attempting to mint checked or 0019
@@ -1090,8 +1111,10 @@ Feature 0020 is accepted only when:
 6. the committed label-bound counterexample fixture
    (`tests/kernel-json-observation-bounds.test.ts`) reproduces the 76,800
    distinct-label rejection compactly, proves the raw and envelope bound
-   derivations executable, and holds a boundary assertion at every revised
-   maximum, aligned with the schema constants;
+   derivations executable, and aligns the derived maxima with the schema
+   constants. Final implementation acceptance additionally requires one
+   fitting decoder or encoder case and one typed rejection at every revised
+   maximum; the design checkpoint does not claim those runtime observations;
 7. the schema artifact matches the exported schema observation byte-for-byte
    and documents its non-enforcement list;
 8. no public path mints checked or 0019 authority from parsed input;

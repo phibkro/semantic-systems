@@ -95,6 +95,9 @@ const jsonValueOccurrences = (value: unknown): number => {
 
 const utf8Bytes = (text: string): number => new TextEncoder().encode(text).byteLength;
 
+const denseZeroArray = (elements: number): string =>
+  elements === 0 ? "[]" : `[${"0,".repeat(elements - 1)}0]`;
+
 describe("0020 label-bound counterexample", () => {
   test("reduced mechanism: mismatched thunk rows reject through the normal checker", () => {
     const reduced = buildLabelBoundCounterexample(2, 3);
@@ -138,8 +141,31 @@ describe("0020 label-bound counterexample", () => {
 });
 
 describe("0020 bound derivations", () => {
-  test("raw maximumNodes is derived from the byte bound", () => {
-    expect(RAW_MAXIMUM_NODES * 2).toBe(RAW_MAXIMUM_BYTES);
+  test("raw maximumNodes follows the JSON grammar bound, including its shortest counterexamples", () => {
+    for (const text of ["0", "[0,0]"]) {
+      const bytes = utf8Bytes(text);
+      const nodes = jsonValueOccurrences(JSON.parse(text));
+      expect(nodes).toBeLessThanOrEqual(Math.floor((bytes + 1) / 2));
+    }
+
+    expect(jsonValueOccurrences(JSON.parse("0"))).toBe(1);
+    expect(utf8Bytes("0")).toBe(1);
+    expect(jsonValueOccurrences(JSON.parse("[0,0]"))).toBe(3);
+    expect(utf8Bytes("[0,0]")).toBe(5);
+    expect(Math.floor((RAW_MAXIMUM_BYTES + 1) / 2)).toBe(RAW_MAXIMUM_NODES);
+  });
+
+  test("generated dense arrays witness the exact raw byte/node boundary", () => {
+    const largestFitting = denseZeroArray(524_287);
+    const firstOverByteLimit = denseZeroArray(524_288);
+
+    expect(utf8Bytes(largestFitting)).toBe(1_048_575);
+    expect(jsonValueOccurrences(JSON.parse(largestFitting))).toBe(RAW_MAXIMUM_NODES);
+    expect(utf8Bytes(largestFitting)).toBeLessThanOrEqual(RAW_MAXIMUM_BYTES);
+
+    expect(utf8Bytes(firstOverByteLimit)).toBe(1_048_577);
+    expect(jsonValueOccurrences(JSON.parse(firstOverByteLimit))).toBe(RAW_MAXIMUM_NODES + 1);
+    expect(utf8Bytes(firstOverByteLimit)).toBeGreaterThan(RAW_MAXIMUM_BYTES);
   });
 
   test("maximumLabels ceiling and tight lemma follow from the raw byte bound", () => {
