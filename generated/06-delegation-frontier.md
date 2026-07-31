@@ -2,7 +2,7 @@
 
 <!-- Generated. Edit model sources, not this file. -->
 
-Ready parallel work items: **8**.
+Ready parallel work items: **9**.
 
 | Work item | Phase | Status | Ready | Score | Recommendation | Blockers |
 |---|---|---|---:|---:|---|---|
@@ -10,7 +10,7 @@ Ready parallel work items: **8**.
 | Bound actor trace retention | implementation | complete | no | 83 | delegate with review |  |
 | Establish the autonomous development control loop | implementation | in_progress | yes | 83 | delegate with review |  |
 | Reconstruct the Control Room on TypeScript and Effect v4 | implementation | in_progress | yes | 72 | delegate with review |  |
-| Implement core checker | implementation | planned | no | 65 | delegate with review | Specify minimal kernel calculus |
+| Implement core checker | implementation | planned | yes | 65 | delegate with review |  |
 | Design deterministic concurrency simulator | design | planned | no | 68 | delegate with review | Specify STM effect and handler laws |
 | Build the executable semantic system kernel | validation | complete | no | 72 | delegate with review |  |
 | Specify explorer query contract | design | ready | yes | 94 | delegate directly |  |
@@ -20,10 +20,10 @@ Ready parallel work items: **8**.
 | Implement pure inventory realization | implementation | complete | no | 97 | delegate directly |  |
 | Complete inventory evidence-resolution tracer | validation | complete | no | 87 | delegate with review |  |
 | Implement inventory STM realization | implementation | planned | no | 94 | delegate directly | Implement minimal STM runtime |
-| Specify minimal kernel calculus | implementation | in_progress | yes | 53 | bounded spike |  |
+| Specify minimal kernel calculus | validation | complete | no | 53 | bounded spike |  |
 | Specify Lean evidence adapter | research | planned | no | 60 | delegate with review | Specify normalized core artifact |
 | Design lossless incremental frontend | design | planned | no | 75 | delegate with review | Specify normalized core artifact |
-| Specify normalized core artifact | design | ready | no | 45 | bounded spike | Specify minimal kernel calculus |
+| Specify normalized core artifact | design | in_progress | yes | 45 | bounded spike |  |
 | Implement package and evidence resolver | implementation | in_progress | no | 72 | delegate with review | Define normalized theory identity |
 | Define relational fact export | design | ready | yes | 94 | delegate directly |  |
 | Recut the independent resolution checker | design | complete | no | 83 | delegate with review |  |
