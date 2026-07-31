@@ -75,9 +75,11 @@ checks that were not run or unavailable; never infer success.
 
 Inventory resolution 0001 is complete. Active frozen contracts are reference
 research 0002, independent resolution checking 0003, reference-source custody
-0004, the autonomous development loop 0005, and the control-room PWA 0006.
-Their plans under `plans/active/` own mutable execution state. Binder
-equivalence remains uncertainty 0001; do not silently expand `theory-norm-v0`.
+0004, the autonomous development loop 0005, and the TypeScript/Effect Control
+Room reconstruction 0017. The executable semantic-system kernel 0016 is
+integrated and accepted. Active plans under `plans/active/` own mutable
+execution state. Binder equivalence remains uncertainty 0001; do not silently
+expand `theory-norm-v0`.
 
 ## Delegation
 
