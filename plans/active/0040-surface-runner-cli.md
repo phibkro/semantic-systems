@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0040-surface-runner-cli.md`](../../design-specs/0040-surface-runner-cli.md).
 This execution record cannot redefine that contract.
 
-Status: frozen; implementation pending
+Status: accepted on candidate; integration pending
 
 Owner: primary Semantic Systems language lead
 
@@ -57,3 +57,19 @@ just accept 0040-surface-runner-cli
 - 2026-08-01: a compile-only command was rejected as a weaker first user
   journey. The runner keeps source failures and kernel observations explicit in
   one new outer envelope without changing either accepted inner contract.
+- 2026-08-01: exact executable head
+  `27eff2e3e7529b167391c5d6a5864db567a1c628` passed 11 injected-host journeys,
+  6 genuine Bun/Node process journeys, 65 inherited surface/interpreter/backend
+  architecture journeys, and the complete 844-pass repository suite with one
+  intentional independent-oracle skip, 20,033 assertions, and 68 parity
+  checks. TypeScript 7 Effect diagnostics, Oxlint, Oxfmt, model, generated-view,
+  and commit-policy gates were green.
+- 2026-08-01: Fable 5 high independently reviewed that exact executable head,
+  reproduced accepted, invalid-UTF-8, exact-limit, mid-scalar over-limit,
+  unbounded-stdin, checker-rejection, suspension, missing-file, closed-output,
+  and usage journeys on Bun and Node, and returned `VERDICT: APPROVE`.
+- 2026-08-01: the review also recorded a non-blocking composition edge: valid
+  bounded surface source can elaborate to kernel JSON beyond the kernel byte
+  envelope, which deterministically appears as a nested
+  `representation-rejected` observation rather than a source rejection. This
+  is explicit lower-boundary evidence, not a compiler or runner contract break.
