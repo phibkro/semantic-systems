@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0036-explorer-query-contract.md`](../../design-specs/0036-explorer-query-contract.md).
 This execution record cannot redefine that contract.
 
-Status: implementation complete; integration review pending
+Status: implementation and independent review complete; hosted integration pending
 
 Owner: explorer-query Feature 0036 worker
 
@@ -87,3 +87,8 @@ bun scripts/accept/0036-explorer-query-contract.ts
   discriminator and rejects the first excess entity or relation before observing
   its record body; symmetric limit-plus-one counterexamples observe zero body
   properties on the rejected record.
+- 2026-08-01: independent narrow re-review approved exact clean head `5f7d4b1`.
+  It observed one discriminator descriptor for a valid fact and zero excess-body
+  observations for both the 16,385th entity and 65,537th relation.
+- 2026-08-01: exact acceptance at `5f7d4b1` observed 789 passes, one declared
+  skip, zero failures, 19,339 assertions, and 68 reference tests.
