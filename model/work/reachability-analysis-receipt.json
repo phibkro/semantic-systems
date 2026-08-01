@@ -1,0 +1,50 @@
+{
+  "entities": [
+    {
+      "id": "work.reachability-analysis-receipt",
+      "kind": "work_item",
+      "name": "Derive a declared reachability analysis receipt",
+      "summary": "Compute one bounded content-addressed closure over an explicit closed dependency graph whose subjects are present in a captured semantic-store projection.",
+      "status": "complete",
+      "tags": ["language", "compiler", "build", "analysis", "content-addressed", "effect"],
+      "attributes": {
+        "phase": "implementation",
+        "effort": 5,
+        "design_spec": "design-specs/0030-reachability-analysis-receipt.md",
+        "plan": "plans/active/0030-reachability-analysis-receipt.md",
+        "acceptance": [
+          "Every declared graph subject is present in one captured semantic-store projection",
+          "Closure and complement are exact for chains, branches, islands, and cycles",
+          "Graph and receipt identities are deterministic and permutation invariant",
+          "Malformed, duplicate, foreign, and over-limit inputs fail through typed errors",
+          "The receipt does not claim compiler-derived dependency authority"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 5,
+          "testability": 5,
+          "reversibility": 5,
+          "integration_independence": 4,
+          "blast_radius": 3,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source": "work.reachability-analysis-receipt",
+      "target": "work.semantic-artifact-store",
+      "kind": "requires",
+      "summary": "Reachability is computed over one immutable projection of semantic identities warranted by the accepted store.",
+      "attributes": {}
+    },
+    {
+      "source": "work.reachability-analysis-receipt",
+      "target": "component.compiler",
+      "kind": "implements",
+      "summary": "The receipt establishes the first explicit compiler analysis relation without claiming dependency extraction.",
+      "attributes": {}
+    }
+  ]
+}

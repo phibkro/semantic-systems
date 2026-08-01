@@ -22,3 +22,27 @@ export type {
   SemanticStoreSnapshot,
   StoreStatus,
 } from "./semantic-store.ts";
+export {
+  analyzeJson,
+  DeclaredDependencyGraphSchema,
+  DeclaredDependencyNodeSchema,
+  ReachabilityDigestFailure,
+  ReachabilityGraphRejected,
+  ReachabilityInputRejected,
+  ReachabilityReceiptRejected,
+  ReachabilityReceiptSchema,
+  reachabilityBounds,
+  reachabilityIdentityDomains,
+  reachabilityProcedureIdentity,
+  RuntimeDependencyGraphSchema,
+  RuntimeDependencyNodeSchema,
+  validateReceiptBytes,
+} from "./reachability.ts";
+export type {
+  DeclaredDependencyGraph,
+  DeclaredDependencyNode,
+  ReachabilityAnalysisArtifact,
+  ReachabilityReceipt,
+  RuntimeDependencyGraph,
+  RuntimeDependencyNode,
+} from "./reachability.ts";
