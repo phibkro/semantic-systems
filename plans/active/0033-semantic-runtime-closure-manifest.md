@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0033-semantic-runtime-closure-manifest.md`](../../design-specs/0033-semantic-runtime-closure-manifest.md).
 This execution record cannot redefine that contract.
 
-Status: contract recut under review; implementation paused at the boundary
+Status: bounded JSON witness recut under review; implementation paused
 
 Owner: primary Semantic Systems language lead
 
@@ -42,13 +42,16 @@ or shell source.
 - Reuse 0027 snapshot custody and 0030 normalization, identity, and receipt
   validation. Do not create a second reachability checker.
 - Capture receipt bytes and selection JSON before inspecting the explicit store
-  snapshot input.
-- Admit the snapshot through a fresh private 0027 `SemanticStoreLayer`, then
-  read its normalized state exactly once; never observe an ambient live store.
-- Require the 0033 witness to contain no authored-name bindings. Names do not
-  participate in closure meaning and 0027 does not bound their total bytes.
-  Enforce zero bindings with a constant-field descriptor preflight before
-  replay; do not read or hash any authored name.
+  snapshot JSON input.
+- Admit only a primitive snapshot JSON string under the frozen total byte,
+  depth, and value bounds. Decode it to an inert closed 0027 shape, erase
+  authored names, replay that projection through a fresh private 0027
+  `SemanticStoreLayer`, then read normalized state exactly once.
+- Reject the primitive string's code-unit length before UTF-8 measurement, then
+  enforce the exact encoded-byte limit. Never allocate an encoded copy of an
+  arbitrarily large snapshot string merely to discover its size.
+- Never forward a caller-owned object graph to replay. Names do not participate
+  in closure meaning and must never be hashed or replayed by 0033.
 - Use Effect Schema at the selection and manifest boundaries and tagged Effect
   failures through the composition root.
 - Keep only the external Crypto requirement visible. Select a fresh private
@@ -65,15 +68,18 @@ or shell source.
 2. Extract an internal non-barrel 0030 orchestration seam that owns receipt
    capture and its one store observation, then invokes a continuation with the
    accepted receipt and immutable snapshot. Do not accept a caller-supplied
-   structural snapshot.
-3. Implement bounded explicit-snapshot replay, strict selection capture, one
-   normalized observation, exact member coverage, artifact membership,
-   manifest identity, and canonical bytes.
+   structural snapshot. A second non-barrel representation-only seam may admit
+   and copy receipt bytes before snapshot JSON is inspected; it grants no
+   validation authority.
+3. Implement bounded snapshot-JSON capture and decoding, name-free inert
+   projection replay, strict selection capture, one normalized observation,
+   exact member coverage, artifact membership, manifest identity, and canonical
+   bytes.
 4. Implement strict manifest-byte validation against one store snapshot.
 5. Add positive, permutation, variant, stale/forged, missing/extra/duplicate,
-   wrong-owner, one-snapshot, name-free witness, witness-extension invariance,
-   maximum-shape round trip, representation bounds, immutability, and digest
-   counterexamples.
+   wrong-owner, one-snapshot, name-projection invariance, witness-extension
+   invariance, maximum-shape round trip, representation bounds, immutability,
+   and digest counterexamples.
 6. Add genuine Node/Bun byte parity and minimized named fixtures where useful.
 7. Run focused tests, 0027/0030 seam tests, TypeScript 7, lint, formatting,
    project projections, and the complete repository gate at one clean head.
@@ -104,14 +110,20 @@ bun scripts/accept/0033-semantic-runtime-closure-manifest.ts
   bounded-work claim. Accepted 0027 limits replay but permits caller-controlled
   live growth through individual inserts and bindings, so `snapshot` can
   materialize unbounded state before 0033 sees it. The corrected contract takes
-  an explicit unknown snapshot, admits it through a fresh bounded 0027 replay,
-  and observes only that private normalized store. This is a semantic
+  an explicit snapshot witness rather than a live store and observes only one
+  private normalized replay. This was the necessary first recut; the later JSON
+  recut closes its remaining host-object representation gap. This is a semantic
   correction, not a warning around hidden cost.
+- 2026-08-01: revision-pinned code review rejected the object-witness recut.
+  Key enumeration occurs before an object-key bound and a moving root can
+  differ between preflight and replay. The corrected public witness is bounded
+  JSON decoded to an inert host-owned tree; authored names are erased before
+  replay. This makes the total representation limit executable.
 
 ## Review questions
 
-- Can any public path reach an ambient live store or observe the normalized
-  private store twice for one manifest operation?
+- Can any public path reach an ambient live store, forward a caller object to
+  replay, or observe the normalized private store twice for one operation?
 - Can a stale or forged analysis survive by refreshing the outer identity?
 - Can names, unreachable values, or wrong-owner artifacts enter members?
 - Are input and output aliases fully snapshotted and immutable?

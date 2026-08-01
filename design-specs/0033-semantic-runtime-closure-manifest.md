@@ -45,16 +45,17 @@ returns a typed rejection before any manifest is emitted.
 ### Boundary and warranted state
 
 Feature 0033 owns representation capture, bounded admission of one explicit
-0027 semantic-store snapshot input, one normalized snapshot of the resulting
-private ephemeral store, revalidation of the embedded 0030 receipt against
-that observation, exact artifact-selection coverage, canonical ordering,
-domain-separated identity, and immutable manifest bytes.
+0027 semantic-store snapshot JSON witness, a name-free inert projection, one
+normalized snapshot of the resulting private ephemeral store, revalidation of
+the embedded 0030 receipt against that observation, exact artifact-selection
+coverage, canonical ordering, domain-separated identity, and immutable
+manifest bytes.
 
 The manifest warrants only these claims:
 
-- the supplied 0027 snapshot passed the accepted bounded replay authority and
-  the embedded 0030 receipt was canonically recomputed against its normalized
-  private-store projection;
+- the supplied 0027 snapshot JSON passed 0033's total representation bound and
+  accepted 0027 replay authority, and the embedded 0030 receipt was canonically
+  recomputed against its normalized private-store projection;
 - every selected semantic identity is exactly one reachable identity from that
   receipt;
 - every selected artifact identity was present under its semantic identity in
@@ -71,22 +72,29 @@ execution or deployment observation.
 
 ### Semantic inputs
 
-`buildRuntimeClosure(storeSnapshot, receiptBytes, selectionJson)` accepts three
-unknown values. The receipt and selection representations are captured and
-decoded before the store snapshot input is inspected. `storeSnapshot` must pass
-the existing 0027 `SemanticStore.replay` boundary inside a fresh private
-`SemanticStoreLayer`; replay's structural preflight and frozen 1,024/4,096
-limits are the semantic-value and artifact admission authority. Because
-authored names have no accepted byte bound and do not participate in 0033
-meaning, a defect-contained constant-field preflight runs before replay. It
-inspects only the root `name_bindings` own data descriptor and that value's
-plain dense-array shape and admitted `length`; the length must be zero and no
-binding element is read. Proxy traps, accessors, non-plain arrays, sparse or
-extended arrays, moving length, and nonzero length reject as
-`RuntimeClosureSnapshotRejected`. Only a snapshot admitted as exactly
-`name_bindings: []` may enter unchanged 0027 replay. After replay succeeds, the
-operation reads one normalized snapshot from that private store and uses only
-that immutable value.
+`buildRuntimeClosure(storeSnapshotJson, receiptBytes, selectionJson)` accepts
+three unknown values. The receipt and selection representations are captured
+and decoded before the store snapshot input is inspected. `storeSnapshotJson`
+must be a primitive JSON string no larger than 16,777,216 UTF-8 bytes, depth
+64, or 65,536 JSON values. The accepted scanner rejects duplicate keys before
+Effect Schema decodes the closed 0027 snapshot shape.
+
+Admission first rejects `storeSnapshotJson.length > 16,777,216` using the
+primitive string's UTF-16 code-unit count. Only then may `TextEncoder` measure
+exact UTF-8 bytes against the same 16,777,216-byte limit. Thus byte measurement
+can allocate at most a fixed multiple of the published bound instead of first
+copying an arbitrarily large string.
+
+JSON decoding produces an inert host-owned tree with no caller accessors,
+proxies, sparse arrays, extensions, or moving properties. Authored names do not
+participate in 0033 meaning, so their decoded projection is replaced with a
+trusted frozen empty array before the snapshot enters the existing 0027
+`SemanticStore.replay` boundary inside a fresh private `SemanticStoreLayer`.
+The caller's authored-name payload is representation-bounded but is never
+hashed, replayed, or treated as closure evidence. Replay's frozen 1,024/4,096
+limits remain the semantic-value and artifact admission authority. After
+replay succeeds, the operation reads one normalized snapshot from that private
+store and uses only that immutable value.
 
 `receiptBytes` must be exact canonical `semantic.reachability-receipt` bytes.
 `selectionJson` must be a primitive JSON string whose closed decoded shape is:
@@ -118,8 +126,9 @@ Effect Schema decoding. Duplicate object keys, depth above 64, or more than
 16,384 JSON values reject. Typed-array lookalikes and other byte containers
 reject.
 
-`validateRuntimeClosureBytes(storeSnapshot, manifestBytes)` first captures and
-decodes the complete candidate manifest before it inspects the snapshot input.
+`validateRuntimeClosureBytes(storeSnapshotJson, manifestBytes)` first captures
+and decodes the complete candidate manifest before it inspects the snapshot
+input.
 It then admits the explicit 0027 snapshot through a fresh private store, reads
 one normalized snapshot, recomputes the embedded analysis and manifest
 identity, and returns the same immutable manifest only when the bytes are exact
@@ -127,12 +136,12 @@ canonical output. The manifest embeds its complete analysis but not the store's
 canonical artifact bytes, so custody revalidation always requires the explicit
 store snapshot input.
 
-The supplied snapshot is a validation witness, not part of the manifest
+The supplied snapshot JSON is a validation witness, not part of the manifest
 identity. Unreferenced semantic values or artifact variants may be added to a
-later witness without invalidating the manifest. Authored names remain absent
-from the admitted witness. A manifest is stale only when a referenced semantic
-value or selected artifact is absent or has changed, or when its embedded
-receipt no longer revalidates.
+later witness without invalidating the manifest. Authored names may change
+without affecting the admitted name-free projection. A manifest is stale only
+when a referenced semantic value or selected artifact is absent or has changed,
+or when its embedded receipt no longer revalidates.
 
 ### Semantic outputs
 
@@ -186,7 +195,7 @@ failure. No rejection returns an identity-shaped placeholder.
 `RuntimeClosureSnapshotRejected`, `RuntimeClosureMembershipRejected`,
 `RuntimeClosureManifestRejected`, and `RuntimeClosureDigestFailure`. Existing
 0030 receipt, graph, and digest failures remain visible when 0030 owns the
-rejection. The name-free preflight rejection and 0027
+rejection. Snapshot JSON capture/scan/schema rejection and 0027
 `SemanticStoreSnapshotRejected` map to `RuntimeClosureSnapshotRejected`.
 `NormalizedCoreDigestFailure` from replay maps to
 `RuntimeClosureDigestFailure` and preserves the replay phase. Unexpected
@@ -195,13 +204,15 @@ rejections. No replay failure leaks a partially replayed store.
 
 ### Effect protocols and uncertainty
 
-Each public operation captures its complete byte/text input before inspecting
-the snapshot input. It creates one private `SemanticStoreLayer`, replays the
-untrusted snapshot through 0027's bounded admission path, and reads the
-normalized private state exactly once. Receipt revalidation, artifact
-membership, and manifest assembly consume only that immutable observation. No
-caller can mutate the private store between replay and observation, and no
-ambient live store can introduce an unbounded or split-generation snapshot.
+Each public operation captures its receipt/selection or manifest input before
+inspecting the snapshot input. It then captures and decodes the bounded
+primitive snapshot JSON into an inert tree, erases authored names, creates one
+private `SemanticStoreLayer`, replays the projection through 0027's bounded
+admission path, and reads the normalized private state exactly once. Receipt
+revalidation, artifact membership, and manifest assembly consume only that
+immutable observation. No caller can mutate the decoded projection or private
+store between replay and observation, and no ambient live store can introduce
+an unbounded or split-generation snapshot.
 
 `Crypto.Crypto` owns SHA-256 observations. Digest failure remains typed. The
 ephemeral in-memory store is scoped to one operation and has no externally
@@ -212,12 +223,13 @@ fiber. Repeated equal inputs are idempotent and return equal bytes.
 ### Components and orthogonal structures
 
 ```text
-receipt bytes ---------> exact 0030 decode --------+
-selection JSON --------> strict selection ---------+--> captured inputs
-store snapshot input --> bounded 0027 replay ------+
-                                                    |
-private SemanticStore -> one normalized snapshot --+
-                                                    v
+receipt bytes ---------> exact 0030 decode ----------+
+selection JSON --------> strict selection -----------+--> captured inputs
+snapshot JSON ---------> bounded decode -> erase names
+                                      -> 0027 replay -+
+                                                      |
+private SemanticStore -> one normalized snapshot ----+
+                                                      v
                         recomputed reachability receipt
                                       +
                         exact reachable artifact selection
@@ -237,11 +249,13 @@ build-input closure vocabulary; it does not cross into runtime observation.
 - receipt and manifest bytes inherit the 0030 maximum of 1,048,576 bytes;
 - selection JSON is limited to 1,048,576 UTF-8 bytes, depth 64, and 16,384 JSON
   values;
+- snapshot JSON is limited to 16,777,216 UTF-8 bytes, depth 64, and 65,536 JSON
+  values before Schema decoding or replay;
 - member selection is limited to 1,024 entries, matching the 0027 semantic
   value and 0030 node bounds;
-- the supplied snapshot is admitted by 0027 replay before use: at most 1,024
-  semantic values, 4,096 total exact artifact variants, and exactly zero
-  authored-name bindings; and
+- the inert name-free projection is admitted by 0027 replay before use: at most
+  1,024 semantic values, 4,096 total exact artifact variants, and exactly zero
+  replayed authored-name bindings; and
 - normalization and validation visit each admitted node, member, and stored
   artifact at most a fixed number of times.
 
@@ -271,13 +285,13 @@ deployment success, or SHA-256 collision resistance.
 The public surface adds exactly two operations:
 
 ```text
-buildRuntimeClosure(storeSnapshot, receiptBytes, selectionJson)
-validateRuntimeClosureBytes(storeSnapshot, manifestBytes)
+buildRuntimeClosure(storeSnapshotJson, receiptBytes, selectionJson)
+validateRuntimeClosureBytes(storeSnapshotJson, manifestBytes)
 ```
 
 Both return typed Effects requiring only `Crypto.Crypto`; the bounded in-memory
 `SemanticStoreLayer` is a private deterministic interpreter for the explicit
-snapshot input. The module may change its private maps, codecs, and traversal
+snapshot JSON witness. The module may change its private maps, codecs, and traversal
 helpers while preserving the frozen document, authority labels, identity rule,
 bounded replay, single normalized observation, canonical bytes, resource
 bounds, and failure ownership.
@@ -296,6 +310,13 @@ snapshot from its caller. Feature 0033 invokes this seam inside the fresh
 private store Layer created by bounded replay. This preserves one 0030 receipt
 authority without exposing a forgeable snapshot-parameterized validator.
 
+The same direct module also exposes the internal, non-barrel untrusted-representation
+seam `prepareReachabilityReceiptBytes(receiptBytes)`. It performs only genuine
+byte custody, bounded JSON scanning, and Schema decoding so 0033 can reject a
+malformed receipt before inspecting snapshot JSON. It grants no semantic or
+store-custody authority and does not validate the decoded assertion; only
+`withValidatedReceiptSnapshot` can revalidate it against a store observation.
+
 ## Oracle-first counterexamples
 
 1. The exact reachable set with present artifact variants assembles and
@@ -309,16 +330,17 @@ authority without exposing a forgeable snapshot-parameterized validator.
    variant.
 7. A forged or stale embedded reachability receipt rejects even if the outer
    manifest identity is refreshed.
-8. A named snapshot rejects in the constant-field preflight before replay. An
-   over-limit, sparse, moving, aliased, or forged name-free snapshot fails
-   through accepted bounded 0027 replay before manifest work.
+8. Duplicate-key, over-byte, over-depth, over-value, malformed, or forged
+   snapshot JSON rejects before replay. Authored names are ignored and changing
+   them cannot change the result. Arbitrary JavaScript objects, proxies, and
+   typed arrays reject as snapshot representations.
 9. Invalid receipt bytes or selection JSON do not inspect the snapshot input.
 10. A Crypto digest-service failure returns its owning typed failure and no
     manifest.
 11. Caller mutation of input or returned byte copies cannot change a prior
     manifest.
 12. Adding an unreferenced semantic value or artifact variant to a later
-    name-free witness does not invalidate or rename a prior manifest.
+    witness does not invalidate or rename a prior manifest.
 13. The maximum legal 1,024-node, 4,096-edge, 1,024-member shape constructs and
     revalidates within the output-byte bound.
 
@@ -341,8 +363,9 @@ integration.
 Redesign before integration if construction depends on an ambient live store,
 needs more than one normalized observation after bounded replay, trusts a
 caller-supplied receipt or identity, chooses an artifact implicitly, lets names
-enter closure meaning, cannot validate its own bytes against an explicit store
-snapshot, hides edge or selection authority, exposes mutable aliases, or
+enter closure meaning, admits arbitrary object graphs instead of bounded
+snapshot JSON, cannot validate its own bytes against an explicit store
+snapshot witness, hides edge or selection authority, exposes mutable aliases, or
 claims execution from an assembled manifest. Recut the format before adding
 compiled bytecode, external build actions, Nix store paths, signatures,
 persistence, or deployment state.
