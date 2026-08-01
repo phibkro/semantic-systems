@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0038-surface-effect-replay.md`](../../design-specs/0038-surface-effect-replay.md).
 This execution record cannot redefine that contract.
 
-Status: implementation complete; verification pending
+Status: accepted on candidate; integration pending
 
 Owner: primary Semantic Systems language lead
 
@@ -69,3 +69,12 @@ just accept 0038-surface-effect-replay
 - 2026-08-01: focused Bun tests passed 36 inherited surface/replay/architecture
   journeys plus 8 new journeys and 305 assertions; the genuine Node journey,
   TypeScript 7 Effect diagnostics, Oxlint, and focused Oxfmt checks also passed.
+- 2026-08-01: exact candidate acceptance at `8918dde` passed 812 tests, one
+  intentional independent-oracle skip, 19,947 assertions, and 68 Python parity
+  tests. `nix flake check` passed after locally building through repeated Garnix
+  502 responses.
+- 2026-08-01: independent Fable 5 high review of exact `8918dde` found no
+  blocker and returned `VERDICT: APPROVE`. Its one contract-level observation
+  prompted a wording correction: caller-owned script state is captured once,
+  while each existing bytes-only backend defensively validates only that frozen
+  capture again. No new trusted-input backend seam was introduced.

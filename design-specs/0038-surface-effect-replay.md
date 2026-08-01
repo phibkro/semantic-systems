@@ -40,7 +40,7 @@ Feature 0038 owns only orchestration between accepted boundaries:
 
 - one call to the 0026 surface compiler;
 - one canonical encoding of its strictly decoded kernel document;
-- one bounded inert decode of the 0037 observation script;
+- one bounded inert capture and decode of the caller's 0037 observation script;
 - independent invocation of the reference and bytecode replay entry points;
   and
 - one immutable container retaining the compilation and both observations.
@@ -57,13 +57,15 @@ The inputs are `unknown` surface source and `unknown` versioned observation
 script. Surface compilation occurs first. If it rejects, the Effect fails with
 the existing phase-specific `SurfaceLanguageError` and neither backend runs.
 
-After successful compilation, the script crosses
+After successful compilation, the caller-supplied unknown script crosses
 `decodeExternalObservationScript` exactly once. An invalid or non-inert script
 is a successful replay observation with identical `script-rejected` results
 for the two backend fields; neither backend executes. A decoded immutable
-script is then supplied to both backends. Stateful accessors, aliases, exotic
-objects, and other non-inert inputs cannot be observed separately by the two
-paths.
+script is then supplied to both existing bytes-only backend entry points. Each
+entry point defensively validates that owned frozen value again, but neither
+can re-observe the caller's original object or its authority. Stateful
+accessors, aliases, exotic objects, and other non-inert inputs therefore cannot
+be observed separately by the two paths.
 
 ### Semantic outputs
 
@@ -90,7 +92,7 @@ The program is finite and local:
 
 1. compile source once through 0026;
 2. encode the accepted kernel document once;
-3. capture and decode the script once;
+3. capture and decode the caller-supplied script once;
 4. if rejected, return the same rejection observation for both fields;
 5. otherwise give defensive kernel-byte copies and the decoded script to each
    backend in a fixed reference-then-compiled order; and
@@ -131,8 +133,9 @@ parser/elaborator closure gains no execution dependency.
 - existing 0026 source, token, identifier, declaration, and depth bounds;
 - existing 0037 limit of 256 observations and 257 requests;
 - existing reference and bytecode default fuel, trace, stack, and graph bounds;
-- one surface compilation, one canonical kernel encoding, and one script
-  capture per call;
+- one surface compilation, one canonical kernel encoding, and one capture of
+  caller-owned script state per call; lower bytes-only entry points may
+  defensively revalidate only the resulting immutable value;
 - two sequential backend executions with defensive kernel-byte copies; and
 - no filesystem, network, clock, random, process, queue, fiber, or background
   authority.
