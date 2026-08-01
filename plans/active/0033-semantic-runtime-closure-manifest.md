@@ -129,6 +129,21 @@ bun scripts/accept/0033-semantic-runtime-closure-manifest.ts
   `af047e6ba235514432103379abefc1e090a4b131` after re-running the former
   Proxy/moving-object counterexamples, replay-digest failure, maximum-shape
   round trip, and portable Node checks. No release finding remains.
+- 2026-08-01: Fable 5 high review of candidate
+  `887cbefc9afe708d76848324f3bd6a55e06d0019` found two release blockers in
+  admission allocation order: manifest bytes were copied before the byte
+  bound, and selection text was UTF-8 encoded before a code-unit precheck.
+  Commit `428ca539b94be901f242eb265210417c32e4c2ad` observes the intrinsic
+  typed-array byte length before copying and rejects over-bound code units
+  before encoding. Focused Bun tests pass 16/16 with 75 assertions; genuine
+  Node parity passes 1/1; the exact feature acceptance, TypeScript 7 Effect
+  diagnostics, Oxlint, Oxfmt, project validation/views, and all four hosted
+  checks pass at that commit.
+- 2026-08-01: Fable 5 high follow-up review of exact `428ca53` reported no
+  remaining release blocker. It retained two non-blocking observations: the
+  receipt is decoded twice within a bounded operation, and the accepted JSON
+  scanner's substring behavior should be reconsidered only if its bound grows
+  or an exotic JavaScript engine is targeted.
 
 ## Review questions
 
