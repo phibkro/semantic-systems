@@ -122,13 +122,6 @@ export const RelationalQueryRequestSchema = Schema.Struct({
 });
 export type RelationalQueryRequest = typeof RelationalQueryRequestSchema.Type;
 
-export interface RelationalQueryMatch {
-  readonly subject_id: string;
-  readonly entity_kind: string;
-  readonly minimum_depth: number;
-  readonly path_fact_keys: ReadonlyArray<string>;
-}
-
 export const RelationalQueryMatchSchema = Schema.Struct({
   subject_id: IdentitySchema,
   entity_kind: NonEmptyStringSchema,
@@ -154,23 +147,9 @@ export const EvidenceQueryResultSchema = Schema.Struct({
   depth_limited: Schema.Boolean,
 });
 
-export interface ImpactQueryResult {
-  readonly format: "semantic.impact-query-result";
-  readonly version: 1;
-  readonly source_export_identity: string;
-  readonly subject_ids: ReadonlyArray<string>;
-  readonly affected: ReadonlyArray<RelationalQueryMatch>;
-  readonly depth_limited: boolean;
-}
-
-export interface EvidenceQueryResult {
-  readonly format: "semantic.evidence-query-result";
-  readonly version: 1;
-  readonly source_export_identity: string;
-  readonly subject_ids: ReadonlyArray<string>;
-  readonly matches: ReadonlyArray<RelationalQueryMatch>;
-  readonly depth_limited: boolean;
-}
+export type RelationalQueryMatch = typeof RelationalQueryMatchSchema.Type;
+export type ImpactQueryResult = typeof ImpactQueryResultSchema.Type;
+export type EvidenceQueryResult = typeof EvidenceQueryResultSchema.Type;
 
 export class RelationalFactExportRejected extends Data.TaggedError("RelationalFactExportRejected")<{
   readonly reason: string;
