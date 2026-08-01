@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0032-baseline-bytecode-backend.md`](../../design-specs/0032-baseline-bytecode-backend.md).
 This execution record cannot redefine that contract.
 
-Status: contract frozen; implementation absent
+Status: accepted implementation on exact local head; integration pending
 
 Owner: primary Semantic Systems language lead
 
@@ -137,3 +137,26 @@ then fail with `missing baseline bytecode backend implementation artifact`.
   well-scoping invariant across source and machine representations. Reinstalling
   fresh one-shot handlers can express repeated sequential handling; it does not
   claim branching reuse of the same captured continuation.
+- 2026-08-01: exact candidate `06086c6` passed the complete 0032 acceptance,
+  including 726 repository tests and 68 transitional checks, but independent
+  review then found an importable compiled-graph mint whose shallow-frozen root
+  could retain a mutable nested constant. The candidate was not integrated.
+- 2026-08-01: corrected implementation head `c7e2e8e` snapshots the complete
+  closed graph algebra, keeps mint and inspection under one lexical authority,
+  rejects structural, foreign, and deep-import authority lookalikes, initializes
+  compiler and VM modules in isolated fresh processes, and exposes only fixed
+  audit facts. Focused bytecode evidence passed 23 tests with 1,219 assertions,
+  genuine Node parity passed, and revision-pinned independent review approved
+  the exact clean head with no remaining release finding.
+
+## Review disposition
+
+- Production execution begins with genuine checked-program custody; no compiled
+  token, arbitrary graph mint, raw inspector, or graph serializer is public.
+- Version 1 resumptions remain affine and one-shot; true multi-shot reuse is a
+  separate future capability that must declare finite copy, retention, and fuel
+  budgets.
+- Exhaustion is visible as typed rejection or an inconclusive observation;
+  fuel wins when fuel and trace exhaust at the same transition.
+- Generated agreement and direct graph perturbation counterexamples remain
+  distinct evidence classes and make no proof claim.

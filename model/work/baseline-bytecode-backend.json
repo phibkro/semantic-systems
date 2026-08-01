@@ -5,10 +5,10 @@
       "kind": "work_item",
       "name": "Compile and independently execute baseline kernel bytecode",
       "summary": "Compile checked agent-facing kernel bytes into opaque finite process-local custody and execute them with an independent VM, using exact semantic.kernel-run observations for differential evidence against the reference interpreter.",
-      "status": "in_progress",
+      "status": "complete",
       "tags": ["language", "kernel", "compiler", "bytecode", "vm", "property-testing"],
       "attributes": {
-        "phase": "design",
+        "phase": "implementation",
         "effort": 13,
         "design_spec": "design-specs/0032-baseline-bytecode-backend.md",
         "plan": "plans/active/0032-baseline-bytecode-backend.md",
