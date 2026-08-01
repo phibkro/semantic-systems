@@ -27,6 +27,7 @@ flowchart LR
     work_inventory_resolution_tracer["Complete inventory evidence-resolution tracer"]
     work_inventory_stm["Implement inventory STM realization"]
     work_kernel_reference_interpreter["Establish the kernel reference interpreter"]
+    work_kernel_runner_cli["Expose the kernel reference interpreter as a command"]
     work_kernel_spec["Specify minimal kernel calculus"]
     work_lean_evidence_adapter["Specify Lean evidence adapter"]
     work_lossless_frontend_spec["Design lossless incremental frontend"]
@@ -57,6 +58,8 @@ flowchart LR
     work_executable_semantic_system_kernel -->|blocks| work_actor_runtime
     work_inventory_resolution_tracer -->|requires| decision_theory_identity
     work_kernel_reference_interpreter -->|requires| work_agent_facing_kernel_json
+    work_kernel_runner_cli -->|requires| work_agent_facing_kernel_json
+    work_kernel_runner_cli -->|requires| work_kernel_reference_interpreter
     work_one_shot_external_effect_replay -->|requires| work_kernel_reference_interpreter
     work_one_shot_external_effect_replay -->|requires| work_baseline_bytecode_backend
     work_pbk_portfolio_control_room -->|requires| work_control_room_reconstruction

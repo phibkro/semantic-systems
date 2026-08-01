@@ -1,0 +1,57 @@
+{
+  "entities": [
+    {
+      "id": "work.kernel-runner-cli",
+      "kind": "work_item",
+      "name": "Expose the kernel reference interpreter as a command",
+      "summary": "Read one frozen kernel JSON byte stream and emit one canonical reference-interpreter observation through a Bun and Node process boundary.",
+      "status": "in_progress",
+      "tags": ["language", "kernel", "interpreter", "cli", "agents"],
+      "attributes": {
+        "phase": "implementation",
+        "effort": 3,
+        "design_spec": "design-specs/0039-kernel-runner-cli.md",
+        "plan": "plans/active/0039-kernel-runner-cli.md",
+        "acceptance": [
+          "One file or stdin byte stream produces one canonical kernel-run observation",
+          "Returned and suspended observations are distinguished from rejection and inconclusion by exit status",
+          "Invocation and host I/O failures never masquerade as semantic observations",
+          "Bun and Node emit byte-identical stdout",
+          "The command does not import or claim agreement with the bytecode backend"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 5,
+          "testability": 5,
+          "reversibility": 5,
+          "integration_independence": 5,
+          "blast_radius": 2,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source": "work.kernel-runner-cli",
+      "target": "work.agent-facing-kernel-json",
+      "kind": "requires",
+      "summary": "The command consumes the frozen agent-facing kernel bytes without reparsing them.",
+      "attributes": {}
+    },
+    {
+      "source": "work.kernel-runner-cli",
+      "target": "work.kernel-reference-interpreter",
+      "kind": "requires",
+      "summary": "The accepted reference interpreter remains the sole execution authority.",
+      "attributes": {}
+    },
+    {
+      "source": "work.kernel-runner-cli",
+      "target": "component.kernel",
+      "kind": "implements",
+      "summary": "Adds a stateless process adapter around the executable kernel.",
+      "attributes": {}
+    }
+  ]
+}
