@@ -22,19 +22,30 @@ test("phone operator follows the fixed prerequisite graph through ordered contro
   await expect(page.getByText("No time axis.", { exact: false })).toBeVisible();
 
   const workOrder = page.getByRole("list", { name: "Ordered roadmap work nodes" });
+  const projectOrder = page.getByRole("list", { name: "Ordered roadmap projects" });
+  const containmentOrder = page.getByRole("list", {
+    name: "Ordered roadmap containment links",
+  });
   const dependencyOrder = page.getByRole("list", {
     name: "Ordered roadmap dependency links",
   });
+  await expect(projectOrder.getByRole("button").first()).toBeVisible();
   await expect(workOrder.getByRole("button").first()).toBeVisible();
+  await expect(containmentOrder.getByText("milestone contains feature").first()).toBeVisible();
   await expect(dependencyOrder.getByText("prerequisite → dependent").first()).toBeVisible();
   await expect(dependencyOrder.getByText(/is a prerequisite for/).first()).toBeVisible();
   const graph = page.getByLabel("Interactive prerequisite skill tree");
   const graphNodes = page.locator(".react-flow__node");
+  await expect(graph.locator('.react-flow__node[aria-label^="project "]').first()).toBeVisible();
+  await expect(graph.getByText("contains", { exact: true }).first()).toBeVisible();
   await expect(graphNodes.first()).not.toHaveAttribute("tabindex");
   await expect(page.locator(".react-flow__edge").first()).not.toHaveAttribute("tabindex");
 
   await graph.scrollIntoViewIfNeeded();
-  const visibleNodeIndex = await graphNodes.evaluateAll((nodes) =>
+  const graphWorkNodes = graph.locator(
+    '.react-flow__node[aria-label^="milestone "], .react-flow__node[aria-label^="feature "]',
+  );
+  const visibleNodeIndex = await graphWorkNodes.evaluateAll((nodes) =>
     nodes.findIndex((node) => {
       const nodeBounds = node.getBoundingClientRect();
       const graphBounds = node.closest(".react-flow")?.getBoundingClientRect();
@@ -50,7 +61,7 @@ test("phone operator follows the fixed prerequisite graph through ordered contro
     }),
   );
   expect(visibleNodeIndex).toBeGreaterThanOrEqual(0);
-  await graphNodes.nth(visibleNodeIndex).click();
+  await graphWorkNodes.nth(visibleNodeIndex).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
   await page.keyboard.press("Escape");

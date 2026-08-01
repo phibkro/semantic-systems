@@ -1,17 +1,17 @@
-# Active plan 0021: PBK Technologies portfolio Control Room
+# Completed plan 0021: PBK Technologies portfolio Control Room
 
 Canonical frozen contract:
 [`design-specs/0021-pbk-portfolio-control-room.md`](../../design-specs/0021-pbk-portfolio-control-room.md).
 This execution record cannot redefine that contract.
 
-Status: contract frozen; implementation intentionally absent
+Status: complete; implementation integrated and locally accepted
 
 Owner: primary Semantic Systems and PBK Technologies portfolio lead
 
 ## Dependencies
 
 - accepted Control Room 0017 integration `26a7625ad4fdd5538efdbec3f28eaa7e0885c38a`;
-- current corrected Semantic primary `4b520e9`;
+- accepted Semantic main through `6eebc5af39ecee47bacb60660a711ae872ef720d`;
 - accepted public snapshot freshness and content-custody boundary;
 - operator naming of PBK Technologies; and
 - operator choice of dependency-first Roadmap over calendar-first Gantt; and
@@ -22,7 +22,7 @@ No provider or external mutation is authorized by this plan.
 ## Owned paths
 
 - `design-specs/0021-pbk-portfolio-control-room.md`
-- `plans/active/0021-pbk-portfolio-control-room.md`
+- `plans/completed/0021-pbk-portfolio-control-room.md`
 - `model/work/pbk-portfolio-control-room.json`
 - generated project-model projections
 - `portfolio/**`
@@ -42,9 +42,10 @@ roadmap fields; and browser mutation authority.
   deployment pipeline instead of creating a second dashboard stack.
 - Reuse the project model's strict decoder and immutable projection techniques,
   but keep portfolio and project authority distinct.
-- Implement one bounded dependency layout directly before evaluating a graph
-  library. Record a deferred library choice only if the direct layout becomes
-  costly to own.
+- Reuse Effect v4's maintained `Graph` module behind the stable-ID portfolio
+  adapter and `@xyflow/react` for the accessible visual graph. PBK owns typed
+  relation meaning, bounds, projections, and deterministic public identities;
+  it does not own generic graph storage or canvas interaction machinery.
 - Use TypeScript 7, Bun, Effect v4, Oxfmt, Oxlint, React, and existing
   Playwright. Do not commit Python or shell programs.
 - Treat project heads and preview links as exact observations, not live truth.
@@ -57,23 +58,24 @@ roadmap fields; and browser mutation authority.
 
 ## Execution sequence
 
-1. Commit this frozen contract, active plan, canonical work item, and
-   intentionally red acceptance.
-2. Author bounded row-oriented PBK portfolio records with exact observed
-   project heads and assemble one canonical snapshot.
-3. Implement strict decoding, bounded label normalization, typed metadata
-   predicates, history compatibility, and immutable projections.
-4. Add exhaustive small-universe tests against the course-platform label laws.
-5. Implement saved view specifications and list, grid, graph, DAG, and
-   semantic-zoom Mosaic projection interpreters over one selected identity set.
-6. Add shared Overview, Board, Features, Roadmap, History, and Detail views.
-7. Add deterministic dependency layout and accessible phone fallback.
-8. Add cross-view, priority, dependency, history, hostile-text, and mobile
-   counterexamples.
-9. Run exact 0021 acceptance and full integration.
-10. Commission independent review and correct every required finding.
-11. Integrate the accepted head and deploy only through the existing separately
-    authorized Control Room workflow.
+1. [x] Commit the frozen contract, plan, canonical work item, and acceptance.
+2. [x] Author bounded row-oriented PBK portfolio records and assemble one
+       canonical content-addressed snapshot.
+3. [x] Implement strict decoding, bounded label normalization, typed metadata
+       predicates, history compatibility, and immutable projections.
+4. [x] Add exhaustive small-universe tests against the course-platform label
+       laws.
+5. [x] Implement saved views and list, grid, graph, DAG, and semantic-zoom
+       Mosaic projections over one selected identity set.
+6. [x] Add shared Overview, Board, Features, Roadmap, History, and Detail views.
+7. [x] Add deterministic dependency layout and an accessible phone fallback.
+8. [x] Add cross-view, priority, dependency, history, hostile-text, Axe, and
+       mobile counterexamples.
+9. [x] Run exact 0021 acceptance and full integration on the reconciled head.
+10. [x] Receive independent review through the integrated implementation and
+        interactive-roadmap pull requests.
+11. [x] Integrate accepted product heads. Public deployment remains a separate
+        provider effect and is not inferred from build or workflow success.
 
 ## Acceptance command
 
@@ -106,3 +108,28 @@ then fail on the first absent implementation artifact,
   authority while exposing progressively richer metadata.
 - 2026-07-31: no implementation, adjacent-repository write, provider action,
   deployment, or public cutover occurred during contract freeze.
+- 2026-07-31: portfolio rows, strict decoding, label laws, typed queries,
+  immutable projections, all five product views, browser journeys, and the
+  content-addressed public snapshot integrated through PBK portfolio PR #7 at
+  `ee9423a`.
+- 2026-07-31: the accessible XYFlow skill tree, ordered fallback, shared detail
+  state, and Mosaic focus behavior integrated through Control Room PR #13 at
+  `27ef5b1`.
+- 2026-08-01: generic multigraph storage and traversal moved behind a narrow
+  stable-ID adapter to Effect v4's maintained `Graph` module at `e6489be`,
+  retaining the frozen public snapshot and cross-view identity laws.
+- 2026-08-01: reconciliation review found that the default graph projected
+  only work nodes and prerequisite edges even though the model already derived
+  projects and containment. The accepted correction reuses XYFlow to render
+  project membership, milestone-to-feature containment, and prerequisite
+  families distinctly; the ordered phone path exposes the same projects, work
+  identities, containment links, and exact detail controls.
+- 2026-08-01: the feature-specific stages of exact acceptance on main proved
+  15 portfolio-model tests, 74 Control Room component/tooling tests, and 9
+  mobile Chromium journeys, including Axe, offline shell, atomic snapshot
+  activation, Roadmap, Mosaic, and detail navigation. The repository-wide gate
+  is rerun on the reconciled completion head before publication.
+- 2026-08-01: the immutable main static artifact for `6eebc5a` built
+  successfully. The trusted provider workflow did not establish deployment:
+  Cloudflare rejected the configured credential as unauthorized, so no served
+  snapshot or public-cutover claim is recorded.

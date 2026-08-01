@@ -7,10 +7,11 @@ import { beforeAll, describe, expect, test } from "vitest";
 import { loadPortfolio, type PortfolioDocument } from "../../../../../src/portfolio-model/index.ts";
 import Portfolio from "../../Portfolio.tsx";
 import type { PortfolioState } from "../../portfolio-snapshot.ts";
-import type { RoadmapModel } from "../../roadmap-model.ts";
-import { relatedRoadmapIdentities } from "./RoadmapGraph.tsx";
+import { deriveRoadmapModel, type RoadmapModel } from "../../roadmap-model.ts";
+import { relatedRoadmapIdentities, roadmapGraphElements } from "./RoadmapGraph.tsx";
 
 let document: PortfolioDocument;
+let model: RoadmapModel;
 
 beforeAll(async () => {
   document = await Effect.runPromise(
@@ -18,6 +19,7 @@ beforeAll(async () => {
       Effect.provide([NodeFileSystem.layer, NodePath.layer]),
     ),
   );
+  model = Effect.runSync(deriveRoadmapModel(document));
 });
 
 const currentPortfolio = (candidate = document): PortfolioState => ({
@@ -63,6 +65,46 @@ describe("interactive roadmap projections", () => {
     await user.click(screen.getByRole("tab", { name: /Roadmap/ }));
 
     expect(await screen.findByLabelText("Interactive prerequisite skill tree")).toBeVisible();
+    const graph = screen.getByLabelText("Interactive prerequisite skill tree");
+    const orderedProjects = screen.getByRole("list", { name: "Ordered roadmap projects" });
+    const firstProjectName = within(orderedProjects).getAllByRole("button")[0]!.textContent!;
+    const firstProject = model.projects.find(({ name }) => name === firstProjectName)!;
+    expect(
+      within(graph).getByLabelText(
+        `project ${firstProjectName}; ${firstProject.identity_ids.length} roadmap identities`,
+      ),
+    ).toBeInTheDocument();
+    const visual = roadmapGraphElements(document, model, null);
+    expect(
+      visual.nodes.filter(({ id }) => id.startsWith("roadmap-project:")).map(({ id }) => id),
+    ).toEqual(model.projects.map(({ project_id }) => `roadmap-project:${project_id}`));
+    expect(visual.nodes.some(({ ariaLabel }) => ariaLabel?.startsWith("milestone "))).toBe(true);
+    expect(visual.nodes.some(({ ariaLabel }) => ariaLabel?.startsWith("feature "))).toBe(true);
+    expect(visual.edges.filter(({ label }) => label === "contains").map(({ id }) => id)).toEqual(
+      model.containment_edges.map(({ id }) => id),
+    );
+    expect(new Set(visual.edges.map(({ label }) => label))).toEqual(
+      new Set(["membership", "contains", "unlocks"]),
+    );
+    const authoredDependency = model.dependency_edges[0]!;
+    const visualDependency = visual.edges.find(({ id }) => id === authoredDependency.id)!;
+    expect({
+      source: visualDependency.source,
+      target: visualDependency.target,
+      label: visualDependency.label,
+      ariaLabel: visualDependency.ariaLabel,
+      data: visualDependency.data,
+    }).toEqual({
+      source: authoredDependency.prerequisite_id,
+      target: authoredDependency.dependent_id,
+      label: "unlocks",
+      ariaLabel: `${document.work.find(({ id }) => id === authoredDependency.prerequisite_id)!.title} unlocks ${document.work.find(({ id }) => id === authoredDependency.dependent_id)!.title}`,
+      data: {
+        authored_relation: "requires",
+        prerequisite_id: authoredDependency.prerequisite_id,
+        dependent_id: authoredDependency.dependent_id,
+      },
+    });
     const orderedNodes = await screen.findByRole("list", { name: "Ordered roadmap work nodes" });
     expect(within(orderedNodes).getAllByRole("button")).toHaveLength(document.work.length);
     const dependencies = screen.getByRole("list", {
@@ -70,6 +112,24 @@ describe("interactive roadmap projections", () => {
     });
     expect(within(dependencies).getAllByText("prerequisite → dependent").length).toBeGreaterThan(0);
     expect(within(dependencies).getAllByText(/is a prerequisite for/).length).toBeGreaterThan(0);
+    const containment = screen.getByRole("list", {
+      name: "Ordered roadmap containment links",
+    });
+    const containmentCount = within(containment).getAllByText("milestone contains feature").length;
+    expect(containmentCount).toBeGreaterThan(0);
+    expect(within(containment).getAllByText(/ contains /)).toHaveLength(containmentCount);
+    expect(
+      visual.edges
+        .filter(({ label }) => label === "contains")
+        .every(({ ariaLabel }) => ariaLabel?.startsWith("Containment:")),
+    ).toBe(true);
+
+    const firstContainedWork = within(containment).getAllByRole("button")[1]!;
+    await user.click(firstContainedWork);
+    expect(screen.getByRole("dialog")).toContainElement(
+      screen.getByRole("heading", { name: firstContainedWork.textContent ?? "" }),
+    );
+    await user.keyboard("{Escape}");
 
     const firstWork = within(orderedNodes).getAllByRole("button")[0]!;
     await user.click(firstWork);
@@ -79,7 +139,7 @@ describe("interactive roadmap projections", () => {
   });
 
   test("highlights ancestors and descendants without leaking through a shared prerequisite", () => {
-    const model = {
+    const branchModel = {
       nodes: [
         roadmapNode("root", [], ["left", "right"]),
         roadmapNode("left", ["root"], []),
@@ -87,7 +147,7 @@ describe("interactive roadmap projections", () => {
       ],
     };
 
-    expect([...relatedRoadmapIdentities(model, "left")].sort()).toEqual(["left", "root"]);
+    expect([...relatedRoadmapIdentities(branchModel, "left")].sort()).toEqual(["left", "root"]);
   });
 
   test("keeps the portfolio usable when a typed roadmap projection is rejected", async () => {

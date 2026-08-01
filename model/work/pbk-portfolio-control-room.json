@@ -5,13 +5,13 @@
       "kind": "work_item",
       "name": "Build PBK Technologies portfolio Control Room",
       "summary": "Project one bounded, queryable portfolio model as Overview, Board, Features, dependency-first Roadmap, and persistent History with clickable evidence and product snapshots.",
-      "status": "in_progress",
+      "status": "complete",
       "tags": ["pbk-technologies", "control-room", "portfolio", "roadmap", "query-algebra", "pwa"],
       "attributes": {
-        "phase": "implementation",
+        "phase": "validation",
         "effort": 13,
         "design_spec": "design-specs/0021-pbk-portfolio-control-room.md",
-        "plan": "plans/active/0021-pbk-portfolio-control-room.md",
+        "plan": "plans/completed/0021-pbk-portfolio-control-room.md",
         "acceptance": [
           "All views derive from one strict portfolio document",
           "Roadmap visualizes dependencies without deadlines or a time axis",

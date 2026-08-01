@@ -241,6 +241,14 @@ describe("Alchemy workflow safety", () => {
       "utf8",
     );
     expect(acceptance).toContain('["nix", "develop", "--command", "just", "check"]');
+    const portfolioAcceptance = readFileSync(
+      path.join(root, "scripts/accept/0021-pbk-portfolio-control-room.ts"),
+      "utf8",
+    );
+    expect(portfolioAcceptance).toContain(
+      '["bun", "scripts/accept/0017-control-room-reconstruction.ts"]',
+    );
+    expect(portfolioAcceptance).not.toContain('["just", "check"]');
     const check = readFileSync(path.join(root, "scripts/check.ts"), "utf8");
     expect(check).not.toContain("run-feature-acceptance");
     expect(check).not.toContain("0017-control-room-reconstruction");

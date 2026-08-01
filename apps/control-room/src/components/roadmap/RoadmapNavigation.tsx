@@ -39,7 +39,7 @@ export const RoadmapNavigation = ({
           Keyboard and assistive-technology path through the same dependency observation.
         </p>
       </CardHeader>
-      <CardContent className="grid gap-5 lg:grid-cols-3">
+      <CardContent className="grid gap-5 lg:grid-cols-2 2xl:grid-cols-4">
         <section aria-labelledby="roadmap-project-order-heading">
           <h2 className="mb-2 font-heading font-semibold" id="roadmap-project-order-heading">
             Project membership
@@ -82,6 +82,35 @@ export const RoadmapNavigation = ({
                 </li>
               );
             })}
+          </ol>
+        </section>
+        <section aria-labelledby="roadmap-containment-order-heading">
+          <h2 className="mb-2 font-heading font-semibold" id="roadmap-containment-order-heading">
+            Containment links
+          </h2>
+          <ol className="grid gap-2" aria-label="Ordered roadmap containment links">
+            {model.containment_edges.map((containment) => (
+              <li className="grid gap-1 rounded-lg border p-3" key={containment.id}>
+                <Badge className="w-fit" variant="secondary">
+                  milestone contains feature
+                </Badge>
+                <span className="text-sm">
+                  <Button
+                    variant="link"
+                    onClick={() => onSelect(work.get(containment.container_id)!)}
+                  >
+                    {work.get(containment.container_id)?.title}
+                  </Button>
+                  <span> contains </span>
+                  <Button
+                    variant="link"
+                    onClick={() => onSelect(work.get(containment.contained_id)!)}
+                  >
+                    {work.get(containment.contained_id)?.title}
+                  </Button>
+                </span>
+              </li>
+            ))}
           </ol>
         </section>
         <section aria-labelledby="roadmap-dependency-order-heading">

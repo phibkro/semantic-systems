@@ -45,7 +45,9 @@ export const RoadmapExplorer = ({
           </TabsList>
         </Tabs>
         <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+          <Badge variant="outline">{model.projects.length} projects</Badge>
           <Badge variant="outline">{model.work_identities.length} work nodes</Badge>
+          <Badge variant="outline">{model.containment_edges.length} contains links</Badge>
           <Badge variant="outline">{model.dependency_edges.length} requires links</Badge>
           <span>No time axis. Arrows point from prerequisite to dependent.</span>
         </div>
