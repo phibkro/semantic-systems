@@ -1,5 +1,4 @@
 import {
-  check,
   defaultEvaluationBounds,
   evaluate,
   type ComputationType,
@@ -8,13 +7,14 @@ import {
   type RuntimeValue,
   type ValueType,
 } from "../kernel-calculus/index.ts";
+import { defaultKernelJsonRawBounds, type KernelJsonRawBounds } from "../kernel-json/index.ts";
 import {
-  checkKernelDocument,
-  decodeKernelDocumentBytes,
-  defaultKernelJsonRawBounds,
-  projectKernelProgram,
-  type KernelJsonRawBounds,
-} from "../kernel-json/index.ts";
+  kernelRunEnvelope,
+  narrowBoundedInteger,
+  prepareKernelJsonBytes,
+  readBoundField,
+} from "../kernel-execution/prepare.ts";
+import { Effect } from "effect";
 import { toPortableFact } from "./portable-fact.ts";
 import type {
   KernelRunObservation,
@@ -40,13 +40,7 @@ const freeze = <Value>(value: Value): Value => {
   return Object.freeze(value);
 };
 
-const envelope = (observation: KernelRunObservation["observation"]): KernelRunObservation =>
-  freeze({
-    format: "semantic.kernel-run",
-    version: 1,
-    kernel: "semantic.kernel-calculus/0018/v1",
-    observation,
-  });
+const envelope = kernelRunEnvelope;
 
 const observableValueType = (type: ValueType): ObservableValueType => {
   switch (type.kind) {
@@ -115,84 +109,12 @@ const observableRuntimeValue = (value: RuntimeValue): ObservableRuntimeValue => 
  * never on a second live read of the same property — so a bound backed by a
  * getter cannot answer its validity check and its use inconsistently.
  */
-const isPlainRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
-  typeof value === "object" && value !== null;
-
-/**
- * The single read site for every bound field, at both the outer
- * `bounds.json`/`bounds.evaluation` level and every nested numeric field:
- * a throwing getter or a hostile `Proxy` trap (including a revoked proxy)
- * must not escape as a host error, so a throw here is treated the same as
- * a missing field and resolved to `undefined`, which every caller then
- * narrows to the exact default.
- */
-const boundField = (source: unknown, key: string): unknown => {
-  if (!isPlainRecord(source)) return undefined;
-  try {
-    return source[key];
-  } catch {
-    return undefined;
-  }
-};
-
-const narrowedInteger = (candidate: unknown, defaultValue: number, minimum: 0 | 1): number =>
-  typeof candidate === "number" &&
-  Number.isSafeInteger(candidate) &&
-  candidate >= minimum &&
-  (minimum === 0 || candidate > 0)
-    ? Math.min(candidate, defaultValue)
-    : defaultValue;
-
 const narrowEvaluationBounds = (input: unknown): EvaluationBounds =>
   freeze({
-    fuel: narrowedInteger(boundField(input, "fuel"), defaultEvaluationBounds.fuel, 0),
-    maximumTraceEntries: narrowedInteger(
-      boundField(input, "maximumTraceEntries"),
+    fuel: narrowBoundedInteger(readBoundField(input, "fuel"), defaultEvaluationBounds.fuel, 0),
+    maximumTraceEntries: narrowBoundedInteger(
+      readBoundField(input, "maximumTraceEntries"),
       defaultEvaluationBounds.maximumTraceEntries,
-      1,
-    ),
-  });
-
-const narrowJsonBounds = (input: unknown): KernelJsonRawBounds =>
-  freeze({
-    maximumBytes: narrowedInteger(
-      boundField(input, "maximumBytes"),
-      defaultKernelJsonRawBounds.maximumBytes,
-      1,
-    ),
-    maximumDepth: narrowedInteger(
-      boundField(input, "maximumDepth"),
-      defaultKernelJsonRawBounds.maximumDepth,
-      1,
-    ),
-    maximumNodes: narrowedInteger(
-      boundField(input, "maximumNodes"),
-      defaultKernelJsonRawBounds.maximumNodes,
-      1,
-    ),
-    maximumStringBytes: narrowedInteger(
-      boundField(input, "maximumStringBytes"),
-      defaultKernelJsonRawBounds.maximumStringBytes,
-      1,
-    ),
-    maximumCollectionLength: narrowedInteger(
-      boundField(input, "maximumCollectionLength"),
-      defaultKernelJsonRawBounds.maximumCollectionLength,
-      1,
-    ),
-    maximumOperations: narrowedInteger(
-      boundField(input, "maximumOperations"),
-      defaultKernelJsonRawBounds.maximumOperations,
-      1,
-    ),
-    maximumOperationClauses: narrowedInteger(
-      boundField(input, "maximumOperationClauses"),
-      defaultKernelJsonRawBounds.maximumOperationClauses,
-      1,
-    ),
-    maximumEffectLabels: narrowedInteger(
-      boundField(input, "maximumEffectLabels"),
-      defaultKernelJsonRawBounds.maximumEffectLabels,
       1,
     ),
   });
@@ -243,42 +165,12 @@ export const interpretKernelJsonBytes = (
   input: unknown,
   bounds: KernelInterpreterBounds = defaultKernelInterpreterBounds,
 ): KernelRunObservation => {
-  const jsonBounds = narrowJsonBounds(boundField(bounds, "json"));
-  const evaluationBounds = narrowEvaluationBounds(boundField(bounds, "evaluation"));
-  const decoded = decodeKernelDocumentBytes(input, jsonBounds);
-  if (decoded.status === "rejected") {
-    return envelope({ tag: "representation-rejected", diagnostics: decoded.diagnostics });
-  }
-
-  const checkObservation = checkKernelDocument(decoded.value);
-  if (checkObservation.observation.tag === "rejected") {
-    return envelope({
-      tag: "check-rejected",
-      check: { ...checkObservation, observation: checkObservation.observation },
-    });
-  }
-
-  const projected = projectKernelProgram(decoded.value);
-  if (projected.status === "rejected") {
-    return envelope({
-      tag: "runtime-rejected",
-      diagnostic: {
-        code: "interpreter.check-projection-disagreement",
-        occurrence_path: "/program",
-        message: "accepted check observation disagreed with the kernel projection",
-      },
-    });
-  }
-  const checked = check(projected.value.signature, projected.value.term);
-  if (checked.status === "rejected") {
-    return envelope({
-      tag: "runtime-rejected",
-      diagnostic: {
-        code: "interpreter.check-custody-disagreement",
-        occurrence_path: "/program",
-        message: "accepted check observation disagreed with checked-program custody",
-      },
-    });
-  }
-  return projectEvaluation(evaluate(checked.program, evaluationBounds));
+  const jsonBounds = readBoundField(bounds, "json");
+  const evaluationBounds = narrowEvaluationBounds(readBoundField(bounds, "evaluation"));
+  return Effect.runSync(
+    Effect.match(prepareKernelJsonBytes(input, jsonBounds), {
+      onFailure: (failure) => failure.observation,
+      onSuccess: (checked) => projectEvaluation(evaluate(checked.program, evaluationBounds)),
+    }),
+  );
 };

@@ -1,18 +1,24 @@
 import {
-  check,
   decodeComputationTerm,
   decodeOperationSignature,
   type ComputationTerm,
-  type EffectRow,
   type KernelType,
   type OperationSignature,
+} from "../kernel-calculus/ast.ts";
+import {
+  check,
+  type CheckedProgram,
+  type CheckResult,
   type RecordedJudgment,
   type StructuredFact,
-} from "../kernel-calculus/index.ts";
+} from "../kernel-calculus/checker.ts";
+import type { EffectRow } from "../kernel-calculus/effect-row.ts";
 import { compareCodePoints } from "../normalized-core/canonical.ts";
 import { typeStructuralKey } from "./types.ts";
 import type {
+  CheckAccepted,
   CheckDiagnostic,
+  CheckRejected,
   ComputationJudgment,
   DiagnosticFact,
   Judgment,
@@ -50,6 +56,21 @@ export type ProjectionResult =
   | {
       readonly status: "rejected";
       readonly diagnostics: ReadonlyArray<KernelJsonProjectionDiagnostic>;
+    };
+
+export type KernelDocumentCheckResult =
+  | {
+      readonly status: "accepted";
+      readonly observation: Omit<KernelCheckObservation, "observation"> & {
+        readonly observation: CheckAccepted;
+      };
+      readonly program: CheckedProgram;
+    }
+  | {
+      readonly status: "rejected";
+      readonly observation: Omit<KernelCheckObservation, "observation"> & {
+        readonly observation: CheckRejected;
+      };
     };
 
 // ---------------------------------------------------------------------------
@@ -484,7 +505,9 @@ const translateDiagnostic = (
     : { actual: translateFact(diagnostic.structuredActual, interner) }),
 });
 
-const emptyObservation = (diagnostic: CheckDiagnostic): KernelCheckObservation =>
+const emptyObservation = (
+  diagnostic: CheckDiagnostic,
+): Omit<KernelCheckObservation, "observation"> & { readonly observation: CheckRejected } =>
   freeze({
     format: "semantic.kernel-check",
     version: 1,
@@ -499,20 +522,27 @@ const emptyObservation = (diagnostic: CheckDiagnostic): KernelCheckObservation =
  * premise, or origin fact: every judgment field is a direct translation of
  * what the authoritative checker already recorded.
  */
-export const checkKernelDocument = (document: KernelDocument): KernelCheckObservation => {
+export const checkKernelDocumentWithCustody = (
+  document: KernelDocument,
+): KernelDocumentCheckResult => {
   const projected = projectKernelProgram(document);
   if (projected.status === "rejected") {
     const first = projected.diagnostics[0];
-    return emptyObservation({
-      code: "checker.invalid-input",
-      rule: "checker.boundary",
-      occurrence_path: "/program",
-      message: first?.message ?? "kernel document could not be projected to the 0018 checker",
+    return freeze({
+      status: "rejected",
+      observation: emptyObservation({
+        code: "checker.invalid-input",
+        rule: "checker.boundary",
+        occurrence_path: "/program",
+        message: first?.message ?? "kernel document could not be projected to the 0018 checker",
+      }),
     });
   }
 
-  const result = check(projected.value.signature, projected.value.term);
+  return observeCheckedKernelDocument(check(projected.value.signature, projected.value.term));
+};
 
+const observeCheckedKernelDocument = (result: CheckResult): KernelDocumentCheckResult => {
   if (result.status === "rejected") {
     const diagnostic = result.diagnostics[0]!;
     const labels = new Set<string>();
@@ -524,14 +554,17 @@ export const checkKernelDocument = (document: KernelDocument): KernelCheckObserv
     const interner = new Interner(sortedLabels);
     const translated = translateDiagnostic(diagnostic, interner);
     return freeze({
-      format: "semantic.kernel-check",
-      version: 1,
-      kernel: "semantic.kernel-calculus/0018/v1",
+      status: "rejected",
       observation: {
-        tag: "rejected",
-        labels: sortedLabels,
-        types: interner.typeTable,
-        diagnostics: [translated],
+        format: "semantic.kernel-check",
+        version: 1,
+        kernel: "semantic.kernel-calculus/0018/v1",
+        observation: {
+          tag: "rejected",
+          labels: sortedLabels,
+          types: interner.typeTable,
+          diagnostics: [translated],
+        },
       },
     });
   }
@@ -561,15 +594,22 @@ export const checkKernelDocument = (document: KernelDocument): KernelCheckObserv
   }
 
   return freeze({
-    format: "semantic.kernel-check",
-    version: 1,
-    kernel: "semantic.kernel-calculus/0018/v1",
+    status: "accepted",
+    program: result.program,
     observation: {
-      tag: "accepted",
-      labels: sortedLabels,
-      types: interner.typeTable,
-      inferred: { type: root.computation_type, effects: root.effects, usage: root.usage },
-      judgments: translatedJudgments,
+      format: "semantic.kernel-check",
+      version: 1,
+      kernel: "semantic.kernel-calculus/0018/v1",
+      observation: {
+        tag: "accepted",
+        labels: sortedLabels,
+        types: interner.typeTable,
+        inferred: { type: root.computation_type, effects: root.effects, usage: root.usage },
+        judgments: translatedJudgments,
+      },
     },
   });
 };
+
+export const checkKernelDocument = (document: KernelDocument): KernelCheckObservation =>
+  checkKernelDocumentWithCustody(document).observation;

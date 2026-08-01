@@ -4,6 +4,8 @@ import {
   checkKernelDocument,
   decodeKernelDocumentValue,
 } from "../src/kernel-json/index.ts";
+import { isCheckedProgram } from "../src/kernel-calculus/checker.ts";
+import { checkKernelDocumentWithCustody } from "../src/kernel-json/observe.ts";
 
 const readGoldenJson = async (name: string): Promise<unknown> =>
   Bun.file(new URL(`../examples/kernel-json/${name}`, import.meta.url)).json();
@@ -22,6 +24,19 @@ const checkGolden = async (documentFile: string, observationFile: string) => {
 };
 
 describe("checkKernelDocument reproduces the frozen golden observations", () => {
+  test("one check invocation returns the exact observation with genuine custody", async () => {
+    const decoded = decodeKernelDocumentValue(await readGoldenJson("pure-program.kernel.json"));
+    expect(decoded.status).toBe("decoded");
+    if (decoded.status !== "decoded") return;
+    const checked = checkKernelDocumentWithCustody(decoded.value);
+    expect(checked.status).toBe("accepted");
+    if (checked.status !== "accepted") return;
+    expect(isCheckedProgram(checked.program)).toBe(true);
+    expect(canonicalKernelCheckObservationJson(checked.observation)).toBe(
+      canonicalKernelCheckObservationJson(checkKernelDocument(decoded.value)),
+    );
+  });
+
   test("pure let program: accepted, byte-exact", async () => {
     await checkGolden("pure-program.kernel.json", "pure-program.accepted.kernel-check.json");
   });
