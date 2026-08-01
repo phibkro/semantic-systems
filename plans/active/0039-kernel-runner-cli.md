@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0039-kernel-runner-cli.md`](../../design-specs/0039-kernel-runner-cli.md).
 This execution record cannot redefine that contract.
 
-Status: contract frozen; implementation pending
+Status: implemented on candidate; exact-head review pending
 
 Owner: primary Semantic Systems language lead
 
@@ -62,3 +62,11 @@ just accept 0039-kernel-runner-cli
 - 2026-08-01: pre-implementation review removed an impossible atomic-output
   claim. Usage and input-read failures precede stdout; a host output failure may
   have accepted a non-semantic prefix and remains an explicit exit-2 condition.
+- 2026-08-01: the command now reads one bounded file/stdin prefix through an
+  injected Effect capability, invokes only the reference interpreter, emits the
+  existing canonical observation, and shares one core under Bun and Node.
+- 2026-08-01: working-tree acceptance passed 11 focused Bun journeys, 3 genuine
+  Node cross-runtime journeys, 55 inherited kernel journeys, the complete
+  826-pass repository suite with one intentional oracle skip, 19,982
+  assertions, and 68 Python parity checks. Exact clean-head replay remains
+  mandatory before review.
