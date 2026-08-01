@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0039-kernel-runner-cli.md`](../../design-specs/0039-kernel-runner-cli.md).
 This execution record cannot redefine that contract.
 
-Status: implemented on candidate; exact-head review pending
+Status: accepted on candidate; integration pending
 
 Owner: primary Semantic Systems language lead
 
@@ -77,3 +77,9 @@ just accept 0039-kernel-runner-cli
   genuine Bun/Node process journey pins the corrected behavior. The spec also
   clarifies that over-limit stdin is cut at one excess byte and rejected by the
   representation authority rather than classified as host I/O failure.
+- 2026-08-01: exact corrected head `219e6e3` passed 827 repository tests with
+  one intentional oracle skip, 19,982 assertions, 68 Python parity checks, and
+  all TypeScript 7 Effect, Oxlint, Oxfmt, model, and generated-view gates.
+- 2026-08-01: Fable 5 high independently confirmed `219e6e3`, reproduced the
+  closed-output and over-limit/unbounded-stdin journeys on Bun and Node, found
+  no new race or contract drift, and returned `VERDICT: APPROVE`.
