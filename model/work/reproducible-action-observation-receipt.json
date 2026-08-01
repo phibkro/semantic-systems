@@ -1,0 +1,50 @@
+{
+  "entities": [
+    {
+      "id": "work.reproducible-action-observation-receipt",
+      "kind": "work_item",
+      "name": "Execute a reproducible closure action and record its observation",
+      "summary": "Interpret one finite host-neutral action over an accepted runtime closure while keeping recipe, declared environment, execution, observation, and deployment claims distinct.",
+      "status": "complete",
+      "tags": ["language", "build", "action", "content-addressed", "effect"],
+      "attributes": {
+        "phase": "implementation",
+        "effort": 5,
+        "design_spec": "design-specs/0035-reproducible-action-observation-receipt.md",
+        "plan": "plans/active/0035-reproducible-action-observation-receipt.md",
+        "acceptance": [
+          "Every action consumes an exactly revalidated 0033 runtime closure",
+          "Recipe, declared environment, execution, receipt, and closure identities remain distinct",
+          "A closed finite reference interpreter emits deterministic canonical observations",
+          "Deployment remains explicitly not observed",
+          "Malformed, capability-inadequate, forged, and over-limit inputs return typed failures"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 5,
+          "testability": 5,
+          "reversibility": 5,
+          "integration_independence": 4,
+          "blast_radius": 3,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source": "work.reproducible-action-observation-receipt",
+      "target": "work.semantic-runtime-closure-manifest",
+      "kind": "requires",
+      "summary": "Every observation is derived over one exactly revalidated 0033 closure identity.",
+      "attributes": {}
+    },
+    {
+      "source": "work.reproducible-action-observation-receipt",
+      "target": "component.runtime",
+      "kind": "informs",
+      "summary": "The finite reference interpreter establishes an action/observation contract without claiming host execution or deployment.",
+      "attributes": {}
+    }
+  ]
+}

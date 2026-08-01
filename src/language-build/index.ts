@@ -62,6 +62,33 @@ export {
   runtimeClosureProcedureIdentity,
   validateRuntimeClosureBytes,
 } from "./runtime-closure.ts";
+export {
+  executeReproducibleAction,
+  ReproducibleActionCapabilityRejected,
+  ReproducibleActionCapabilitySchema,
+  ReproducibleActionDigestFailure,
+  ReproducibleActionEnvironmentRejected,
+  ReproducibleActionEnvironmentSchema,
+  reproducibleActionBounds,
+  reproducibleActionIdentityDomains,
+  ReproducibleActionObservationSchema,
+  reproducibleActionProcedureIdentity,
+  ReproducibleActionReceiptRejected,
+  ReproducibleActionReceiptSchema,
+  ReproducibleActionRecipeRejected,
+  ReproducibleActionRecipeSchema,
+  validateReproducibleActionReceiptBytes,
+} from "./reproducible-action.ts";
+export type {
+  ReproducibleActionArtifact,
+  ReproducibleActionBuildFailure,
+  ReproducibleActionCapability,
+  ReproducibleActionEnvironment,
+  ReproducibleActionObservation,
+  ReproducibleActionReceipt,
+  ReproducibleActionRecipe,
+  ReproducibleActionValidationFailure,
+} from "./reproducible-action.ts";
 export type {
   RuntimeArtifactSelection,
   RuntimeArtifactSelectionMember,
