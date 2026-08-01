@@ -12,7 +12,6 @@ import {
   compareCodePoints,
   hasUnicodeScalarsOnly,
   scanJson,
-  trustedUint8ArrayCopy,
   type CanonicalJsonValue,
 } from "../normalized-core/canonical.ts";
 import { PROJECT_DOCUMENT_SCHEMA_ID } from "./loader.ts";
@@ -213,6 +212,96 @@ const toHex = (bytes: Uint8Array): string => {
   return output;
 };
 
+const typedArrayPrototype = Object.getPrototypeOf(Uint8Array.prototype) as object;
+const typedArrayTag = Object.getOwnPropertyDescriptor(typedArrayPrototype, Symbol.toStringTag)?.get;
+const typedArrayLength = Object.getOwnPropertyDescriptor(typedArrayPrototype, "byteLength")?.get;
+
+const snapshotExportBytes = (
+  input: unknown,
+): Effect.Effect<Uint8Array, RelationalFactExportRejected> =>
+  Effect.gen(function* () {
+    const observation = yield* Effect.try({
+      try: () => {
+        const genuine =
+          typedArrayTag !== undefined &&
+          typedArrayLength !== undefined &&
+          typedArrayTag.call(input) === "Uint8Array";
+        return {
+          genuine,
+          length: genuine ? (typedArrayLength!.call(input) as number) : undefined,
+        };
+      },
+      catch: (cause) =>
+        new RelationalFactExportRejected({
+          reason: `export bytes could not be inspected: ${String(cause)}`,
+        }),
+    });
+    const length = observation.length;
+    if (!observation.genuine || length === undefined) {
+      return yield* new RelationalFactExportRejected({
+        reason: "export input must be a Uint8Array",
+      });
+    }
+    if (length > relationalFactBounds.maximumBytes) {
+      return yield* new RelationalFactExportRejected({
+        reason: `export exceeds ${relationalFactBounds.maximumBytes} bytes`,
+      });
+    }
+    return yield* Effect.try({
+      try: () => {
+        const output = new Uint8Array(length);
+        Uint8Array.prototype.set.call(output, input as Uint8Array);
+        return output;
+      },
+      catch: (cause) =>
+        new RelationalFactExportRejected({
+          reason: `export bytes could not be captured: ${String(cause)}`,
+        }),
+    });
+  });
+
+const snapshotSha256Digest = (
+  input: unknown,
+): Effect.Effect<Uint8Array, RelationalFactDigestFailure> =>
+  Effect.gen(function* () {
+    const observation = yield* Effect.try({
+      try: () => {
+        const genuine =
+          typedArrayTag !== undefined &&
+          typedArrayLength !== undefined &&
+          typedArrayTag.call(input) === "Uint8Array";
+        return {
+          genuine,
+          length: genuine ? (typedArrayLength!.call(input) as number) : undefined,
+        };
+      },
+      catch: (cause) =>
+        new RelationalFactDigestFailure({
+          message: "cannot inspect relational fact SHA-256 digest observation",
+          cause,
+        }),
+    });
+    const length = observation.length;
+    if (!observation.genuine || length !== 32) {
+      return yield* new RelationalFactDigestFailure({
+        message: "invalid relational fact SHA-256 digest observation",
+        cause: { expected_bytes: 32, actual_bytes: length },
+      });
+    }
+    return yield* Effect.try({
+      try: () => {
+        const output = new Uint8Array(32);
+        Uint8Array.prototype.set.call(output, input as Uint8Array);
+        return output;
+      },
+      catch: (cause) =>
+        new RelationalFactDigestFailure({
+          message: "cannot capture relational fact SHA-256 digest observation",
+          cause,
+        }),
+    });
+  });
+
 const asCanonical = (value: RelationalFactExport | Omit<RelationalFactExport, "export_identity">) =>
   value as unknown as CanonicalJsonValue;
 
@@ -259,13 +348,7 @@ const deriveExportIdentity = (
           }),
       ),
     );
-    const bytes = trustedUint8ArrayCopy(digest);
-    if (bytes === undefined || bytes.byteLength !== 32) {
-      return yield* new RelationalFactDigestFailure({
-        message: "invalid relational fact SHA-256 digest length",
-        cause: { expected_bytes: 32, actual_bytes: bytes?.byteLength },
-      });
-    }
+    const bytes = yield* snapshotSha256Digest(digest);
     return `sha256:${toHex(bytes)}`;
   });
 
@@ -471,25 +554,6 @@ export const buildRelationalFactExport = (
     });
   });
 
-const captureExportBytes = (
-  input: unknown,
-): Effect.Effect<Uint8Array, RelationalFactExportRejected> => {
-  const bytes = trustedUint8ArrayCopy(input);
-  if (bytes === undefined) {
-    return Effect.fail(
-      new RelationalFactExportRejected({ reason: "export input must be a Uint8Array" }),
-    );
-  }
-  if (bytes.byteLength > relationalFactBounds.maximumBytes) {
-    return Effect.fail(
-      new RelationalFactExportRejected({
-        reason: `export exceeds ${relationalFactBounds.maximumBytes} bytes`,
-      }),
-    );
-  }
-  return Effect.succeed(bytes);
-};
-
 const decodeExport = (
   bytes: Uint8Array,
 ): Effect.Effect<RelationalFactExport, RelationalFactExportRejected> =>
@@ -625,7 +689,7 @@ export const validateRelationalFactExportBytes = (
   Crypto.Crypto
 > =>
   Effect.gen(function* () {
-    const bytes = yield* captureExportBytes(input);
+    const bytes = yield* snapshotExportBytes(input);
     const decoded = yield* decodeExport(bytes);
     yield* validateFactInvariants(decoded);
     const payload = exportPayload(decoded.facts, decoded.entity_count, decoded.relation_count);

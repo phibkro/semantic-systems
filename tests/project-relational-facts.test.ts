@@ -318,6 +318,37 @@ describe("project relational fact export 0034", () => {
       expect(nonCanonical.failure).toBeInstanceOf(RelationalFactExportRejected);
   });
 
+  test("rejects export byte lookalikes and oversized observations before copying", async () => {
+    let accessorCalls = 0;
+    const lookalike = {
+      get byteLength(): number {
+        accessorCalls += 1;
+        return 0;
+      },
+    };
+    const lookalikeResult = await runCrypto(
+      validateRelationalFactExportBytes(lookalike).pipe(Effect.result),
+    );
+    const overLimitResult = await runCrypto(
+      validateRelationalFactExportBytes(new Uint8Array(relationalFactBounds.maximumBytes + 1)).pipe(
+        Effect.result,
+      ),
+    );
+
+    expect(Result.isFailure(lookalikeResult)).toBeTrue();
+    expect(Result.isFailure(overLimitResult)).toBeTrue();
+    if (Result.isFailure(lookalikeResult)) {
+      expect(lookalikeResult.failure).toBeInstanceOf(RelationalFactExportRejected);
+    }
+    if (
+      Result.isFailure(overLimitResult) &&
+      overLimitResult.failure instanceof RelationalFactExportRejected
+    ) {
+      expect(overLimitResult.failure.reason).toContain("exceeds");
+    }
+    expect(accessorCalls).toBe(0);
+  });
+
   test("preserves invalid digest observations as typed failures", async () => {
     const invalidCrypto = Layer.succeed(
       Crypto.Crypto,
@@ -336,6 +367,29 @@ describe("project relational fact export 0034", () => {
     expect(Result.isFailure(result)).toBeTrue();
     if (Result.isFailure(result))
       expect(result.failure).toBeInstanceOf(RelationalFactDigestFailure);
+  });
+
+  test("rejects oversized digest observations through the typed identity boundary", async () => {
+    const invalidCrypto = Layer.succeed(
+      Crypto.Crypto,
+      Crypto.make({
+        randomBytes: (size) => new Uint8Array(size),
+        digest: () => Effect.succeed(new Uint8Array(33)),
+      }),
+    );
+    const result = await Effect.runPromise(
+      buildRelationalFactExport(tracerGraph()).pipe(
+        Effect.provide([BunPath.layer, invalidCrypto]),
+        Effect.result,
+      ),
+    );
+
+    expect(Result.isFailure(result)).toBeTrue();
+    if (Result.isFailure(result) && result.failure instanceof RelationalFactDigestFailure) {
+      expect(result.failure.message).toContain("invalid relational fact SHA-256");
+    } else {
+      throw new Error("oversized digest must fail with RelationalFactDigestFailure");
+    }
   });
 
   test("matches chain impact depths across generated bounded permutations", async () => {
