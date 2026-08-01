@@ -249,9 +249,9 @@ const observations = {
     smaller_trusted_boundary_after_promotion: false,
   }),
   concurrency: freezeDeep({
-    lawful_userland_model: false,
+    lawful_userland_model: true,
     repeated_ergonomic_demand: true,
-    faithful_surface_elaboration: true,
+    faithful_surface_elaboration: false,
     kernel_obstruction_established: false,
     smaller_trusted_boundary_after_promotion: false,
   }),
@@ -396,7 +396,8 @@ const report = decodeAlgebraFrontierReport({
       observations: observations.concurrency,
       observation_basis: [
         "one-shot spawn, join, yield, and cancellation operations have design prior art",
-        "Semantic Systems has no accepted local structured-concurrency law tracer",
+        "the executable 0047 bounded comparison supplies only a finite structured-concurrency userland law-model candidate",
+        "lawful_userland_model records that bounded candidate, not proof of production semantics, fairness, deadlock freedom, surface elaboration, or kernel resumption storage",
       ],
       decision: classifyPromotion(observations.concurrency),
       operations: ["spawn", "join", "yield", "request_cancel"],
@@ -430,9 +431,9 @@ const report = decodeAlgebraFrontierReport({
         },
       ],
       open_obligations: [
-        "build a bounded structured-concurrency law tracer",
         "specify the shared scope tree for tasks and resources",
         "separate optional actor messaging from the minimal task algebra",
+        "connect the accepted bounded law model to a faithful surface and core elaboration",
         "establish a scheduler representation because 0018 internal resumptions cannot enter data structures",
       ],
     },
@@ -491,7 +492,7 @@ const report = decodeAlgebraFrontierReport({
   unsupported_claims: [
     "the current kernel is sufficient for non-escaping resource regions",
     "the current runtime has correct cancellation and finalization ordering",
-    "the structured-concurrency candidate already has a local executable law model",
+    "the 0047 Effect adapter is equivalent to a production scheduler",
     "the current kernel can store an internal resumption in a scheduler data structure",
     "the STM model proves serializability or progress for arbitrary programs",
     "any candidate requires true multishot continuations",
