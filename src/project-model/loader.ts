@@ -6,6 +6,8 @@ export class ProjectLoadError extends Data.TaggedError("ProjectLoadError")<{
   readonly cause?: unknown;
 }> {}
 
+export const PROJECT_DOCUMENT_SCHEMA_ID = "semantic.project-model/document/v1" as const;
+
 const AttributesSchema = Schema.Record(Schema.String, Schema.Unknown);
 
 const EntityInputSchema = Schema.Struct({
@@ -26,7 +28,7 @@ const RelationInputSchema = Schema.Struct({
   attributes: Schema.optionalKey(AttributesSchema),
 });
 
-const DocumentSchema = Schema.Struct({
+export const ProjectDocumentSchema = Schema.Struct({
   entities: Schema.optionalKey(Schema.Array(EntityInputSchema)),
   relations: Schema.optionalKey(Schema.Array(RelationInputSchema)),
 });
@@ -82,7 +84,7 @@ const readDocument = (source: string) =>
           }),
       ),
     );
-    return yield* Schema.decodeUnknownEffect(DocumentSchema)(input).pipe(
+    return yield* Schema.decodeUnknownEffect(ProjectDocumentSchema)(input).pipe(
       Effect.mapError(
         (cause) =>
           new ProjectLoadError({

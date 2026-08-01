@@ -172,6 +172,7 @@ same bytes but cannot strengthen their authority.
 - maximum entities: 16,384;
 - maximum canonical relations: 65,536;
 - maximum facts: 81,920;
+- maximum projected input text: 4,194,304 UTF-16 code units;
 - maximum export: 16,777,216 UTF-8 bytes;
 - maximum decoded JSON depth: 64;
 - maximum decoded JSON values: 524,288;
