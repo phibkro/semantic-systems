@@ -92,7 +92,7 @@ export const RoadmapNavigation = ({
             {dependencyTargets.map((dependency) => (
               <li className="grid gap-1 rounded-lg border p-3" key={dependency.relation_id}>
                 <Badge className="w-fit" variant="outline">
-                  requires
+                  prerequisite → dependent
                 </Badge>
                 <span className="text-sm">
                   <Button
@@ -101,7 +101,7 @@ export const RoadmapNavigation = ({
                   >
                     {work.get(dependency.prerequisite_id)?.title}
                   </Button>
-                  <span aria-hidden="true"> → </span>
+                  <span> is a prerequisite for </span>
                   <Button
                     variant="link"
                     onClick={() => onSelect(work.get(dependency.dependent_id)!)}

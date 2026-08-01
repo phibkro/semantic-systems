@@ -26,14 +26,39 @@ test("phone operator follows the fixed prerequisite graph through ordered contro
     name: "Ordered roadmap dependency links",
   });
   await expect(workOrder.getByRole("button").first()).toBeVisible();
-  await expect(dependencyOrder.getByText("requires").first()).toBeVisible();
-  await expect(page.locator(".react-flow__node").first()).not.toHaveAttribute("tabindex");
+  await expect(dependencyOrder.getByText("prerequisite → dependent").first()).toBeVisible();
+  await expect(dependencyOrder.getByText(/is a prerequisite for/).first()).toBeVisible();
+  const graph = page.getByLabel("Interactive prerequisite skill tree");
+  const graphNodes = page.locator(".react-flow__node");
+  await expect(graphNodes.first()).not.toHaveAttribute("tabindex");
   await expect(page.locator(".react-flow__edge").first()).not.toHaveAttribute("tabindex");
+
+  await graph.scrollIntoViewIfNeeded();
+  const visibleNodeIndex = await graphNodes.evaluateAll((nodes) =>
+    nodes.findIndex((node) => {
+      const nodeBounds = node.getBoundingClientRect();
+      const graphBounds = node.closest(".react-flow")?.getBoundingClientRect();
+      if (graphBounds === undefined) return false;
+      const centerX = nodeBounds.x + nodeBounds.width / 2;
+      const centerY = nodeBounds.y + nodeBounds.height / 2;
+      return (
+        centerX >= graphBounds.x &&
+        centerX <= graphBounds.right &&
+        centerY >= graphBounds.y &&
+        centerY <= graphBounds.bottom
+      );
+    }),
+  );
+  expect(visibleNodeIndex).toBeGreaterThanOrEqual(0);
+  await graphNodes.nth(visibleNodeIndex).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dialog).not.toBeVisible();
 
   const firstWork = workOrder.getByRole("button").first();
   await firstWork.focus();
   await page.keyboard.press("Enter");
-  const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole("heading", { name: "Definition of done" })).toBeVisible();
   await expect(dialog.getByRole("heading", { name: "Typed relations" })).toBeVisible();

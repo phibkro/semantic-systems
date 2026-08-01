@@ -143,7 +143,7 @@ describe("declared roadmap model", () => {
     }
   });
 
-  test("rejects missing, wrong-presentation, and mismatched saved views as typed failures", async () => {
+  test("rejects missing, wrong-presentation, membership-mismatched, and traversal-mismatched saved views as typed failures", async () => {
     const missing: PortfolioDocument = {
       ...document,
       views: document.views.filter(({ id }) => id !== "view.roadmap"),
@@ -159,8 +159,12 @@ describe("declared roadmap model", () => {
         where: [{ field: "status", operator: "equals", value: "accepted" }],
       },
     }));
+    const traversalMismatched = withView(document, "view.roadmap-mosaic", (view) => ({
+      ...view,
+      traverse: [],
+    }));
 
-    for (const candidate of [missing, wrong, mismatched]) {
+    for (const candidate of [missing, wrong, mismatched, traversalMismatched]) {
       const failure = await Effect.runPromise(deriveRoadmapModel(candidate).pipe(Effect.flip));
       expect(failure).toBeInstanceOf(RoadmapModelFailure);
     }

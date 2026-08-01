@@ -1,11 +1,7 @@
 /** Pure, deterministic roadmap derivation over an already-decoded portfolio value. */
 import { Data, Effect } from "effect";
 import type { PortfolioDocument, WorkDefinition } from "../../../src/portfolio-model/decode.ts";
-import {
-  projectWork,
-  type GraphProjection,
-  type MosaicProjection,
-} from "../../../src/portfolio-model/project.ts";
+import { projectWork, type MosaicProjection } from "../../../src/portfolio-model/project.ts";
 import { queryWork, type QueryDiagnostics } from "../../../src/portfolio-model/query.ts";
 
 const GRAPH_VIEW_ID = "view.roadmap";
@@ -221,6 +217,13 @@ export const deriveRoadmapModel = (
         new RoadmapModelFailure({ message: `${MOSAIC_VIEW_ID} must use mosaic presentation` }),
       );
     }
+    if (!sameIdentities(graphView.traverse, mosaicView.traverse)) {
+      return yield* Effect.fail(
+        new RoadmapModelFailure({
+          message: "roadmap DAG and Mosaic saved views must traverse the same relation kinds",
+        }),
+      );
+    }
 
     const graphSelection = queryWork(document, graphView.query);
     const mosaicProjection = yield* projectWork(document, mosaicView).pipe(
@@ -323,31 +326,6 @@ export const deriveRoadmapModel = (
         );
       }
     }
-    const graphProjection = yield* projectWork(document, graphView).pipe(
-      Effect.mapError(
-        (failure) =>
-          new RoadmapModelFailure({ message: `roadmap projection failed: ${failure.message}` }),
-      ),
-    );
-    if (graphProjection.presentation !== "dag") {
-      return yield* Effect.fail(
-        new RoadmapModelFailure({ message: `${GRAPH_VIEW_ID} did not produce a DAG` }),
-      );
-    }
-    const graph: GraphProjection = graphProjection;
-    if (
-      !sameIdentities(graph.identities, identities) ||
-      !sameIdentities(
-        graph.edges.map(({ id }) => id),
-        selectedRelations.map(({ id }) => id),
-      )
-    ) {
-      return yield* Effect.fail(
-        new RoadmapModelFailure({
-          message: `${GRAPH_VIEW_ID} projection changed during derivation`,
-        }),
-      );
-    }
     const depths = yield* dependencyDepths(identities, dependencyEdges);
     const lanes = new Map<string, number>();
     const byDepth = new Map<number, Array<string>>();
@@ -430,8 +408,8 @@ export const deriveRoadmapModel = (
       projection_sources: {
         graph: {
           view_id: GRAPH_VIEW_ID,
-          identity_ids: sorted(graph.identities),
-          diagnostics: graph.diagnostics,
+          identity_ids: sorted(graphSelection.identities),
+          diagnostics: graphSelection.diagnostics,
         },
         mosaic: {
           view_id: MOSAIC_VIEW_ID,

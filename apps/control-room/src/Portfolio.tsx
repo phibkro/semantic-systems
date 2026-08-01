@@ -565,7 +565,21 @@ const PortfolioBody = ({
   readonly scopeControls?: ReactNode;
 }) => {
   const document = result.snapshot?.document ?? null;
-  const roadmapModel = document === null ? null : Effect.runSync(deriveRoadmapModel(document));
+  const roadmapObservation =
+    document === null
+      ? null
+      : Effect.runSync(
+          deriveRoadmapModel(document).pipe(
+            Effect.match({
+              onFailure: (failure) => ({
+                state: "unavailable" as const,
+                message: failure.message,
+              }),
+              onSuccess: (model) => ({ state: "ready" as const, model }),
+            }),
+          ),
+        );
+  const roadmapModel = roadmapObservation?.state === "ready" ? roadmapObservation.model : null;
   const [ui, send] = useMachine(portfolioUiMachine, {
     input: {
       work: document?.work ?? [],
@@ -633,24 +647,40 @@ const PortfolioBody = ({
                 <Features document={document} onSelect={onSelect} />
               </TabsContent>
               <TabsContent value="roadmap">
-                <RoadmapExplorer
-                  document={document}
-                  model={roadmapModel!}
-                  focusProject={ui.context.focusProject}
-                  focusMilestone={ui.context.focusMilestone}
-                  mode={mode}
-                  selectedId={ui.context.selectedId}
-                  onProjectFocus={(id) =>
-                    send(id === null ? { type: "project.clear" } : { type: "project.focus", id })
-                  }
-                  onMilestoneFocus={(id) =>
-                    send(
-                      id === null ? { type: "milestone.clear" } : { type: "milestone.focus", id },
-                    )
-                  }
-                  onMode={(next) => send({ type: `roadmap.${next}` })}
-                  onSelect={onSelect}
-                />
+                {roadmapModel === null ? (
+                  <output>
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Roadmap unavailable</CardTitle>
+                        <CardDescription>
+                          The portfolio remains available, but its roadmap projection was rejected.
+                        </CardDescription>
+                      </CardHeader>
+                      {roadmapObservation?.state === "unavailable" && (
+                        <CardContent>{roadmapObservation.message}</CardContent>
+                      )}
+                    </Card>
+                  </output>
+                ) : (
+                  <RoadmapExplorer
+                    document={document}
+                    model={roadmapModel}
+                    focusProject={ui.context.focusProject}
+                    focusMilestone={ui.context.focusMilestone}
+                    mode={mode}
+                    selectedId={ui.context.selectedId}
+                    onProjectFocus={(id) =>
+                      send(id === null ? { type: "project.clear" } : { type: "project.focus", id })
+                    }
+                    onMilestoneFocus={(id) =>
+                      send(
+                        id === null ? { type: "milestone.clear" } : { type: "milestone.focus", id },
+                      )
+                    }
+                    onMode={(next) => send({ type: `roadmap.${next}` })}
+                    onSelect={onSelect}
+                  />
+                )}
               </TabsContent>
               <TabsContent value="history">
                 <History document={document} onSelect={onSelect} />

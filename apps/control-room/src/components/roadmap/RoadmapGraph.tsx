@@ -23,20 +23,31 @@ interface RoadmapGraphProps {
   readonly onSelect: (work: WorkDefinition) => void;
 }
 
-const relatedIdentities = (model: RoadmapModel, selectedId: string | null): ReadonlySet<string> => {
+export const relatedRoadmapIdentities = (
+  model: Pick<RoadmapModel, "nodes">,
+  selectedId: string | null,
+): ReadonlySet<string> => {
   if (selectedId === null) return new Set();
   const related = new Set([selectedId]);
-  const pending = [selectedId];
   const byId = new Map(model.nodes.map((node) => [node.id, node]));
-  while (pending.length > 0) {
-    const node = byId.get(pending.pop()!);
-    if (node === undefined) continue;
-    for (const identity of [...node.prerequisite_ids, ...node.unlock_ids]) {
-      if (related.has(identity)) continue;
-      related.add(identity);
-      pending.push(identity);
+
+  const visit = (first: string, direction: "prerequisite_ids" | "unlock_ids"): void => {
+    const visited = new Set([first]);
+    const pending = [first];
+    while (pending.length > 0) {
+      const node = byId.get(pending.pop()!);
+      if (node === undefined) continue;
+      for (const identity of node[direction]) {
+        if (visited.has(identity)) continue;
+        visited.add(identity);
+        related.add(identity);
+        pending.push(identity);
+      }
     }
-  }
+  };
+
+  visit(selectedId, "prerequisite_ids");
+  visit(selectedId, "unlock_ids");
   return related;
 };
 
@@ -58,7 +69,7 @@ const labelFor = (
 export const RoadmapGraph = ({ document, model, selectedId, onSelect }: RoadmapGraphProps) => {
   const projects = new Map(document.projects.map((project) => [project.id, project.name]));
   const work = new Map(document.work.map((item) => [item.id, item]));
-  const related = relatedIdentities(model, selectedId);
+  const related = relatedRoadmapIdentities(model, selectedId);
   const nodes: Array<Node<{ readonly label: ReactNode }>> = model.nodes.map((node) => ({
     id: node.id,
     position: node.position,

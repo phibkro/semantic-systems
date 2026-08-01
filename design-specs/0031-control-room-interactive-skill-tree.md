@@ -69,10 +69,11 @@ deriveRoadmapModel(document: PortfolioDocument)
 
 It requires exactly one saved `view.roadmap` with presentation `dag` and one
 saved `view.roadmap-mosaic` with presentation `mosaic`. Both projections must
-select the same work identities. Every selected relation endpoint must be
-selected. The model preserves each projection's saved-view identity, source
-identity set, and `QueryDiagnostics`; renderers cannot erase exclusions,
-unknown-label observations, or other query provenance.
+select the same work identities and declare the same traversed relation kinds.
+Every selected relation endpoint must be selected. The model preserves each
+projection's saved-view identity, source identity set, and `QueryDiagnostics`;
+renderers cannot erase exclusions, unknown-label observations, or other query
+provenance.
 
 UI commands are finite XState events:
 
