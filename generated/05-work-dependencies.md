@@ -35,6 +35,7 @@ flowchart LR
     work_pbk_portfolio_control_room["Build PBK Technologies portfolio Control Room"]
     work_reachability_analysis_receipt["Derive a declared reachability analysis receipt"]
     work_relational_fact_schema["Define relational fact export"]
+    work_reproducible_action_observation_receipt["Execute a reproducible closure action and record its observation"]
     work_semantic_artifact_store["Establish the semantic artifact store tracer"]
     work_semantic_attestation_profile["Specify semantic attestation profile"]
     work_semantic_runtime_closure_manifest["Assemble a semantic runtime-closure manifest"]
@@ -66,6 +67,7 @@ flowchart LR
     work_wasm_contract_mapping -->|blocks| work_normalized_core_format
     work_deterministic_simulator_spec -->|blocks| work_stm_laws
     work_explorer_query_contract -->|informs| work_relational_fact_schema
+    work_reproducible_action_observation_receipt -->|requires| work_semantic_runtime_closure_manifest
     work_semantic_artifact_store -->|requires| work_normalized_core_format
     work_semantic_runtime_closure_manifest -->|requires| work_reachability_analysis_receipt
     work_semantic_runtime_closure_manifest -->|requires| work_semantic_artifact_store

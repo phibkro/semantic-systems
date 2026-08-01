@@ -34,6 +34,7 @@ Ready parallel work items: **17**.
 | Build PBK Technologies portfolio Control Room | implementation | in_progress | yes | 72 | delegate with review |  |
 | Derive a declared reachability analysis receipt | implementation | complete | no | 87 | delegate with review |  |
 | Define relational fact export | design | ready | yes | 94 | delegate directly |  |
+| Execute a reproducible closure action and record its observation | implementation | active | no | 87 | delegate with review |  |
 | Recut the independent resolution checker | design | complete | no | 83 | delegate with review |  |
 | Establish the semantic artifact store tracer | implementation | complete | no | 87 | delegate with review |  |
 | Specify semantic attestation profile | design | ready | no | 87 | delegate with review | Define normalized theory identity |
