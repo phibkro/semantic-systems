@@ -1,10 +1,31 @@
 import { Match, Schema } from "effect";
 
 const freezeDeep = <Value>(value: Value): Value => {
-  if (typeof value !== "object" || value === null || Object.isFrozen(value)) return value;
+  if (typeof value !== "object" || value === null) return value;
   for (const child of Object.values(value)) freezeDeep(child);
-  return Object.freeze(value);
+  return Object.isFrozen(value) ? value : Object.freeze(value);
 };
+
+export const algebraFrontierBounds = freezeDeep({
+  maximumStringCodeUnits: 2_048,
+  maximumStatements: 32,
+  maximumRuntimeAlternatives: 8,
+  maximumWorkbenchCapabilities: 8,
+  maximumCandidates: 3,
+  maximumPrecedents: 2,
+  maximumUnsupportedClaims: 16,
+} as const);
+
+const StatementSchema = Schema.String.pipe(
+  Schema.check(
+    Schema.isMinLength(1),
+    Schema.isMaxLength(algebraFrontierBounds.maximumStringCodeUnits),
+  ),
+);
+const boundedArray = <S extends Schema.Constraint>(schema: S, maximum: number) =>
+  Schema.Array(schema).pipe(Schema.check(Schema.isMaxLength(maximum)));
+const exactArray = <S extends Schema.Constraint>(schema: S, length: number) =>
+  Schema.Array(schema).pipe(Schema.check(Schema.isMinLength(length), Schema.isMaxLength(length)));
 
 export const WorkbenchCapabilitySchema = Schema.Struct({
   id: Schema.Literals([
@@ -18,7 +39,7 @@ export const WorkbenchCapabilitySchema = Schema.Struct({
     "discovery",
   ]),
   owner: Schema.Literals(["surface", "core", "build-system", "control-room"]),
-  purpose: Schema.String,
+  purpose: StatementSchema,
 });
 export type WorkbenchCapability = typeof WorkbenchCapabilitySchema.Type;
 
@@ -31,14 +52,19 @@ export const PromotionObservationsSchema = Schema.Struct({
 export type PromotionObservations = typeof PromotionObservationsSchema.Type;
 
 export const PromotionDecisionSchema = Schema.Struct({
+  consistency: Schema.Literals(["consistent", "contradictory-elaboration"]),
   userland: Schema.Literals(["research", "available"]),
   surface: Schema.Literals(["blocked", "defer", "candidate"]),
   kernel: Schema.Literals(["blocked", "defer", "candidate"]),
 });
 export type PromotionDecision = typeof PromotionDecisionSchema.Type;
 
-export const classifyPromotion = (observations: PromotionObservations): PromotionDecision =>
-  freezeDeep({
+export const classifyPromotion = (observations: PromotionObservations): PromotionDecision => {
+  const contradictoryElaboration =
+    observations.faithful_surface_elaboration && observations.kernel_obstruction_established;
+  const blocked = !observations.lawful_userland_model || contradictoryElaboration;
+  return freezeDeep({
+    consistency: contradictoryElaboration ? "contradictory-elaboration" : "consistent",
     userland: observations.lawful_userland_model ? "available" : "research",
     surface: Match.value(observations).pipe(
       Match.when(
@@ -46,60 +72,92 @@ export const classifyPromotion = (observations: PromotionObservations): Promotio
           lawful_userland_model: true,
           repeated_ergonomic_demand: true,
           faithful_surface_elaboration: true,
+          kernel_obstruction_established: false,
         },
         () => "candidate" as const,
       ),
-      Match.when({ lawful_userland_model: false }, () => "blocked" as const),
+      Match.when(
+        () => blocked,
+        () => "blocked" as const,
+      ),
       Match.orElse(() => "defer" as const),
     ),
     kernel: Match.value(observations).pipe(
       Match.when(
-        { lawful_userland_model: true, kernel_obstruction_established: true },
+        {
+          lawful_userland_model: true,
+          faithful_surface_elaboration: false,
+          kernel_obstruction_established: true,
+        },
         () => "candidate" as const,
       ),
       Match.when(
-        { lawful_userland_model: false, kernel_obstruction_established: true },
+        () => blocked,
         () => "blocked" as const,
       ),
       Match.orElse(() => "defer" as const),
     ),
   });
+};
 
 const RuntimeAlternativeSchema = Schema.Struct({
-  id: Schema.String,
-  capabilities: Schema.Array(Schema.String),
-  properties: Schema.Array(Schema.String),
+  id: StatementSchema,
+  capabilities: boundedArray(StatementSchema, algebraFrontierBounds.maximumStatements),
+  properties: boundedArray(StatementSchema, algebraFrontierBounds.maximumStatements),
 });
 
 const AlgebraCandidateSchema = Schema.Struct({
   id: Schema.Literals(["resource-lifecycle", "structured-concurrency", "stm"]),
   observations: PromotionObservationsSchema,
+  observation_basis: boundedArray(StatementSchema, algebraFrontierBounds.maximumStatements),
   decision: PromotionDecisionSchema,
-  operations: Schema.Array(Schema.String),
-  laws: Schema.Array(Schema.String),
-  non_laws: Schema.Array(Schema.String),
-  runtime_alternatives: Schema.Array(RuntimeAlternativeSchema),
-  open_obligations: Schema.Array(Schema.String),
+  operations: boundedArray(StatementSchema, algebraFrontierBounds.maximumStatements),
+  laws: boundedArray(StatementSchema, algebraFrontierBounds.maximumStatements),
+  non_laws: boundedArray(StatementSchema, algebraFrontierBounds.maximumStatements),
+  runtime_alternatives: boundedArray(
+    RuntimeAlternativeSchema,
+    algebraFrontierBounds.maximumRuntimeAlternatives,
+  ),
+  open_obligations: boundedArray(StatementSchema, algebraFrontierBounds.maximumStatements),
 });
 
 export const AlgebraFrontierReportSchema = Schema.Struct({
   format: Schema.Literal("semantic.algebra-frontier"),
   version: Schema.Literal(1),
-  promotion_rule: Schema.Struct({
-    userland: Schema.String,
-    surface: Schema.String,
-    kernel: Schema.String,
-    runtime: Schema.String,
+  bounds: Schema.Struct({
+    maximum_string_code_units: Schema.Literal(algebraFrontierBounds.maximumStringCodeUnits),
+    maximum_statements: Schema.Literal(algebraFrontierBounds.maximumStatements),
+    maximum_runtime_alternatives: Schema.Literal(algebraFrontierBounds.maximumRuntimeAlternatives),
+    maximum_workbench_capabilities: Schema.Literal(
+      algebraFrontierBounds.maximumWorkbenchCapabilities,
+    ),
+    maximum_candidates: Schema.Literal(algebraFrontierBounds.maximumCandidates),
+    maximum_precedents: Schema.Literal(algebraFrontierBounds.maximumPrecedents),
+    maximum_unsupported_claims: Schema.Literal(algebraFrontierBounds.maximumUnsupportedClaims),
   }),
-  workbench: Schema.Array(WorkbenchCapabilitySchema),
-  candidates: Schema.Array(AlgebraCandidateSchema),
-  precedents: Schema.Array(
+  promotion_rule: Schema.Struct({
+    userland: StatementSchema,
+    surface: StatementSchema,
+    kernel: StatementSchema,
+    runtime: StatementSchema,
+    blocked: StatementSchema,
+    defer: StatementSchema,
+    candidate: StatementSchema,
+  }),
+  capability_identity: StatementSchema,
+  workbench: exactArray(
+    WorkbenchCapabilitySchema,
+    algebraFrontierBounds.maximumWorkbenchCapabilities,
+  ),
+  candidates: exactArray(AlgebraCandidateSchema, algebraFrontierBounds.maximumCandidates),
+  precedents: exactArray(
     Schema.Struct({
       id: Schema.Literals(["algebraic-data-types", "monadic-context"]),
-      lesson: Schema.String,
+      lesson: StatementSchema,
     }),
+    algebraFrontierBounds.maximumPrecedents,
   ),
-  unsupported_claims: Schema.Array(Schema.String),
+  unsupported_claims: boundedArray(StatementSchema, algebraFrontierBounds.maximumUnsupportedClaims),
 });
 export type AlgebraFrontierReport = typeof AlgebraFrontierReportSchema.Type;
 
@@ -127,6 +185,15 @@ const observations = {
 const report: AlgebraFrontierReport = freezeDeep({
   format: "semantic.algebra-frontier",
   version: 1,
+  bounds: {
+    maximum_string_code_units: algebraFrontierBounds.maximumStringCodeUnits,
+    maximum_statements: algebraFrontierBounds.maximumStatements,
+    maximum_runtime_alternatives: algebraFrontierBounds.maximumRuntimeAlternatives,
+    maximum_workbench_capabilities: algebraFrontierBounds.maximumWorkbenchCapabilities,
+    maximum_candidates: algebraFrontierBounds.maximumCandidates,
+    maximum_precedents: algebraFrontierBounds.maximumPrecedents,
+    maximum_unsupported_claims: algebraFrontierBounds.maximumUnsupportedClaims,
+  },
   promotion_rule: {
     userland:
       "Requires a typed signature, declared equations, an interpretation, and honest executable evidence.",
@@ -136,7 +203,13 @@ const report: AlgebraFrontierReport = freezeDeep({
       "Requires a lawful model plus an established obstruction to faithful elaboration and a smaller trusted boundary.",
     runtime:
       "Capabilities belong to realizations and remain orthogonal to source and kernel syntax.",
+    blocked:
+      "A prerequisite is absent or the supplied elaboration observations contradict each other.",
+    defer: "The observations are consistent but do not satisfy this layer's promotion threshold.",
+    candidate: "Every declared gate for this layer is satisfied; review remains required.",
   },
+  capability_identity:
+    "Runtime capability names are bounded references into a separate extensible capability vocabulary; this report does not define their authority.",
   workbench: [
     {
       id: "signature",
@@ -189,6 +262,10 @@ const report: AlgebraFrontierReport = freezeDeep({
     {
       id: "resource-lifecycle",
       observations: observations.resources,
+      observation_basis: [
+        "industry bracket and scope APIs establish recurring ergonomic demand",
+        "Semantic Systems has no accepted local lifecycle law tracer or region elaboration yet",
+      ],
       decision: classifyPromotion(observations.resources),
       operations: ["with_acquire", "release", "move_to_scope"],
       laws: [
@@ -216,6 +293,14 @@ const report: AlgebraFrontierReport = freezeDeep({
           ],
           properties: ["lexical default", "explicit longer-lived ownership"],
         },
+        {
+          id: "single-owner-resource-actor",
+          capabilities: ["send", "receive", "owner-monitoring", "cleanup-delivery"],
+          properties: [
+            "resource authority remains behind one owner",
+            "lexical clients hold transferable handles",
+          ],
+        },
       ],
       open_obligations: [
         "model lifecycle laws with executable counterexamples",
@@ -226,6 +311,10 @@ const report: AlgebraFrontierReport = freezeDeep({
     {
       id: "structured-concurrency",
       observations: observations.concurrency,
+      observation_basis: [
+        "one-shot spawn, join, yield, and cancellation operations have design prior art",
+        "Semantic Systems has no accepted local structured-concurrency law tracer",
+      ],
       decision: classifyPromotion(observations.concurrency),
       operations: ["spawn", "join", "yield", "request_cancel"],
       laws: [
@@ -261,13 +350,18 @@ const report: AlgebraFrontierReport = freezeDeep({
         "build a bounded structured-concurrency law tracer",
         "specify the shared scope tree for tasks and resources",
         "separate optional actor messaging from the minimal task algebra",
+        "establish a scheduler representation because 0018 internal resumptions cannot enter data structures",
       ],
     },
     {
       id: "stm",
       observations: observations.stm,
+      observation_basis: [
+        "the executable 0014 bounded law tracer supplies a lawful userland model",
+        "0014 does not settle the final STM library decision or arbitrary serializability",
+      ],
       decision: classifyPromotion(observations.stm),
-      operations: ["read", "write", "retry", "or_else", "after_commit"],
+      operations: ["read", "write", "retry", "or_else", "abort", "after_commit"],
       laws: [
         "attempt writes are isolated until one atomic publication",
         "conflict and dependency wake rerun the pure transaction description",
@@ -315,6 +409,7 @@ const report: AlgebraFrontierReport = freezeDeep({
     "the current kernel is sufficient for non-escaping resource regions",
     "the current runtime has correct cancellation and finalization ordering",
     "the structured-concurrency candidate already has a local executable law model",
+    "the current kernel can store an internal resumption in a scheduler data structure",
     "the STM model proves serializability or progress for arbitrary programs",
     "any candidate requires true multishot continuations",
   ],

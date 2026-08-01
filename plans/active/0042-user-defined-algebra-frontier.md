@@ -8,13 +8,15 @@ Status: tracer implementation in progress
 
 Owner: primary Semantic Systems language lead
 
-## Dependencies
+## Contract dependencies
 
 - accepted minimal kernel calculus 0018;
 - accepted agent-facing kernel JSON 0020;
 - accepted surface language 0026; and
-- existing STM law tracer 0014, whose runtime promotion is now gated by this
-  feature.
+
+The accepted bounded STM law tracer 0014 is an evidence source rather than an
+ordering dependency: its runtime promotion is gated by this feature, so adding
+a reverse dependency would create a false cycle.
 
 ## Owned paths
 
@@ -68,3 +70,8 @@ just accept 0042-user-defined-algebra-frontier
 - 2026-08-01: STM retains both owner-actor and shared-memory realization
   families, so atomic implementation machinery is not promoted to language
   syntax by default.
+- 2026-08-01: Opus 5 medium review of `77357950` required changes: reject
+  contradictory elaboration observations, bound the exported Schema, record
+  internal-resumption storability, retain typed abort and exact STM evidence,
+  clarify capability vocabulary and workbench ownership, strengthen deep
+  freezing and independence tests, and add a second resource realization.

@@ -73,7 +73,10 @@ kernel_obstruction_established
 
 These are claims supplied by research or executable evidence. The classifier
 does not fabricate them from popularity, implementation difficulty, or a
-preferred syntax.
+preferred syntax. `faithful_surface_elaboration` and
+`kernel_obstruction_established` cannot both be true for the same current-core
+target; the classifier reports that input as contradictory and blocks both
+later promotion layers.
 
 ### Semantic outputs
 
@@ -86,6 +89,11 @@ The report contains:
 - laws and non-laws for each candidate;
 - alternative runtime capability sets; and
 - unresolved questions and unsupported claims.
+
+`blocked` means a prerequisite is absent or the supplied observations are
+contradictory. `defer` means the observations are consistent but the layer's
+threshold is not met. `candidate` means the declared threshold is met and
+still requires review; it is not acceptance.
 
 ### Effect protocols and uncertainty
 
@@ -118,16 +126,25 @@ ergonomic adoption, and kernel expressiveness remain separate structures.
 
 ### Bounded autonomy and resources
 
-The report is finite static data. The classifier performs no I/O, recursion,
-search, code generation, or effect execution. Arrays and records are deeply
-frozen before crossing the module boundary.
+The report is finite static data. Its exported Schema bounds strings to 2,048
+code units, statement collections to 32, runtime alternatives to 8, and the
+fixed workbench, candidate, and precedent collections to 8, 3, and 2 entries.
+Unsupported claims are bounded to 16 entries. The emitted report publishes
+all seven limits alongside the data it constrains.
+The classifier performs no I/O, recursion, search, code generation, or effect
+execution. Arrays and records are deeply frozen before crossing the module
+boundary.
 
 ### Evidence, assumptions, and unsupported claims
 
 Repository architecture inspection establishes that the 0018 kernel has
 thunks, graded binders, operations, one-shot resumptions, and deep handlers.
 It does not establish non-escaping region tokens or finalization under a
-future cancellation semantics.
+future cancellation semantics. The current kernel also prevents internal
+resumptions from entering data structures. One-shot use is therefore
+compatible with ordinary scheduling but does not yet supply an in-language
+scheduler queue; an external runtime scheduler or a different elaboration
+must discharge that obligation.
 
 Local LangBang decisions and primary literature on scoped effects,
 higher-order handlers, concurrency compilation, and STM handlers are design
@@ -181,10 +198,14 @@ The minimum authoring and discovery surface has eight separable capabilities:
 8. **Discovery** — typed queries over those manifests and generated human- and
    agent-readable documentation.
 
-The surface language owns authoring ergonomics. The typed core owns elaborated
-semantics. The build system owns canonical artifacts and identities. Control
-Room owns projections and discovery. The runtime owns only capabilities
-selected by a realization.
+The surface language owns authoring syntax for signatures, equations, and
+composition. The typed core owns their normalized meaning and checks equality
+and interpretations; this is why equation syntax begins at the surface while
+equation authority belongs to the core. The build system owns canonical
+artifacts and identities. Control Room owns projections and discovery. The
+runtime owns only capabilities selected by a realization. Capability names
+are bounded references into a separate extensible vocabulary, not authority
+created by this report.
 
 ## Resource lifecycle candidate
 
@@ -214,6 +235,11 @@ The current thunk and deep-handler forms may encode a scoped operation. The
 unresolved obstruction is static non-escape plus cleanup across cancellation,
 not the mere presence of lexical sugar.
 
+Retained realization families are a lexical scope handler with a finalizer
+stack and a single-owner resource actor whose clients hold transferable
+handles. They expose different scheduling and lifetime costs while preserving
+the same ownership laws.
+
 ## Structured concurrency candidate
 
 Candidate userland effect operations are `spawn`, `join`, `yield`, and
@@ -231,6 +257,12 @@ Required laws include:
 - ordinary concurrency consumes one-shot continuations; and
 - schedule replay is distinct from replay of external observations.
 
+One-shot semantics is necessary but not sufficient for an in-language
+scheduler: 0018 internal resumptions cannot currently be stored in a queue.
+The first tracer must compare an external scheduler that retains opaque
+suspensions with any proposed core elaboration rather than silently assuming
+resumption storage.
+
 Candidate runtime capabilities are fresh task identity, enqueue, suspend,
 wake, and cancellation delivery. These can back ordinary effect handlers and
 need not be source or kernel forms.
@@ -240,6 +272,15 @@ need not be source or kernel forms.
 STM remains a library theory whose retryable body is restricted to pure and
 transactional operations. It may not acquire, release, or perform irreversible
 effects because conflict and wake-up rerun the transaction description.
+The existing executable 0014 model supplies bounded evidence for the userland
+law model, including typed abort as distinct from retry. It does not settle the
+final library decision, arbitrary serializability, or progress; those remain
+downstream of this substrate gate.
+
+Feature 0014 is an evidence source, not an ordering dependency of 0042. Its
+accepted bounded tracer predates this contract, while its unresolved runtime
+promotion is blocked by 0042. Recording it as a `Depends-On-Feature-ID` would
+therefore create a false cycle in the work graph.
 
 Two retained realization families demonstrate that STM semantics do not imply
 one kernel representation:

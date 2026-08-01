@@ -3,6 +3,7 @@ export {
   PromotionDecisionSchema,
   PromotionObservationsSchema,
   WorkbenchCapabilitySchema,
+  algebraFrontierBounds,
   algebraFrontierReport,
   classifyPromotion,
   type AlgebraFrontierReport,
