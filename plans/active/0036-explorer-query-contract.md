@@ -70,3 +70,14 @@ bun scripts/accept/0036-explorer-query-contract.ts
   unrelated five-second reference-custody timeouts at 5.03 seconds. Both exact
   journeys passed alone at 3.38 and 4.35 seconds; this is timing evidence, not a
   waiver of the required final clean-head replay.
+- 2026-08-01: exact rebased acceptance at `adf3848` observed 785 passes, one
+  declared skip, zero failures, 19,319 assertions, and 68 reference tests.
+- 2026-08-01: the first Fable 5 high review exceeded its declared 30-minute
+  turn deadline without durable output. Its owned tab was reconciled and closed;
+  silence was not counted as review evidence.
+- 2026-08-01: independent correction review of `adf3848` reproduced three
+  blockers: live Schema traversal before array caps, 257 admitted relation kinds
+  escaping the result schema, and a narrower value domain than accepted 0034
+  facts. The correction captures bounded descriptor snapshots before Schema,
+  separates selected and available kind bounds, and exercises an actual 0034
+  Unicode/empty-display artifact through a lossless discriminator adapter.

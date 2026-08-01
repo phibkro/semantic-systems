@@ -1,7 +1,10 @@
+import { BunCrypto, BunPath } from "@effect/platform-bun";
 import { describe, expect, test } from "bun:test";
 import { Effect, Result, Schema } from "effect";
+import type { Crypto, Path } from "effect";
 import { assert as fcAssert, asyncProperty, boolean, integer } from "fast-check";
 import {
+  explorerBounds,
   ExplorerQueryRejected,
   ExplorerQueryResultSchema,
   queryExplorer,
@@ -9,6 +12,8 @@ import {
   type ExplorerQuery,
   type ExplorerQueryResult,
 } from "../src/explorer-query/index.ts";
+import { buildRelationalFactExport } from "../src/project-model/relational-facts.ts";
+import type { Entity, ProjectGraph } from "../src/project-model/types.ts";
 
 const entity = (subject_id: string) => ({
   fact_type: "entity" as const,
@@ -75,6 +80,9 @@ const query = (overrides: Partial<ExplorerQuery> = {}): ExplorerQuery => ({
 
 const run = (request: ExplorerQuery, factSource: unknown = source): Promise<ExplorerQueryResult> =>
   Effect.runPromise(queryExplorer(factSource, request));
+
+const runBuild = <A, E>(effect: Effect.Effect<A, E, Crypto.Crypto | Path.Path>) =>
+  Effect.runPromise(effect.pipe(Effect.provide([BunCrypto.layer, BunPath.layer])));
 
 const selected = (result: ExplorerQueryResult): ReadonlyArray<string> =>
   result.nodes.map(({ canonical_identity }) => canonical_identity);
@@ -210,6 +218,180 @@ describe("storage-independent explorer query", () => {
       }),
       { numRuns: 80 },
     );
+  });
+
+  test("captures one bounded inert source and query observation before Schema traversal", async () => {
+    let rootElementCalls = 0;
+    const excessiveRoots = Array.from({ length: explorerBounds.maximumRoots + 1 });
+    Object.defineProperty(excessiveRoots, String(explorerBounds.maximumRoots), {
+      enumerable: true,
+      get: () => {
+        rootElementCalls += 1;
+        throw new Error("must not run");
+      },
+    });
+    const excessiveRootResult = await Effect.runPromise(
+      Effect.result(queryExplorer(source, { ...query(), roots: excessiveRoots })),
+    );
+    expect(Result.isFailure(excessiveRootResult)).toBeTrue();
+    expect(rootElementCalls).toBe(0);
+
+    let factElementCalls = 0;
+    const excessiveFacts = Array.from({ length: explorerBounds.maximumFacts + 1 });
+    Object.defineProperty(excessiveFacts, String(explorerBounds.maximumFacts), {
+      enumerable: true,
+      get: () => {
+        factElementCalls += 1;
+        throw new Error("must not run");
+      },
+    });
+    const excessiveFactResult = await Effect.runPromise(
+      Effect.result(
+        queryExplorer(
+          { format: "semantic.explorer-fact-source", version: 1, facts: excessiveFacts },
+          query(),
+        ),
+      ),
+    );
+    expect(Result.isFailure(excessiveFactResult)).toBeTrue();
+    expect(factElementCalls).toBe(0);
+
+    let nestedAccessorCalls = 0;
+    const accessorEntity = { ...entity("a") } as Record<string, unknown>;
+    Object.defineProperty(accessorEntity, "name", {
+      configurable: true,
+      enumerable: true,
+      get: () => {
+        nestedAccessorCalls += 1;
+        return "A";
+      },
+    });
+    const nestedAccessorResult = await Effect.runPromise(
+      Effect.result(
+        queryExplorer(
+          { format: "semantic.explorer-fact-source", version: 1, facts: [accessorEntity] },
+          query(),
+        ),
+      ),
+    );
+    expect(Result.isFailure(nestedAccessorResult)).toBeTrue();
+    expect(nestedAccessorCalls).toBe(0);
+
+    let queryAccessorCalls = 0;
+    const accessorQuery = { ...query() } as Record<string, unknown>;
+    Object.defineProperty(accessorQuery, "roots", {
+      configurable: true,
+      enumerable: true,
+      get: () => {
+        queryAccessorCalls += 1;
+        return ["a"];
+      },
+    });
+    const accessorResult = await Effect.runPromise(
+      Effect.result(queryExplorer(source, accessorQuery)),
+    );
+    expect(Result.isFailure(accessorResult)).toBeTrue();
+    expect(queryAccessorCalls).toBe(0);
+
+    let liveGetCalls = 0;
+    const movingQuery = new Proxy(query(), {
+      get: (target, key, receiver) => {
+        liveGetCalls += 1;
+        return Reflect.get(target, key, receiver);
+      },
+    });
+    expect(await run(movingQuery)).toEqual(await run(query()));
+    expect(liveGetCalls).toBe(0);
+
+    const revoked = Proxy.revocable(query(), {});
+    revoked.revoke();
+    const revokedResult = await Effect.runPromise(
+      Effect.result(queryExplorer(source, revoked.proxy)),
+    );
+    expect(Result.isFailure(revokedResult)).toBeTrue();
+    if (Result.isFailure(revokedResult)) {
+      expect(revokedResult.failure).toBeInstanceOf(ExplorerQueryRejected);
+      expect(revokedResult.failure.phase).toBe("query");
+    }
+  });
+
+  test("keeps available relation-kind introspection inside its exported result schema", async () => {
+    const manyKinds = {
+      format: "semantic.explorer-fact-source" as const,
+      version: 1 as const,
+      facts: [
+        entity("a"),
+        ...Array.from({ length: 257 }, (_, index) =>
+          relation(`relation:self:${index}`, "a", "a", "dependency", `kind.${index}`),
+        ),
+      ],
+    };
+    const result = await run(query({ max_nodes: 1 }), manyKinds);
+    expect(result.available_relation_kinds).toHaveLength(257);
+    expect(
+      await Effect.runPromise(
+        Schema.decodeUnknownEffect(ExplorerQueryResultSchema, {
+          onExcessProperty: "error",
+        })(result),
+      ),
+    ).toEqual(result);
+  });
+
+  test("losslessly adapts accepted 0034 Unicode and empty display fields", async () => {
+    const root = "/workspace";
+    const sourceDocument = `${root}/model/fixture.json`;
+    const acceptedEntity: Entity = {
+      id: "component.å",
+      kind: "component",
+      name: "",
+      summary: "",
+      status: "",
+      tags: [],
+      attributes: {},
+      source: sourceDocument,
+    };
+    const project: ProjectGraph = {
+      root,
+      entities: new Map([[acceptedEntity.id, acceptedEntity]]),
+      relations: [],
+    };
+    const artifact = await runBuild(buildRelationalFactExport(project));
+    const adapted = {
+      format: "semantic.explorer-fact-source" as const,
+      version: 1 as const,
+      facts: artifact.export.facts.map((fact) => {
+        return "entity_kind" in fact
+          ? {
+              fact_type: "entity" as const,
+              fact_key: fact.fact_key,
+              subject_id: fact.subject_id,
+              entity_kind: fact.entity_kind,
+              status: fact.status,
+              name: fact.name,
+              provenance: fact.provenance,
+            }
+          : {
+              fact_type: "relation" as const,
+              fact_key: fact.fact_key,
+              subject_id: fact.subject_id,
+              object_id: fact.object_id,
+              relation_kind: fact.relation_kind,
+              family: fact.family,
+              provenance: fact.provenance,
+            };
+      }),
+    };
+    const result = await run(
+      query({ roots: [acceptedEntity.id], relation_families: [], max_nodes: 1 }),
+      adapted,
+    );
+    expect(result.nodes).toEqual([
+      expect.objectContaining({
+        canonical_identity: "component.å",
+        name: "",
+        status: "",
+      }),
+    ]);
   });
 
   test("rejects overflow instead of returning an unlabeled partial result", async () => {

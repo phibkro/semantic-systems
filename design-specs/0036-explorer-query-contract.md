@@ -52,10 +52,23 @@ Provenance is the exact tuple `source_schema`, `source_document`,
 `source_record_kind`, and `source_record_key`. The record key cannot be erased:
 one source document can contain several canonical records.
 
+The value domain intentionally contains every accepted Feature 0034 fact:
+identities, keys, kinds, and provenance strings are nonempty Unicode-scalar
+strings, while entity `name` and non-null `status` may be empty. An adapter may
+rename 0034 `_tag` discriminators to the explorer's `fact_type` discriminators;
+it must preserve every other fact field exactly.
+
 The query contains roots, direction, selected relation families, optional
 relation kinds, expansion defaults plus expanded/collapsed overrides,
 `max_depth`, `max_nodes`, and one view kind. Inputs are queries, not commands;
 they grant no write authority.
+
+The public boundary captures source and query separately from own enumerable
+data-property descriptors into bounded plain snapshots before Schema decoding.
+Array length is admitted before any element descriptor is inspected. Accessors,
+symbols, cycles, revoked observations, moving live properties, and arrays beyond
+their field-specific limits reject through the typed channel; Schema never
+decodes the live caller objects.
 
 ### Semantic outputs
 
@@ -70,6 +83,8 @@ A successful result contains:
 Each view is a replaceable projection of the same selected identity set. The
 flat tree records one deterministic first-discovery parent; all selected graph
 relations remain separately available and are not reclassified as tree edges.
+Available relation-kind introspection may contain at most one kind per admitted
+relation, independently of the smaller selected-kind filter bound.
 
 ### Effect protocols and uncertainty
 
@@ -94,7 +109,12 @@ does not inspect storage internals.
 ### Bounded autonomy and resources
 
 - at most 16,384 entity facts and 65,536 relation facts;
+- at most 81,920 combined facts;
 - at most 128 roots;
+- at most 256 selected relation-kind filters and 65,536 available relation
+  kinds;
+- at most 16,777,216 captured UTF-16 code units, 1,311,744 captured values,
+  depth 8, and 10 fields per record;
 - `max_depth` from 0 through 64;
 - `max_nodes` from 1 through 4,096;
 - iterative traversal with a persistent visited set;
@@ -106,8 +126,9 @@ does not inspect storage internals.
 
 Example and property tests observe permutation invariance, recursive
 expand/collapse behavior, direction and family filtering, cycle termination,
-cross-view identity equality, exact provenance, immutability, and bounded typed
-rejections. These observations do not prove source authenticity, relational
+cross-view identity equality, exact provenance, immutability, bounded inert
+capture, output-schema closure, and lossless adaptation of one actual accepted
+0034 artifact. These observations do not prove source authenticity, relational
 truth, rendering usability, database performance, or UI accessibility.
 
 The contract assumes fact keys and provenance are supplied by a canonical

@@ -3,18 +3,23 @@
  * the normalized graph traversal below is a total, bounded pure transformation.
  */
 import { Data, Effect, Match, Schema } from "effect";
+import { hasUnicodeScalarsOnly } from "../normalized-core/canonical.ts";
 
-const boundedString = (maximum: number) =>
-  Schema.String.pipe(Schema.check(Schema.isMinLength(1), Schema.isMaxLength(maximum)));
+const ScalarStringSchema = Schema.String.pipe(
+  Schema.check(
+    Schema.makeFilter<string>((value) => hasUnicodeScalarsOnly(value), {
+      expected: "a Unicode scalar string",
+    }),
+  ),
+);
+const NonEmptyStringSchema = ScalarStringSchema.pipe(Schema.check(Schema.isMinLength(1)));
 const boundedArray = <S extends Schema.Constraint>(schema: S, maximum: number) =>
   Schema.Array(schema).pipe(Schema.check(Schema.isMaxLength(maximum)));
 
-const IdentitySchema = boundedString(256).pipe(
-  Schema.check(Schema.isPattern(/^[A-Za-z0-9][A-Za-z0-9._:/#-]*$/)),
-);
-const FactKeySchema = boundedString(512);
-const KindSchema = boundedString(128);
-const SourceDocumentSchema = boundedString(1024);
+const IdentitySchema = NonEmptyStringSchema;
+const FactKeySchema = NonEmptyStringSchema;
+const KindSchema = NonEmptyStringSchema;
+const SourceDocumentSchema = NonEmptyStringSchema;
 
 export const relationFamilies = [
   "dependency",
@@ -30,18 +35,24 @@ export const relationFamilies = [
 export const explorerBounds = Object.freeze({
   maximumEntities: 16_384,
   maximumRelations: 65_536,
+  maximumFacts: 81_920,
   maximumRoots: 128,
   maximumDepth: 64,
   maximumSelectedNodes: 4_096,
   maximumExpansionOverrides: 16_384,
-  maximumRelationKinds: 256,
+  maximumSelectedRelationKinds: 256,
+  maximumRelationKinds: 65_536,
+  maximumInputCodeUnits: 16_777_216,
+  maximumCapturedValues: 1_311_744,
+  maximumCaptureDepth: 8,
+  maximumRecordFields: 10,
 } as const);
 
 export const ExplorerProvenanceSchema = Schema.Struct({
-  source_schema: boundedString(256),
+  source_schema: NonEmptyStringSchema,
   source_document: SourceDocumentSchema,
   source_record_kind: Schema.Literals(["entity", "relation"]),
-  source_record_key: boundedString(512),
+  source_record_key: NonEmptyStringSchema,
 });
 export type ExplorerProvenance = typeof ExplorerProvenanceSchema.Type;
 
@@ -50,8 +61,8 @@ export const ExplorerEntityFactSchema = Schema.Struct({
   fact_key: FactKeySchema,
   subject_id: IdentitySchema,
   entity_kind: KindSchema,
-  status: Schema.NullOr(boundedString(128)),
-  name: boundedString(1024),
+  status: Schema.NullOr(ScalarStringSchema),
+  name: ScalarStringSchema,
   provenance: ExplorerProvenanceSchema,
 });
 export type ExplorerEntityFact = typeof ExplorerEntityFactSchema.Type;
@@ -72,7 +83,7 @@ export const ExplorerFactSourceSchema = Schema.Struct({
   version: Schema.Literal(1),
   facts: boundedArray(
     Schema.Union([ExplorerEntityFactSchema, ExplorerRelationFactSchema]),
-    explorerBounds.maximumEntities + explorerBounds.maximumRelations,
+    explorerBounds.maximumFacts,
   ),
 });
 export type ExplorerFactSource = typeof ExplorerFactSourceSchema.Type;
@@ -98,7 +109,7 @@ export const ExplorerQuerySchema = Schema.Struct({
   roots: boundedArray(IdentitySchema, explorerBounds.maximumRoots),
   direction: Schema.Literals(["outgoing", "incoming", "both"]),
   relation_families: boundedArray(Schema.Literals(relationFamilies), relationFamilies.length),
-  relation_kinds: boundedArray(KindSchema, explorerBounds.maximumRelationKinds),
+  relation_kinds: boundedArray(KindSchema, explorerBounds.maximumSelectedRelationKinds),
   expansion: Schema.Struct({
     default: Schema.Literals(["expanded", "collapsed"]),
     expanded_ids: boundedArray(IdentitySchema, explorerBounds.maximumExpansionOverrides),
@@ -180,8 +191,8 @@ const NodeProjectionSchema = Schema.Struct({
   canonical_identity: IdentitySchema,
   fact_key: FactKeySchema,
   entity_kind: KindSchema,
-  status: Schema.NullOr(boundedString(128)),
-  name: boundedString(1024),
+  status: Schema.NullOr(ScalarStringSchema),
+  name: ScalarStringSchema,
   provenance: ProjectionProvenanceSchema,
 });
 const RelationProjectionSchema = Schema.Struct({
@@ -289,6 +300,176 @@ const duplicates = (values: ReadonlyArray<string>): ReadonlyArray<string> => {
 
 const reject = (phase: ExplorerQueryRejected["phase"], reason: string): ExplorerQueryRejected =>
   new ExplorerQueryRejected({ phase, reason });
+
+interface CapturedInput {
+  readonly kind: "Captured";
+  readonly value: unknown;
+}
+
+interface RejectedInput {
+  readonly kind: "Rejected";
+  readonly reason: string;
+}
+
+type InputCapture = CapturedInput | RejectedInput;
+
+interface CaptureBudget {
+  valueCount: number;
+  codeUnits: number;
+  readonly stack: WeakSet<object>;
+}
+
+const captureArrayLimits: Readonly<Record<string, number>> = Object.freeze({
+  "source.facts": explorerBounds.maximumFacts,
+  "query.roots": explorerBounds.maximumRoots,
+  "query.relation_families": relationFamilies.length,
+  "query.relation_kinds": explorerBounds.maximumSelectedRelationKinds,
+  "query.expansion.expanded_ids": explorerBounds.maximumExpansionOverrides,
+  "query.expansion.collapsed_ids": explorerBounds.maximumExpansionOverrides,
+});
+
+const captureString = (
+  value: string,
+  budget: CaptureBudget,
+  label: string,
+): RejectedInput | void => {
+  if (!hasUnicodeScalarsOnly(value)) {
+    return { kind: "Rejected", reason: `${label} must contain only Unicode scalar values` };
+  }
+  budget.codeUnits += value.length;
+  if (budget.codeUnits > explorerBounds.maximumInputCodeUnits) {
+    return {
+      kind: "Rejected",
+      reason: `input exceeds ${explorerBounds.maximumInputCodeUnits} UTF-16 code units`,
+    };
+  }
+};
+
+const captureInertValue = (
+  input: unknown,
+  path: string,
+  depth: number,
+  budget: CaptureBudget,
+): InputCapture => {
+  budget.valueCount += 1;
+  if (budget.valueCount > explorerBounds.maximumCapturedValues) {
+    return {
+      kind: "Rejected",
+      reason: `input exceeds ${explorerBounds.maximumCapturedValues} captured values`,
+    };
+  }
+  if (typeof input === "string") {
+    const issue = captureString(input, budget, path);
+    return issue ?? { kind: "Captured", value: input };
+  }
+  if (input === null || typeof input !== "object") {
+    return { kind: "Captured", value: input };
+  }
+  if (depth >= explorerBounds.maximumCaptureDepth) {
+    return {
+      kind: "Rejected",
+      reason: `input exceeds capture depth ${explorerBounds.maximumCaptureDepth}`,
+    };
+  }
+  if (budget.stack.has(input)) {
+    return { kind: "Rejected", reason: `${path} contains a cycle` };
+  }
+
+  if (Array.isArray(input)) {
+    const maximum = captureArrayLimits[path];
+    if (maximum === undefined) {
+      return { kind: "Rejected", reason: `${path} is not an admitted array field` };
+    }
+    const lengthDescriptor = Object.getOwnPropertyDescriptor(input, "length");
+    if (
+      lengthDescriptor === undefined ||
+      !("value" in lengthDescriptor) ||
+      typeof lengthDescriptor.value !== "number"
+    ) {
+      return { kind: "Rejected", reason: `${path} length is not observable` };
+    }
+    const length = lengthDescriptor.value;
+    if (length > maximum) {
+      return { kind: "Rejected", reason: `${path} exceeds ${maximum} entries` };
+    }
+    const keys = Reflect.ownKeys(input);
+    const indices: Array<number> = [];
+    for (const key of keys) {
+      if (key === "length") continue;
+      if (typeof key !== "string") {
+        return { kind: "Rejected", reason: `${path} contains a symbol property` };
+      }
+      const index = Number(key);
+      if (!Number.isSafeInteger(index) || index < 0 || index >= length || String(index) !== key) {
+        return { kind: "Rejected", reason: `${path} contains non-index property ${key}` };
+      }
+      indices.push(index);
+    }
+
+    budget.stack.add(input);
+    const snapshot: Array<unknown> = [];
+    snapshot.length = length;
+    for (const index of indices) {
+      const descriptor = Object.getOwnPropertyDescriptor(input, String(index));
+      if (descriptor === undefined || !("value" in descriptor) || descriptor.enumerable !== true) {
+        return { kind: "Rejected", reason: `${path}[${index}] must be an own data property` };
+      }
+      const captured = captureInertValue(descriptor.value, `${path}[]`, depth + 1, budget);
+      if (captured.kind === "Rejected") return captured;
+      snapshot[index] = captured.value;
+    }
+    budget.stack.delete(input);
+    return { kind: "Captured", value: snapshot };
+  }
+
+  const keys = Reflect.ownKeys(input);
+  if (keys.length > explorerBounds.maximumRecordFields) {
+    return {
+      kind: "Rejected",
+      reason: `${path} exceeds ${explorerBounds.maximumRecordFields} record fields`,
+    };
+  }
+  budget.stack.add(input);
+  const snapshot = Object.create(null) as Record<string, unknown>;
+  for (const key of keys) {
+    if (typeof key !== "string") {
+      return { kind: "Rejected", reason: `${path} contains a symbol property` };
+    }
+    const keyIssue = captureString(key, budget, `${path} property`);
+    if (keyIssue !== undefined) return keyIssue;
+    const descriptor = Object.getOwnPropertyDescriptor(input, key);
+    if (descriptor === undefined || !("value" in descriptor) || descriptor.enumerable !== true) {
+      return { kind: "Rejected", reason: `${path}.${key} must be an own data property` };
+    }
+    const captured = captureInertValue(descriptor.value, `${path}.${key}`, depth + 1, budget);
+    if (captured.kind === "Rejected") return captured;
+    Object.defineProperty(snapshot, key, {
+      configurable: true,
+      enumerable: true,
+      writable: true,
+      value: captured.value,
+    });
+  }
+  budget.stack.delete(input);
+  return { kind: "Captured", value: snapshot };
+};
+
+const captureInput = (
+  input: unknown,
+  root: "source" | "query",
+): Effect.Effect<unknown, ExplorerQueryRejected> =>
+  Effect.gen(function* () {
+    const captured = yield* Effect.try({
+      try: () =>
+        captureInertValue(input, root, 0, {
+          valueCount: 0,
+          codeUnits: 0,
+          stack: new WeakSet(),
+        }),
+      catch: () => reject(root, `${root} value could not be captured`),
+    });
+    return captured.kind === "Captured" ? captured.value : yield* reject(root, captured.reason);
+  });
 
 const decode = <S extends Schema.Constraint>(
   schema: S,
@@ -626,8 +807,10 @@ export const queryExplorer = (
   queryInput: unknown,
 ): Effect.Effect<ExplorerQueryResult, ExplorerQueryRejected> =>
   Effect.gen(function* () {
-    const source = yield* decode(ExplorerFactSourceSchema, sourceInput, "source");
-    const query = yield* decode(ExplorerQuerySchema, queryInput, "query");
+    const sourceSnapshot = yield* captureInput(sourceInput, "source");
+    const querySnapshot = yield* captureInput(queryInput, "query");
+    const source = yield* decode(ExplorerFactSourceSchema, sourceSnapshot, "source");
+    const query = yield* decode(ExplorerQuerySchema, querySnapshot, "query");
     const normalized = yield* validateAndNormalize(source, query);
     return yield* project(normalized.entities, normalized.relations, normalized.query);
   });
