@@ -86,8 +86,9 @@ shell programs.
    rejection, and internal opcode/branch/slot perturbations with replayable
    shrinking.
 9. Add genuine Node/Bun byte parity and committed minimized fixtures.
-10. Run 0018, 0020, 0022, 0032, and full repository acceptance at one clean
-    head.
+10. Reobserve the current 0018, 0020, and 0022 seams directly, then run 0032 and
+    the full repository gate at one clean head. Preserve their accepted receipts
+    rather than reopening historical machine-local oracle environments.
 11. Commission revision-pinned independent review before integration.
 
 ## Acceptance command
@@ -117,3 +118,9 @@ then fail with `missing baseline bytecode backend implementation artifact`.
   nested run-observation tag inspection, freezes every backend bound and its
   outcome mapping, and closes the AST-renaming loophole with a source-free
   instruction algebra plus internal graph perturbations.
+- 2026-08-01: direct predecessor-acceptance replay proved that 0018's historical
+  external Lean oracle depends on a machine-local build closure absent from
+  clean CI. Feature 0032 now follows the accepted 0026/0027 pattern: retain the
+  predecessor receipt and rerun the complete current TypeScript/Node seams plus
+  the repository gate. A future Nix artifact store may make historical external
+  environments replayable, but this feature does not claim that custody.

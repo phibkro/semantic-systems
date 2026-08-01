@@ -441,7 +441,10 @@ Feature 0032 is accepted when:
 10. configured byte, compile, graph, stack, fuel, trace, generation, and shrink
     bounds are enforced without ambient effects or host exceptions;
 11. Bun and genuine Node emit byte-identical selected observations and fixtures;
-12. 0018, 0020, and 0022 exact acceptance remain green; and
+12. the accepted 0018, 0020, and 0022 receipts remain dependencies, while the
+    current kernel calculus, kernel JSON, reference-interpreter, and genuine
+    Node seam suites remain green without reopening a historical machine-local
+    oracle environment; and
 13. TypeScript 7, Effect diagnostics, Oxlint, Oxfmt, project-model validation,
     generated projections, the full repository gate, and exact-head independent
     review pass.
