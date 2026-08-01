@@ -1145,7 +1145,7 @@ class ObservationDecoder extends Decoder {
     // references nested under open keys therefore register with the
     // first-encounter authority in the order the canonical bytes replay
     // them, so a value and its own canonical encoding agree.
-    const output: Record<string, DiagnosticFact> = {};
+    const output = Object.create(null) as Record<string, DiagnosticFact>;
     for (const key of [...keys].sort(compareCodePoints)) {
       if (utf8Bytes(key) > 4_096)
         this.fail("decode.string-exceeded", `${path}/${key}`, "fact key too long");

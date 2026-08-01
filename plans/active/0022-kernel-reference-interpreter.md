@@ -168,3 +168,13 @@ Exact feature acceptance and independent review remain before integration.
   observations. No interpreter code changed on this slice; the 0022
   acceptance run re-verifies the kernel-run goldens byte-exactly against
   the corrected boundary.
+- 2026-08-02 (post-0025 custody correction): exact-head inspection reproduced
+  another open-record collision at the inherited 0020 boundary. An own
+  diagnostic-fact key named `__proto__` passed strict value decoding, but
+  materialization through an ordinary `{}` assignment invoked
+  `Object.prototype.__proto__` instead of creating an own data property. The
+  accepted observation therefore lost the key and canonicalized as an empty
+  record. Both the decoder and checker-observation translator now materialize
+  open fact records into null-prototype records, preserving every permitted
+  string key as inert data. A focused value-decode, canonical-byte-decode, and
+  byte-identical re-encode regression covers the exact counterexample.

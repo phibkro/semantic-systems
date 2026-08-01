@@ -206,9 +206,9 @@ failure is not a warning.
   dangling/malformed negative oracles, and joins the 0020 acceptance run.
 - 2026-07-31 (seventh correction, slice 0025): the 0024 residual was a real
   frozen-interface failure, reproduced independently. A representation-valid
-  rejected observation with types `[bool,int]` and diagnostic `expected =
-  {"z":{"type_index":0},"a":{"type_index":1}}` in `z`-then-`a` insertion
-  order decoded as a value (traversal authority encountered types 0 then 1),
+  rejected observation put `{"z":{"type_index":0},"a":{"type_index":1}}` in
+  diagnostic `expected` with `z`-then-`a` insertion order. It decoded as a
+  value (traversal authority encountered types 0 then 1),
   but its own canonical bytes sort the keys `a`,`z`, so byte decoding
   encountered 1 before 0 and rejected `decode.type-table-order` at
   `$/observation/types`: an accepted value did not survive its canonical
@@ -234,3 +234,13 @@ failure is not a warning.
   under open keys, materialized-key order, and exotic keys (U+FF5A vs
   U+1D400) where UTF-16 order and code-point order disagree, so the
   comparator authority itself is pinned.
+- 2026-08-02 (post-0025 custody correction): an independently reproduced own
+  `__proto__` fact key exposed a second materialization hazard. The strict
+  decoder accepted the key as part of the frozen open vocabulary, then wrote
+  it into `{}`, invoking the inherited prototype setter and silently
+  projecting the nonempty fact to `{}`. `diagnosticFact` and `translateFact`
+  now build null-prototype records before their code-point-ordered writes.
+  The correction preserves the existing vocabulary and byte grammar; it
+  removes a host-object collision rather than changing semantics. The
+  regression proves the own key and nested value survive value decoding,
+  canonical encoding, byte decoding, and byte-identical re-encoding.
