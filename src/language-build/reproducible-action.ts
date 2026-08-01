@@ -5,7 +5,7 @@
  * admission, digest observations, and canonical action-receipt validation. It
  * performs no host or deployment effects.
  */
-import { Crypto, Data, Effect, Match, Schema } from "effect";
+import { Crypto, Data, Effect, Encoding, Match, Schema } from "effect";
 import { canonicalBytes, scanJson, type CanonicalJsonValue } from "../normalized-core/canonical.ts";
 import type { Identity } from "../normalized-core/index.ts";
 import {
@@ -154,14 +154,6 @@ const compareStrings = (left: string, right: string): number =>
 
 const bytesEqual = (left: Uint8Array, right: Uint8Array): boolean =>
   left.byteLength === right.byteLength && left.every((value, index) => value === right[index]);
-
-const toHex = (bytes: Uint8Array): string => {
-  let output = "";
-  for (let index = 0; index < bytes.byteLength; index += 1) {
-    output += bytes[index]!.toString(16).padStart(2, "0");
-  }
-  return output;
-};
 
 const decodeJsonText = <S extends Schema.Constraint>(
   schema: S,
@@ -421,7 +413,7 @@ const deriveIdentity = (
       ),
     );
     const trustedDigest = yield* snapshotSha256Digest(phase, digest);
-    return `sha256:${toHex(trustedDigest)}` as Identity;
+    return `sha256:${Encoding.encodeHex(trustedDigest)}` as Identity;
   });
 
 const executionPayload = (

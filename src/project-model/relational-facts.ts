@@ -5,7 +5,7 @@
  * projection, content identity, and bounded read queries. It owns no storage
  * and cannot mutate project state.
  */
-import { Crypto, Data, Effect, Match, Path, Schema } from "effect";
+import { Crypto, Data, Effect, Encoding, Match, Path, Schema } from "effect";
 import {
   canonicalBytes,
   canonicalJson,
@@ -204,14 +204,6 @@ const deepFreeze = <Value>(value: Value): Value => {
 const bytesEqual = (left: Uint8Array, right: Uint8Array): boolean =>
   left.byteLength === right.byteLength && left.every((byte, index) => byte === right[index]);
 
-const toHex = (bytes: Uint8Array): string => {
-  let output = "";
-  for (let index = 0; index < bytes.byteLength; index += 1) {
-    output += bytes[index]!.toString(16).padStart(2, "0");
-  }
-  return output;
-};
-
 const typedArrayPrototype = Object.getPrototypeOf(Uint8Array.prototype) as object;
 const typedArrayTag = Object.getOwnPropertyDescriptor(typedArrayPrototype, Symbol.toStringTag)?.get;
 const typedArrayLength = Object.getOwnPropertyDescriptor(typedArrayPrototype, "byteLength")?.get;
@@ -349,7 +341,7 @@ const deriveExportIdentity = (
       ),
     );
     const bytes = yield* snapshotSha256Digest(digest);
-    return `sha256:${toHex(bytes)}`;
+    return `sha256:${Encoding.encodeHex(bytes)}`;
   });
 
 const sourceDocument = (

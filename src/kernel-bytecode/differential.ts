@@ -1,13 +1,10 @@
 /** Strict observation comparator; oracle execution remains outside this module. */
-import { Schema } from "effect";
+import { Encoding, Schema } from "effect";
 import {
   encodeCanonicalKernelRunObservation,
   type KernelRunObservation,
 } from "../kernel-interpreter/index.ts";
 import { DifferentialComparisonSchema, type DifferentialComparison } from "./schema.ts";
-
-const bytesToHex = (bytes: Uint8Array): string =>
-  Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 
 export const compareKernelRunObservations = (
   reference: KernelRunObservation,
@@ -29,8 +26,8 @@ export const compareKernelRunObservations = (
     );
   }
 
-  const referenceHex = bytesToHex(encodeCanonicalKernelRunObservation(reference));
-  const compiledHex = bytesToHex(encodeCanonicalKernelRunObservation(compiled));
+  const referenceHex = Encoding.encodeHex(encodeCanonicalKernelRunObservation(reference));
+  const compiledHex = Encoding.encodeHex(encodeCanonicalKernelRunObservation(compiled));
   return Object.freeze(
     Schema.decodeUnknownSync(DifferentialComparisonSchema, {
       onExcessProperty: "error",

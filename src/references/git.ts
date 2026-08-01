@@ -1,4 +1,4 @@
-import { Context, Crypto, Effect, FileSystem, Path, Stream } from "effect";
+import { Context, Crypto, Effect, Encoding, FileSystem, Path, Stream } from "effect";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 import { isConcreteGitRef } from "./catalog.ts";
 import { AcquisitionError } from "./errors.ts";
@@ -1066,7 +1066,7 @@ export const blobSha256 = (
           (cause) => new AcquisitionError({ message: `cannot hash Git blob ${oid}`, cause }),
         ),
       );
-    return Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join("");
+    return Encoding.encodeHex(digest);
   });
 
 interface RemoteRefs {

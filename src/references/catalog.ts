@@ -1,4 +1,4 @@
-import { Crypto, Effect, FileSystem, Schema } from "effect";
+import { Crypto, Effect, Encoding, FileSystem, Schema } from "effect";
 import { stringifyCanonicalJson } from "./canonical-json.ts";
 import { CatalogError } from "./errors.ts";
 import { TomlParser } from "./toml.ts";
@@ -103,9 +103,6 @@ export interface CatalogSource {
 export const isLockable = (source: CatalogSource): boolean =>
   source.track !== null && source.licensePaths.length > 0;
 
-const toHex = (bytes: Uint8Array): string =>
-  Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-
 /** SHA-256 of the complete canonical catalog record (`reference-lock-v1`). */
 export const catalogDigest = (
   raw: Readonly<Record<string, unknown>>,
@@ -124,7 +121,7 @@ export const catalogDigest = (
           (cause) => new CatalogError({ message: "cannot compute catalog digest", cause }),
         ),
       );
-    return toHex(digest);
+    return Encoding.encodeHex(digest);
   });
 
 export interface Catalog {

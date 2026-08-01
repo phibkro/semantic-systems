@@ -5,7 +5,7 @@
  * This module is an Effect application boundary. It captures the operation's
  * receipt/selection or manifest before decoding the bounded snapshot witness.
  */
-import { Crypto, Data, Effect, Schema } from "effect";
+import { Crypto, Data, Effect, Encoding, Schema } from "effect";
 import {
   canonicalBytes,
   scanJson,
@@ -150,14 +150,6 @@ const immutable = <Value extends object>(value: Value): Readonly<Value> => Objec
 
 const bytesEqual = (left: Uint8Array, right: Uint8Array): boolean =>
   left.byteLength === right.byteLength && left.every((value, index) => value === right[index]);
-
-const toHex = (bytes: Uint8Array): string => {
-  let output = "";
-  for (let index = 0; index < bytes.byteLength; index += 1) {
-    output += bytes[index]!.toString(16).padStart(2, "0");
-  }
-  return output;
-};
 
 const decodeSnapshotJson = (
   input: unknown,
@@ -490,7 +482,7 @@ const deriveManifestIdentity = (
         cause: { expectedBytes: 32, actualBytes: trustedDigest?.byteLength },
       });
     }
-    return `sha256:${toHex(trustedDigest)}` as Identity;
+    return `sha256:${Encoding.encodeHex(trustedDigest)}` as Identity;
   });
 
 const assembleArtifact = (

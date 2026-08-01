@@ -1,4 +1,4 @@
-import { Crypto, Data, Effect, Schema } from "effect";
+import { Crypto, Data, Effect, Encoding, Schema } from "effect";
 import { stringifyPublicJson } from "../project-model/public-export.ts";
 import type { JsonValue } from "../project-model/types.ts";
 import { PortfolioDocumentSchema, type PortfolioDocument } from "./decode.ts";
@@ -54,9 +54,6 @@ export class PortfolioExportFailure extends Data.TaggedError("PortfolioExportFai
   readonly cause?: unknown;
 }> {}
 
-const toHex = (bytes: Uint8Array): string =>
-  Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-
 const digest = (value: string): Effect.Effect<string, PortfolioExportFailure, Crypto.Crypto> =>
   Effect.gen(function* () {
     const crypto = yield* Crypto.Crypto;
@@ -68,7 +65,7 @@ const digest = (value: string): Effect.Effect<string, PortfolioExportFailure, Cr
             new PortfolioExportFailure({ message: "cannot digest portfolio snapshot", cause }),
         ),
       );
-    return toHex(bytes);
+    return Encoding.encodeHex(bytes);
   });
 
 const asJson = (value: PublicPortfolioSnapshot | PublicPortfolioVersion): JsonValue =>

@@ -1,0 +1,43 @@
+{
+  "entities": [
+    {
+      "id": "work.effect-encoding-hex-consolidation",
+      "kind": "work_item",
+      "name": "Consolidate hexadecimal encoding on Effect",
+      "summary": "Delete twelve hand-written byte-to-lowercase-hex implementations in favor of the pinned Effect Encoding function while preserving every digest input, identity, prefix, and typed failure.",
+      "status": "complete",
+      "tags": ["reuse-first", "effect", "encoding", "identity", "maintenance"],
+      "attributes": {
+        "phase": "validation",
+        "effort": 2,
+        "design_spec": "design-specs/0050-effect-encoding-hex-consolidation.md",
+        "plan": "plans/completed/0050-effect-encoding-hex-consolidation.md",
+        "acceptance": [
+          "All 256 one-byte values and fixed empty and multi-byte vectors match an independent legacy oracle",
+          "Exactly twelve scoped production encoders use pinned Effect Encoding directly",
+          "Digest inputs, domain prefixes, public identities, and typed hash failures remain unchanged",
+          "Focused normalized-core, build, project, reference, tracer, and bytecode observations remain exact",
+          "No Control Room source is changed"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 5,
+          "testability": 5,
+          "reversibility": 5,
+          "integration_independence": 5,
+          "blast_radius": 2,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source": "work.effect-encoding-hex-consolidation",
+      "target": "component.project-model",
+      "kind": "informs",
+      "summary": "The bounded reuse migration removes generic encoding machinery across identity-bearing project tooling without changing its semantic contracts.",
+      "attributes": {}
+    }
+  ]
+}

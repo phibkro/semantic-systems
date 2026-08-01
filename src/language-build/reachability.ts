@@ -3,7 +3,7 @@
  * observation. The caller owns edge authority; this module owns only strict
  * admission, normalization, traversal, and content-addressed receipts.
  */
-import { Crypto, Data, Effect, Schema } from "effect";
+import { Crypto, Data, Effect, Encoding, Schema } from "effect";
 import {
   canonicalBytes,
   scanJson,
@@ -109,14 +109,6 @@ const immutable = <Value extends object>(value: Value): Readonly<Value> => Objec
 const bytesEqual = (left: Uint8Array, right: Uint8Array): boolean =>
   left.byteLength === right.byteLength && left.every((value, index) => value === right[index]);
 
-const toHex = (bytes: Uint8Array): string => {
-  let output = "";
-  for (let index = 0; index < bytes.byteLength; index += 1) {
-    output += bytes[index]!.toString(16).padStart(2, "0");
-  }
-  return output;
-};
-
 const deriveIdentity = (
   domain: (typeof reachabilityIdentityDomains)[keyof typeof reachabilityIdentityDomains],
   payload: CanonicalJsonValue,
@@ -145,7 +137,7 @@ const deriveIdentity = (
         cause: { expectedBytes: 32, actualBytes: trustedDigest?.byteLength },
       });
     }
-    return `sha256:${toHex(trustedDigest)}` as Identity;
+    return `sha256:${Encoding.encodeHex(trustedDigest)}` as Identity;
   });
 
 const decodeJsonText = <S extends Schema.Constraint>(

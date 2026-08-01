@@ -17,6 +17,7 @@ Ready parallel work items: **20**.
 | Reconstruct the Control Room on TypeScript and Effect v4 | validation | complete | no | 72 | delegate with review |  |
 | Implement core checker | implementation | planned | yes | 65 | delegate with review |  |
 | Design deterministic concurrency simulator | design | planned | no | 68 | delegate with review | Specify STM effect and handler laws |
+| Consolidate hexadecimal encoding on Effect | validation | complete | no | 94 | delegate with review |  |
 | Adopt Effect Graph as a portfolio execution index | implementation | complete | no | 90 | delegate with review |  |
 | Adopt Effect Schema at the public snapshot boundary | validation | complete | no | 90 | delegate with review |  |
 | Build the executable semantic system kernel | validation | complete | no | 72 | delegate with review |  |

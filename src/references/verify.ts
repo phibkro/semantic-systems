@@ -1,4 +1,4 @@
-import { Crypto, Effect, type FileSystem, type Path } from "effect";
+import { Crypto, Effect, Encoding, type FileSystem, type Path } from "effect";
 import type { ChildProcessSpawner } from "effect/unstable/process";
 import { AcquisitionError } from "./errors.ts";
 import {
@@ -104,7 +104,7 @@ const digestSha256 = (
           (cause) => new AcquisitionError({ message: "cannot hash working-tree bytes", cause }),
         ),
       );
-    return Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join("");
+    return Encoding.encodeHex(digest);
   });
 
 const licenseReasons = (
