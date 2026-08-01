@@ -2,7 +2,7 @@
 
 <!-- Generated. Edit model sources, not this file. -->
 
-Ready parallel work items: **20**.
+Ready parallel work items: **21**.
 
 | Work item | Phase | Status | Ready | Score | Recommendation | Blockers |
 |---|---|---|---:|---:|---|---|
@@ -38,6 +38,7 @@ Ready parallel work items: **20**.
 | Define relational fact export | implementation | complete | no | 94 | delegate directly |  |
 | Execute a reproducible closure action and record its observation | implementation | complete | no | 87 | delegate with review |  |
 | Recut the independent resolution checker | design | complete | no | 83 | delegate with review |  |
+| Establish resource lifecycle handler laws | implementation | in_progress | yes | 87 | delegate with review |  |
 | Establish the semantic artifact store tracer | implementation | complete | no | 87 | delegate with review |  |
 | Specify semantic attestation profile | design | ready | no | 87 | delegate with review | Define normalized theory identity |
 | Assemble a semantic runtime-closure manifest | implementation | complete | no | 87 | delegate with review |  |

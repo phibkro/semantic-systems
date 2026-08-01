@@ -1,0 +1,51 @@
+{
+  "entities": [
+    {
+      "id": "work.resource-lifecycle-law-tracer",
+      "kind": "work_item",
+      "name": "Establish resource lifecycle handler laws",
+      "summary": "Execute a bounded affine cleanup model with explicit transfer, reverse finalization, child-scope blocking, and honest scripted outcomes before promoting syntax or kernel machinery.",
+      "status": "in_progress",
+      "tags": ["language", "algebra", "resources", "effects", "affine"],
+      "attributes": {
+        "phase": "implementation",
+        "effort": 5,
+        "design_spec": "design-specs/0044-resource-lifecycle-law-tracer.md",
+        "plan": "plans/active/0044-resource-lifecycle-law-tracer.md",
+        "acceptance": [
+          "Successful acquisition creates exactly one cleanup owner",
+          "Explicit release and scope exit finalize at most once",
+          "Scope exit finalizes in reverse registration order across every exit cause",
+          "Ownership transfer is explicit and conserves one owner",
+          "Parent cleanup is blocked while an owned child scope remains open",
+          "Scripted outcomes never masquerade as external resource observations"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 5,
+          "testability": 5,
+          "reversibility": 5,
+          "integration_independence": 4,
+          "blast_radius": 3,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source": "work.resource-lifecycle-law-tracer",
+      "target": "work.user-defined-algebra-frontier",
+      "kind": "requires",
+      "summary": "The tracer realizes the first executable law-model obligation selected by the algebra promotion frontier.",
+      "attributes": {}
+    },
+    {
+      "source": "work.resource-lifecycle-law-tracer",
+      "target": "component.runtime",
+      "kind": "informs",
+      "summary": "The pure law model constrains later resource handlers without selecting one runtime realization.",
+      "attributes": {}
+    }
+  ]
+}
