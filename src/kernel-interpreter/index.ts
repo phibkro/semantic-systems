@@ -9,12 +9,33 @@ import { toPortableFact } from "./portable-fact.ts";
 export {
   defaultKernelInterpreterBounds,
   interpretKernelJsonBytes,
+  interpretKernelJsonBytesWithObservationScript,
   type KernelInterpreterBounds,
 } from "./observe.ts";
+export {
+  decodeExternalObservationScript,
+  encodeCanonicalKernelEffectRunObservation,
+  ExternalObservationScriptSchema,
+  ExternalObservationValueSchema,
+  isKernelEffectRunObservation,
+  KernelEffectRunObservationSchema,
+  maximumExternalObservations,
+  type EffectRunDiagnostic,
+  type ExternalObservationScript,
+  type ExternalObservationValue,
+  type KernelEffectRunObservation,
+  type KernelEffectRunResult,
+} from "../kernel-execution/external-observations.ts";
 export { toPortableFact } from "./portable-fact.ts";
 export {
   isKernelRunObservation,
+  KernelRunResultSchema,
   KernelRunObservationSchema,
+  ObservableComputationTypeSchema,
+  ObservableOperationRequestSchema,
+  ObservableRuntimeDiagnosticSchema,
+  ObservableRuntimeValueSchema,
+  ObservableValueTypeSchema,
   type KernelRunObservation,
   type KernelRejectedCheckObservation,
   type KernelRunResult,

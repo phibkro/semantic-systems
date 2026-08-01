@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0037-one-shot-external-effect-replay.md`](../../design-specs/0037-one-shot-external-effect-replay.md).
 This execution record cannot redefine that contract.
 
-Status: contract frozen; implementation in progress
+Status: implementation complete; exact-head validation and independent review pending
 
 Owner: primary Semantic Systems language lead
 
@@ -67,3 +67,14 @@ bun scripts/accept/0037-one-shot-external-effect-replay.ts
   continuation, and handler interpretation; no source code was copied.
 - 2026-08-01: the first tracer bullet admits only first-order observation data.
   Opaque thunk display values cannot substitute for executable thunk custody.
+- 2026-08-01: implementation retains bytecode machine state only in private
+  runtime-scoped custody. Wrong-type, already-used, forged, and foreign tokens
+  reject without consuming the legitimate continuation; repeated operations
+  mint fresh tokens.
+- 2026-08-01: focused Bun observed 13 passing journeys and 128 fixed-seed
+  generated two-request scripts. Genuine Node observed the same public journey;
+  the inherited kernel and bytecode suites remained green.
+- 2026-08-01: applied-observation accounting distinguishes a rejected resume
+  from a consumed observation whose later machine segment exhausts. Public
+  schema validation also binds a final suspended result to the exact last
+  recorded request.

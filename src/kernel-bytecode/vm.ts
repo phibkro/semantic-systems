@@ -1,5 +1,6 @@
 /** Independent iterative VM for the closed source-free instruction graph. */
 import { Data, Effect } from "effect";
+import type { ExternalObservationValue } from "../kernel-execution/external-observations.ts";
 import type {
   ObservableOperationRequest,
   ObservableRuntimeResult,
@@ -20,6 +21,11 @@ export class BytecodeVmInconclusive extends Data.TaggedError("BytecodeVmInconclu
 }> {}
 
 export type BytecodeVmError = BytecodeVmFailure | BytecodeVmInconclusive;
+
+export class BytecodeVmResumeFailure extends Data.TaggedError("BytecodeVmResumeFailure")<{
+  readonly applied: boolean;
+  readonly error: BytecodeVmError;
+}> {}
 
 type RuntimeValue =
   | { readonly kind: "unit" }
@@ -87,6 +93,32 @@ interface Machine {
   traceEntries: number;
 }
 
+export interface BytecodeExternalSuspension {
+  readonly resultType: ObservableValueType;
+}
+
+interface BytecodeExternalSuspensionState {
+  readonly owner: object;
+  readonly graph: InstructionGraph;
+  readonly machine: Machine;
+}
+
+const knownExternalSuspensions = new WeakSet<object>();
+const liveExternalSuspensions = new WeakSet<object>();
+const externalSuspensionState = new WeakMap<object, BytecodeExternalSuspensionState>();
+
+class BytecodeExternalSuspensionImpl implements BytecodeExternalSuspension {
+  readonly resultType: ObservableValueType;
+
+  constructor(resultType: ObservableValueType, state: BytecodeExternalSuspensionState) {
+    this.resultType = resultType;
+    knownExternalSuspensions.add(this);
+    liveExternalSuspensions.add(this);
+    externalSuspensionState.set(this, state);
+    Object.freeze(this);
+  }
+}
+
 export interface BytecodeVmReturned {
   readonly status: "returned";
   readonly value: ObservableRuntimeResult;
@@ -95,13 +127,18 @@ export interface BytecodeVmReturned {
 export interface BytecodeVmSuspended {
   readonly status: "suspended";
   readonly request: ObservableOperationRequest;
+  readonly oneShotToken: BytecodeExternalSuspension;
 }
 
 export type BytecodeVmOutcome = BytecodeVmReturned | BytecodeVmSuspended;
 
 type InternalResult =
   | { readonly status: "returned"; readonly value: ObservableRuntimeResult }
-  | { readonly status: "suspended"; readonly request: ObservableOperationRequest }
+  | {
+      readonly status: "suspended";
+      readonly request: ObservableOperationRequest;
+      readonly oneShotToken: BytecodeExternalSuspension;
+    }
   | { readonly status: "failed"; readonly error: BytecodeVmError };
 
 const liveResumptions = new WeakSet<object>();
@@ -189,17 +226,22 @@ const runtimeValueHasType = (value: RuntimeValue, type: ObservableValueType): bo
   }
 };
 
-const run = (graph: InstructionGraph, bounds: KernelBytecodeBounds): InternalResult => {
-  const machine: Machine = {
-    block: graph.entryBlock,
-    programCounter: 0,
-    locals: new Map(),
-    operandStack: [],
-    continuationStack: [],
-    fuel: bounds.vmFuel,
-    traceEntries: 0,
-  };
+const cloneMachine = (machine: Machine): Machine => ({
+  block: machine.block,
+  programCounter: machine.programCounter,
+  locals: new Map(machine.locals),
+  operandStack: [...machine.operandStack],
+  continuationStack: [...machine.continuationStack],
+  fuel: machine.fuel,
+  traceEntries: machine.traceEntries,
+});
 
+const runMachine = (
+  graph: InstructionGraph,
+  bounds: KernelBytecodeBounds,
+  machine: Machine,
+  owner: object,
+): InternalResult => {
   const pushOperand = (value: RuntimeResult): InternalResult | undefined => {
     if (machine.operandStack.length >= bounds.maximumOperandStackDepth) {
       return failure(
@@ -461,14 +503,21 @@ const run = (graph: InstructionGraph, bounds: KernelBytecodeBounds): InternalRes
         }
         if (handlerIndex < 0) {
           machine.operandStack.pop();
+          const request = freeze({
+            label,
+            operation,
+            argument: observableValue(argument),
+            result_type: resultType,
+          });
+          const oneShotToken = new BytecodeExternalSuspensionImpl(resultType, {
+            owner,
+            graph,
+            machine: cloneMachine(machine),
+          });
           return {
             status: "suspended",
-            request: freeze({
-              label,
-              operation,
-              argument: observableValue(argument),
-              result_type: resultType,
-            }),
+            request,
+            oneShotToken,
           };
         }
         const handler = machine.continuationStack[handlerIndex];
@@ -592,21 +641,158 @@ const run = (graph: InstructionGraph, bounds: KernelBytecodeBounds): InternalRes
   }
 };
 
+const run = (
+  graph: InstructionGraph,
+  bounds: KernelBytecodeBounds,
+  owner: object,
+): InternalResult =>
+  runMachine(
+    graph,
+    bounds,
+    {
+      block: graph.entryBlock,
+      programCounter: 0,
+      locals: new Map(),
+      operandStack: [],
+      continuationStack: [],
+      fuel: bounds.vmFuel,
+      traceEntries: 0,
+    },
+    owner,
+  );
+
+const runtimeObservationValue = (value: ExternalObservationValue): RuntimeValue => {
+  switch (value.kind) {
+    case "unit":
+      return freeze({ kind: "unit" });
+    case "bool":
+      return freeze({ kind: "bool", value: value.value });
+    case "int":
+      return freeze({ kind: "int", value: value.value });
+    case "pair":
+      return freeze({
+        kind: "pair",
+        first: runtimeObservationValue(value.first),
+        second: runtimeObservationValue(value.second),
+      });
+  }
+};
+
+const resume = (
+  token: BytecodeExternalSuspension,
+  observation: ExternalObservationValue,
+  bounds: KernelBytecodeBounds,
+  owner: object,
+): { readonly applied: boolean; readonly result: InternalResult } => {
+  if (
+    typeof token !== "object" ||
+    token === null ||
+    !knownExternalSuspensions.has(token) ||
+    externalSuspensionState.get(token)?.owner !== owner
+  ) {
+    return {
+      applied: false,
+      result: failure(
+        "bytecode.vm.external-resumption-not-custodied",
+        "external resume requires a bytecode suspension in private custody",
+      ),
+    };
+  }
+  const state = externalSuspensionState.get(token)!;
+  const value = runtimeObservationValue(observation);
+  if (!runtimeValueHasType(value, token.resultType)) {
+    return {
+      applied: false,
+      result: failure(
+        "bytecode.vm.external-resumption-result-type-mismatch",
+        "external observation does not match the bytecode suspension result type",
+      ),
+    };
+  }
+  if (!liveExternalSuspensions.has(token)) {
+    return {
+      applied: false,
+      result: failure(
+        "bytecode.vm.external-resumption-already-used",
+        "bytecode external suspension was already consumed",
+      ),
+    };
+  }
+  if (state.machine.operandStack.length >= bounds.maximumOperandStackDepth) {
+    return {
+      applied: false,
+      result: failure(
+        "bytecode.vm.operand-stack-exceeded",
+        "VM operand stack capacity was exceeded",
+      ),
+    };
+  }
+  liveExternalSuspensions.delete(token);
+  const machine = cloneMachine(state.machine);
+  machine.fuel = bounds.vmFuel;
+  machine.operandStack.push(value);
+  return { applied: true, result: runMachine(state.graph, bounds, machine, owner) };
+};
+
 export type InstructionGraphExecutor = (
   graph: InstructionGraph,
   bounds: KernelBytecodeBounds,
 ) => Effect.Effect<BytecodeVmOutcome, BytecodeVmError>;
 
+export type InstructionGraphResumer = (
+  token: BytecodeExternalSuspension,
+  observation: ExternalObservationValue,
+  bounds: KernelBytecodeBounds,
+) => Effect.Effect<BytecodeVmOutcome, BytecodeVmResumeFailure>;
+
+export interface InstructionGraphRuntime {
+  readonly execute: InstructionGraphExecutor;
+  readonly resume: InstructionGraphResumer;
+}
+
+export const createInstructionGraphRuntime = (authority: unknown): InstructionGraphRuntime => {
+  if (!isCompiledRuntimeAuthority(authority)) {
+    throw new TypeError("instruction graph runtime requires lexical runtime authority");
+  }
+  const owner = Object.freeze({ owner: "instruction-graph-runtime" });
+  const execute: InstructionGraphExecutor = (graph, bounds) =>
+    Effect.gen(function* () {
+      const result = run(graph, bounds, owner);
+      if (result.status === "failed") return yield* result.error;
+      return result.status === "returned"
+        ? freeze({ status: "returned" as const, value: result.value })
+        : freeze({
+            status: "suspended" as const,
+            request: result.request,
+            oneShotToken: result.oneShotToken,
+          });
+    });
+  const resumeRuntime: InstructionGraphResumer = (token, observation, bounds) =>
+    Effect.gen(function* () {
+      const resumed = resume(token, observation, bounds, owner);
+      if (resumed.result.status === "failed") {
+        return yield* new BytecodeVmResumeFailure({
+          applied: resumed.applied,
+          error: resumed.result.error,
+        });
+      }
+      return resumed.result.status === "returned"
+        ? freeze({ status: "returned" as const, value: resumed.result.value })
+        : freeze({
+            status: "suspended" as const,
+            request: resumed.result.request,
+            oneShotToken: resumed.result.oneShotToken,
+          });
+    });
+  return Object.freeze({
+    execute,
+    resume: resumeRuntime,
+  });
+};
+
 export const createInstructionGraphExecutor = (authority: unknown): InstructionGraphExecutor => {
   if (!isCompiledRuntimeAuthority(authority)) {
     throw new TypeError("instruction graph executor requires lexical runtime authority");
   }
-  return (graph, bounds) =>
-    Effect.gen(function* () {
-      const result = run(graph, bounds);
-      if (result.status === "failed") return yield* result.error;
-      return result.status === "returned"
-        ? freeze({ status: "returned", value: result.value })
-        : freeze({ status: "suspended", request: result.request });
-    });
+  return createInstructionGraphRuntime(authority).execute;
 };
