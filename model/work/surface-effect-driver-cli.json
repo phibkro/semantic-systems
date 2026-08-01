@@ -1,0 +1,65 @@
+{
+  "entities": [
+    {
+      "id": "work.surface-effect-driver-cli",
+      "kind": "work_item",
+      "name": "Drive readable Semantic effects from a command",
+      "summary": "Compile one readable source stream and drive its reference execution with one strict bounded observation script.",
+      "status": "in_progress",
+      "tags": ["language", "surface", "interpreter", "effects", "cli", "agents"],
+      "attributes": {
+        "phase": "implementation",
+        "effort": 3,
+        "design_spec": "design-specs/0041-surface-effect-driver-cli.md",
+        "plan": "plans/active/0041-surface-effect-driver-cli.md",
+        "acceptance": [
+          "Readable source plus strict observations produces one canonical affine effect-run observation",
+          "Source admission precedes and gates observation-script reading",
+          "Wrong-typed and missing observations preserve one-shot request evidence",
+          "Usage and host failures never masquerade as semantic observations",
+          "Bun and Node emit byte-identical stdout",
+          "The command invokes only the reference interpreter"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 5,
+          "testability": 5,
+          "reversibility": 5,
+          "integration_independence": 5,
+          "blast_radius": 2,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source": "work.surface-effect-driver-cli",
+      "target": "work.semantic-surface-language",
+      "kind": "requires",
+      "summary": "The accepted compiler remains the sole readable-source authority.",
+      "attributes": {}
+    },
+    {
+      "source": "work.surface-effect-driver-cli",
+      "target": "work.one-shot-external-effect-replay",
+      "kind": "requires",
+      "summary": "The accepted affine driver remains the sole observation-delivery authority.",
+      "attributes": {}
+    },
+    {
+      "source": "work.surface-effect-driver-cli",
+      "target": "work.surface-runner-cli",
+      "kind": "requires",
+      "summary": "The accepted process host and source observation behavior remain stable.",
+      "attributes": {}
+    },
+    {
+      "source": "work.surface-effect-driver-cli",
+      "target": "component.kernel",
+      "kind": "implements",
+      "summary": "Adds a stateless readable-source affine effect adapter over the kernel.",
+      "attributes": {}
+    }
+  ]
+}

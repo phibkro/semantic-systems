@@ -45,6 +45,7 @@ flowchart LR
     work_stm_laws["Specify STM effect and handler laws"]
     work_stm_model_check["Model-check STM interleavings"]
     work_stm_runtime["Implement minimal STM runtime"]
+    work_surface_effect_driver_cli["Drive readable Semantic effects from a command"]
     work_surface_effect_replay["Replay external effects from readable Semantic source"]
     work_surface_runner_cli["Run readable Semantic source from a command"]
     work_theory_identity["Define normalized theory identity"]
@@ -81,6 +82,9 @@ flowchart LR
     work_semantic_runtime_closure_manifest -->|requires| work_semantic_artifact_store
     work_semantic_surface_language -->|requires| work_agent_facing_kernel_json
     work_semantic_surface_language -->|requires| work_kernel_reference_interpreter
+    work_surface_effect_driver_cli -->|requires| work_semantic_surface_language
+    work_surface_effect_driver_cli -->|requires| work_one_shot_external_effect_replay
+    work_surface_effect_driver_cli -->|requires| work_surface_runner_cli
     work_surface_effect_replay -->|requires| work_semantic_surface_language
     work_surface_effect_replay -->|requires| work_one_shot_external_effect_replay
     work_surface_runner_cli -->|requires| work_semantic_surface_language
