@@ -5,16 +5,17 @@ import {
   type KernelRunObservation,
 } from "../kernel-interpreter/index.ts";
 import { encodeCanonicalKernelDocument } from "../kernel-json/index.ts";
+import { driveSurfaceCompilation, surfaceEffectRunExitCode } from "./drive.ts";
 import {
-  compileSurfaceDocument,
-  defaultSurfaceLanguageBounds,
-  type SurfaceLanguageError,
-} from "../surface-language/index.ts";
+  encodeCanonicalSurfaceEffectRunObservation,
+  makeSurfaceEffectRunObservation,
+} from "./effect-schema.ts";
 import {
   encodeCanonicalSurfaceRunObservation,
   type SurfaceRunObservation,
   type SurfaceSourceDiagnostic,
 } from "./schema.ts";
+import { compileSurfaceSourceBytes } from "./source.ts";
 
 export class SurfaceCliHostError extends Data.TaggedError("SurfaceCliHostError")<{
   readonly operation: "read-input" | "write-stdout" | "write-stderr";
@@ -26,8 +27,9 @@ export interface SurfaceCliHost {
   readonly writeStderr: (text: string) => Effect.Effect<void, SurfaceCliHostError>;
 }
 
-const usage = "usage: semantic run FILE|-\n";
-const decoder = new TextDecoder("utf-8", { fatal: true });
+const runUsage = "usage: semantic run FILE|-\n";
+const driveUsage = "usage: semantic drive SOURCE_FILE|- OBSERVATIONS_FILE|-\n";
+const usage = `${runUsage.trimEnd()}\n       semantic drive SOURCE_FILE|- OBSERVATIONS_FILE|-\n`;
 
 const envelope = (observation: SurfaceRunObservation["observation"]): SurfaceRunObservation =>
   Object.freeze({
@@ -41,59 +43,19 @@ const envelope = (observation: SurfaceRunObservation["observation"]): SurfaceRun
 const sourceRejected = (diagnostic: SurfaceSourceDiagnostic): SurfaceRunObservation =>
   envelope({ tag: "source-rejected", diagnostic });
 
-const compilerDiagnostic = (error: SurfaceLanguageError): SurfaceSourceDiagnostic => ({
-  phase: error.phase,
-  code: error.code,
-  message: error.message,
-  span: error.span,
-  ...Match.value(error).pipe(
-    Match.tagsExhaustive({
-      SurfaceInputError: () => ({}),
-      SurfaceLexError: () => ({}),
-      SurfaceParseError: () => ({}),
-      SurfaceElaborationError: () => ({}),
-      SurfaceKernelBoundaryError: (boundary) => ({
-        kernel_diagnostics: boundary.diagnostics,
-      }),
-    }),
-  ),
-});
-
-const decodeSource = (bytes: Uint8Array): SurfaceRunObservation | string => {
-  if (bytes.byteLength > defaultSurfaceLanguageBounds.maximumSourceBytes) {
-    return sourceRejected({
-      phase: "lex",
-      code: "surface.lex.source-too-large",
-      message: `source exceeds the ${defaultSurfaceLanguageBounds.maximumSourceBytes} byte limit`,
-      span: { start: 0, end: 0 },
-    });
-  }
-  try {
-    return decoder.decode(bytes);
-  } catch {
-    return sourceRejected({
-      phase: "input",
-      code: "surface.input.invalid-utf8",
-      message: "surface source must be valid UTF-8",
-      span: { start: 0, end: 0 },
-    });
-  }
-};
-
 export const observeSurfaceSourceBytes = (
   bytes: Uint8Array,
-): Effect.Effect<SurfaceRunObservation, never> => {
-  const decoded = decodeSource(bytes);
-  if (typeof decoded !== "string") return Effect.succeed(decoded);
-  return Effect.match(compileSurfaceDocument(decoded), {
-    onFailure: (error) => sourceRejected(compilerDiagnostic(error)),
-    onSuccess: (compilation) =>
-      envelope({
-        tag: "kernel-observed",
-        kernel_run: interpretKernelJsonBytes(encodeCanonicalKernelDocument(compilation.kernel)),
-      }),
-  });
-};
+): Effect.Effect<SurfaceRunObservation, never> =>
+  Effect.map(compileSurfaceSourceBytes(bytes), (source) =>
+    source.status === "rejected"
+      ? sourceRejected(source.diagnostic)
+      : envelope({
+          tag: "kernel-observed",
+          kernel_run: interpretKernelJsonBytes(
+            encodeCanonicalKernelDocument(source.compilation.kernel),
+          ),
+        }),
+  );
 
 const kernelExitCode = (observation: KernelRunObservation): 0 | 1 =>
   Match.value(observation.observation).pipe(
@@ -119,16 +81,41 @@ export const runSurfaceCli = (
   arguments_: ReadonlyArray<string>,
   host: SurfaceCliHost,
 ): Effect.Effect<number, never> => {
-  if (arguments_.length !== 2 || arguments_[0] !== "run") {
+  const program: Effect.Effect<number, SurfaceCliHostError> = (() => {
+    if (arguments_[0] === "run") {
+      if (arguments_.length !== 2) return reportHostFailure(host, runUsage);
+      const source = arguments_[1]!;
+      return Effect.gen(function* () {
+        const input = yield* host.readInput(source);
+        const observation = yield* observeSurfaceSourceBytes(input);
+        yield* host.writeStdout(encodeCanonicalSurfaceRunObservation(observation));
+        return surfaceRunExitCode(observation);
+      });
+    }
+    if (arguments_[0] === "drive") {
+      if (arguments_.length !== 3 || (arguments_[1] === "-" && arguments_[2] === "-")) {
+        return reportHostFailure(host, driveUsage);
+      }
+      const sourcePath = arguments_[1]!;
+      const scriptPath = arguments_[2]!;
+      return Effect.gen(function* () {
+        const sourceBytes = yield* host.readInput(sourcePath);
+        const source = yield* compileSurfaceSourceBytes(sourceBytes);
+        const observation =
+          source.status === "rejected"
+            ? makeSurfaceEffectRunObservation({
+                tag: "source-rejected",
+                diagnostic: source.diagnostic,
+              })
+            : driveSurfaceCompilation(source.compilation, yield* host.readInput(scriptPath));
+        yield* host.writeStdout(encodeCanonicalSurfaceEffectRunObservation(observation));
+        return surfaceEffectRunExitCode(observation);
+      });
+    }
     return reportHostFailure(host, usage);
-  }
-  const source = arguments_[1]!;
-  return Effect.gen(function* () {
-    const input = yield* host.readInput(source);
-    const observation = yield* observeSurfaceSourceBytes(input);
-    yield* host.writeStdout(encodeCanonicalSurfaceRunObservation(observation));
-    return surfaceRunExitCode(observation);
-  }).pipe(
+  })();
+
+  return program.pipe(
     Effect.catch((error) =>
       reportHostFailure(
         host,
