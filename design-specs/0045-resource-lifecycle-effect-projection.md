@@ -55,7 +55,7 @@ surface compiler owns source-to-kernel elaboration, the kernel checker owns
 affine-use judgments, and each backend owns its execution trace. The
 projection composes those observations without taking over their authority.
 
-### Semantic inputs and bounds
+### Semantic inputs
 
 The public operation accepts an unknown 0044 lifecycle-script value and first
 runs `traceResourceLifecycle`. Its inert snapshotting, strict Effect Schema,
@@ -239,7 +239,7 @@ unknown report, strictly decodes its bounded representation, reprojects only
 from the embedded script, and compares canonical bytes. Forged source, tables,
 ledger, kernel data, traces, or comparisons reject.
 
-### Effect protocol
+### Effect protocols and uncertainty
 
 1. Validate the script and derive its 0044 report.
 2. Derive string/event tables and the cleanup binder plan.
