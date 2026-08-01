@@ -4,7 +4,8 @@ Canonical frozen contract:
 [`design-specs/0044-resource-lifecycle-law-tracer.md`](../../design-specs/0044-resource-lifecycle-law-tracer.md).
 This execution record cannot redefine that contract.
 
-Status: contract frozen; implementation intentionally absent
+Status: exact implementation candidate `a6548ff3fa01f6931503eb8b3634a61a856f831f`
+accepted locally; independent exact-head review and publication pending
 
 Owner: primary Semantic Systems language lead
 
@@ -67,5 +68,22 @@ bun scripts/accept/0044-resource-lifecycle-law-tracer.ts
   escape claims, made live resources explicit for scripts that leave scopes
   open, defined transfer as appending to the target cleanup order, and scoped
   exit completeness to resources owned at the accepted exit.
+- 2026-08-01: implementation `5c76e986` reused repository Effect Schema,
+  tagged-failure, canonical JSON, Unicode-ordering, immutable-custody, and
+  genuine Node parity patterns without a new dependency or copied upstream
+  source. The delegated exact-head checks passed 10 Bun tests with 184
+  assertions, 64 seeded generated cases, genuine Node 1/1, TypeScript 7,
+  Oxlint, Oxfmt, model validation, generated views, and commit policy.
+- 2026-08-01: integration audit found that a live same-scope transfer could
+  reorder cleanup without moving ownership. Candidate `a6548ff3` rejects that
+  transition, adds the regression, advances the 0042 resource candidate only
+  to an available userland model, and leaves both surface and kernel promotion
+  deferred.
+- 2026-08-01: exact 0044 acceptance on `a6548ff3` passed 10 focused lifecycle
+  tests with 185 assertions, genuine Node 1/1, all nine 0042 frontier tests,
+  TypeScript 7 Effect diagnostics, Oxlint, Oxfmt, strict project validation,
+  deterministic generated views, and the complete repository suite with 879
+  passes, one configured external-oracle skip, zero failures, and 20,674
+  assertions.
 - 2026-08-01: no provider, network, deployment, external resource, or adjacent
   repository effect occurred during contract freeze.
