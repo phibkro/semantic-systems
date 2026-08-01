@@ -11,6 +11,7 @@ flowchart LR
     work_actor_runtime["Implement minimal actor runtime"]
     work_agent_facing_kernel_json["Design agent-facing kernel JSON"]
     work_autonomous_development_loop["Establish the autonomous development control loop"]
+    work_baseline_bytecode_backend["Compile and independently execute baseline kernel bytecode"]
     work_control_room_alchemy_cli_compat["Align Control Room with the pinned Alchemy CLI"]
     work_control_room_interactive_skill_tree["Render the PBK roadmap as an interactive skill tree"]
     work_control_room_pinned_alchemy_workspace["Bind Control Room deploy to pinned Alchemy"]
@@ -43,6 +44,8 @@ flowchart LR
     work_theory_identity["Define normalized theory identity"]
     work_translation_validation_spec["Specify translation-validation seams"]
     work_wasm_contract_mapping["Research semantic contracts to WIT mapping"]
+    work_baseline_bytecode_backend -->|requires| work_kernel_reference_interpreter
+    work_baseline_bytecode_backend -->|requires| work_agent_facing_kernel_json
     work_control_room_alchemy_cli_compat -->|requires| work_pbk_portfolio_control_room
     work_control_room_interactive_skill_tree -->|requires| work_pbk_portfolio_control_room
     work_control_room_pinned_alchemy_workspace -->|requires| work_control_room_alchemy_cli_compat
