@@ -242,7 +242,7 @@ export const decodeAlgebraFrontierReport = (input: unknown): AlgebraFrontierRepo
 
 const observations = {
   resources: freezeDeep({
-    lawful_userland_model: false,
+    lawful_userland_model: true,
     repeated_ergonomic_demand: true,
     faithful_surface_elaboration: false,
     kernel_obstruction_established: false,
@@ -346,7 +346,8 @@ const report = decodeAlgebraFrontierReport({
       observations: observations.resources,
       observation_basis: [
         "industry bracket and scope APIs establish recurring ergonomic demand",
-        "Semantic Systems has no accepted local lifecycle law tracer or region elaboration yet",
+        "the executable 0044 bounded law tracer supplies a resource lifecycle userland model",
+        "0044 does not establish handle escape, region typing, host cancellation, or kernel elaboration",
       ],
       decision: classifyPromotion(observations.resources),
       operations: ["with_acquire", "release", "move_to_scope"],
@@ -385,9 +386,9 @@ const report = decodeAlgebraFrontierReport({
         },
       ],
       open_obligations: [
-        "model lifecycle laws with executable counterexamples",
         "establish or refute non-escaping affine regions over the current core",
         "define cleanup ordering with structured task cancellation",
+        "connect the accepted lifecycle law model to a faithful surface and core elaboration",
       ],
     },
     {
