@@ -2,8 +2,8 @@
  * Content-addressed compiler-to-build closure over one admitted reachability
  * receipt and one caller-selected artifact variant per reachable value.
  *
- * This module is an Effect application boundary. It captures both external
- * representations before observing the SemanticStore exactly once.
+ * This module is an Effect application boundary. It captures the operation's
+ * receipt/selection or manifest before decoding the bounded snapshot witness.
  */
 import { Crypto, Data, Effect, Schema } from "effect";
 import {
@@ -27,6 +27,7 @@ import {
   SemanticStore,
   SemanticStoreLayer,
   SemanticStoreSnapshotRejected,
+  SemanticStoreSnapshotSchema,
   type SemanticStoreSnapshot,
 } from "./semantic-store.ts";
 
@@ -40,6 +41,9 @@ export const runtimeClosureBounds = Object.freeze({
   maximumDepth: reachabilityBounds.maximumDepth,
   maximumJsonValues: reachabilityBounds.maximumJsonValues,
   maximumMembers: reachabilityBounds.maximumNodes,
+  maximumSnapshotBytes: 16_777_216,
+  maximumSnapshotDepth: 64,
+  maximumSnapshotJsonValues: 65_536,
 } as const);
 
 export const runtimeClosureIdentityDomain =
@@ -155,51 +159,76 @@ const toHex = (bytes: Uint8Array): string => {
   return output;
 };
 
-const preflightNameFreeSnapshot = (
+const decodeSnapshotJson = (
   input: unknown,
-): Effect.Effect<void, RuntimeClosureSnapshotRejected> =>
-  Effect.try({
-    try: () => {
-      if (typeof input !== "object" || input === null || Array.isArray(input)) {
-        throw new TypeError("snapshot input must be a record");
-      }
-      const rootDescriptor = Object.getOwnPropertyDescriptor(input, "name_bindings");
-      if (
-        rootDescriptor === undefined ||
-        !rootDescriptor.enumerable ||
-        !("value" in rootDescriptor)
-      ) {
-        throw new TypeError("snapshot name_bindings must be an own enumerable data property");
-      }
-      const bindings: unknown = rootDescriptor.value;
-      if (!Array.isArray(bindings) || Object.getPrototypeOf(bindings) !== Array.prototype) {
-        throw new TypeError("snapshot name_bindings must be a plain array");
-      }
-      const firstLength = Object.getOwnPropertyDescriptor(bindings, "length");
-      const keys = Reflect.ownKeys(bindings);
-      const secondLength = Object.getOwnPropertyDescriptor(bindings, "length");
-      if (
-        firstLength === undefined ||
-        secondLength === undefined ||
-        !("value" in firstLength) ||
-        !("value" in secondLength) ||
-        typeof firstLength.value !== "number" ||
-        firstLength.value !== secondLength.value
-      ) {
-        throw new TypeError("snapshot name_bindings length must be a stable data property");
-      }
-      if (firstLength.value !== 0) {
-        throw new RangeError("snapshot name_bindings must be empty");
-      }
-      if (keys.length !== 1 || keys[0] !== "length") {
-        throw new TypeError("snapshot name_bindings must be a dense array without extensions");
-      }
-    },
-    catch: (cause) =>
-      new RuntimeClosureSnapshotRejected({
-        reason:
-          cause instanceof Error ? cause.message : "snapshot name_bindings could not be admitted",
-      }),
+): Effect.Effect<SemanticStoreSnapshot, RuntimeClosureSnapshotRejected> =>
+  Effect.gen(function* () {
+    if (typeof input !== "string") {
+      return yield* new RuntimeClosureSnapshotRejected({
+        reason: "snapshot input must be a primitive JSON string",
+      });
+    }
+    if (input.length > runtimeClosureBounds.maximumSnapshotBytes) {
+      return yield* new RuntimeClosureSnapshotRejected({
+        reason: `snapshot exceeds ${runtimeClosureBounds.maximumSnapshotBytes} UTF-16 code units`,
+      });
+    }
+    const encodedLength = new TextEncoder().encode(input).byteLength;
+    if (encodedLength > runtimeClosureBounds.maximumSnapshotBytes) {
+      return yield* new RuntimeClosureSnapshotRejected({
+        reason: `snapshot exceeds ${runtimeClosureBounds.maximumSnapshotBytes} UTF-8 bytes`,
+      });
+    }
+    const scanIssue = scanJson(
+      input,
+      runtimeClosureBounds.maximumSnapshotDepth,
+      runtimeClosureBounds.maximumSnapshotJsonValues,
+    );
+    if (scanIssue !== undefined) {
+      return yield* new RuntimeClosureSnapshotRejected({ reason: scanIssue.message });
+    }
+    const parsed = yield* Schema.decodeUnknownEffect(Schema.UnknownFromJsonString)(input).pipe(
+      Effect.mapError((cause) => new RuntimeClosureSnapshotRejected({ reason: cause.message })),
+      Effect.catchDefect(() =>
+        Effect.fail(
+          new RuntimeClosureSnapshotRejected({
+            reason: "snapshot JSON could not be decoded",
+          }),
+        ),
+      ),
+    );
+    const decoded = yield* Schema.decodeUnknownEffect(SemanticStoreSnapshotSchema, {
+      onExcessProperty: "error",
+    })(parsed).pipe(
+      Effect.mapError((cause) => new RuntimeClosureSnapshotRejected({ reason: cause.message })),
+      Effect.catchDefect(() =>
+        Effect.fail(
+          new RuntimeClosureSnapshotRejected({
+            reason: "snapshot value could not be decoded",
+          }),
+        ),
+      ),
+    );
+    return immutable({
+      format: decoded.format,
+      version: decoded.version,
+      semantic_values: Object.freeze(
+        decoded.semantic_values.map((semanticValue) =>
+          immutable({
+            semantic_identity: semanticValue.semantic_identity,
+            artifacts: Object.freeze(
+              semanticValue.artifacts.map((artifact) =>
+                immutable({
+                  artifact_identity: artifact.artifact_identity,
+                  canonical_bytes: artifact.canonical_bytes,
+                }),
+              ),
+            ),
+          }),
+        ),
+      ),
+      name_bindings: Object.freeze([]),
+    });
   });
 
 const replayFailure = (
@@ -213,7 +242,7 @@ const replayFailure = (
       });
 
 const withPrivateSnapshot = <Value, Error>(
-  snapshotInput: unknown,
+  snapshot: SemanticStoreSnapshot,
   program: Effect.Effect<Value, Error, SemanticStore | Crypto.Crypto>,
 ): Effect.Effect<
   Value,
@@ -221,9 +250,8 @@ const withPrivateSnapshot = <Value, Error>(
   Crypto.Crypto
 > =>
   Effect.gen(function* () {
-    yield* preflightNameFreeSnapshot(snapshotInput);
     const store = yield* SemanticStore;
-    yield* store.replay(snapshotInput).pipe(Effect.mapError(replayFailure));
+    yield* store.replay(snapshot).pipe(Effect.mapError(replayFailure));
     return yield* program;
   }).pipe(Effect.provide(SemanticStoreLayer));
 
@@ -492,13 +520,14 @@ const assembleArtifact = (
   });
 
 export const buildRuntimeClosure = (
-  storeSnapshot: unknown,
+  storeSnapshotJson: unknown,
   receiptBytes: unknown,
   selectionJson: unknown,
 ): Effect.Effect<RuntimeClosureArtifact, RuntimeClosureBuildFailure, Crypto.Crypto> =>
   Effect.gen(function* () {
     const preparedReceipt = yield* prepareReachabilityReceiptBytes(receiptBytes);
     const selection = yield* decodeSelectionJson(selectionJson);
+    const storeSnapshot = yield* decodeSnapshotJson(storeSnapshotJson);
     return yield* withPrivateSnapshot(
       storeSnapshot,
       withValidatedReceiptSnapshot(preparedReceipt.bytes, (analysis, snapshot) =>
@@ -511,7 +540,7 @@ export const buildRuntimeClosure = (
   });
 
 export const validateRuntimeClosureBytes = (
-  storeSnapshot: unknown,
+  storeSnapshotJson: unknown,
   manifestBytes: unknown,
 ): Effect.Effect<RuntimeClosureManifest, RuntimeClosureValidationFailure, Crypto.Crypto> =>
   Effect.gen(function* () {
@@ -525,6 +554,7 @@ export const validateRuntimeClosureBytes = (
         }),
     });
     const preparedReceipt = yield* prepareReachabilityReceiptBytes(embeddedReceiptBytes);
+    const storeSnapshot = yield* decodeSnapshotJson(storeSnapshotJson);
     return yield* withPrivateSnapshot(
       storeSnapshot,
       withValidatedReceiptSnapshot(preparedReceipt.bytes, (analysis, snapshot) =>

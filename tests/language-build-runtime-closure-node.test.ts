@@ -75,8 +75,9 @@ test("genuine Node assembles the host-neutral semantic runtime closure", async (
         }),
       );
       const snapshot = yield* store.snapshot;
+      const snapshotJson = JSON.stringify(snapshot);
       const closure = yield* buildRuntimeClosure(
-        snapshot,
+        snapshotJson,
         receipt.bytes,
         JSON.stringify({
           format: "semantic.runtime-artifact-selection",
@@ -93,7 +94,7 @@ test("genuine Node assembles the host-neutral semantic runtime closure", async (
           ],
         }),
       );
-      const validated = yield* validateRuntimeClosureBytes(snapshot, closure.bytes);
+      const validated = yield* validateRuntimeClosureBytes(snapshotJson, closure.bytes);
       return { closure, validated };
     }).pipe(Effect.provide([SemanticStoreLayer, NodeCrypto.layer])),
   );
