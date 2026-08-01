@@ -98,7 +98,8 @@ canonical JSON, benchmark performance, or authorize any public identity.
 
 ## Deep-module contract
 
-The twelve production call sites use pinned `Encoding.encodeHex` directly.
+The twelve production modules use pinned `Encoding.encodeHex` directly across
+thirteen invocations; the bytecode comparator encodes both compared sides.
 For every input byte array `b`, output length is `2 * b.byteLength`; characters
 are only `[0-9a-f]`; byte order is preserved; there is no prefix; and empty
 input returns `""`. Domain prefixes and typed failures remain outside this
