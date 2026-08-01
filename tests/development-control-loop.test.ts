@@ -280,6 +280,35 @@ describe("autonomous development control loop", () => {
     expect(text(multiple).toLowerCase()).toContain("multiple feature identities");
   });
 
+  test("does not treat an unchanged acceptance copy source as a migrated feature", async () => {
+    const fixture = await featureFixture();
+    const featureId = "0006-copied-acceptance";
+    await Bun.write(
+      join(fixture.repo, "design-specs", `${featureId}.md`),
+      completeDesignLens("copied acceptance feature"),
+    );
+    await Bun.write(join(fixture.repo, "plans", "active", `${featureId}.md`), "# active plan\n");
+    await cp(
+      join(fixture.repo, "scripts", "accept", "0005-fixture.ts"),
+      join(fixture.repo, "scripts", "accept", `${featureId}.ts`),
+    );
+    const head = commit(fixture.repo, "feat: add copied acceptance feature");
+    await Bun.write(
+      fixture.event,
+      JSON.stringify({
+        pull_request: {
+          base: { sha: fixture.head },
+          head: { sha: head },
+          body: validPrBody(featureId),
+        },
+      }),
+    );
+
+    const result = runFeatureTool(FEATURE_POLICY, fixture.repo, "--event", fixture.event);
+    expect(result.exitCode).toBe(0);
+    expect(text(result)).toContain(featureId);
+  });
+
   test("allows only exact frozen contract migrations and replays their owner", async () => {
     const fixture = await featureFixture();
     const ownerDesign = join(fixture.repo, "design-specs", "0005-fixture.md");

@@ -121,6 +121,7 @@ export const changedPathsForRange = (
   base: string,
   head: string,
   comparison: "pr" | "range" = "pr",
+  copyOrigins: "include" | "exclude" = "include",
 ): string[] => {
   requireSha(base, "base SHA");
   requireSha(head, "head SHA");
@@ -161,7 +162,9 @@ export const changedPathsForRange = (
       if (path === undefined || path.length === 0) {
         throw new Error(`git diff returned a truncated ${status} record for ${range}`);
       }
-      paths.add(path);
+      if (!(copyOrigins === "exclude" && status.startsWith("C") && offset === 0)) {
+        paths.add(path);
+      }
     }
   }
   return [...paths];
@@ -669,7 +672,13 @@ export const validatePullRequestEvent = (root: string, eventPath: string): Featu
   }
 
   const artifacts = validateFeatureArtifacts(root, featureId);
-  const changedFeatureIds = featureIdsFromContractPaths(changedPaths);
+  // A detected copy observes its unchanged source for authority inventory and
+  // triviality checks, but the source is not itself a changed feature contract.
+  // Renames still retain both identities because their source really did leave
+  // the range. Without this distinct projection, a conventional new acceptance
+  // script copied from an older feature is misclassified as a contract migration.
+  const changedContractPaths = changedPathsForRange(root, base, head, "pr", "exclude");
+  const changedFeatureIds = featureIdsFromContractPaths(changedContractPaths);
   const conflictingIds = changedFeatureIds.filter((changedId) => changedId !== featureId);
   const migrationDeclarations = contractMigrationDeclarationsFor(root, featureId);
   const contractMigrations = [
