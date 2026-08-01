@@ -236,6 +236,50 @@
       "schema_version": "pbk.portfolio-row/v1",
       "record_type": "relation",
       "value": {
+        "id": "relation.semantic.13",
+        "source_id": "work.semantic.control-room-skill-tree",
+        "target_id": "work.semantic.pbk-control-room",
+        "kind": "requires",
+        "summary": "The interactive skill tree renders the accepted PBK portfolio projections without changing their authority."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "relation",
+      "value": {
+        "id": "relation.semantic.14",
+        "source_id": "work.semantic.language-kernel",
+        "target_id": "work.semantic.normalized-core",
+        "kind": "contains",
+        "summary": "The language-kernel milestone contains the deterministic normalized semantic-value format."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "relation",
+      "value": {
+        "id": "relation.semantic.15",
+        "source_id": "work.semantic.artifact-store",
+        "target_id": "work.semantic.normalized-core",
+        "kind": "requires",
+        "summary": "The semantic store accepts values only after normalized content identity has been established."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "relation",
+      "value": {
+        "id": "relation.semantic.16",
+        "source_id": "work.semantic.reachability-receipt",
+        "target_id": "work.semantic.artifact-store",
+        "kind": "requires",
+        "summary": "Reachability analysis traverses exact semantic-value identities observed through the accepted store."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "relation",
+      "value": {
         "id": "relation.studio.01",
         "source_id": "work.flow.autonomous-studio",
         "target_id": "work.herdr.stable-facade",

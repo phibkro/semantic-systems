@@ -132,6 +132,78 @@
         "href": "https://github.com/phibkro/semantic-systems/blob/b48563fc1780e6bf76f06b5e0fa0ee6c6d4fac10/tests/kernel-json-diagnostic-fact-custody.test.ts",
         "revision": "b48563fc1780e6bf76f06b5e0fa0ee6c6d4fac10"
       }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "artifact",
+      "value": {
+        "id": "artifact.semantic.normalized-core-spec",
+        "work_id": "work.semantic.normalized-core",
+        "kind": "design",
+        "title": "Normalized core format contract",
+        "href": "https://github.com/phibkro/semantic-systems/blob/2959681e01df2acc4ea1318b8ce634b9ccf7d10c/design-specs/0019-normalized-core-format.md",
+        "revision": "2959681e01df2acc4ea1318b8ce634b9ccf7d10c"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "artifact",
+      "value": {
+        "id": "artifact.semantic.surface-language-spec",
+        "work_id": "work.semantic.surface-language",
+        "kind": "design",
+        "title": "Semantic surface language contract",
+        "href": "https://github.com/phibkro/semantic-systems/blob/0302b468cac9f9d8f55d5e68b9a0e50e5fac9ac1/design-specs/0026-semantic-surface-language.md",
+        "revision": "0302b468cac9f9d8f55d5e68b9a0e50e5fac9ac1"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "artifact",
+      "value": {
+        "id": "artifact.semantic.artifact-store-spec",
+        "work_id": "work.semantic.artifact-store",
+        "kind": "design",
+        "title": "Semantic artifact store contract",
+        "href": "https://github.com/phibkro/semantic-systems/blob/800d70b74c96a476d34b9690374683b1843343b2/design-specs/0027-semantic-artifact-store.md",
+        "revision": "800d70b74c96a476d34b9690374683b1843343b2"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "artifact",
+      "value": {
+        "id": "artifact.semantic.reachability-receipt-spec",
+        "work_id": "work.semantic.reachability-receipt",
+        "kind": "design",
+        "title": "Reachability analysis receipt contract",
+        "href": "https://github.com/phibkro/semantic-systems/blob/68417a25f47a9a3f48a8782fae7f598d38a2ccd2/design-specs/0030-reachability-analysis-receipt.md",
+        "revision": "68417a25f47a9a3f48a8782fae7f598d38a2ccd2"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "artifact",
+      "value": {
+        "id": "artifact.semantic.control-room-skill-tree-spec",
+        "work_id": "work.semantic.control-room-skill-tree",
+        "kind": "design",
+        "title": "Control Room interactive skill tree contract",
+        "href": "https://github.com/phibkro/semantic-systems/blob/264e34e3685aaccbe10525540105a1b589343e5f/design-specs/0031-control-room-interactive-skill-tree.md",
+        "revision": "264e34e3685aaccbe10525540105a1b589343e5f"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "artifact",
+      "value": {
+        "id": "artifact.semantic.control-room-skill-tree-acceptance",
+        "work_id": "work.semantic.control-room-skill-tree",
+        "kind": "evidence",
+        "title": "Control Room interactive skill tree acceptance gate",
+        "href": "https://github.com/phibkro/semantic-systems/blob/264e34e3685aaccbe10525540105a1b589343e5f/scripts/accept/0031-control-room-interactive-skill-tree.ts",
+        "revision": "264e34e3685aaccbe10525540105a1b589343e5f"
+      }
     }
   ]
 }
