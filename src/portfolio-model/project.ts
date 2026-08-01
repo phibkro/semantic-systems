@@ -6,6 +6,12 @@ import type {
   WorkRelation,
   WorkStatus,
 } from "./decode.ts";
+import {
+  buildStableDirectedGraphIndex,
+  isStableGraphAcyclic,
+  topologicalStableIds,
+  type StableGraphIndexFailure,
+} from "./graph-index.ts";
 import { queryWork, resolveWorkField, type QueryDiagnostics } from "./query.ts";
 
 const HORIZON = [
@@ -101,39 +107,29 @@ const selectedRelations = (
 const dependencyDepths = (
   identities: ReadonlyArray<string>,
   edges: ReadonlyArray<WorkRelation>,
-): ReadonlyMap<string, number> => {
-  const incoming = new Map(identities.map((id) => [id, new Array<string>()]));
-  for (const edge of edges) {
-    if (edge.kind === "requires") incoming.get(edge.source_id)?.push(edge.target_id);
-  }
-  const memo = new Map<string, number>();
-  const depth = (id: string): number => {
-    const known = memo.get(id);
-    if (known !== undefined) return known;
-    const value = Math.max(0, ...(incoming.get(id) ?? []).map((target) => depth(target) + 1));
-    memo.set(id, value);
-    return value;
-  };
-  for (const id of identities) depth(id);
-  return memo;
-};
+): Effect.Effect<ReadonlyMap<string, number>, StableGraphIndexFailure> =>
+  Effect.gen(function* () {
+    const nodes = identities.map((id) => ({ id }));
+    const requires = edges.filter(({ kind }) => kind === "requires");
+    const index = yield* buildStableDirectedGraphIndex(nodes, requires);
+    const authoredOrder = yield* topologicalStableIds(index);
+    const prerequisites = new Map(identities.map((id) => [id, new Array<string>()]));
+    for (const edge of requires) prerequisites.get(edge.source_id)!.push(edge.target_id);
+    const depths = new Map<string, number>();
+    for (const id of [...authoredOrder].reverse()) {
+      let depth = 0;
+      for (const prerequisite of prerequisites.get(id)!) {
+        depth = Math.max(depth, (depths.get(prerequisite) ?? 0) + 1);
+      }
+      depths.set(id, depth);
+    }
+    return depths;
+  });
 
-const cyclic = (identities: ReadonlyArray<string>, edges: ReadonlyArray<WorkRelation>): boolean => {
-  const outgoing = new Map(identities.map((id) => [id, new Array<string>()]));
-  for (const edge of edges) outgoing.get(edge.source_id)?.push(edge.target_id);
-  const active = new Set<string>();
-  const settled = new Set<string>();
-  const visit = (id: string): boolean => {
-    if (active.has(id)) return true;
-    if (settled.has(id)) return false;
-    active.add(id);
-    if ((outgoing.get(id) ?? []).some(visit)) return true;
-    active.delete(id);
-    settled.add(id);
-    return false;
-  };
-  return identities.some(visit);
-};
+const graphFailure = (view: SavedView, failure: StableGraphIndexFailure) =>
+  new PortfolioProjectionFailure({
+    message: `view ${view.id} could not build its execution index: ${failure.message}`,
+  });
 
 export const projectWork = (
   document: PortfolioDocument,
@@ -191,22 +187,27 @@ export const projectWork = (
   }
   const selected = new Set(selection.identities);
   const edges = selectedRelations(document, selected, view);
-  if (view.presentation === "dag" && cyclic(selection.identities, edges)) {
-    return Effect.fail(
-      new PortfolioProjectionFailure({
-        message: `view ${view.id} selects a cyclic relation family`,
-      }),
+  const presentation = view.presentation;
+  return Effect.gen(function* () {
+    if (presentation === "dag") {
+      const selectedIndex = yield* buildStableDirectedGraphIndex(items, edges).pipe(
+        Effect.mapError((failure) => graphFailure(view, failure)),
+      );
+      if (!isStableGraphAcyclic(selectedIndex)) {
+        return yield* new PortfolioProjectionFailure({
+          message: `view ${view.id} selects a cyclic relation family`,
+        });
+      }
+    }
+    const depths = yield* dependencyDepths(selection.identities, edges).pipe(
+      Effect.mapError((failure) => graphFailure(view, failure)),
     );
-  }
-  const depths = dependencyDepths(
-    selection.identities,
-    edges.filter(({ kind }) => kind === "requires"),
-  );
-  return Effect.succeed({
-    ...base,
-    presentation: view.presentation,
-    nodes: items.map((item) => Object.assign({}, item, { depth: depths.get(item.id) ?? 0 })),
-    edges,
+    return {
+      ...base,
+      presentation,
+      nodes: items.map((item) => Object.assign({}, item, { depth: depths.get(item.id) ?? 0 })),
+      edges,
+    };
   });
 };
 

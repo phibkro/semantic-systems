@@ -1,5 +1,6 @@
 import { BunFileSystem, BunPath } from "@effect/platform-bun";
 import { Effect } from "effect";
+import * as Graph from "effect/Graph";
 import { beforeAll, describe, expect, test } from "bun:test";
 import {
   acceptPortfolioUpdate,
@@ -13,6 +14,10 @@ import {
   type PortfolioDocument,
   type SavedView,
 } from "../src/portfolio-model/index.ts";
+import {
+  buildStableDirectedGraphIndex,
+  topologicalStableIds,
+} from "../src/portfolio-model/graph-index.ts";
 
 let portfolio: PortfolioDocument;
 
@@ -269,6 +274,57 @@ describe("course-platform label algebra", () => {
 });
 
 describe("query and presentation interpreters", () => {
+  test("constructs a deterministic stable-ID multigraph index", async () => {
+    const nodes = [{ id: "work.c" }, { id: "work.a" }, { id: "work.b" }];
+    const edges = [
+      { id: "relation.02", source_id: "work.a", target_id: "work.b" },
+      { id: "relation.01", source_id: "work.a", target_id: "work.b" },
+      { id: "relation.03", source_id: "work.b", target_id: "work.c" },
+    ];
+    const left = await Effect.runPromise(buildStableDirectedGraphIndex(nodes, edges));
+    const right = await Effect.runPromise(
+      buildStableDirectedGraphIndex([...nodes].reverse(), [...edges].reverse()),
+    );
+
+    expect([...left.nodeIndexById]).toEqual([
+      ["work.a", 0],
+      ["work.b", 1],
+      ["work.c", 2],
+    ]);
+    expect([...left.edgeIndexById]).toEqual([
+      ["relation.01", 0],
+      ["relation.02", 1],
+      ["relation.03", 2],
+    ]);
+    expect(Graph.edgeCount(left.graph)).toBe(3);
+    expect([...right.nodeIndexById]).toEqual([...left.nodeIndexById]);
+    expect([...right.edgeIndexById]).toEqual([...left.edgeIndexById]);
+    expect(await Effect.runPromise(topologicalStableIds(left))).toEqual([
+      "work.a",
+      "work.b",
+      "work.c",
+    ]);
+    expect(await Effect.runPromise(topologicalStableIds(right))).toEqual([
+      "work.a",
+      "work.b",
+      "work.c",
+    ]);
+  });
+
+  test("maps index invariant violations into typed Effect failures", async () => {
+    await expect(
+      Effect.runPromise(
+        buildStableDirectedGraphIndex(
+          [{ id: "work.a" }],
+          [{ id: "relation.missing", source_id: "work.a", target_id: "work.missing" }],
+        ),
+      ),
+    ).rejects.toMatchObject({
+      _tag: "StableGraphIndexFailure",
+      reason: "missing-target",
+    });
+  });
+
   test("preserves one selected identity set across list, grid, graph, DAG, and Mosaic", async () => {
     const base = view("view.overview");
     const projections = await Promise.all(
@@ -342,5 +398,145 @@ describe("query and presentation interpreters", () => {
     await expect(
       Effect.runPromise(projectWork(cyclic, { ...candidate, presentation: "graph" })),
     ).resolves.toMatchObject({ presentation: "graph" });
+  });
+
+  test("keeps the accepted Roadmap public snapshot unchanged", async () => {
+    const projection = await Effect.runPromise(projectWork(portfolio, view("view.roadmap")));
+    if (projection.presentation !== "dag") throw new Error("Roadmap fixture is not a DAG");
+    expect({
+      nodes: projection.nodes.map(({ id, depth }) => `${id}:${depth}`),
+      edges: projection.edges.map(({ id }) => id),
+    }).toEqual({
+      nodes: [
+        "work.course.decision-product:0",
+        "work.flow.autonomous-studio:1",
+        "work.herdr.codex-session:1",
+        "work.herdr.e2e-environment:1",
+        "work.herdr.fleet-resource:0",
+        "work.herdr.stable-facade:0",
+        "work.herdr.supervisor-wake:1",
+        "work.herdr.supervisor:0",
+        "work.mastra.preview:0",
+        "work.pagu.environment-federation:2",
+        "work.pagu.environment-runtime:1",
+        "work.pagu.heterogeneous-placement:0",
+        "work.qeffect.resource-tracer:0",
+        "work.reef.repository-shape:0",
+        "work.semantic.artifact-store:1",
+        "work.semantic.control-room-0017:0",
+        "work.semantic.control-room-skill-tree:2",
+        "work.semantic.kernel-diagnostic-fact-custody:1",
+        "work.semantic.kernel-interpreter:2",
+        "work.semantic.kernel-json:0",
+        "work.semantic.language-kernel:0",
+        "work.semantic.normalized-core:0",
+        "work.semantic.optimized-compiler:3",
+        "work.semantic.pbk-control-room:1",
+        "work.semantic.reachability-receipt:2",
+        "work.semantic.surface-language:3",
+        "work.workgraph.journeys:0",
+      ],
+      edges: [
+        "relation.herdr.01",
+        "relation.herdr.02",
+        "relation.herdr.03",
+        "relation.herdr.04",
+        "relation.herdr.05",
+        "relation.herdr.06",
+        "relation.pagu.01",
+        "relation.pagu.02",
+        "relation.pagu.03",
+        "relation.semantic.01",
+        "relation.semantic.02",
+        "relation.semantic.03",
+        "relation.semantic.04",
+        "relation.semantic.05",
+        "relation.semantic.06",
+        "relation.semantic.07",
+        "relation.semantic.08",
+        "relation.semantic.09",
+        "relation.semantic.10",
+        "relation.semantic.11",
+        "relation.semantic.12",
+        "relation.semantic.13",
+        "relation.semantic.14",
+        "relation.semantic.15",
+        "relation.semantic.16",
+        "relation.studio.01",
+      ],
+    });
+  });
+
+  test("is invariant to portfolio and relation permutations", async () => {
+    const roadmap = view("view.roadmap");
+    const baseline = await Effect.runPromise(projectWork(portfolio, roadmap));
+    const permuted: PortfolioDocument = {
+      ...portfolio,
+      work: [...portfolio.work].reverse(),
+      relations: [...portfolio.relations].reverse(),
+    };
+    const observed = await Effect.runPromise(projectWork(permuted, roadmap));
+    expect(observed).toEqual(baseline);
+  });
+
+  test("retains parallel relation identities without inflating semantic depth", async () => {
+    const roadmap = view("view.roadmap");
+    const baseline = await Effect.runPromise(projectWork(portfolio, roadmap));
+    const existing = portfolio.relations.find(({ kind }) => kind === "requires");
+    if (baseline.presentation !== "dag" || existing === undefined) {
+      throw new Error("Roadmap fixture has no requires relation");
+    }
+    const parallel: PortfolioDocument = {
+      ...portfolio,
+      relations: [
+        ...portfolio.relations,
+        { ...existing, id: "relation.test.parallel", summary: "Parallel authored relation." },
+      ],
+    };
+    const observed = await Effect.runPromise(projectWork(parallel, roadmap));
+    if (observed.presentation !== "dag") throw new Error("Roadmap fixture is not a DAG");
+
+    expect(observed.edges.map(({ id }) => id)).toContain("relation.test.parallel");
+    expect(observed.edges).toHaveLength(baseline.edges.length + 1);
+    expect(observed.nodes.map(({ id, depth }) => [id, depth])).toEqual(
+      baseline.nodes.map(({ id, depth }) => [id, depth]),
+    );
+  });
+
+  test("derives the maximum 2,048-node requires chain without host recursion", async () => {
+    const count = 2_048;
+    const ids = Array.from(
+      { length: count },
+      (_, index) => `work.chain.${index.toString().padStart(4, "0")}`,
+    );
+    const project = portfolio.projects[0]!;
+    const template = portfolio.work[0]!;
+    const chain: PortfolioDocument = {
+      ...portfolio,
+      projects: [project],
+      work: ids.map((id) => ({
+        ...template,
+        id,
+        project_id: project.id,
+        title: id,
+        attributes: {},
+      })),
+      relations: ids.slice(1).map((id, index) => ({
+        id: `relation.chain.${index.toString().padStart(4, "0")}`,
+        source_id: id,
+        target_id: ids[index]!,
+        kind: "requires",
+        summary: "Declared chain dependency.",
+      })),
+      memberships: [],
+      artifacts: [],
+      priorities: [],
+      receipts: [],
+      snapshots: [],
+    };
+    const projected = await Effect.runPromise(projectWork(chain, view("view.roadmap")));
+    if (projected.presentation !== "dag") throw new Error("Roadmap fixture is not a DAG");
+    expect(projected.nodes).toHaveLength(count);
+    expect(projected.nodes.find(({ id }) => id === ids.at(-1))?.depth).toBe(count - 1);
   });
 });
