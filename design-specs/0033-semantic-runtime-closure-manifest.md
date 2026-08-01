@@ -118,9 +118,16 @@ unreachable, or duplicate semantic identity is admitted. Artifact identities
 are exact 0019 artifact identities under their corresponding stored semantic
 value. Authored names never enter selection.
 
+Selection admission first rejects more than 1,048,576 UTF-16 code units. It
+then measures exact UTF-8 bytes against the same 1,048,576-byte bound before
+scanning or decoding. Because no string within the byte bound can exceed the
+code-unit bound, this precheck changes allocation order without narrowing the
+accepted language.
+
 Receipt and manifest byte inputs reuse 0030 custody: only genuine
 `Uint8Array` values are admitted, bytes are defensively copied, the
-1,048,576-byte limit is checked before decoding, and UTF-8 decoding is fatal.
+1,048,576-byte limit is observed through the intrinsic typed-array length
+getter before allocating the defensive copy, and UTF-8 decoding is fatal.
 Receipt, selection, and manifest JSON all use the accepted scanner before
 Effect Schema decoding. Duplicate object keys, depth above 64, or more than
 16,384 JSON values reject. Typed-array lookalikes and other byte containers

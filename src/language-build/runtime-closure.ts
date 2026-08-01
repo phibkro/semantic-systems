@@ -255,17 +255,29 @@ const withPrivateSnapshot = <Value, Error>(
     return yield* program;
   }).pipe(Effect.provide(SemanticStoreLayer));
 
+const typedArrayPrototype = Object.getPrototypeOf(Uint8Array.prototype) as object;
+const typedArrayTag = Object.getOwnPropertyDescriptor(typedArrayPrototype, Symbol.toStringTag)?.get;
+const typedArrayLength = Object.getOwnPropertyDescriptor(typedArrayPrototype, "byteLength")?.get;
+
 const snapshotManifestBytes = (
   input: unknown,
 ): Effect.Effect<Uint8Array, RuntimeClosureManifestRejected> =>
   Effect.try({
     try: () => {
-      const bytes = trustedUint8ArrayCopy(input);
-      if (bytes === undefined) throw new TypeError("manifest input must be a Uint8Array");
-      if (bytes.byteLength > runtimeClosureBounds.maximumBytes) {
+      if (
+        typedArrayTag === undefined ||
+        typedArrayLength === undefined ||
+        typedArrayTag.call(input) !== "Uint8Array"
+      ) {
+        throw new TypeError("manifest input must be a Uint8Array");
+      }
+      const length = typedArrayLength.call(input) as number;
+      if (length > runtimeClosureBounds.maximumBytes) {
         throw new RangeError(`manifest exceeds ${runtimeClosureBounds.maximumBytes} bytes`);
       }
-      return bytes;
+      const output = new Uint8Array(length);
+      Uint8Array.prototype.set.call(output, input as Uint8Array);
+      return output;
     },
     catch: (cause) =>
       new RuntimeClosureManifestRejected({
@@ -283,6 +295,9 @@ const decodeJsonText = <S extends Schema.Constraint>(
   S["DecodingServices"]
 > =>
   Effect.gen(function* () {
+    if (input.length > runtimeClosureBounds.maximumBytes) {
+      return yield* reject(`input exceeds ${runtimeClosureBounds.maximumBytes} UTF-16 code units`);
+    }
     const encodedLength = new TextEncoder().encode(input).byteLength;
     if (encodedLength > runtimeClosureBounds.maximumBytes) {
       return yield* reject(`input exceeds ${runtimeClosureBounds.maximumBytes} UTF-8 bytes`);

@@ -517,14 +517,20 @@ describe("semantic runtime-closure manifest", () => {
         artifact_identity: makeIdentity(index + 10_000),
       })),
     );
+    const overCodeUnitSelection = " ".repeat(runtimeClosureBounds.maximumBytes + 1);
+    const overLimitManifest = new Uint8Array(runtimeClosureBounds.maximumBytes + 1);
     const results = await Effect.runPromise(
       Effect.all([
         buildRuntimeClosure(hostileSnapshot, "not bytes", selected(fixture)).pipe(Effect.result),
         buildRuntimeClosure(hostileSnapshot, fixture.receiptBytes, "{").pipe(Effect.result),
+        buildRuntimeClosure(hostileSnapshot, fixture.receiptBytes, overCodeUnitSelection).pipe(
+          Effect.result,
+        ),
         buildRuntimeClosure(hostileSnapshot, fixture.receiptBytes, overLimitSelection).pipe(
           Effect.result,
         ),
         validateRuntimeClosureBytes(hostileSnapshot, "not bytes").pipe(Effect.result),
+        validateRuntimeClosureBytes(hostileSnapshot, overLimitManifest).pipe(Effect.result),
         validateRuntimeClosureBytes(hostileSnapshot, Uint8Array.of(0xff)).pipe(Effect.result),
       ]).pipe(Effect.provide(BunCrypto.layer)),
     );
