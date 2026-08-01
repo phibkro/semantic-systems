@@ -416,16 +416,31 @@ describe("reproducible action/observation receipt", () => {
         return 0;
       },
     };
-    const result = await run(
-      validateReproducibleActionReceiptBytes(
-        fixture.snapshotJson,
-        fixture.closureBytes,
-        lookalike,
-      ).pipe(Effect.result),
+    const overLimit = new Uint8Array(reproducibleActionBounds.maximumBytes + 1);
+    const [lookalikeResult, overLimitResult] = await run(
+      Effect.all([
+        validateReproducibleActionReceiptBytes(
+          fixture.snapshotJson,
+          fixture.closureBytes,
+          lookalike,
+        ).pipe(Effect.result),
+        validateReproducibleActionReceiptBytes(
+          fixture.snapshotJson,
+          fixture.closureBytes,
+          overLimit,
+        ).pipe(Effect.result),
+      ]),
     );
-    expect(Result.isFailure(result)).toBeTrue();
-    if (Result.isFailure(result)) {
-      expect(result.failure).toBeInstanceOf(ReproducibleActionReceiptRejected);
+    expect(Result.isFailure(lookalikeResult)).toBeTrue();
+    expect(Result.isFailure(overLimitResult)).toBeTrue();
+    if (Result.isFailure(lookalikeResult)) {
+      expect(lookalikeResult.failure).toBeInstanceOf(ReproducibleActionReceiptRejected);
+    }
+    if (
+      Result.isFailure(overLimitResult) &&
+      overLimitResult.failure instanceof ReproducibleActionReceiptRejected
+    ) {
+      expect(overLimitResult.failure.reason).toContain("exceeds");
     }
     expect(accessorCalls).toBe(0);
   });

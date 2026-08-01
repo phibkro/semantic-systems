@@ -275,17 +275,29 @@ interface PreparedReceipt {
   readonly bytes: Uint8Array;
 }
 
+const typedArrayPrototype = Object.getPrototypeOf(Uint8Array.prototype) as object;
+const typedArrayTag = Object.getOwnPropertyDescriptor(typedArrayPrototype, Symbol.toStringTag)?.get;
+const typedArrayLength = Object.getOwnPropertyDescriptor(typedArrayPrototype, "byteLength")?.get;
+
 const snapshotReceiptBytes = (
   input: unknown,
 ): Effect.Effect<Uint8Array, ReproducibleActionReceiptRejected> =>
   Effect.try({
     try: () => {
-      const bytes = trustedUint8ArrayCopy(input);
-      if (bytes === undefined) throw new TypeError("receipt input must be a Uint8Array");
-      if (bytes.byteLength > reproducibleActionBounds.maximumBytes) {
+      if (
+        typedArrayTag === undefined ||
+        typedArrayLength === undefined ||
+        typedArrayTag.call(input) !== "Uint8Array"
+      ) {
+        throw new TypeError("receipt input must be a Uint8Array");
+      }
+      const length = typedArrayLength.call(input) as number;
+      if (length > reproducibleActionBounds.maximumBytes) {
         throw new RangeError(`receipt exceeds ${reproducibleActionBounds.maximumBytes} bytes`);
       }
-      return bytes;
+      const output = new Uint8Array(length);
+      Uint8Array.prototype.set.call(output, input as Uint8Array);
+      return output;
     },
     catch: (cause) =>
       new ReproducibleActionReceiptRejected({
