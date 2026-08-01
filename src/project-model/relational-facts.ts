@@ -460,8 +460,6 @@ export const buildRelationalFactExport = (
   Path.Path | Crypto.Crypto
 > =>
   Effect.gen(function* () {
-    yield* preflightProjectStrings(project);
-    yield* projectValidation(project);
     if (project.entities.size > relationalFactBounds.maximumEntities) {
       return yield* new RelationalFactExportRejected({
         reason: `project exceeds ${relationalFactBounds.maximumEntities} entities`,
@@ -472,6 +470,8 @@ export const buildRelationalFactExport = (
         reason: `project exceeds ${relationalFactBounds.maximumRelations} relations`,
       });
     }
+    yield* preflightProjectStrings(project);
+    yield* projectValidation(project);
     const facts: Array<RelationalFact> = [];
     for (const entity of project.entities.values()) {
       const document = yield* sourceDocument(entity.source, project.root);
@@ -714,57 +714,86 @@ export const validateRelationalFactExportBytes = (
     return deepFreeze(decoded);
   });
 
+const preflightQueryRoots = (input: unknown): Effect.Effect<void, RelationalFactQueryRejected> =>
+  Effect.gen(function* () {
+    const observation = yield* Effect.try({
+      try: () => {
+        if (input === null || typeof input !== "object" || Array.isArray(input)) {
+          return undefined;
+        }
+        const descriptor = Object.getOwnPropertyDescriptor(input, "subject_ids");
+        if (descriptor === undefined) return undefined;
+        if (!("value" in descriptor)) return { accessor: true } as const;
+        if (!Array.isArray(descriptor.value)) return undefined;
+        const lengthDescriptor = Object.getOwnPropertyDescriptor(descriptor.value, "length");
+        return typeof lengthDescriptor?.value === "number"
+          ? ({ length: lengthDescriptor.value } as const)
+          : ({ accessor: true } as const);
+      },
+      catch: (cause) =>
+        new RelationalFactQueryRejected({
+          reason: `query roots could not be inspected: ${String(cause)}`,
+        }),
+    });
+    if (observation?.accessor === true) {
+      return yield* new RelationalFactQueryRejected({
+        reason: "query subject_ids must be an array data property",
+      });
+    }
+    if (
+      observation?.length !== undefined &&
+      observation.length > relationalFactBounds.maximumQueryRoots
+    ) {
+      return yield* new RelationalFactQueryRejected({
+        reason: `query exceeds ${relationalFactBounds.maximumQueryRoots} roots`,
+      });
+    }
+  });
+
 const decodeRequest = (
   input: unknown,
   expectedFormat: RelationalQueryRequest["format"],
 ): Effect.Effect<RelationalQueryRequest, RelationalFactQueryRejected> =>
-  Schema.decodeUnknownEffect(RelationalQueryRequestSchema, { onExcessProperty: "error" })(
-    input,
-  ).pipe(
-    Effect.mapError(
-      (cause) => new RelationalFactQueryRejected({ reason: `invalid query: ${cause.message}` }),
-    ),
-    Effect.catchDefect(() =>
-      Effect.fail(new RelationalFactQueryRejected({ reason: "query value could not be decoded" })),
-    ),
-    Effect.flatMap((request) => {
-      if (request.format !== expectedFormat) {
-        return Effect.fail(
-          new RelationalFactQueryRejected({ reason: `expected ${expectedFormat}` }),
-        );
-      }
-      if (request.subject_ids.length > relationalFactBounds.maximumQueryRoots) {
-        return Effect.fail(
-          new RelationalFactQueryRejected({
-            reason: `query exceeds ${relationalFactBounds.maximumQueryRoots} roots`,
-          }),
-        );
-      }
-      if (new Set(request.subject_ids).size !== request.subject_ids.length) {
-        return Effect.fail(
-          new RelationalFactQueryRejected({ reason: "query roots must be unique" }),
-        );
-      }
-      if (request.max_depth > relationalFactBounds.maximumQueryDepth) {
-        return Effect.fail(
-          new RelationalFactQueryRejected({
-            reason: `query depth exceeds ${relationalFactBounds.maximumQueryDepth}`,
-          }),
-        );
-      }
-      if (request.max_nodes <= 0 || request.max_nodes > relationalFactBounds.maximumQueryNodes) {
-        return Effect.fail(
-          new RelationalFactQueryRejected({
-            reason: `query max_nodes must be between 1 and ${relationalFactBounds.maximumQueryNodes}`,
-          }),
-        );
-      }
-      return Effect.succeed({
-        ...request,
-        subject_ids: [...request.subject_ids].sort(compareCodePoints),
+  Effect.gen(function* () {
+    yield* preflightQueryRoots(input);
+    const request = yield* Schema.decodeUnknownEffect(RelationalQueryRequestSchema, {
+      onExcessProperty: "error",
+    })(input).pipe(
+      Effect.mapError(
+        (cause) => new RelationalFactQueryRejected({ reason: `invalid query: ${cause.message}` }),
+      ),
+      Effect.catchDefect(() =>
+        Effect.fail(
+          new RelationalFactQueryRejected({ reason: "query value could not be decoded" }),
+        ),
+      ),
+    );
+    if (request.format !== expectedFormat) {
+      return yield* new RelationalFactQueryRejected({ reason: `expected ${expectedFormat}` });
+    }
+    if (request.subject_ids.length > relationalFactBounds.maximumQueryRoots) {
+      return yield* new RelationalFactQueryRejected({
+        reason: `query exceeds ${relationalFactBounds.maximumQueryRoots} roots`,
       });
-    }),
-  );
+    }
+    if (new Set(request.subject_ids).size !== request.subject_ids.length) {
+      return yield* new RelationalFactQueryRejected({ reason: "query roots must be unique" });
+    }
+    if (request.max_depth > relationalFactBounds.maximumQueryDepth) {
+      return yield* new RelationalFactQueryRejected({
+        reason: `query depth exceeds ${relationalFactBounds.maximumQueryDepth}`,
+      });
+    }
+    if (request.max_nodes <= 0 || request.max_nodes > relationalFactBounds.maximumQueryNodes) {
+      return yield* new RelationalFactQueryRejected({
+        reason: `query max_nodes must be between 1 and ${relationalFactBounds.maximumQueryNodes}`,
+      });
+    }
+    return {
+      ...request,
+      subject_ids: [...request.subject_ids].sort(compareCodePoints),
+    };
+  });
 
 interface TraversalEdge {
   readonly target: string;

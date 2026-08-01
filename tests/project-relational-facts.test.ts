@@ -253,6 +253,38 @@ describe("project relational fact export 0034", () => {
     }
   });
 
+  test("rejects excessive query roots before reading any root element", async () => {
+    const artifact = await runBuild(buildRelationalFactExport(tracerGraph()));
+    let accessorCalls = 0;
+    const subjectIds = Array.from(
+      { length: relationalFactBounds.maximumQueryRoots + 1 },
+      (_, index) => `component.${index}`,
+    );
+    Object.defineProperty(subjectIds, relationalFactBounds.maximumQueryRoots, {
+      configurable: true,
+      enumerable: true,
+      get: () => {
+        accessorCalls += 1;
+        throw new Error("over-limit query root must not be read");
+      },
+    });
+    const result = await runCrypto(
+      queryImpact(artifact.bytes, {
+        format: "semantic.impact-query",
+        version: 1,
+        subject_ids: subjectIds,
+        max_depth: 1,
+        max_nodes: relationalFactBounds.maximumQueryNodes,
+      }).pipe(Effect.result),
+    );
+
+    expect(Result.isFailure(result)).toBeTrue();
+    if (Result.isFailure(result) && result.failure instanceof RelationalFactQueryRejected) {
+      expect(result.failure.reason).toContain("roots");
+    }
+    expect(accessorCalls).toBe(0);
+  });
+
   test("rejects unknown roots, invalid project state, foreign paths, duplicates, and non-canonical bytes", async () => {
     const artifact = await runBuild(buildRelationalFactExport(tracerGraph()));
     const unknown = await runCrypto(
@@ -379,6 +411,52 @@ describe("project relational fact export 0034", () => {
     expect(Result.isFailure(result)).toBeTrue();
     if (Result.isFailure(result))
       expect(result.failure).toBeInstanceOf(RelationalFactDigestFailure);
+  });
+
+  test("rejects excessive graph cardinality before inspecting any record", async () => {
+    let accessorCalls = 0;
+    const unreadable = Object.defineProperty({}, "id", {
+      enumerable: true,
+      get: () => {
+        accessorCalls += 1;
+        throw new Error("over-limit graph record must not be read");
+      },
+    }) as unknown as Entity;
+    const tooManyEntities = new Map<string, Entity>(
+      Array.from({ length: relationalFactBounds.maximumEntities + 1 }, (_, index) => [
+        `entity.${index}`,
+        unreadable,
+      ]),
+    );
+    const tooManyRelations = Array.from(
+      { length: relationalFactBounds.maximumRelations + 1 },
+      () => unreadable as unknown as Relation,
+    );
+    const entityResult = await runBuild(
+      buildRelationalFactExport({ root, entities: tooManyEntities, relations: [] }).pipe(
+        Effect.result,
+      ),
+    );
+    const relationResult = await runBuild(
+      buildRelationalFactExport({ root, entities: new Map(), relations: tooManyRelations }).pipe(
+        Effect.result,
+      ),
+    );
+    expect(Result.isFailure(entityResult)).toBeTrue();
+    expect(Result.isFailure(relationResult)).toBeTrue();
+    if (
+      Result.isFailure(entityResult) &&
+      entityResult.failure instanceof RelationalFactExportRejected
+    ) {
+      expect(entityResult.failure.reason).toContain("entities");
+    }
+    if (
+      Result.isFailure(relationResult) &&
+      relationResult.failure instanceof RelationalFactExportRejected
+    ) {
+      expect(relationResult.failure.reason).toContain("relations");
+    }
+    expect(accessorCalls).toBe(0);
   });
 
   test("rejects oversized digest observations through the typed identity boundary", async () => {
