@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0033-semantic-runtime-closure-manifest.md`](../../design-specs/0033-semantic-runtime-closure-manifest.md).
 This execution record cannot redefine that contract.
 
-Status: bounded JSON witness recut under review; implementation paused
+Status: accepted implementation on exact local head; integration pending
 
 Owner: primary Semantic Systems language lead
 
@@ -119,6 +119,16 @@ bun scripts/accept/0033-semantic-runtime-closure-manifest.ts
   differ between preflight and replay. The corrected public witness is bounded
   JSON decoded to an inert host-owned tree; authored names are erased before
   replay. This makes the total representation limit executable.
+- 2026-08-01: JSON-witness contract `1cacd8329376a1c176e0923362c0f394235d7c7a`
+  passed independent contract review. Implementation
+  `af047e6ba235514432103379abefc1e090a4b131` passed 16 focused Bun tests with
+  75 assertions, genuine Node parity, 29 predecessor seam tests, TypeScript 7
+  with Effect diagnostics, Oxlint, Oxfmt, deterministic project views, and the
+  complete repository gate in the pinned Nix environment.
+- 2026-08-01: revision-pinned independent code review approved exact
+  `af047e6ba235514432103379abefc1e090a4b131` after re-running the former
+  Proxy/moving-object counterexamples, replay-digest failure, maximum-shape
+  round trip, and portable Node checks. No release finding remains.
 
 ## Review questions
 

@@ -5,7 +5,7 @@
       "kind": "work_item",
       "name": "Assemble a semantic runtime-closure manifest",
       "summary": "Join one accepted reachability receipt with one exact artifact variant per reachable semantic value and emit a canonical content-addressed compiler-to-build closure manifest.",
-      "status": "in_progress",
+      "status": "complete",
       "tags": ["language", "compiler", "build", "content-addressed", "effect"],
       "attributes": {
         "phase": "implementation",
