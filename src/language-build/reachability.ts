@@ -446,12 +446,15 @@ const snapshotReceiptBytes = (
       }),
   });
 
-const decodeReceiptBytes = (
+export interface PreparedReachabilityReceipt {
+  readonly receipt: ReachabilityReceipt;
+  readonly bytes: Uint8Array;
+}
+
+/** @internal Shared representation-admission seam for language-build features. */
+export const prepareReachabilityReceiptBytes = (
   input: unknown,
-): Effect.Effect<
-  { readonly receipt: ReachabilityReceipt; readonly bytes: Uint8Array },
-  ReachabilityReceiptRejected
-> =>
+): Effect.Effect<PreparedReachabilityReceipt, ReachabilityReceiptRejected> =>
   Effect.gen(function* () {
     const bytes = yield* snapshotReceiptBytes(input);
     const text = yield* Effect.try({
@@ -466,24 +469,53 @@ const decodeReceiptBytes = (
     return immutable({ receipt, bytes });
   });
 
-export const validateReceiptBytes = (
-  input: unknown,
+const validatePreparedReachabilityReceipt = (
+  prepared: PreparedReachabilityReceipt,
+  snapshot: SemanticStoreSnapshot,
 ): Effect.Effect<
   ReachabilityReceipt,
   ReachabilityReceiptRejected | ReachabilityGraphRejected | ReachabilityDigestFailure,
-  SemanticStore | Crypto.Crypto
+  Crypto.Crypto
 > =>
   Effect.gen(function* () {
-    const decoded = yield* decodeReceiptBytes(input);
-    const store = yield* SemanticStore;
-    const snapshot = yield* store.snapshot;
-    const normalized = yield* normalizeNodes(decoded.receipt.graph.nodes);
-    yield* validateGraphUniverse(normalized, decoded.receipt.root_semantic_identity, snapshot);
-    const expected = yield* buildArtifact(normalized, decoded.receipt.root_semantic_identity);
-    if (!bytesEqual(decoded.bytes, expected.bytes)) {
+    const normalized = yield* normalizeNodes(prepared.receipt.graph.nodes);
+    yield* validateGraphUniverse(normalized, prepared.receipt.root_semantic_identity, snapshot);
+    const expected = yield* buildArtifact(normalized, prepared.receipt.root_semantic_identity);
+    if (!bytesEqual(prepared.bytes, expected.bytes)) {
       return yield* new ReachabilityReceiptRejected({
         reason: "receipt bytes are not the canonical recomputed receipt",
       });
     }
     return expected.receipt;
   });
+
+/**
+ * @internal Receipt-owned orchestration seam for language-build composition.
+ * The caller can use the accepted snapshot, but cannot supply one directly.
+ */
+export const withValidatedReceiptSnapshot = <Value, Error, Requirements>(
+  receiptBytes: unknown,
+  use: (
+    receipt: ReachabilityReceipt,
+    snapshot: SemanticStoreSnapshot,
+  ) => Effect.Effect<Value, Error, Requirements>,
+): Effect.Effect<
+  Value,
+  ReachabilityReceiptRejected | ReachabilityGraphRejected | ReachabilityDigestFailure | Error,
+  SemanticStore | Crypto.Crypto | Requirements
+> =>
+  Effect.gen(function* () {
+    const prepared = yield* prepareReachabilityReceiptBytes(receiptBytes);
+    const store = yield* SemanticStore;
+    const snapshot = yield* store.snapshot;
+    const receipt = yield* validatePreparedReachabilityReceipt(prepared, snapshot);
+    return yield* use(receipt, snapshot);
+  });
+
+export const validateReceiptBytes = (
+  input: unknown,
+): Effect.Effect<
+  ReachabilityReceipt,
+  ReachabilityReceiptRejected | ReachabilityGraphRejected | ReachabilityDigestFailure,
+  SemanticStore | Crypto.Crypto
+> => withValidatedReceiptSnapshot(input, Effect.succeed);
