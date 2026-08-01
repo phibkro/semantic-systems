@@ -31,6 +31,7 @@ flowchart LR
     work_lean_evidence_adapter["Specify Lean evidence adapter"]
     work_lossless_frontend_spec["Design lossless incremental frontend"]
     work_normalized_core_format["Specify normalized core artifact"]
+    work_one_shot_external_effect_replay["Replay external effects through affine continuations"]
     work_package_resolver["Implement package and evidence resolver"]
     work_pbk_portfolio_control_room["Build PBK Technologies portfolio Control Room"]
     work_reachability_analysis_receipt["Derive a declared reachability analysis receipt"]
@@ -55,6 +56,8 @@ flowchart LR
     work_executable_semantic_system_kernel -->|blocks| work_actor_runtime
     work_inventory_resolution_tracer -->|requires| decision_theory_identity
     work_kernel_reference_interpreter -->|requires| work_agent_facing_kernel_json
+    work_one_shot_external_effect_replay -->|requires| work_kernel_reference_interpreter
+    work_one_shot_external_effect_replay -->|requires| work_baseline_bytecode_backend
     work_pbk_portfolio_control_room -->|requires| work_control_room_reconstruction
     work_reachability_analysis_receipt -->|requires| work_semantic_artifact_store
     work_normalized_core_format -->|blocks| work_kernel_spec
