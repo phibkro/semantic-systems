@@ -424,6 +424,23 @@ export const isKernelEffectRunObservation = (
       ) {
         return false;
       }
+    } else {
+      if (
+        decoded.value.observation.requests.length ===
+          decoded.value.observation.applied_observations + 1 &&
+        (decoded.value.observation.result.tag !== "runtime-rejected" ||
+          decoded.value.observation.provided_observations <=
+            decoded.value.observation.applied_observations)
+      ) {
+        return false;
+      }
+      if (
+        (decoded.value.observation.result.tag === "representation-rejected" ||
+          decoded.value.observation.result.tag === "check-rejected") &&
+        decoded.value.observation.requests.length !== 0
+      ) {
+        return false;
+      }
     }
     if (
       !isKernelRunObservation({

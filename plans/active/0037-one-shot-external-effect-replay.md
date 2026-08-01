@@ -86,3 +86,11 @@ bun scripts/accept/0037-one-shot-external-effect-replay.ts
   Focused Bun and genuine Node evidence observes 14 passing journeys and 298
   assertions, including both reference and compiled post-resumption fuel
   exhaustion accounting; exact-head acceptance and re-review remain pending.
+- 2026-08-01: the exact-head re-review confirmed the original suspended case
+  but found its non-suspended siblings: returned and inconclusive results with
+  a pending request, runtime rejection without unused input for that request,
+  and preparation rejection after a request trace. Result-sensitive schema
+  laws now admit an extra request only for runtime rejection with unused input
+  and require representation/check rejection before any request. Five new
+  negative assertions cover the complete counterexample family; focused Bun
+  and Node evidence observes 14 passing journeys and 303 assertions.

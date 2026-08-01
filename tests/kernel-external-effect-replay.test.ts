@@ -550,6 +550,23 @@ describe("one-shot external effect replay", () => {
   test("the public effect-run schema rejects impossible forged counters", () => {
     const valid = both(twoRequestProgram, script({ kind: "int", value: 1 }));
     if (valid.observation.tag !== "executed") throw new Error("expected executed result");
+    const representationRejected = interpretKernelJsonBytes(new Uint8Array([0xff])).observation;
+    if (representationRejected.tag !== "representation-rejected") {
+      throw new Error("expected representation rejection fixture");
+    }
+    const checkRejected = interpretKernelJsonBytes(
+      document(
+        {
+          tag: "return",
+          grade: "1",
+          value: { tag: "bound-value", distance: 0 },
+        },
+        [],
+      ),
+    ).observation;
+    if (checkRejected.tag !== "check-rejected") {
+      throw new Error("expected check rejection fixture");
+    }
     expect(
       isKernelEffectRunObservation({
         ...valid,
@@ -566,6 +583,60 @@ describe("one-shot external effect replay", () => {
           ...valid.observation,
           applied_observations: 2,
           requests: [],
+        },
+      }),
+    ).toBe(false);
+    expect(
+      isKernelEffectRunObservation({
+        ...valid,
+        observation: {
+          ...valid.observation,
+          result: { tag: "returned", value: { kind: "unit" } },
+        },
+      }),
+    ).toBe(false);
+    expect(
+      isKernelEffectRunObservation({
+        ...valid,
+        observation: {
+          ...valid.observation,
+          result: { tag: "inconclusive", reason: "fuel" },
+        },
+      }),
+    ).toBe(false);
+    expect(
+      isKernelEffectRunObservation({
+        ...valid,
+        observation: {
+          ...valid.observation,
+          result: {
+            tag: "runtime-rejected",
+            diagnostic: {
+              code: "forged.runtime-rejection",
+              occurrence_path: "$",
+              message: "forged terminal result with no unused observation",
+            },
+          },
+        },
+      }),
+    ).toBe(false);
+    expect(
+      isKernelEffectRunObservation({
+        ...valid,
+        observation: {
+          ...valid.observation,
+          requests: [structuredClone(valid.observation.requests[0])],
+          result: representationRejected,
+        },
+      }),
+    ).toBe(false);
+    expect(
+      isKernelEffectRunObservation({
+        ...valid,
+        observation: {
+          ...valid.observation,
+          requests: [structuredClone(valid.observation.requests[0])],
+          result: checkRejected,
         },
       }),
     ).toBe(false);
