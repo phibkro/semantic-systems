@@ -48,6 +48,10 @@ status, name, and provenance. Relation facts contain a stable `fact_key`, exact
 provenance. Families are `dependency`, `effect`, `ownership`, `derivation`,
 `causality`, `observation`, `evidence`, and `other`.
 
+Provenance is the exact tuple `source_schema`, `source_document`,
+`source_record_kind`, and `source_record_key`. The record key cannot be erased:
+one source document can contain several canonical records.
+
 The query contains roots, direction, selected relation families, optional
 relation kinds, expansion defaults plus expanded/collapsed overrides,
 `max_depth`, `max_nodes`, and one view kind. Inputs are queries, not commands;

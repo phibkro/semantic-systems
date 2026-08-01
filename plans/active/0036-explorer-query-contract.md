@@ -59,3 +59,6 @@ bun scripts/accept/0036-explorer-query-contract.ts
 - 2026-08-01: Feature 0034 supplied its intended canonical fact-key, explicit
   family, subject/object identity, and source-document provenance vocabulary.
 - 2026-08-01: contract frozen with no storage, UI, or Feature 0034 code dependency.
+- 2026-08-01: advisory 0034 implementation review exposed that document-only
+  provenance is ambiguous for multi-record files; the contract now retains the
+  exact source record kind and key.
