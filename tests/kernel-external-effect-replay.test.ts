@@ -22,6 +22,7 @@ import {
 } from "../src/kernel-execution/external-observations.ts";
 import {
   encodeCanonicalKernelEffectRunObservation,
+  defaultKernelInterpreterBounds,
   isKernelEffectRunObservation,
   interpretKernelJsonBytes,
   interpretKernelJsonBytesWithObservationScript,
@@ -363,8 +364,16 @@ describe("one-shot external effect replay", () => {
     });
   });
 
-  test("an observation consumed before later VM fuel exhaustion remains applied", () => {
-    const result = runCompiledKernelJsonBytesWithObservationScript(
+  test("an observation consumed before later fuel exhaustion remains applied", () => {
+    const reference = interpretKernelJsonBytesWithObservationScript(
+      twoRequestProgram,
+      script({ kind: "int", value: 1 }),
+      {
+        ...defaultKernelInterpreterBounds,
+        evaluation: { ...defaultKernelInterpreterBounds.evaluation, fuel: 2 },
+      },
+    );
+    const compiled = runCompiledKernelJsonBytesWithObservationScript(
       twoRequestProgram,
       script({ kind: "int", value: 1 }),
       {
@@ -372,7 +381,14 @@ describe("one-shot external effect replay", () => {
         bytecode: { ...defaultKernelBytecodeBackendBounds.bytecode, vmFuel: 2 },
       },
     );
-    expect(result.observation).toMatchObject({
+    expect(reference.observation).toMatchObject({
+      tag: "executed",
+      provided_observations: 1,
+      applied_observations: 1,
+      requests: [{ label: "fresh" }],
+      result: { tag: "inconclusive", reason: "fuel" },
+    });
+    expect(compiled.observation).toMatchObject({
       tag: "executed",
       provided_observations: 1,
       applied_observations: 1,
@@ -550,6 +566,28 @@ describe("one-shot external effect replay", () => {
           ...valid.observation,
           applied_observations: 2,
           requests: [],
+        },
+      }),
+    ).toBe(false);
+    expect(
+      isKernelEffectRunObservation({
+        ...valid,
+        observation: {
+          ...valid.observation,
+          requests: [structuredClone(valid.observation.requests[0])],
+          result: {
+            tag: "suspended",
+            request: structuredClone(valid.observation.requests[0]),
+          },
+        },
+      }),
+    ).toBe(false);
+    expect(
+      isKernelEffectRunObservation({
+        ...valid,
+        observation: {
+          ...valid.observation,
+          provided_observations: valid.observation.applied_observations + 1,
         },
       }),
     ).toBe(false);

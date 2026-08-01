@@ -78,3 +78,11 @@ bun scripts/accept/0037-one-shot-external-effect-replay.ts
   from a consumed observation whose later machine segment exhausts. Public
   schema validation also binds a final suspended result to the exact last
   recorded request.
+- 2026-08-01: independent Fable 5 high review found that the public recognizer
+  admitted an impossible suspended trace whose pending request replaced rather
+  than followed the applied request, or whose script still had unapplied input.
+  The recognizer now requires suspended runs to have exactly one more request
+  than applied observations and to have consumed every provided observation.
+  Focused Bun and genuine Node evidence observes 14 passing journeys and 298
+  assertions, including both reference and compiled post-resumption fuel
+  exhaustion accounting; exact-head acceptance and re-review remain pending.

@@ -406,6 +406,14 @@ export const isKernelEffectRunObservation = (
       return false;
     }
     if (decoded.value.observation.result.tag === "suspended") {
+      if (
+        decoded.value.observation.requests.length !==
+          decoded.value.observation.applied_observations + 1 ||
+        decoded.value.observation.provided_observations !==
+          decoded.value.observation.applied_observations
+      ) {
+        return false;
+      }
       const finalRequest = decoded.value.observation.requests.at(-1);
       if (
         finalRequest === undefined ||
