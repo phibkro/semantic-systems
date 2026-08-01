@@ -13,7 +13,7 @@
         "design_spec": "design-specs/0033-semantic-runtime-closure-manifest.md",
         "plan": "plans/active/0033-semantic-runtime-closure-manifest.md",
         "acceptance": [
-          "The embedded reachability receipt and artifact membership consume one captured semantic-store snapshot",
+          "One explicit name-free snapshot is bounded by accepted 0027 replay before the embedded receipt and artifact membership consume one normalized private-store observation",
           "Members cover the reachable set exactly and exclude every unreachable or outside-universe value",
           "Artifact selection remains explicitly caller-selected and distinct from dependency-edge authority",
           "Manifest bytes and identity are deterministic, permutation invariant, and sensitive to exact artifact variants",
@@ -43,7 +43,7 @@
       "source": "work.semantic-runtime-closure-manifest",
       "target": "work.semantic-artifact-store",
       "kind": "requires",
-      "summary": "Exact artifact variants and semantic membership come from one captured store projection.",
+      "summary": "Exact artifact variants and semantic membership come from one explicit bounded name-free store projection used as a validation witness.",
       "attributes": {}
     },
     {
