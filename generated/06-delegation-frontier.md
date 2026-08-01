@@ -2,7 +2,7 @@
 
 <!-- Generated. Edit model sources, not this file. -->
 
-Ready parallel work items: **17**.
+Ready parallel work items: **16**.
 
 | Work item | Phase | Status | Ready | Score | Recommendation | Blockers |
 |---|---|---|---:|---:|---|---|
@@ -33,7 +33,7 @@ Ready parallel work items: **17**.
 | Implement package and evidence resolver | implementation | in_progress | no | 72 | delegate with review | Define normalized theory identity |
 | Build PBK Technologies portfolio Control Room | implementation | in_progress | yes | 72 | delegate with review |  |
 | Derive a declared reachability analysis receipt | implementation | complete | no | 87 | delegate with review |  |
-| Define relational fact export | validation | in_progress | yes | 94 | delegate directly |  |
+| Define relational fact export | implementation | complete | no | 94 | delegate directly |  |
 | Execute a reproducible closure action and record its observation | implementation | complete | no | 87 | delegate with review |  |
 | Recut the independent resolution checker | design | complete | no | 83 | delegate with review |  |
 | Establish the semantic artifact store tracer | implementation | complete | no | 87 | delegate with review |  |

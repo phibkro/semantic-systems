@@ -124,19 +124,13 @@
       "kind": "work_item",
       "name": "Define relational fact export",
       "summary": "Specify stable facts for dependencies, effects, ownership, obligations, evidence, and source correspondence.",
-      "status": "in_progress",
+      "status": "complete",
       "tags": ["analysis", "tooling"],
       "attributes": {
-        "phase": "validation",
+        "phase": "implementation",
         "effort": 5,
         "design_spec": "design-specs/0034-relational-fact-export.md",
         "plan": "plans/active/0034-relational-fact-export.md",
-        "completion": {
-          "implementation_head": "660967b1bc53d33f2748c14d8e22031e06e85e80",
-          "feature_acceptance": "focused_runtime_validation_passed",
-          "integration_gate": "pending_unrelated_reference_custody_timeouts",
-          "independent_review": "pending_integrator"
-        },
         "acceptance": [
           "Versioned facts are derived from one validated canonical project graph and remain explicitly non-authoritative",
           "Every immutable fact has deterministic ordering and exact repository-relative source provenance",
