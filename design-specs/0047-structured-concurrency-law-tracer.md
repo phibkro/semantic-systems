@@ -49,6 +49,12 @@ comparison is test evidence for this bounded model, not proof of fairness,
 deadlock freedom, host cancellation behavior, production equivalence, faithful
 surface elaboration, or kernel encodability.
 
+For the 0042 promotion classifier, `lawful_userland_model: true` records only
+that this finite executable law-model candidate now exists. “Lawful” is the
+classifier field's historical name; it does not upgrade bounded comparison
+evidence into proof of production semantics, fairness, deadlock freedom,
+surface elaboration, or kernel sufficiency.
+
 ### Semantic inputs
 
 `traceStructuredConcurrency(input)` strictly decodes:
@@ -116,9 +122,12 @@ canonical projection.
 
 The adapter queue carries at most one script event at a time to a scoped driver
 fiber. Spawned task fibers are owned by one scoped FiberSet and wait on their
-terminal Deferred. The adapter duplicates the transition semantics rather than
-calling the pure oracle. It does not wrap Effect in a generic promise queue,
-scheduler, cancellation library, fiber registry, or shrinker.
+terminal Deferred. Each event acknowledgement is raced against driver
+termination; an unexpected exit becomes a bounded typed failure, so no event
+can wait after losing its sole acknowledgement producer. The adapter duplicates
+the transition semantics rather than calling the pure oracle. It does not wrap
+Effect in a generic promise queue, scheduler, cancellation library, fiber
+registry, or shrinker.
 
 Effect-scope cleanup of still-live adapter fibers is host cleanup only. It does
 not fabricate a semantic cancellation-delivery observation in the report.

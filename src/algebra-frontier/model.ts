@@ -396,8 +396,8 @@ const report = decodeAlgebraFrontierReport({
       observations: observations.concurrency,
       observation_basis: [
         "one-shot spawn, join, yield, and cancellation operations have design prior art",
-        "the executable 0047 bounded comparison supplies a structured-concurrency userland law model",
-        "0047 does not establish fairness, production scheduling, surface elaboration, or kernel resumption storage",
+        "the executable 0047 bounded comparison supplies only a finite structured-concurrency userland law-model candidate",
+        "lawful_userland_model records that bounded candidate, not proof of production semantics, fairness, deadlock freedom, surface elaboration, or kernel resumption storage",
       ],
       decision: classifyPromotion(observations.concurrency),
       operations: ["spawn", "join", "yield", "request_cancel"],

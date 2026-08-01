@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0047-structured-concurrency-law-tracer.md`](../../design-specs/0047-structured-concurrency-law-tracer.md).
 This execution record cannot redefine that contract.
 
-Status: implementation candidate accepted locally; independent exact-head review pending
+Status: independent-review corrections pass focused gates; final full acceptance pending
 
 Owner: delegated structured-concurrency engineer in isolated worktree
 
@@ -72,7 +72,7 @@ bun scripts/accept/0047-structured-concurrency-law-tracer.ts
   scheduler, promise queue, cancellation library, fiber registry, or custom
   shrinker would enlarge the feature without improving its frozen laws and was
   intentionally rejected.
-- 2026-08-01: exact 0047 acceptance passed 8 focused Bun tests with 225
+- 2026-08-01: initial candidate `87546ba` exact acceptance passed 8 focused Bun tests with 225
   assertions, 64 seeded generated programs, genuine Node 1/1, all nine 0042
   frontier tests, TypeScript 7 Effect diagnostics, Oxlint, Oxfmt, strict model
   validation, deterministic generated views, and the complete repository suite
@@ -81,3 +81,15 @@ bun scripts/accept/0047-structured-concurrency-law-tracer.ts
 - 2026-08-01: the 0042 fact advances only the structured-concurrency userland
   model to available. Surface and kernel remain deferred; production scheduler,
   fairness, external replay, and resumption-storage claims remain unsupported.
+- 2026-08-01: independent review found that an event acknowledgement could wait
+  after an unexpected driver exit. The correction races acknowledgement against
+  driver completion, gives an already-completed acknowledgement tie precedence,
+  and maps loss of the sole producer to `adapter.driver-exited`; focused tests
+  cover both the exit and live-driver paths. Review also tightened the 0042
+  disclosure and removed transient null writes during ownership transfer.
+- 2026-08-01: the bounded correction candidate passed nine 0047 Bun tests and
+  nine 0042 seam tests (18 total, 674 assertions), genuine Node parity 1/1,
+  TypeScript 7 Effect diagnostics, Oxlint, focused Oxfmt, strict model
+  validation, and deterministic generated views. The full repository suite was
+  intentionally not rerun at this correction stage under the integration
+  lead's instruction.

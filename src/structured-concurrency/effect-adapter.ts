@@ -63,6 +63,41 @@ interface DriverEnvelope {
   readonly acknowledgement: Deferred.Deferred<void, StructuredConcurrencyFailure>;
 }
 
+/**
+ * Keeps an event acknowledgement live only while its sole producer is live.
+ * A completed acknowledgement wins ties; otherwise an exited driver becomes a
+ * bounded typed failure instead of leaving the caller suspended forever.
+ */
+export const awaitDriverAcknowledgement = <A, E>(
+  acknowledgement: Deferred.Deferred<void, StructuredConcurrencyFailure>,
+  driver: Fiber.Fiber<A, E>,
+  eventIndex: number,
+): Effect.Effect<void, StructuredConcurrencyFailure> =>
+  Effect.raceFirst(
+    Deferred.await(acknowledgement).pipe(Effect.as("acknowledged" as const)),
+    Fiber.await(driver).pipe(Effect.as("driver-exited" as const)),
+  ).pipe(
+    Effect.flatMap((winner) => {
+      if (winner === "acknowledged") return Effect.void;
+      return Deferred.poll(acknowledgement).pipe(
+        Effect.flatMap(
+          Option.match({
+            onNone: () =>
+              Effect.fail(
+                structuredConcurrencyFailure(
+                  "adapter.driver-exited",
+                  eventIndex,
+                  `/events/${eventIndex}`,
+                  "Effect adapter driver exited before acknowledging the event",
+                ),
+              ),
+            onSome: (completed) => completed,
+          }),
+        ),
+      );
+    }),
+  );
+
 const copyAuthoredOutcome = (outcome: AuthoredTaskOutcome): AuthoredTaskOutcome =>
   outcome.tag === "succeeded" ? { tag: "succeeded" } : { tag: "failed", message: outcome.message };
 
@@ -240,7 +275,6 @@ const applyAdapterEvent = (
             "transfer source and target scopes must both be open",
           );
         }
-        task.ownerScope = null;
         task.ownerScope = target.scope;
         world.observations.push({
           tag: "task-transferred",
@@ -566,7 +600,7 @@ export const runStructuredConcurrencyEffect = (
           event: script.events[eventIndex]!,
           acknowledgement,
         });
-        yield* Deferred.await(acknowledgement);
+        yield* awaitDriverAcknowledgement(acknowledgement, driver, eventIndex);
       }
       yield* Fiber.interrupt(driver);
       return projectRun(yield* Ref.get(worldRef));

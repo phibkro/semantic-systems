@@ -205,7 +205,6 @@ export const runStructuredConcurrencyOracle = (
             "transfer source and target scopes must both be open",
           );
         }
-        task.ownerScope = null;
         task.ownerScope = target.scope;
         observations.push({
           tag: "task-transferred",

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { Effect } from "effect";
+import { Deferred, Effect, Fiber, Option } from "effect";
 import { array, assert as fcAssert, asyncProperty, boolean, string } from "fast-check";
 import {
   StructuredConcurrencyFailure,
@@ -9,6 +9,7 @@ import {
   traceStructuredConcurrency,
   type StructuredConcurrencyScript,
 } from "../src/structured-concurrency/index.ts";
+import { awaitDriverAcknowledgement } from "../src/structured-concurrency/effect-adapter.ts";
 
 const run = <A>(effect: Effect.Effect<A, StructuredConcurrencyFailure>): Promise<A> =>
   Effect.runPromise(effect);
@@ -31,6 +32,53 @@ const script = (events: StructuredConcurrencyScript["events"]): StructuredConcur
 });
 
 describe("0047 structured-concurrency law tracer", () => {
+  test("losing the sole acknowledgement producer fails typed instead of suspending", async () => {
+    const failure = await Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          const acknowledgement = yield* Deferred.make<void, StructuredConcurrencyFailure>();
+          const driver = yield* Effect.forkScoped(Effect.die("review-injected driver defect"));
+          return yield* Effect.flip(awaitDriverAcknowledgement(acknowledgement, driver, 7));
+        }),
+      ),
+    );
+    expect(failure).toMatchObject({
+      code: "adapter.driver-exited",
+      event_index: 7,
+      path: "/events/7",
+    });
+
+    const acknowledgedTie = await Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          const acknowledgement = yield* Deferred.make<void, StructuredConcurrencyFailure>();
+          const driver = yield* Effect.forkScoped(Effect.void);
+          yield* Deferred.succeed(acknowledgement, undefined);
+          yield* Fiber.await(driver);
+          yield* awaitDriverAcknowledgement(acknowledgement, driver, 0);
+          return true;
+        }),
+      ),
+    );
+    expect(acknowledgedTie).toBeTrue();
+
+    const liveDriverRemainsOwned = await Effect.runPromise(
+      Effect.scoped(
+        Effect.gen(function* () {
+          const acknowledgement = yield* Deferred.make<void, StructuredConcurrencyFailure>();
+          const driverExited = yield* Deferred.make<void>();
+          const driver = yield* Effect.forkScoped(
+            Effect.never.pipe(Effect.onExit(() => Deferred.succeed(driverExited, undefined))),
+          );
+          yield* Deferred.succeed(acknowledgement, undefined);
+          yield* awaitDriverAcknowledgement(acknowledgement, driver, 0);
+          return Option.isNone(yield* Deferred.poll(driverExited));
+        }),
+      ),
+    );
+    expect(liveDriverRemainsOwned).toBeTrue();
+  });
+
   test("compares explicit scheduling, transfer, cancellation, join, and scope exit", async () => {
     const report = await run(
       traceStructuredConcurrency(
