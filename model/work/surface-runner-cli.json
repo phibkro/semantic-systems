@@ -1,0 +1,57 @@
+{
+  "entities": [
+    {
+      "id": "work.surface-runner-cli",
+      "kind": "work_item",
+      "name": "Run readable Semantic source from a command",
+      "summary": "Read one bounded source stream, compile it through the accepted named language, and emit one canonical reference-interpreter observation.",
+      "status": "in_progress",
+      "tags": ["language", "surface", "interpreter", "cli", "agents"],
+      "attributes": {
+        "phase": "implementation",
+        "effort": 3,
+        "design_spec": "design-specs/0040-surface-runner-cli.md",
+        "plan": "plans/active/0040-surface-runner-cli.md",
+        "acceptance": [
+          "One file or stdin source produces one canonical surface-run observation",
+          "Source rejection remains distinct from nested kernel outcomes",
+          "Invocation and host I/O failures never masquerade as semantic observations",
+          "Bun and Node emit byte-identical stdout",
+          "The command invokes only the reference interpreter"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 5,
+          "testability": 5,
+          "reversibility": 5,
+          "integration_independence": 5,
+          "blast_radius": 2,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source": "work.surface-runner-cli",
+      "target": "work.semantic-surface-language",
+      "kind": "requires",
+      "summary": "The accepted compiler remains the sole authority for readable source.",
+      "attributes": {}
+    },
+    {
+      "source": "work.surface-runner-cli",
+      "target": "work.kernel-reference-interpreter",
+      "kind": "requires",
+      "summary": "The reference interpreter remains the sole execution authority.",
+      "attributes": {}
+    },
+    {
+      "source": "work.surface-runner-cli",
+      "target": "component.kernel",
+      "kind": "implements",
+      "summary": "Adds a stateless readable-source process adapter over the kernel.",
+      "attributes": {}
+    }
+  ]
+}

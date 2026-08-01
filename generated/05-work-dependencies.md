@@ -46,6 +46,7 @@ flowchart LR
     work_stm_model_check["Model-check STM interleavings"]
     work_stm_runtime["Implement minimal STM runtime"]
     work_surface_effect_replay["Replay external effects from readable Semantic source"]
+    work_surface_runner_cli["Run readable Semantic source from a command"]
     work_theory_identity["Define normalized theory identity"]
     work_translation_validation_spec["Specify translation-validation seams"]
     work_wasm_contract_mapping["Research semantic contracts to WIT mapping"]
@@ -82,6 +83,8 @@ flowchart LR
     work_semantic_surface_language -->|requires| work_kernel_reference_interpreter
     work_surface_effect_replay -->|requires| work_semantic_surface_language
     work_surface_effect_replay -->|requires| work_one_shot_external_effect_replay
+    work_surface_runner_cli -->|requires| work_semantic_surface_language
+    work_surface_runner_cli -->|requires| work_kernel_reference_interpreter
     work_core_checker -->|blocks| work_kernel_spec
     work_kernel_spec -->|requires| decision_one_shot
     work_theory_identity -->|requires| decision_theory_identity
