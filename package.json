@@ -21,6 +21,8 @@
     "semantic:node": "node src/surface-cli/main-node.ts",
     "semantic-kernel": "bun src/kernel-cli/main-bun.ts",
     "semantic-kernel:node": "node src/kernel-cli/main-node.ts",
+    "semrefs": "bun src/references/main-bun.ts",
+    "semrefs:node": "node src/references/main-node.ts",
     "test": "bun test",
     "test:project-model": "bun test tests/project-model.test.ts",
     "fast": "bun scripts/check-fast.ts",

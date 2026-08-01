@@ -173,19 +173,19 @@ Owns:
 
 The recommended portfolio is:
 
-| Concern | Preferred role | Durable project boundary |
-|---|---|---|
-| Production compiler and runtime tooling | Rust | Serialized semantic core and subsystem interfaces |
-| Trusted mathematical evidence | Lean 4 | Proof certificates and normalized obligation identities |
-| Fast executable-semantics experiments | Redex or K, selectively | Conformance traces and counterexamples |
-| Early graph/model tooling | Typed Python | Canonical project graph schema |
-| Large recursive project and analysis queries | Datalog/Soufflé | Fact schema and derived relations |
-| Local indexes and caches | SQLite or embedded key-value storage | Rebuildable projections, never canonical truth |
-| Low-level optimization bridge | Project IR with optional MLIR/LLVM adapters | Translation contracts and validators |
-| Portable component execution | WebAssembly Component Model | Generated external interface subset |
-| Artifact transport | OCI-compatible registry | Project-owned package manifest and media types |
-| Attestation and provenance | in-toto, Sigstore, SLSA vocabulary | Typed project evidence predicates |
-| Interactive browser | TypeScript web client | Introspectable project query API |
+| Concern                                      | Preferred role                              | Durable project boundary                                        |
+| -------------------------------------------- | ------------------------------------------- | --------------------------------------------------------------- |
+| Production compiler and runtime tooling      | Rust                                        | Serialized semantic core and subsystem interfaces               |
+| Trusted mathematical evidence                | Lean 4                                      | Proof certificates and normalized obligation identities         |
+| Fast executable-semantics experiments        | Redex or K, selectively                     | Conformance traces and counterexamples                          |
+| Graph/model and research tooling             | TypeScript, Bun, and Effect v4              | Canonical project graph schema and portable capability boundary |
+| Large recursive project and analysis queries | Datalog/Soufflé                             | Fact schema and derived relations                               |
+| Local indexes and caches                     | SQLite or embedded key-value storage        | Rebuildable projections, never canonical truth                  |
+| Low-level optimization bridge                | Project IR with optional MLIR/LLVM adapters | Translation contracts and validators                            |
+| Portable component execution                 | WebAssembly Component Model                 | Generated external interface subset                             |
+| Artifact transport                           | OCI-compatible registry                     | Project-owned package manifest and media types                  |
+| Attestation and provenance                   | in-toto, Sigstore, SLSA vocabulary          | Typed project evidence predicates                               |
+| Interactive browser                          | TypeScript web client                       | Introspectable project query API                                |
 
 These are initial recommendations, not constitutional requirements.
 

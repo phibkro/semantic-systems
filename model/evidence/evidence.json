@@ -54,7 +54,7 @@
       "tags": [],
       "attributes": {
         "evidence_type": "test",
-        "command": "pytest"
+        "command": "bun test tests/project-model.test.ts"
       }
     },
     {
