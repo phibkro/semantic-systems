@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0036-explorer-query-contract.md`](../../design-specs/0036-explorer-query-contract.md).
 This execution record cannot redefine that contract.
 
-Status: contract frozen; implementation in progress
+Status: implementation complete; integration review pending
 
 Owner: explorer-query Feature 0036 worker
 
@@ -62,3 +62,11 @@ bun scripts/accept/0036-explorer-query-contract.ts
 - 2026-08-01: advisory 0034 implementation review exposed that document-only
   provenance is ambiguous for multi-record files; the contract now retains the
   exact source record kind and key.
+- 2026-08-01: focused Bun observed 8 passing journeys with 117 assertions and
+  80 generated fact-order permutations; genuine Node observed the same portable
+  API journey. TypeScript 7, Effect diagnostics, Oxlint, Oxfmt, model validation,
+  and generated-view equality pass.
+- 2026-08-01: the first full repository replay observed 754 passes and two
+  unrelated five-second reference-custody timeouts at 5.03 seconds. Both exact
+  journeys passed alone at 3.38 and 4.35 seconds; this is timing evidence, not a
+  waiver of the required final clean-head replay.

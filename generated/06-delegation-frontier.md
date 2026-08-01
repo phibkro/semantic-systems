@@ -18,7 +18,7 @@ Ready parallel work items: **16**.
 | Implement core checker | implementation | planned | yes | 65 | delegate with review |  |
 | Design deterministic concurrency simulator | design | planned | no | 68 | delegate with review | Specify STM effect and handler laws |
 | Build the executable semantic system kernel | validation | complete | no | 72 | delegate with review |  |
-| Specify explorer query contract | implementation | active | no | 94 | delegate directly |  |
+| Specify explorer query contract | validation | review | no | 94 | delegate directly |  |
 | Implement inventory actor realization | validation | complete | no | 94 | delegate directly |  |
 | Complete inventory domain contract | design | complete | no | 82 | delegate with review |  |
 | Prove inventory invariant | validation | planned | yes | 94 | delegate with review |  |
