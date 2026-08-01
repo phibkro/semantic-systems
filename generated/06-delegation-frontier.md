@@ -2,7 +2,7 @@
 
 <!-- Generated. Edit model sources, not this file. -->
 
-Ready parallel work items: **19**.
+Ready parallel work items: **20**.
 
 | Work item | Phase | Status | Ready | Score | Recommendation | Blockers |
 |---|---|---|---:|---:|---|---|
@@ -45,6 +45,7 @@ Ready parallel work items: **19**.
 | Specify STM effect and handler laws | research | in_progress | yes | 49 | bounded spike |  |
 | Model-check STM interleavings | validation | planned | no | 94 | delegate with review | Implement minimal STM runtime |
 | Implement minimal STM runtime | implementation | planned | no | 68 | delegate with review | Specify STM effect and handler laws |
+| Drive readable Semantic effects from a command | implementation | in_progress | yes | 94 | delegate with review |  |
 | Replay external effects from readable Semantic source | implementation | in_progress | yes | 87 | delegate with review |  |
 | Run readable Semantic source from a command | implementation | in_progress | yes | 94 | delegate with review |  |
 | Define normalized theory identity | design | in_progress | yes | 41 | bounded spike |  |

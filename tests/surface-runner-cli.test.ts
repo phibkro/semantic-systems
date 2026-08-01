@@ -219,9 +219,17 @@ describe("surface runner CLI", () => {
       encodeCanonicalSurfaceRunObservation({ ...valid, extra: true } as SurfaceRunObservation),
     ).toThrow();
 
-    const sources = ["cli.ts", "schema.ts", "process-host.ts", "main-bun.ts", "main-node.ts"].map(
-      (name) => readFileSync(new URL(`../src/surface-cli/${name}`, import.meta.url), "utf8"),
-    );
+    const sources = [
+      "cli.ts",
+      "schema.ts",
+      "source.ts",
+      "effect-schema.ts",
+      "observation-script-bytes.ts",
+      "drive.ts",
+      "process-host.ts",
+      "main-bun.ts",
+      "main-node.ts",
+    ].map((name) => readFileSync(new URL(`../src/surface-cli/${name}`, import.meta.url), "utf8"));
     expect(sources.join("\n")).not.toContain("JSON.parse");
     expect(sources.join("\n")).not.toContain("kernel-bytecode");
     expect(sources.join("\n")).not.toContain("surface-execution");

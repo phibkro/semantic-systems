@@ -2,8 +2,10 @@ import { open } from "node:fs/promises";
 import { Data, Effect } from "effect";
 import { defaultSurfaceLanguageBounds } from "../surface-language/index.ts";
 import { SurfaceCliHostError, type SurfaceCliHost } from "./cli.ts";
+import { maximumObservationScriptBytes } from "./observation-script-bytes.ts";
 
-const maximumInputBytes = defaultSurfaceLanguageBounds.maximumSourceBytes + 1;
+const maximumInputBytes =
+  Math.max(defaultSurfaceLanguageBounds.maximumSourceBytes, maximumObservationScriptBytes) + 1;
 
 class ProcessIoFailure extends Data.TaggedError("ProcessIoFailure")<{
   readonly operation: "read-input" | "write-stdout" | "write-stderr";
