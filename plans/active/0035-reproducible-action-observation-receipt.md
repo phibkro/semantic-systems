@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0035-reproducible-action-observation-receipt.md`](../../design-specs/0035-reproducible-action-observation-receipt.md).
 This execution record cannot redefine that contract.
 
-Status: frozen contract; implementation in progress
+Status: implementation complete; integration gate retry and independent review pending
 
 Owner: delegated Semantic Systems language engineer
 
@@ -57,6 +57,14 @@ bun scripts/accept/0035-reproducible-action-observation-receipt.ts
 - 2026-08-01: this contract chooses the smallest executable next slice: a
   finite reference interpreter over accepted closure data. Real host execution
   remains a future effect protocol rather than an implied capability.
+- 2026-08-01: implementation `cd93238` passed 10 focused Bun tests with 66
+  assertions, genuine Node golden parity, all 16 inherited 0033 tests with 75
+  assertions, TypeScript 7 with Effect diagnostics, Oxlint, Oxfmt, strict model
+  validation, and deterministic generated views. The complete repository run
+  reached 755 passes and one expected skip but did not pass: under host load it
+  reported one curator readiness failure and two 5-second reference-custody
+  timeouts. These failures are outside the 0035 paths; they remain an explicit
+  integration-gate retry rather than being relabeled as acceptance.
 
 ## Review questions
 
