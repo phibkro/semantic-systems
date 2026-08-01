@@ -243,24 +243,213 @@ granularity:
 - transfer byte count;
 - eviction and rebuild frequency.
 
-## Nix-inspired build direction
+## Content-addressed semantic values
 
-Nix is a useful model at the package and build-action scale. The language build
-system can borrow:
+The native language build system follows the strongest part of Unison's model.
+A checked definition or recursive component receives an identity from its
+canonical semantic value and semantic dependencies. Names and source locations
+remain separate metadata.
 
-- normalized recipes;
-- explicit dependency closures;
-- separate recipe and output identities;
+Feature 0019 already establishes this rule for one closed kernel program. Its
+`semantic_identity` excludes source metadata. Its `artifact_identity` includes
+the source correspondence. The build system must compose these accepted
+identities. It must not replace them with a digest of surface syntax or raw
+kernel JSON.
+
+The semantic cache stores accepted semantic values and their receipts. Other
+digests still have useful custody roles. They are not interchangeable semantic
+identities.
+
+```mermaid
+flowchart LR
+    SOURCE["source blob<br/>exact bytes"]
+    META["source metadata<br/>comments and maps"]
+    CHECKED["checked component<br/>semantic identity"]
+    INTERFACE["semantic interface<br/>export identity"]
+    ANALYSIS["analysis receipts<br/>facts about one value"]
+    PLAN["rewrite plan<br/>selected procedures"]
+    OPTIMIZED["derived semantic value<br/>optimized IR"]
+    RECIPE["emission recipe<br/>target and policy"]
+    BYTES["artifact<br/>exact byte digest"]
+
+    SOURCE --> META
+    SOURCE --> CHECKED
+    CHECKED --> INTERFACE
+    CHECKED --> ANALYSIS
+    CHECKED --> PLAN
+    ANALYSIS --> PLAN
+    PLAN --> OPTIMIZED
+    OPTIMIZED --> RECIPE
+    META -. "selected by output policy" .-> RECIPE
+    RECIPE --> BYTES
+```
+
+### Stage-relative identity
+
+Each stage identifies only the facts that can change its derived value.
+
+| Stage                 | Identity includes                                                                       | Identity can exclude                                      |
+| --------------------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| Source custody        | Exact source bytes                                                                      | Nothing in the source blob                                |
+| Surface structure     | Meaning-bearing syntax                                                                  | Whitespace, comments, and source locations                |
+| Checked component     | Canonical checked terms, types, effects, obligations, policy, and semantic dependencies | Names, display metadata, and source locations             |
+| Semantic interface    | Exported checked values and imported interface identities                               | Private implementation with no exported semantic effect   |
+| Runtime closure       | Reachable runtime values and verified runtime dependencies                              | Unreachable definitions and verified static-only material |
+| Emission recipe       | Runtime closure, target, optimizer, and output policy                                   | Inputs that the selected policy declares irrelevant       |
+| Artifact custody      | Exact emitted bytes                                                                     | Nothing in the emitted artifact                           |
+| Execution observation | Artifact identity, declared environment, inputs, outputs, and observed effects          | Unobserved ambient state                                  |
+
+An output policy decides whether comments enter an emitted artifact. A bundle
+that retains comments gets a different exact artifact digest when they change.
+A pure binary can exclude comments because they never enter its emitted bytes.
+Both artifacts can still derive from the same checked semantic identity.
+
+Static propositions and proof terms require two distinct records. The checked
+receipt retains the proposition, checking policy, and accepted evidence. A
+runtime projection can erase that material only after the checker warrants the
+erasure. Proof implementations can share a semantic identity only when the
+kernel explicitly grants proof irrelevance.
+
+A zero-use binder does not prove that its defining computation is removable.
+The computation can still have an effect under strict evaluation. The runtime
+projection excludes code only after a reachability and effect analysis proves
+that exclusion valid for the selected semantics.
+
+Unreachable declarations remain valid content-addressed values in the store.
+They do not enter a requested runtime closure. This preserves local reuse while
+keeping output identities precise.
+
+### Artifact graph, not pass history
+
+The first implementation can materialize coarse phase artifacts. A fixed chain
+such as source, typed AST, runtime IR, optimized IR, and output is easy to
+inspect. The durable model is a derivation graph, not that one pass order.
+
+Comments illustrate the difference. The checked semantic AST never needs to
+contain them. A source-metadata artifact retains comments and source maps in a
+parallel branch. An emitter joins that branch only when its output policy needs
+the metadata.
+
+Analysis and optimization also remain separate:
+
+```text
+AnalysisReceipt :=
+  analysis procedure identity
+  + procedure configuration
+  + target semantic value identity
+  + derived fact set
+
+RewriteProposal :=
+  optimization procedure identity
+  + targeted IR element identities
+  + required analysis facts
+  + compatibility constraints
+
+OptimizationReceipt :=
+  input semantic value identity
+  + selected rewrite proposals
+  + optimizer policy and version
+  + output semantic value identity
+  + validation evidence
+```
+
+One analysis can support several rewrites. One rewrite can require several
+analyses. The planner selects a compatible proposal set and records its exact
+inputs. Batching passes is then an execution optimization, not a change to the
+semantic model.
+
+The output of a rewrite is another immutable semantic value. The store can
+therefore reuse either the original or optimized value. Procedure order enters
+the recipe when two rewrites do not commute.
+
+The first tracer uses module-level facts and rewrites. Later versions can move
+to definition or IR-element targets after measurements justify the added graph
+and lookup cost.
+
+Every rewrite needs evidence at its owning boundary. Initially, this includes
+type and effect rechecking plus interpreter/compiler property comparisons.
+Later proof-carrying rewrites can add stronger evidence without changing the
+artifact graph.
+
+### Categorical reading
+
+The same graph has a direct string-diagram interpretation:
+
+- typed artifacts are objects;
+- compiler procedures are morphisms;
+- sequential passes are morphism composition;
+- independent artifact branches use a monoidal product;
+- analysis facts are typed outputs, not hidden pass state; and
+- projection or erasure is an explicit morphism.
+
+For example, a release emitter has this input shape:
+
+```text
+emitRelease : OptimizedIR ⊗ TargetPolicy -> Binary
+```
+
+A debug emitter retains the parallel metadata wire:
+
+```text
+emitDebug : OptimizedIR ⊗ SourceMetadata ⊗ TargetPolicy -> DebugBundle
+```
+
+A license-preserving minifier first projects the metadata it needs:
+
+```text
+selectLicenseComments : SourceMetadata -> LicenseComments
+emitMinified : OptimizedIR ⊗ LicenseComments ⊗ TargetPolicy -> Bundle
+```
+
+No procedure forgets metadata for the whole compiler. One morphism either
+consumes, transforms, forwards, or explicitly discards that wire. A receipt
+records that choice and its policy.
+
+The semantic identity depends on the resulting semantic value. The derivation
+receipt separately identifies the procedure, configuration, input identities,
+and evidence. Two different diagrams can therefore reach one equal semantic
+value without making their histories equal.
+
+### Recursive components
+
+Mutually recursive definitions form one semantic component. The component
+identity includes its normalized dependency graph. Each member receives a
+stable identity under that component root.
+
+Canonical member ordering cannot depend on source order or authored names.
+Structurally symmetric components require an explicit policy. The first tracer
+must either resolve symmetry with a bounded canonical graph procedure or reject
+the ambiguous component visibly. It must not hide a name-based tie-breaker.
+
+### Nix outer boundary
+
+Nix remains useful at the package, toolchain, and release scale. It provides:
+
+- reproducible compiler environments;
+- normalized external build recipes;
+- complete dependency closures;
 - verified reusable artifacts;
-- roots that retain reachable objects;
-- transport of complete closures.
+- roots that retain reachable objects; and
+- transport of complete release closures.
 
-The compiler should not expose every semantic node as a package store object.
-Kernel and compiler graphs have smaller units, shorter lifetimes, and more
-context-sensitive identities.
+The Semantic compiler owns checked-definition identity and semantic reuse. Nix
+owns the reproducible environment that builds, checks, and releases it. The two
+layers can share storage techniques. They do not share one namespace or one
+equivalence relation.
 
-The layers can share content-addressed storage primitives. They should not
-share one undifferentiated namespace or one invalidation policy.
+### Prior art boundary
+
+Unison hashes definition structure after replacing dependencies with their
+hashes. It also assigns one component identity to a recursive group. See the
+[Unison hash reference](https://www.unison-lang.org/docs/language-reference/hashes/)
+and [the Unison big idea](https://www.unison-lang.org/docs/the-big-idea/).
+
+The implementation is useful evidence for binder normalization and recursive
+component handling. See Unison's
+[ABT hashing](https://github.com/unisonweb/unison/blob/trunk/unison-hashing-v2/src/Unison/Hashing/V2/ABT.hs)
+and [term hashing](https://github.com/unisonweb/unison/blob/trunk/unison-hashing-v2/src/Unison/Hashing/V2/Term.hs).
+Semantic adopts the content-addressed definition model. It does not inherit an
+implementation detail without a local contract and counterexample.
 
 ## First tracer path
 
@@ -268,14 +457,18 @@ The first implementation should follow one vertical path:
 
 1. Accept one strict kernel JSON document.
 2. Check it under one explicit context and policy.
-3. Return one checked kernel receipt.
-4. Compile one module and emit one semantic interface receipt.
-5. Emit one deterministic module artifact and receipt.
-6. Run one package action that consumes that module receipt.
-7. Repeat the request and observe reuse at each layer.
-8. Change only the module implementation.
-9. Confirm whether the semantic interface remains stable.
-10. Measure which kernel, compiler, and build work repeats.
+3. Reuse the 0019 semantic identity as the checked value identity.
+4. Bind one authored name to that identity outside the semantic value.
+5. Derive one reachability analysis receipt from an explicit root.
+6. Select one dead-code rewrite from that receipt.
+7. Produce one derived runtime semantic value and optimization receipt.
+8. Emit one deterministic artifact and exact byte digest.
+9. Repeat the request and observe reuse at each layer.
+10. Change only comments and confirm that the checked identity remains stable.
+11. Change unused pure code and confirm that the runtime value remains stable.
+12. Change an effectful zero-use computation and confirm that the runtime value changes.
+13. Change an exported semantic value and confirm downstream invalidation.
+14. Measure which kernel, compiler, and build work repeats.
 
 This tracer tests the receipt boundaries. It does not require a distributed
 cache, remote execution, or a universal Merkle store.
@@ -286,7 +479,10 @@ Revise this architecture if any of these conditions occurs:
 
 - a cache key omits context that changes its result;
 - a raw syntax identity is treated as a checked semantic identity;
+- one generic hash is reused across different stage equivalence relations;
 - a cache hit bypasses receipt validation;
+- a proof or proposition is erased without a checker-warranted policy;
+- zero binder usage is treated as proof that an effectful computation is dead;
 - an implementation-only edit invalidates all downstream work without a
   measured reason;
 - a module interface hides an exported semantic change;

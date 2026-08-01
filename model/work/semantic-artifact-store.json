@@ -1,0 +1,50 @@
+{
+  "entities": [
+    {
+      "id": "work.semantic-artifact-store",
+      "kind": "work_item",
+      "name": "Establish the semantic artifact store tracer",
+      "summary": "Reuse accepted normalized-core semantic identities, retain exact artifact variants, keep authored names separate, and replay fully validated deterministic state.",
+      "status": "in_progress",
+      "tags": ["language", "compiler", "build", "content-addressed", "effect"],
+      "attributes": {
+        "phase": "implementation",
+        "effort": 5,
+        "design_spec": "design-specs/0027-semantic-artifact-store.md",
+        "plan": "plans/active/0027-semantic-artifact-store.md",
+        "acceptance": [
+          "Every stored artifact is revalidated by the accepted normalized-core boundary",
+          "Exact artifact hits remain distinct from semantic-value reuse",
+          "Authored names remain a separate projection over present semantic identities",
+          "Rejected commands preserve prior state",
+          "Bounded snapshots replay deterministically only after full validation"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 5,
+          "testability": 5,
+          "reversibility": 5,
+          "integration_independence": 4,
+          "blast_radius": 3,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source": "work.semantic-artifact-store",
+      "target": "work.normalized-core-format",
+      "kind": "requires",
+      "summary": "The store accepts only artifacts and identities warranted by the 0019 validator.",
+      "attributes": {}
+    },
+    {
+      "source": "work.semantic-artifact-store",
+      "target": "component.compiler",
+      "kind": "implements",
+      "summary": "The tracer establishes the first reusable semantic-value boundary for the compiler and native language build system.",
+      "attributes": {}
+    }
+  ]
+}

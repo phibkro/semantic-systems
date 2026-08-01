@@ -57,6 +57,49 @@ edges do not share one meaning.
 The implementation must not use one undifferentiated work graph for all four
 meanings.
 
+## Phase isolation and corrective feedback
+
+Research, design, implementation, testing, delivery, observation, and
+maintenance form a feedback graph. They are not one-way approval gates. Work
+can advance while a declared uncertainty remains. A later phase can expose a
+contradiction and send a correction to the phase that owns the mistaken fact.
+
+Each phase attempt should run in a fresh execution context. It receives only
+declared input artifacts, messages, capabilities, and accepted receipts. It
+must not depend on an agent's hidden conversation history or an ambient shared
+workspace. This isolation is a boundary test: if the next phase cannot work
+from the declared inputs, the handoff is incomplete.
+
+Isolation does not close communication. A consumer can send a typed question
+or contradiction to the producer. The producer can answer with a new artifact
+or a correction that supersedes an earlier fact. The consumer then resumes
+from its exact checkpoint. Questions, answers, corrections, and supersession
+links are durable parts of the work history.
+
+Every phase attempt records:
+
+- the identities of its declared inputs and capabilities;
+- its output artifact and evidence identities;
+- unresolved assumptions and questions;
+- corrections received or emitted;
+- the exact checkpoint from which it can resume.
+
+The scheduler follows these rules:
+
+- Move forward when the next action is safe and can produce useful evidence.
+- Keep uncertainty explicit instead of forcing premature agreement.
+- Backtrack when an active contradiction changes a required premise.
+- Invalidate only receipts that depend on the corrected premise.
+- Re-execute the smallest affected subgraph and preserve the old lineage.
+- Block only for missing authority, unacceptable irreversible cost, or a
+  contradiction that makes downstream evidence unsound.
+
+A later inspection must be able to replay a phase from its declared boundary.
+If replay needs facts that exist only in an earlier agent's context, that is
+evidence that the boundary contract or messages were not descriptive enough.
+The correction belongs in the artifacts or protocol, not in a larger hidden
+prompt.
+
 ## Common supervisor envelope
 
 Each supervisor should expose the same small semantic envelope:

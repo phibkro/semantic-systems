@@ -32,6 +32,7 @@ flowchart LR
     work_package_resolver["Implement package and evidence resolver"]
     work_pbk_portfolio_control_room["Build PBK Technologies portfolio Control Room"]
     work_relational_fact_schema["Define relational fact export"]
+    work_semantic_artifact_store["Establish the semantic artifact store tracer"]
     work_semantic_attestation_profile["Specify semantic attestation profile"]
     work_semantic_surface_language["Establish the Semantic surface language"]
     work_stm_laws["Specify STM effect and handler laws"]
@@ -57,6 +58,7 @@ flowchart LR
     work_wasm_contract_mapping -->|blocks| work_normalized_core_format
     work_deterministic_simulator_spec -->|blocks| work_stm_laws
     work_explorer_query_contract -->|informs| work_relational_fact_schema
+    work_semantic_artifact_store -->|requires| work_normalized_core_format
     work_semantic_surface_language -->|requires| work_agent_facing_kernel_json
     work_semantic_surface_language -->|requires| work_kernel_reference_interpreter
     work_core_checker -->|blocks| work_kernel_spec
