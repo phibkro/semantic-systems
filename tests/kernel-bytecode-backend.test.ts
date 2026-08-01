@@ -1,12 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { Effect } from "effect";
-import { compileCheckedProgram } from "../src/kernel-bytecode/compiler.ts";
-import { projectCompiledProgram } from "../src/kernel-bytecode/custody.ts";
 import { compareKernelRunObservations } from "../src/kernel-bytecode/differential.ts";
 import {
   defaultKernelBytecodeBackendBounds,
   runCompiledKernelJsonBytes,
 } from "../src/kernel-bytecode/index.ts";
+import { compileAndProjectCheckedProgramForTest } from "../src/kernel-bytecode/testing.ts";
 import { prepareKernelJsonBytes } from "../src/kernel-execution/prepare.ts";
 import {
   encodeCanonicalKernelRunObservation,
@@ -120,16 +119,17 @@ describe("baseline bytecode pure vertical journey", () => {
 
   test("the compiler emits only the closed pure instruction vocabulary", () => {
     const checked = Effect.runSync(prepareKernelJsonBytes(bytes(purePrograms.at(-1))));
-    const compiled = Effect.runSync(
-      compileCheckedProgram(checked.program, defaultKernelBytecodeBackendBounds.bytecode),
+    const projection = Effect.runSync(
+      compileAndProjectCheckedProgramForTest(
+        checked.program,
+        defaultKernelBytecodeBackendBounds.bytecode,
+      ),
     );
-    const projection = projectCompiledProgram(compiled);
-    expect(projection).toBeDefined();
-    expect(projection?.instructionKinds).toEqual([
+    expect(projection.instructionKinds).toEqual([
       ["PushInt", "BindSlot", "MakeFunction", "PushInt", "Call", "Return"],
       ["LoadSlot", "LoadSlot", "MakePair", "Return"],
     ]);
-    expect(projection?.constantCount).toBe(2);
+    expect(projection.constantCount).toBe(2);
   });
 
   test("a handled operation and one-shot resume agree exactly", async () => {

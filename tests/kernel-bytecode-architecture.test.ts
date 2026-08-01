@@ -1,14 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import { dirname, resolve } from "node:path";
 import { Effect } from "effect";
-import { compileCheckedProgram } from "../src/kernel-bytecode/compiler.ts";
+import { createCheckedProgramGraphCompiler } from "../src/kernel-bytecode/compiler.ts";
 import {
-  inspectCompiledGraph,
-  projectCompiledProgram,
-  type CompiledProgram,
-} from "../src/kernel-bytecode/custody.ts";
+  compileAndAuditCheckedProgramForTest,
+  observeForeignCustodyRejectionForTest,
+  observeForgedCustodyRejectionForTest,
+  observeNestedAliasMutationForTest,
+} from "../src/kernel-bytecode/testing.ts";
 import { defaultKernelBytecodeBackendBounds } from "../src/kernel-bytecode/index.ts";
-import { BytecodeVmFailure, executeCompiledProgram } from "../src/kernel-bytecode/vm.ts";
+import { BytecodeVmFailure, createInstructionGraphExecutor } from "../src/kernel-bytecode/vm.ts";
 import { prepareKernelJsonBytes } from "../src/kernel-execution/prepare.ts";
 
 const root = resolve(import.meta.dirname, "..");
@@ -82,36 +83,48 @@ describe("baseline bytecode architecture and custody", () => {
   test("compiled custody is frozen, source-free, and resolves binders to VM slots", () => {
     const prepared = Effect.runSync(prepareKernelJsonBytes(source));
     const sourceObjects = collectObjects(prepared.program);
-    const compiled = Effect.runSync(
-      compileCheckedProgram(prepared.program, defaultKernelBytecodeBackendBounds.bytecode),
+    const audit = Effect.runSync(
+      compileAndAuditCheckedProgramForTest(
+        prepared.program,
+        sourceObjects,
+        defaultKernelBytecodeBackendBounds.bytecode,
+      ),
     );
-    const graph = inspectCompiledGraph(compiled);
-    expect(graph).toBeDefined();
-    if (graph === undefined) throw new Error("compiler did not mint graph custody");
-
-    for (const object of collectObjects(graph)) {
-      expect(sourceObjects.has(object)).toBeFalse();
-      expect(Object.isFrozen(object)).toBeTrue();
-      expect(Object.hasOwn(object, "tag")).toBeFalse();
-      expect(Object.hasOwn(object, "distance")).toBeFalse();
-      expect(Object.hasOwn(object, "derivation")).toBeFalse();
-    }
-    expect(JSON.stringify(graph)).not.toContain("bound-value");
-    expect(JSON.stringify(graph)).not.toContain("parameter_type");
-    expect(JSON.stringify(graph)).not.toContain("resumption_distance");
-    expect(JSON.stringify(graph)).toContain('"slot":');
+    expect(audit.sourceIdentityOverlap).toBeFalse();
+    expect(audit.allObjectsFrozen).toBeTrue();
+    expect(audit.forbiddenFields).toEqual([]);
+    expect(audit.serializedGraph).not.toContain("bound-value");
+    expect(audit.serializedGraph).not.toContain("parameter_type");
+    expect(audit.serializedGraph).not.toContain("resumption_distance");
+    expect(audit.serializedGraph).toContain('"slot":');
   });
 
-  test("structural lookalikes cannot project or execute as compiled custody", () => {
-    const forged = {
-      format: "semantic.kernel-bytecode/process-local/v1",
-    } as CompiledProgram;
-    expect(projectCompiledProgram(forged)).toBeUndefined();
-    const failure = Effect.runSync(
-      executeCompiledProgram(forged, defaultKernelBytecodeBackendBounds.bytecode).pipe(Effect.flip),
+  test("structural lookalikes and foreign closure custody cannot execute", () => {
+    for (const program of [
+      observeForgedCustodyRejectionForTest(defaultKernelBytecodeBackendBounds.bytecode),
+      observeForeignCustodyRejectionForTest(defaultKernelBytecodeBackendBounds.bytecode),
+    ]) {
+      const failure = Effect.runSync(program.pipe(Effect.flip));
+      expect(failure).toBeInstanceOf(BytecodeVmFailure);
+      if (!(failure instanceof BytecodeVmFailure)) throw new Error("expected custody rejection");
+      expect(failure.code).toBe("bytecode.vm.invalid-compiled-custody");
+    }
+  });
+
+  test("deep importers cannot forge compiler or VM graph authority", () => {
+    const lookalike = Object.freeze({ owner: "kernel-bytecode-custody" });
+    expect(() => createCheckedProgramGraphCompiler(lookalike)).toThrow(
+      "compiled graph compiler requires lexical runtime authority",
     );
-    expect(failure).toBeInstanceOf(BytecodeVmFailure);
-    if (!(failure instanceof BytecodeVmFailure)) throw new Error("expected custody rejection");
-    expect(failure.code).toBe("bytecode.vm.invalid-compiled-custody");
+    expect(() => createInstructionGraphExecutor(lookalike)).toThrow(
+      "instruction graph executor requires lexical runtime authority",
+    );
+  });
+
+  test("mint snapshots nested aliases even when the caller froze only the graph root", () => {
+    const outcome = Effect.runSync(
+      observeNestedAliasMutationForTest(defaultKernelBytecodeBackendBounds.bytecode),
+    );
+    expect(outcome).toEqual({ status: "returned", value: { kind: "int", value: 1 } });
   });
 });

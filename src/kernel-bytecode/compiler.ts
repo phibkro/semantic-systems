@@ -8,7 +8,7 @@ import type {
   ValueType,
 } from "../kernel-calculus/ast.ts";
 import { requireCheckedProgram, type CheckedProgram } from "../kernel-calculus/checker.ts";
-import { mintCompiledProgram, type CompiledProgram } from "./custody.ts";
+import { isCompiledRuntimeAuthority } from "./custody.ts";
 import type {
   Constant,
   Instruction,
@@ -300,26 +300,35 @@ class Builder {
   }
 }
 
-export const compileCheckedProgram = (
+export type CheckedProgramGraphCompiler = (
   program: CheckedProgram,
   bounds: KernelBytecodeBounds,
-): Effect.Effect<CompiledProgram, BytecodeCompilationFailure> =>
-  Effect.try({
-    try: () => {
-      const checked = requireCheckedProgram(program);
-      if (checked === undefined) {
-        throw new BytecodeCompilationFailure({
-          code: "bytecode.compile.invalid-checked-custody",
-          message: "compilation requires a checked program in private custody",
-        });
-      }
-      return mintCompiledProgram(new Builder(bounds, checked.signature).graph(checked.term));
-    },
-    catch: (cause) =>
-      cause instanceof BytecodeCompilationFailure
-        ? cause
-        : new BytecodeCompilationFailure({
-            code: "bytecode.compile.internal",
-            message: "compiler failed while selecting source-free instructions",
-          }),
-  });
+) => Effect.Effect<InstructionGraph, BytecodeCompilationFailure>;
+
+export const createCheckedProgramGraphCompiler = (
+  authority: unknown,
+): CheckedProgramGraphCompiler => {
+  if (!isCompiledRuntimeAuthority(authority)) {
+    throw new TypeError("compiled graph compiler requires lexical runtime authority");
+  }
+  return (program, bounds) =>
+    Effect.try({
+      try: () => {
+        const checked = requireCheckedProgram(program);
+        if (checked === undefined) {
+          throw new BytecodeCompilationFailure({
+            code: "bytecode.compile.invalid-checked-custody",
+            message: "compilation requires a checked program in private custody",
+          });
+        }
+        return new Builder(bounds, checked.signature).graph(checked.term);
+      },
+      catch: (cause) =>
+        cause instanceof BytecodeCompilationFailure
+          ? cause
+          : new BytecodeCompilationFailure({
+              code: "bytecode.compile.internal",
+              message: "compiler failed while selecting source-free instructions",
+            }),
+    });
+};

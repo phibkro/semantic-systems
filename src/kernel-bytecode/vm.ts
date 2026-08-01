@@ -6,7 +6,7 @@ import type {
   ObservableRuntimeValue,
   ObservableValueType,
 } from "../kernel-interpreter/schema.ts";
-import { inspectCompiledGraph, type CompiledProgram } from "./custody.ts";
+import { isCompiledRuntimeAuthority } from "./custody.ts";
 import type { Constant, InstructionGraph, VmSlot } from "./instruction.ts";
 import type { KernelBytecodeBounds } from "./schema.ts";
 
@@ -592,21 +592,21 @@ const run = (graph: InstructionGraph, bounds: KernelBytecodeBounds): InternalRes
   }
 };
 
-export const executeCompiledProgram = (
-  program: CompiledProgram,
+export type InstructionGraphExecutor = (
+  graph: InstructionGraph,
   bounds: KernelBytecodeBounds,
-): Effect.Effect<BytecodeVmOutcome, BytecodeVmError> =>
-  Effect.gen(function* () {
-    const graph = inspectCompiledGraph(program);
-    if (graph === undefined) {
-      return yield* new BytecodeVmFailure({
-        code: "bytecode.vm.invalid-compiled-custody",
-        message: "execution requires a compiled program in private custody",
-      });
-    }
-    const result = run(graph, bounds);
-    if (result.status === "failed") return yield* result.error;
-    return result.status === "returned"
-      ? freeze({ status: "returned", value: result.value })
-      : freeze({ status: "suspended", request: result.request });
-  });
+) => Effect.Effect<BytecodeVmOutcome, BytecodeVmError>;
+
+export const createInstructionGraphExecutor = (authority: unknown): InstructionGraphExecutor => {
+  if (!isCompiledRuntimeAuthority(authority)) {
+    throw new TypeError("instruction graph executor requires lexical runtime authority");
+  }
+  return (graph, bounds) =>
+    Effect.gen(function* () {
+      const result = run(graph, bounds);
+      if (result.status === "failed") return yield* result.error;
+      return result.status === "returned"
+        ? freeze({ status: "returned", value: result.value })
+        : freeze({ status: "suspended", request: result.request });
+    });
+};

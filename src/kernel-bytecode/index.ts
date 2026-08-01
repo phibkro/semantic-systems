@@ -7,14 +7,14 @@ import {
   readBoundField,
 } from "../kernel-execution/prepare.ts";
 import type { KernelRunObservation } from "../kernel-interpreter/schema.ts";
-import { compileCheckedProgram, type BytecodeCompilationFailure } from "./compiler.ts";
-import { projectCompiledProgram, type CompiledProgramProjection } from "./custody.ts";
+import type { BytecodeCompilationFailure } from "./compiler.ts";
+import { compileAndExecuteCheckedProgram } from "./custody.ts";
 import {
   defaultKernelBytecodeBounds,
   narrowKernelBytecodeBounds,
   type KernelBytecodeBounds,
 } from "./schema.ts";
-import { BytecodeVmInconclusive, executeCompiledProgram, type BytecodeVmFailure } from "./vm.ts";
+import { BytecodeVmInconclusive, type BytecodeVmFailure } from "./vm.ts";
 
 export interface KernelBytecodeBackendBounds {
   readonly json: KernelJsonRawBounds;
@@ -53,12 +53,10 @@ export const runCompiledKernelJsonBytes = (
   const jsonBounds = readBoundField(bounds, "json");
   const bytecodeBounds = narrowKernelBytecodeBounds(readBoundField(bounds, "bytecode"));
   const program = Effect.flatMap(prepareKernelJsonBytes(input, jsonBounds), (checked) =>
-    Effect.flatMap(compileCheckedProgram(checked.program, bytecodeBounds), (compiled) =>
-      Effect.map(executeCompiledProgram(compiled, bytecodeBounds), (returned) =>
-        returned.status === "returned"
-          ? kernelRunEnvelope({ tag: "returned", value: returned.value })
-          : kernelRunEnvelope({ tag: "suspended", request: returned.request }),
-      ),
+    Effect.map(compileAndExecuteCheckedProgram(checked.program, bytecodeBounds), (returned) =>
+      returned.status === "returned"
+        ? kernelRunEnvelope({ tag: "returned", value: returned.value })
+        : kernelRunEnvelope({ tag: "suspended", request: returned.request }),
     ),
   );
   return Effect.runSync(
@@ -69,6 +67,5 @@ export const runCompiledKernelJsonBytes = (
   );
 };
 
-export type { CompiledProgramProjection };
-export { projectCompiledProgram };
+export type { CompiledProgramProjection } from "./custody.ts";
 export type { KernelBytecodeBounds } from "./schema.ts";

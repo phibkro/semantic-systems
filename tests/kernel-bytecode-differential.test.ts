@@ -1,14 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import * as fc from "fast-check";
 import { Effect, Schema } from "effect";
-import { compileCheckedProgram } from "../src/kernel-bytecode/compiler.ts";
 import { compareKernelRunObservations } from "../src/kernel-bytecode/differential.ts";
 import {
   defaultKernelBytecodeBackendBounds,
   runCompiledKernelJsonBytes,
 } from "../src/kernel-bytecode/index.ts";
-import { perturbCompiledProgramForTest } from "../src/kernel-bytecode/testing.ts";
-import { executeCompiledProgram } from "../src/kernel-bytecode/vm.ts";
+import { executePerturbedCheckedProgramForTest } from "../src/kernel-bytecode/testing.ts";
 import { kernelRunEnvelope, prepareKernelJsonBytes } from "../src/kernel-execution/prepare.ts";
 import {
   encodeCanonicalKernelRunObservation,
@@ -466,13 +464,12 @@ const runPerturbedFixture = async (
   if (decoded.status !== "decoded") throw new Error(`${name} does not contain canonical kernel`);
   const source = bytes(decoded.value);
   const prepared = Effect.runSync(prepareKernelJsonBytes(source));
-  const compiled = Effect.runSync(
-    compileCheckedProgram(prepared.program, defaultKernelBytecodeBackendBounds.bytecode),
-  );
-  const perturbed = perturbCompiledProgramForTest(compiled, fixture.mutation);
-  if (perturbed === undefined) throw new Error(`${name} mutation did not select an instruction`);
   const outcome = Effect.runSync(
-    executeCompiledProgram(perturbed, defaultKernelBytecodeBackendBounds.bytecode),
+    executePerturbedCheckedProgramForTest(
+      prepared.program,
+      defaultKernelBytecodeBackendBounds.bytecode,
+      fixture.mutation,
+    ),
   );
   return {
     reference: interpretKernelJsonBytes(source),
