@@ -408,9 +408,9 @@ export const analyzeJson = (
   SemanticStore | Crypto.Crypto
 > =>
   Effect.gen(function* () {
+    const declared = yield* decodeDeclaredGraph(input);
     const store = yield* SemanticStore;
     const snapshot = yield* store.snapshot;
-    const declared = yield* decodeDeclaredGraph(input);
     const normalized = yield* normalizeNodes(declared.nodes);
     yield* validateGraphUniverse(normalized, declared.root_semantic_identity, snapshot);
     return yield* buildArtifact(normalized, declared.root_semantic_identity);
@@ -474,9 +474,9 @@ export const validateReceiptBytes = (
   SemanticStore | Crypto.Crypto
 > =>
   Effect.gen(function* () {
+    const decoded = yield* decodeReceiptBytes(input);
     const store = yield* SemanticStore;
     const snapshot = yield* store.snapshot;
-    const decoded = yield* decodeReceiptBytes(input);
     const normalized = yield* normalizeNodes(decoded.receipt.graph.nodes);
     yield* validateGraphUniverse(normalized, decoded.receipt.root_semantic_identity, snapshot);
     const expected = yield* buildArtifact(normalized, decoded.receipt.root_semantic_identity);

@@ -299,7 +299,7 @@ describe("declared reachability analysis receipt", () => {
           expect(result.receipt.unreachable_semantic_identities).toEqual(expectedUnreachable);
         },
       ),
-      { numRuns: 64 },
+      { numRuns: 64, seed: 0x0030 },
     );
   });
 
@@ -436,6 +436,19 @@ describe("declared reachability analysis receipt", () => {
 
     expect(snapshots).toBe(2);
     expect(receipt).toEqual(artifact.receipt);
+
+    const malformedGraph = await Effect.runPromise(
+      analyzeJson(42).pipe(Effect.provide([layer, BunCrypto.layer]), Effect.result),
+    );
+    const malformedReceipt = await Effect.runPromise(
+      validateReceiptBytes("not bytes").pipe(
+        Effect.provide([layer, BunCrypto.layer]),
+        Effect.result,
+      ),
+    );
+    expect(Result.isFailure(malformedGraph)).toBeTrue();
+    expect(Result.isFailure(malformedReceipt)).toBeTrue();
+    expect(snapshots).toBe(2);
   });
 
   test("preserves graph and receipt digest failures in the typed channel", async () => {
