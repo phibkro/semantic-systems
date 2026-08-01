@@ -124,3 +124,14 @@ then fail with `missing baseline bytecode backend implementation artifact`.
   predecessor receipt and rerun the complete current TypeScript/Node seams plus
   the repository gate. A future Nix artifact store may make historical external
   environments replayable, but this feature does not claim that custody.
+- 2026-08-01: the operator kept resumptions affine (`0` or `1`) and deferred
+  true multi-shot continuation reuse. The locally custodied October 2025 draft
+  of Campbell, Lindley, Ricciotti, and Stark, “Effect Handlers All the Way Down,”
+  at sibling path
+  `references/papers/4-wasmfx/lindley-draft25-asmfx-handlers-all-the-way-down.pdf`
+  (SHA-256
+  `318f4be7a86a24b42af704d116c76859038ad436e2a660bebe1c661053d8db23`)
+  grounds the primitive-handler instruction shape and the need for a
+  well-scoping invariant across source and machine representations. Reinstalling
+  fresh one-shot handlers can express repeated sequential handling; it does not
+  claim branching reuse of the same captured continuation.

@@ -477,6 +477,9 @@ semantics are stable.
   reachability authority, or build-system invalidation.
 - Surface parsing, elaboration, external effect interpretation, or resuming an
   externally suspended computation.
+- Multi-shot reuse of one captured continuation. Version 1 keeps affine
+  resumptions at grades `0` or `1`; repeated sequential handling composes fresh
+  one-shot handler installations rather than cloning a consumed continuation.
 - A proof of compiler correctness, type soundness, progress, or preservation.
 
 ## Semantic diff
@@ -493,4 +496,5 @@ build-system identity.
 - [Effect v4 documentation](https://effect-ts.github.io/effect/)
 - [fast-check properties](https://fast-check.dev/docs/core-blocks/properties/)
 - [fast-check replay and shrinking](https://fast-check.dev/docs/advanced/runners/)
+- [Effect Handlers All the Way Down](https://homepages.inf.ed.ac.uk/slindley/papers/asmfx-draft-february2026.pdf)
 - [Stable TypeScript 7 release](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/)
