@@ -2,13 +2,13 @@
 
 <!-- Generated. Edit model sources, not this file. -->
 
-Ready parallel work items: **17**.
+Ready parallel work items: **16**.
 
 | Work item | Phase | Status | Ready | Score | Recommendation | Blockers |
 |---|---|---|---:|---:|---|---|
 | Implement minimal actor runtime | validation | complete | no | 75 | delegate with review |  |
 | Bound actor trace retention | implementation | complete | no | 83 | delegate with review |  |
-| Design agent-facing kernel JSON | design | in_progress | yes | 75 | delegate with review |  |
+| Design agent-facing kernel JSON | design | review | no | 75 | delegate with review |  |
 | Establish the autonomous development control loop | implementation | in_progress | yes | 83 | delegate with review |  |
 | Compile and independently execute baseline kernel bytecode | implementation | complete | no | 72 | delegate with review |  |
 | Align Control Room with the pinned Alchemy CLI | validation | in_progress | yes | 84 | delegate with review |  |
@@ -33,7 +33,7 @@ Ready parallel work items: **17**.
 | Implement package and evidence resolver | implementation | in_progress | no | 72 | delegate with review | Define normalized theory identity |
 | Build PBK Technologies portfolio Control Room | implementation | in_progress | yes | 72 | delegate with review |  |
 | Derive a declared reachability analysis receipt | implementation | complete | no | 87 | delegate with review |  |
-| Define relational fact export | implementation | in_progress | yes | 94 | delegate directly |  |
+| Define relational fact export | validation | in_progress | yes | 94 | delegate directly |  |
 | Execute a reproducible closure action and record its observation | implementation | complete | no | 87 | delegate with review |  |
 | Recut the independent resolution checker | design | complete | no | 83 | delegate with review |  |
 | Establish the semantic artifact store tracer | implementation | complete | no | 87 | delegate with review |  |
