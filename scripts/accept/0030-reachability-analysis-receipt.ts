@@ -8,12 +8,14 @@ class AcceptanceFailure extends Data.TaggedError("AcceptanceFailure")<{
 }> {}
 
 const root = resolve(import.meta.dirname, "../..");
+const nodeExecutable = process.env.SEMANTIC_NODE_BIN ?? "node";
 const required = [
   "design-specs/0030-reachability-analysis-receipt.md",
   "plans/active/0030-reachability-analysis-receipt.md",
   "model/work/reachability-analysis-receipt.json",
   "src/language-build/reachability.ts",
   "tests/language-build-reachability.test.ts",
+  "tests/language-build-reachability-node.test.ts",
 ] as const;
 
 const program = Effect.gen(function* () {
@@ -27,6 +29,9 @@ const program = Effect.gen(function* () {
   }
 
   yield* runCommand(["bun", "test", "tests/language-build-reachability.test.ts"], { cwd: root });
+  yield* runCommand([nodeExecutable, "--test", "tests/language-build-reachability-node.test.ts"], {
+    cwd: root,
+  });
   yield* runCommand(["bun", "run", "typecheck"], { cwd: root });
   yield* runCommand(["bun", "run", "lint"], { cwd: root });
   yield* runCommand(
@@ -36,6 +41,7 @@ const program = Effect.gen(function* () {
       "--check",
       "src/language-build",
       "tests/language-build-reachability.test.ts",
+      "tests/language-build-reachability-node.test.ts",
       "scripts/accept/0030-reachability-analysis-receipt.ts",
       "design-specs/0030-reachability-analysis-receipt.md",
       "plans/active/0030-reachability-analysis-receipt.md",
@@ -47,7 +53,10 @@ const program = Effect.gen(function* () {
   yield* runCommand(["bun", "run", "semproj", "--", "generate", "--check"], {
     cwd: root,
   });
-  yield* runCommand(["bun", "scripts/accept/0027-semantic-artifact-store.ts"], { cwd: root });
+  yield* runCommand(["bun", "test", "tests/language-build-semantic-store.test.ts"], {
+    cwd: root,
+  });
+  yield* runCommand(["just", "check"], { cwd: root });
 });
 
 runMain("accept/0030", program);

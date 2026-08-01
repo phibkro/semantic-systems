@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0030-reachability-analysis-receipt.md`](../../design-specs/0030-reachability-analysis-receipt.md).
 This execution record cannot redefine that contract.
 
-Status: frozen; implementation and exact acceptance pending
+Status: implementation candidate green; exact acceptance and revision-pinned review pending
 
 Owner: primary Semantic Systems language lead
 
@@ -22,6 +22,7 @@ Owner: primary Semantic Systems language lead
 - `src/language-build/reachability.ts`
 - `src/language-build/index.ts`
 - `tests/language-build-reachability.test.ts`
+- `tests/language-build-reachability-node.test.ts`
 - `scripts/accept/0030-reachability-analysis-receipt.ts`
 - derived generated project views
 
@@ -47,7 +48,7 @@ resolution, or provider effects; editing operator-owned `AGENTS.md`.
    failure taxonomy.
 3. Implement domain-separated graph and receipt identity derivation.
 4. Add chain, branch, island, cycle, permutation, hostile-boundary, bounds,
-   digest-failure, and immutability journeys.
+   digest-failure, immutability, and genuine Node parity journeys.
 5. Run focused tests, TypeScript 7, lint, formatting, project projections, and
    full repository acceptance.
 6. Commission revision-pinned independent review and correct findings at their
@@ -74,6 +75,11 @@ bun scripts/accept/0030-reachability-analysis-receipt.ts
   receipt now labels edge authority as caller-declared, embeds its canonical
   graph, and has a strict byte-validation boundary. Omitted stored values are
   outside the graph rather than being mislabeled unreachable.
+- 2026-08-01: the implementation candidate passed 13 focused Bun tests with
+  199 assertions, including 64 generated graph-oracle runs, plus one genuine
+  Node parity test. TypeScript 7, Oxlint, Oxfmt, project-model validation, and
+  generated projection checks passed. Full repository acceptance and
+  revision-pinned review remain pending.
 
 ## Open review questions
 

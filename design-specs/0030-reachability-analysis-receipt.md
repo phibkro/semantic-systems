@@ -25,10 +25,11 @@ authority.
 ## Felt journey
 
 A caller stores semantic values A, B, and C. It supplies duplicate-free JSON
-whose closed node set exactly matches the store snapshot and whose runtime edge
-is A to B. Analysis from root A returns A and B as reachable and C as
-unreachable. Reordering node and dependency arrays produces the same graph and
-receipt identities.
+whose closed node set selects those three values from the store snapshot and
+whose runtime edge is A to B. Analysis from root A returns A and B as reachable
+and C as unreachable. Reordering node and dependency arrays produces the same
+graph and receipt identities. Stored values outside that selected node set are
+outside the receipt universe.
 
 An absent root, absent subject, foreign endpoint, duplicate edge, excess field,
 over-limit graph, malformed JSON, or changing store projection returns a typed
