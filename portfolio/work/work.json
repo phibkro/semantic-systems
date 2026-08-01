@@ -452,6 +452,28 @@
       "schema_version": "pbk.portfolio-row/v1",
       "record_type": "work",
       "value": {
+        "id": "work.semantic.control-room-skill-tree",
+        "project_id": "project.semantic",
+        "kind": "feature",
+        "title": "Interactive portfolio skill tree",
+        "summary": "Render the PBK dependency roadmap as a clickable skill tree and semantic-zoom Mosaic over one immutable identity set.",
+        "status": "active",
+        "definition_of_done": [
+          "Phone, keyboard, and pointer users can follow exact prerequisite and unlock paths without changing or inventing portfolio truth.",
+          "Graph and Mosaic retain one selected identity and expose the existing exact work detail."
+        ],
+        "attributes": {
+          "work.discipline": "product-engineering",
+          "work.layer": "portfolio-visualization",
+          "work.operator-facing": true,
+          "work.public-preview": false
+        }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
         "id": "work.semantic.surface-language",
         "project_id": "project.semantic",
         "kind": "feature",

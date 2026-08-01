@@ -236,6 +236,17 @@
       "schema_version": "pbk.portfolio-row/v1",
       "record_type": "relation",
       "value": {
+        "id": "relation.semantic.13",
+        "source_id": "work.semantic.control-room-skill-tree",
+        "target_id": "work.semantic.pbk-control-room",
+        "kind": "requires",
+        "summary": "The interactive skill tree renders the accepted PBK portfolio projections without changing their authority."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "relation",
+      "value": {
         "id": "relation.studio.01",
         "source_id": "work.flow.autonomous-studio",
         "target_id": "work.herdr.stable-facade",

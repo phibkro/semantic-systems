@@ -38,7 +38,10 @@ describe("PBK portfolio boundary", () => {
   test("assembles strict rows into a frozen portfolio observation", () => {
     expect(portfolio.studio.name).toBe("PBK Technologies");
     expect(portfolio.projects).toHaveLength(9);
-    expect(portfolio.work).toHaveLength(23);
+    expect(portfolio.work).toHaveLength(24);
+    expect(portfolio.work.some(({ id }) => id === "work.semantic.control-room-skill-tree")).toBe(
+      true,
+    );
     expect(Object.isFrozen(portfolio)).toBe(true);
     expect(Object.isFrozen(portfolio.work[0])).toBe(true);
   });
