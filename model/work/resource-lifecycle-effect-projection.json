@@ -8,7 +8,7 @@
       "status": "in_progress",
       "tags": ["language", "surface", "effects", "resources", "interpreter", "bytecode"],
       "attributes": {
-        "phase": "design",
+        "phase": "implementation",
         "effort": 5,
         "design_spec": "design-specs/0045-resource-lifecycle-effect-projection.md",
         "plan": "plans/active/0045-resource-lifecycle-effect-projection.md",

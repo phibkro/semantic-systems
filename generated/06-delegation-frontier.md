@@ -39,7 +39,7 @@ Ready parallel work items: **21**.
 | Define relational fact export | implementation | complete | no | 94 | delegate directly |  |
 | Execute a reproducible closure action and record its observation | implementation | complete | no | 87 | delegate with review |  |
 | Recut the independent resolution checker | design | complete | no | 83 | delegate with review |  |
-| Project resource cleanup through affine surface effects | design | in_progress | yes | 87 | delegate with review |  |
+| Project resource cleanup through affine surface effects | implementation | in_progress | yes | 87 | delegate with review |  |
 | Establish resource lifecycle handler laws | implementation | complete | no | 87 | delegate with review |  |
 | Establish the semantic artifact store tracer | implementation | complete | no | 87 | delegate with review |  |
 | Specify semantic attestation profile | design | ready | no | 87 | delegate with review | Define normalized theory identity |

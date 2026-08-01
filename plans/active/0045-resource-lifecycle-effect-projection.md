@@ -59,4 +59,15 @@ nix develop --command bun scripts/accept/0045-resource-lifecycle-effect-projecti
 
 ## Completion record
 
-Pending implementation and exact-head evidence.
+Implementation candidate complete. The projection reuses the frozen 0044
+tracer, strict Effect Schemas and canonical codecs, existing surface compiler,
+and independent reference/bytecode replay without changing a lower language
+module or adding a dependency. Focused Bun tests cover the exact 48-let path,
+all exit causes, transfer, early release, blocked close, live affine omission,
+failed acquisition/finalization, Unicode tables, caller custody, forged and
+perturbed reports, generated cleanup order, and the checker counterexamples.
+
+The exact acceptance pipeline passes the focused Bun suite, genuine Node
+journey, TypeScript 7 Effect diagnostics, Oxlint, Oxfmt, project-model
+validation, generated-view equality, commit policy, and complete repository
+gate. Independent exact-head review and integration remain the lead's gates.
