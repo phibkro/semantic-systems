@@ -1,4 +1,4 @@
-import { Crypto, Data, Effect } from "effect";
+import { Crypto, Data, Effect, Schema } from "effect";
 import { assessWork } from "./schedule.ts";
 import {
   ENTITY_KINDS,
@@ -14,8 +14,142 @@ export const PUBLIC_VERSION_SCHEMA = "semantic-public-version-v1" as const;
 export const DEFAULT_REPOSITORY_URL = "https://github.com/phibkro/semantic-systems";
 
 const EXACT_COMMIT = /^[0-9a-f]{40}$/;
+const EXACT_DIGEST = /^[0-9a-f]{64}$/;
 const WHOLE_SECOND_UTC = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})Z$/;
 const COMPLETE_WORK_STATUSES = new Set(["complete", "accepted", "superseded"]);
+
+const isLeapYear = (year: number): boolean =>
+  year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+
+const timestampIssue = (value: string): "syntax" | "calendar" | undefined => {
+  const match = WHOLE_SECOND_UTC.exec(value);
+  if (match === null) return "syntax";
+  const [, yearText, monthText, dayText, hourText, minuteText, secondText] = match;
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  const second = Number(secondText);
+  const days = [31, isLeapYear(year) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  return year < 1 ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > days[month - 1]! ||
+    hour > 23 ||
+    minute > 59 ||
+    second > 59
+    ? "calendar"
+    : undefined;
+};
+
+const strictString = (pattern: RegExp, expected: string) =>
+  Schema.String.pipe(Schema.check(Schema.isPattern(pattern, { expected })));
+
+const WholeSecondUtcSchema = Schema.String.pipe(
+  Schema.check(
+    Schema.makeFilter<string>((value) => timestampIssue(value) === undefined, {
+      expected: "a valid canonical whole-second UTC timestamp",
+    }),
+  ),
+);
+const PublicEntityKindSchema = Schema.String.pipe(
+  Schema.check(
+    Schema.makeFilter<string>((kind) => ENTITY_KINDS.has(kind), {
+      expected: "a public entity kind",
+    }),
+  ),
+);
+const PublicRelationKindSchema = Schema.String.pipe(
+  Schema.check(
+    Schema.makeFilter<string>((kind) => RELATION_KINDS.has(kind), {
+      expected: "a public relation kind",
+    }),
+  ),
+);
+const ExactCommitSchema = strictString(
+  EXACT_COMMIT,
+  "an exact lowercase 40-character Git object ID",
+);
+const ExactDigestSchema = strictString(EXACT_DIGEST, "an exact lowercase SHA-256 digest");
+
+export const PublicEntitySchema = Schema.Struct({
+  id: Schema.String,
+  kind: PublicEntityKindSchema,
+  name: Schema.String,
+  summary: Schema.String,
+  status: Schema.NullOr(Schema.String),
+  tags: Schema.Array(Schema.String),
+  source_url: Schema.String,
+  evidence_category: Schema.NullOr(Schema.String),
+  assumptions: Schema.Array(Schema.String),
+});
+
+export const PublicRelationSchema = Schema.Struct({
+  source_id: Schema.String,
+  target_id: Schema.String,
+  kind: PublicRelationKindSchema,
+  summary: Schema.String,
+  source_url: Schema.String,
+});
+
+const PublicSnapshotFieldsSchema = Schema.Struct({
+  schema_version: Schema.Literal(PUBLIC_SNAPSHOT_SCHEMA),
+  metadata: Schema.Struct({
+    commit: ExactCommitSchema,
+    digest: ExactDigestSchema,
+    generated_at: WholeSecondUtcSchema,
+    observed_at: WholeSecondUtcSchema,
+    freshness_seconds: Schema.Finite.pipe(Schema.check(Schema.isInt(), Schema.isGreaterThan(0))),
+    deployed_check_status: Schema.Literals(["not_checked", "passed", "failed"]),
+    observation_source: Schema.Literals(["local_preview", "main_ci_assertion", "pr_ci_assertion"]),
+    repository_url: Schema.String.pipe(Schema.check(Schema.isPattern(/^https:\/\//))),
+  }),
+  counts_by_kind: Schema.Record(Schema.String, Schema.Natural),
+  ready_work_ids: Schema.Array(Schema.String),
+  active_work_ids: Schema.Array(Schema.String),
+  blocked_work_ids: Schema.Array(Schema.String),
+  completed_work_ids: Schema.Array(Schema.String),
+  unsupported_claim_ids: Schema.Array(Schema.String),
+  entities: Schema.Array(PublicEntitySchema),
+  relations: Schema.Array(PublicRelationSchema),
+});
+
+type PublicSnapshotFields = typeof PublicSnapshotFieldsSchema.Type;
+
+export const PublicSnapshotSchema = PublicSnapshotFieldsSchema.pipe(
+  Schema.check(
+    Schema.makeFilter<PublicSnapshotFields>((snapshot) => {
+      const identities = new Set(snapshot.entities.map((entity) => entity.id));
+      if (identities.size !== snapshot.entities.length) return "entity identities must be unique";
+      return (
+        snapshot.relations.every(
+          (relation) => identities.has(relation.source_id) && identities.has(relation.target_id),
+        ) || "relation endpoints must identify public entities"
+      );
+    }),
+  ),
+);
+
+const PublicVersionFieldsSchema = Schema.Struct({
+  schema_version: Schema.Literal(PUBLIC_VERSION_SCHEMA),
+  commit: ExactCommitSchema,
+  digest: ExactDigestSchema,
+  observed_at: WholeSecondUtcSchema,
+  snapshot: strictString(/^snapshot\.[0-9a-f]{64}\.json$/, "a public snapshot filename"),
+});
+
+type PublicVersionFields = typeof PublicVersionFieldsSchema.Type;
+
+export const PublicVersionSchema = PublicVersionFieldsSchema.pipe(
+  Schema.check(
+    Schema.makeFilter<PublicVersionFields>(
+      (version) => version.snapshot === `snapshot.${version.digest}.json`,
+      { expected: "a snapshot filename bound to the version digest" },
+    ),
+  ),
+);
 
 export type DeployedCheckStatus = "not_checked" | "passed" | "failed";
 export type ObservationSource = "local_preview" | "main_ci_assertion" | "pr_ci_assertion";
@@ -29,55 +163,10 @@ export interface ExportObservation {
   readonly repositoryUrl?: string;
 }
 
-export interface PublicEntity {
-  readonly id: string;
-  readonly kind: string;
-  readonly name: string;
-  readonly summary: string;
-  readonly status: string | null;
-  readonly tags: ReadonlyArray<string>;
-  readonly source_url: string;
-  readonly evidence_category: string | null;
-  readonly assumptions: ReadonlyArray<string>;
-}
-
-export interface PublicRelation {
-  readonly source_id: string;
-  readonly target_id: string;
-  readonly kind: string;
-  readonly summary: string;
-  readonly source_url: string;
-}
-
-export interface PublicSnapshot {
-  readonly schema_version: typeof PUBLIC_SNAPSHOT_SCHEMA;
-  readonly metadata: {
-    readonly commit: string;
-    readonly digest: string;
-    readonly generated_at: string;
-    readonly observed_at: string;
-    readonly freshness_seconds: number;
-    readonly deployed_check_status: DeployedCheckStatus;
-    readonly observation_source: ObservationSource;
-    readonly repository_url: string;
-  };
-  readonly counts_by_kind: Readonly<Record<string, number>>;
-  readonly ready_work_ids: ReadonlyArray<string>;
-  readonly active_work_ids: ReadonlyArray<string>;
-  readonly blocked_work_ids: ReadonlyArray<string>;
-  readonly completed_work_ids: ReadonlyArray<string>;
-  readonly unsupported_claim_ids: ReadonlyArray<string>;
-  readonly entities: ReadonlyArray<PublicEntity>;
-  readonly relations: ReadonlyArray<PublicRelation>;
-}
-
-export interface PublicVersion {
-  readonly schema_version: typeof PUBLIC_VERSION_SCHEMA;
-  readonly commit: string;
-  readonly digest: string;
-  readonly observed_at: string;
-  readonly snapshot: string;
-}
+export type PublicEntity = typeof PublicEntitySchema.Type;
+export type PublicRelation = typeof PublicRelationSchema.Type;
+export type PublicSnapshot = typeof PublicSnapshotSchema.Type;
+export type PublicVersion = typeof PublicVersionSchema.Type;
 
 export interface PublicArtifact {
   readonly digest: string;
@@ -148,35 +237,15 @@ const digestBytes = (value: string): Effect.Effect<string, PublicExportError, Cr
     return toHex(digest);
   });
 
-const isLeapYear = (year: number): boolean =>
-  year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
-
 const validateTimestamp = (value: string): Effect.Effect<void, PublicExportError> =>
   Effect.gen(function* () {
-    const match = WHOLE_SECOND_UTC.exec(value);
-    if (match === null) {
+    const issue = timestampIssue(value);
+    if (issue === "syntax") {
       return yield* new PublicExportError({
         message: "observedAt must be a canonical whole-second UTC timestamp",
       });
     }
-    const [, yearText, monthText, dayText, hourText, minuteText, secondText] = match;
-    const year = Number(yearText);
-    const month = Number(monthText);
-    const day = Number(dayText);
-    const hour = Number(hourText);
-    const minute = Number(minuteText);
-    const second = Number(secondText);
-    const days = [31, isLeapYear(year) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-    if (
-      year < 1 ||
-      month < 1 ||
-      month > 12 ||
-      day < 1 ||
-      day > days[month - 1]! ||
-      hour > 23 ||
-      minute > 59 ||
-      second > 59
-    ) {
+    if (issue === "calendar") {
       return yield* new PublicExportError({
         message: "observedAt must be a valid whole-second UTC timestamp",
       });

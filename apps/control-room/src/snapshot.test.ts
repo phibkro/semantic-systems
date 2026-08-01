@@ -115,13 +115,34 @@ describe("snapshot custody", () => {
     await expect(verifyCandidate(pair.version, pair.snapshot)).resolves.toEqual(pair.snapshot);
   });
 
-  test("rejects extra nested fields, duplicates, broken endpoints, and invalid time", async () => {
+  test("rejects excess fields at every closed document boundary", async () => {
     const pair = await validPair();
-    const extra = structuredClone(pair.snapshot) as PublicSnapshot & {
+    expect(isPublicVersion({ ...pair.version, private: true })).toBe(false);
+    expect(isPublicSnapshot({ ...pair.snapshot, private: true })).toBe(false);
+
+    const metadataExtra = structuredClone(pair.snapshot) as PublicSnapshot & {
       metadata: PublicSnapshot["metadata"] & { private: string };
     };
-    extra.metadata.private = "SECRET_SHAPED_SENTINEL";
-    expect(isPublicSnapshot(extra)).toBe(false);
+    metadataExtra.metadata.private = "SECRET_SHAPED_SENTINEL";
+    expect(isPublicSnapshot(metadataExtra)).toBe(false);
+
+    const entityExtra = structuredClone(pair.snapshot) as unknown as {
+      entities: Array<Record<string, unknown>>;
+    };
+    entityExtra.entities[0]!.private = true;
+    expect(isPublicSnapshot(entityExtra)).toBe(false);
+
+    const relationExtra = structuredClone(pair.snapshot) as unknown as {
+      relations: Array<Record<string, unknown>>;
+    };
+    relationExtra.relations[0]!.private = true;
+    expect(isPublicSnapshot(relationExtra)).toBe(false);
+
+    await expect(readCachedValue({ ...pair, private: true })).resolves.toBeNull();
+  });
+
+  test("rejects semantic whole-value counterexamples", async () => {
+    const pair = await validPair();
 
     const duplicate = {
       ...pair.snapshot,
@@ -147,8 +168,37 @@ describe("snapshot custody", () => {
     };
     expect(isPublicSnapshot(unknownKind)).toBe(false);
 
-    const invalid = { ...pair.version, observed_at: "2026-02-30T12:00:00Z" };
-    expect(isPublicVersion(invalid)).toBe(false);
+    for (const observed_at of [
+      "0000-01-01T00:00:00Z",
+      "2026-02-30T12:00:00Z",
+      "2026-07-31T12:00:00.000Z",
+      "2026-07-31T12:00:00+00:00",
+    ]) {
+      expect(isPublicVersion({ ...pair.version, observed_at })).toBe(false);
+    }
+    expect(isPublicVersion({ ...pair.version, observed_at: "2024-02-29T23:59:59Z" })).toBe(true);
+    expect(isPublicVersion({ ...pair.version, snapshot: `snapshot.${"0".repeat(64)}.json` })).toBe(
+      false,
+    );
+
+    expect(
+      isPublicSnapshot({
+        ...pair.snapshot,
+        metadata: { ...pair.snapshot.metadata, freshness_seconds: 0 },
+      }),
+    ).toBe(false);
+    expect(
+      isPublicSnapshot({
+        ...pair.snapshot,
+        counts_by_kind: { ...pair.snapshot.counts_by_kind, component: Number.MAX_SAFE_INTEGER + 1 },
+      }),
+    ).toBe(false);
+    expect(
+      isPublicSnapshot({
+        ...pair.snapshot,
+        metadata: { ...pair.snapshot.metadata, deployed_check_status: "unknown" },
+      }),
+    ).toBe(false);
   });
 
   test("rejects digest mismatch and out-of-order observations", async () => {
@@ -183,9 +233,29 @@ describe("snapshot custody", () => {
     expect(storage.length).toBe(1);
     const key = storage.key(0);
     expect(key).not.toBeNull();
-    const persisted: unknown = JSON.parse(storage.getItem(key!)!);
+    const raw = storage.getItem(key!)!;
+    expect(raw).toBe(JSON.stringify(pair));
+    const persisted: unknown = JSON.parse(raw);
     expect(persisted).toEqual(pair);
     await expect(readCachedSnapshot(storage)).resolves.toEqual(pair.snapshot);
+  });
+
+  test("treats malformed and schema-invalid cache JSON as absent", async () => {
+    const storage = new MemoryStorage();
+    storage.setItem("semantic-control-room.snapshot-v1", "{not-json");
+    await expect(readCachedSnapshot(storage)).resolves.toBeNull();
+
+    const pair = await validPair();
+    await expect(
+      readCachedValue({
+        ...pair,
+        snapshot: {
+          ...pair.snapshot,
+          entities: [{ ...pair.snapshot.entities[0]!, tags: ["valid", 1] }],
+          relations: [],
+        },
+      }),
+    ).resolves.toBeNull();
   });
 
   test("never adopts schema-valid cached content whose digest or binding was forged", async () => {

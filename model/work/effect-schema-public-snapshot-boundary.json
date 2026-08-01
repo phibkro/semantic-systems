@@ -1,0 +1,51 @@
+{
+  "entities": [
+    {
+      "id": "work.effect-schema-public-snapshot-boundary",
+      "kind": "work_item",
+      "name": "Adopt Effect Schema at the public snapshot boundary",
+      "summary": "Replace parallel handwritten Control Room snapshot guards with one authoritative strict Effect Schema while preserving public bytes, content identity, cache custody, errors, and UI behavior.",
+      "status": "in_progress",
+      "tags": ["control-room", "effect", "schema", "snapshot", "custody"],
+      "attributes": {
+        "phase": "implementation",
+        "effort": 3,
+        "design_spec": "design-specs/0049-effect-schema-public-snapshot-boundary.md",
+        "plan": "plans/active/0049-effect-schema-public-snapshot-boundary.md",
+        "acceptance": [
+          "Producer and browser share one authoritative public snapshot Schema",
+          "Closed values reject excess properties at every nesting level",
+          "Exact whole-second UTC and Gregorian calendar validity remain unchanged",
+          "Unique identities, relation endpoints, safe integers, enums, patterns, and filename binding remain enforced",
+          "Canonical public bytes, SHA-256, cross-document binding, and cache re-verification remain PBK-owned and unchanged",
+          "Boolean guard APIs, candidate classifications, freshness, rollback, fetch, and XState behavior remain stable"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 5,
+          "testability": 5,
+          "reversibility": 5,
+          "integration_independence": 4,
+          "blast_radius": 2,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source": "work.effect-schema-public-snapshot-boundary",
+      "target": "work.control-room-reconstruction",
+      "kind": "requires",
+      "summary": "The migration preserves the accepted public snapshot, last-known-valid cache, and Control Room state boundary.",
+      "attributes": {}
+    },
+    {
+      "source": "work.effect-schema-public-snapshot-boundary",
+      "target": "component.project-model",
+      "kind": "implements",
+      "summary": "The public exporter exposes the authoritative representation Schema consumed by the browser.",
+      "attributes": {}
+    }
+  ]
+}
