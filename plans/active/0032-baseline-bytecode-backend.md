@@ -46,13 +46,16 @@ shell programs.
   observations did not change.
 - Mint checked and compiled custody only inside their owning modules; test
   runtime forgery and mutation, not TypeScript privacy alone.
-- Compile to the smallest finite instruction/block graph that covers the frozen
-  0018 grammar. Do not optimize.
+- Compile to the frozen closed, source-free instruction algebra; resolve every
+  binder and resumption to a VM slot, retain no source node or derivation, and do
+  not optimize.
 - Execute through an independent bounded VM with explicit fuel and stack bounds.
-- Generate valid cases by grammar and type, then apply one deliberate invalid
-  mutation with a named expected phase.
-- Compare exact canonical 0022 bytes; treat either inconclusive result as
-  non-agreement.
+- Generate semantically admissible cases by grammar and type. Generate raw
+  `resumption` only as a deliberate `resumption.escape` invalid constructor,
+  while `resume` stays inside warranted handler clauses.
+- Compare exact canonical 0022 bytes through the frozen
+  `agreement | mismatch | inconclusive` comparator, inspecting nested
+  `.observation.tag` before bytes.
 - Preserve seed, path, and minimized canonical bytes for every mismatch.
 - Evaluate existing repository scaffolds and dependencies before hand-writing;
   record reused patterns and license provenance for any upstream technique.
@@ -62,16 +65,19 @@ shell programs.
 1. Commit this frozen contract, plan, work item, and executable red acceptance.
 2. Extract the shared strict preparation seam and prove all 0022 goldens remain
    byte-identical.
-3. Define private instruction/block and compiled-custody values with finite
-   construction bounds.
-4. Implement direct baseline compilation for every 0018 constructor and grade.
+3. Define the closed source-free instruction/block algebra, compiled custody,
+   and exact v1 bound fields/defaults/lower bounds.
+4. Implement direct baseline compilation for every semantically admissible 0018
+   constructor and grade, while retaining raw `resumption` as invalid-only
+   checker evidence.
 5. Implement the independent VM and project outcomes to the existing run
    observation.
 6. Add source-graph, custody, bounds, and observation-variant tests.
 7. Add grammar-directed valid generation and deliberate invalid mutations with
    explicit coverage counters.
-8. Add differential agreement, inconclusive rejection, and deliberately
-   perturbed-backend properties with replayable shrinking.
+8. Add explicit differential classification, equal fuel/trace inconclusive
+   rejection, and internal opcode/branch/slot perturbations with replayable
+   shrinking.
 9. Add genuine Node/Bun byte parity and committed minimized fixtures.
 10. Run 0018, 0020, 0022, 0032, and full repository acceptance at one clean
     head.
@@ -96,5 +102,11 @@ then fail with `missing baseline bytecode backend implementation artifact`.
 - 2026-08-01: the frozen contract keeps bytecode process-local and opaque so the
   first implementation does not become a durable wire-format promise.
 - 2026-08-01: the frozen oracle compares only canonical 0022 observations,
-  rejects inconclusive pairs, and requires a perturbed-backend counterexample.
+  rejects inconclusive pairs, and requires internal opcode, branch, and slot
+  perturbation counterexamples.
 - 2026-08-01: implementation is intentionally absent at the contract checkpoint.
+- 2026-08-01: independent contract review found four specification holes. The
+  corrected contract classifies raw value `resumption` as invalid-only, fixes
+  nested run-observation tag inspection, freezes every backend bound and its
+  outcome mapping, and closes the AST-renaming loophole with a source-free
+  instruction algebra plus internal graph perturbations.

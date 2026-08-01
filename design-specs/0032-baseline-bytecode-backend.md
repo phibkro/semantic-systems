@@ -45,11 +45,13 @@ agent receives the same canonical returned, suspended, runtime-rejected, or
 inconclusive `semantic.kernel-run` observation that the reference path returns.
 
 A fixed-seed grammar-directed generator supplies valid programs covering every
-0018 term constructor and grade, plus deliberate invalid mutations. When the
-two paths disagree, fast-check shrinks the case and the minimized canonical
-kernel bytes become a named fixture. A deliberately perturbed test backend must
-be detected, proving that the oracle can find a real semantic difference
-instead of merely confirming shared structure.
+semantically admissible 0018 term constructor and grade, plus deliberate
+invalid mutations for structurally representable but inadmissible forms. When
+the two paths disagree, fast-check shrinks the case and the minimized canonical
+kernel bytes become a named fixture. Test-only compilers that perturb an
+internal opcode, branch target, or resolved slot must be detected, proving that
+the oracle can find real compiled-graph differences instead of merely
+confirming shared structure or an outward result wrapper.
 
 ## Open semantic system design lens
 
@@ -85,10 +87,27 @@ authority.
 
 The public compiled backend accepts unknown bytes and optional bounds. Its JSON
 and checking bounds are exactly the shared 0020/0022 bounds and may be narrowed,
-never widened. Its compilation and VM bounds are new finite positive integers
-with exact version 1 defaults. Malformed, missing, wrongly typed, accessor-backed,
-or throwing bound fields are read at most once and resolve component-wise to
-those exact defaults without a host exception.
+never widened. The optional outer record has exactly `json` (the inherited
+`KernelJsonRawBounds`) and `bytecode` (the record below); no `evaluation` field
+controls the compiled path. The differential harness supplies 0022 reference
+evaluation bounds separately. Compilation and VM use this exact version 1
+`bytecode` record:
+
+| Field                      | Default | Lower bound | Owns                                      |
+| -------------------------- | ------: | ----------: | ----------------------------------------- |
+| `maximumInstructions`      |  16,384 |           1 | compiled instruction cardinality          |
+| `maximumBlocks`            |   4,096 |           1 | compiled block cardinality                |
+| `maximumConstants`         |  16,384 |           0 | source-free constant/type descriptors     |
+| `maximumOperandStackDepth` |   4,096 |           0 | VM operand stack                          |
+| `maximumContinuationDepth` |   4,096 |           0 | VM call, force, and handler continuations |
+| `vmFuel`                   |  10,000 |           0 | VM transitions                            |
+| `maximumTraceEntries`      |  10,000 |           1 | captured VM trace entries                 |
+
+Every field must be a safe integer no lower than its stated bound. A supplied
+value above its default is narrowed to the default. A missing, wrongly typed,
+below-lower-bound, accessor-backed, or throwing field is read at most once and
+resolves component-wise to its exact default without a host exception. The
+outer `json` and `bytecode` fields follow the same single-read rule.
 
 The differential harness accepts the reference backend, the compiled backend,
 one generated canonical byte sequence, and explicit seed/run/size bounds. A
@@ -96,13 +115,21 @@ backend identity or output TypeScript shape is not evidence of conformance.
 
 Generated valid inputs are grammar-directed and construction-valid rather than
 filtered from arbitrary JSON. Across the deterministic corpus they cover every
-value term (`variable`, `unit`, `bool`, `int`, `pair`, `thunk`, `resumption`),
-every computation term (`return`, `let`, `force`, `lambda`, `apply`,
+semantically admissible value term (`variable`, `unit`, `bool`, `int`, `pair`,
+`thunk`), every computation term (`return`, `let`, `force`, `lambda`, `apply`,
 `operation`, `handle`, `resume`), every value/computation type constructor, and
-grades `0`, `1`, and `omega` at every grade-bearing grammar position.
-Binder- and resumption-only constructors appear inside contexts that warrant
-them. Returned thunks and functions are compared through generated consuming
+grades `0`, `1`, and `omega` at every grade-bearing grammar position. Bound
+variables appear only inside a warranted value context. `resume` appears only
+inside a warranted operation clause with its resumption operand resolved there.
+Returned thunks and functions are compared through generated consuming
 contexts.
+
+The raw 0020 `resumption` value constructor is structurally representable but
+is never semantically valid: the 0018 checker always rejects it as
+`resumption.escape`. It therefore belongs to the deliberate invalid-constructor
+corpus, not valid-constructor coverage. The invalid corpus must include a
+structurally valid `resumption` value whose exact expected check diagnostic is
+`resumption.escape`.
 
 Deliberate invalid mutations begin from a known valid canonical document and
 cross exactly one named boundary: representation, scope, type, effect, or
@@ -131,9 +158,32 @@ semantic comparator.
 Compilation and VM defects that are possible after genuine checked custody are
 typed internally and projected to stable `runtime-rejected` diagnostics in a
 compiler-owned code namespace. They are never recast as representation or
-check rejection. Bounds exhaustion projects to the existing `inconclusive`
-observation and never counts as agreement, including when both backends report
-the same reason.
+check rejection. Version 1 maps each new resource boundary exactly:
+
+- exceeding `maximumInstructions`, `maximumBlocks`, or `maximumConstants`
+  returns a typed pre-execution compilation rejection, projected through the
+  public run entry point as `runtime-rejected` with, respectively,
+  `bytecode.compile.instructions-exceeded`,
+  `bytecode.compile.blocks-exceeded`, or
+  `bytecode.compile.constants-exceeded`;
+- exceeding `maximumOperandStackDepth` or `maximumContinuationDepth` returns a
+  typed VM capacity rejection, projected as `runtime-rejected` with
+  `bytecode.vm.operand-stack-exceeded` or
+  `bytecode.vm.continuation-stack-exceeded`;
+- exhausting `vmFuel` returns the already-frozen
+  `{"tag":"inconclusive","reason":"fuel"}`; and
+- reaching `maximumTraceEntries` returns the already-frozen
+  `{"tag":"inconclusive","reason":"trace"}`.
+
+Every backend-bound diagnostic uses the stable occurrence path `/program`; the
+compiled graph retains no source-occurrence map. Instruction, block, and
+constant capacities are checked before appending the candidate. Stack
+capacities are checked before mutating VM state. At the start of each VM loop,
+zero `vmFuel` takes precedence and returns `fuel`; otherwise a full trace returns
+`trace`; otherwise the transition runs, consumes one fuel, and appends at most
+one trace entry. No bound introduces an observation tag or `inconclusive` reason
+beyond 0022. An inconclusive result never counts as agreement, including when
+both backends report byte-identical fuel or trace observations.
 
 The instruction graph is a derived, noncanonical implementation value. It
 cannot be serialized through a public API in version 1.
@@ -187,6 +237,55 @@ resolved during compilation; bytecode operand slots and VM continuation frames
 must not be mistaken for source binders. A VM suspension is the same outward
 operation request observation as the reference path, not completion.
 
+Version 1 freezes this closed, source-free instruction algebra (field names are
+semantic; the private host representation remains free):
+
+```text
+Instruction :=
+  PushUnit
+  | PushBool(constantSlot)
+  | PushInt(constantSlot)
+  | LoadSlot(slot)
+  | BindSlot(slot)
+  | MakePair
+  | MakeThunk(entryBlock, capturedSlots)
+  | Force
+  | MakeFunction(entryBlock, parameterSlot, capturedSlots)
+  | Call
+  | EnterHandler(labelConstantSlot, returnBlock, returnSlot,
+                 clauses[operationConstantSlot, entryBlock,
+                         argumentSlot, resumptionSlot])
+  | LeaveHandler
+  | Request(labelConstantSlot, operationConstantSlot, resultTypeConstantSlot)
+  | ResumeSlot(resumptionSlot)
+  | Jump(targetBlock)
+  | Return
+```
+
+A block is a finite indexed sequence of these instructions. Block targets,
+captured locals, ordinary binders, and resumptions are nonnegative resolved VM
+block/slot operands. Constant operands index this second closed algebra:
+
+```text
+Constant :=
+  BoolConstant(value)
+  | IntConstant(value)
+  | TextConstant(value)
+  | ObservableTypeConstant(descriptor)
+```
+
+Each literal, label, operation name, or result-type occurrence appends one
+constant in deterministic compiler traversal order; version 1 performs no
+deduplication. A constant index is checked before use. The descriptor is the
+closed observable type vocabulary already frozen by 0022, not a source type
+node or object reference. Grades and derivations are erased after checking.
+
+No `ComputationTerm`, `ValueTerm`, checker derivation, de Bruijn distance,
+source binder object, source occurrence node, or reference to any source AST
+object may survive in compiled custody. Runtime values for thunks and functions
+capture only entry-block identities and resolved VM slots. A custody projection
+test must recursively reject any source-node tag or source-object identity.
+
 The complete transitive module-dependency graph rooted at the compiled backend
 must contain no import or call path to
 `src/kernel-calculus/machine.ts`, `evaluate`, `resume`, or
@@ -199,11 +298,12 @@ rules with the compiled side.
 
 The accepted 0020 byte, depth, node, string, collection, operation, clause, and
 label limits remain in force. The accepted 0022 evaluation limits remain in
-force for the reference side. Version 1 also fixes maximum instruction count,
-block count, constant count, operand-stack depth, continuation depth, VM fuel,
-and captured trace entries. Compilation performs a finite traversal and must
-reject or become inconclusive before any configured maximum is exceeded. The
-VM has one program counter and bounded stacks; every step consumes fuel.
+force for the reference side. Version 1 fixes the exact backend field names,
+defaults, and lower bounds in the table above. Compilation performs a finite
+traversal and returns its typed pre-execution rejection before minting custody
+when an instruction, block, or constant maximum would be exceeded. The VM has
+one program counter and bounded stacks; every transition consumes one
+`vmFuel`, and trace capacity is checked before appending the next entry.
 
 Property runs fix seed, path, run count, generated depth, generated collection
 size, mutation count, and per-backend bounds. Shrinking is finite. Each
@@ -221,12 +321,16 @@ proxies, and cross-instance values. Focused examples exercise every observation
 variant and all configured exhaustion boundaries.
 
 Grammar coverage counters establish that the deterministic generated corpus
-visited every frozen constructor and grade; they do not prove all programs were
-generated. Differential properties observe agreement over valid and
-deliberately invalid cases. A deliberately perturbed compiled backend must
-produce a minimized mismatch. Bun and genuine Node must produce byte-identical
-compiled observations, reference observations, and minimized fixtures over the
-selected corpus.
+visited every semantically admissible constructor and grade and that the
+invalid-constructor corpus visited raw `resumption`; they do not prove all
+programs were generated. Differential properties observe agreement over valid
+and deliberately invalid cases. Test-only compiler adapters must independently
+replace one opcode, redirect one branch target, and substitute one resolved slot
+inside genuine compiled custody. Each perturbation must produce a minimized
+mismatch. Changing only the outward `KernelRunObservation` is not a sufficient
+perturbation test. Bun and genuine Node must produce byte-identical compiled
+observations, reference observations, and minimized fixtures over the selected
+corpus.
 
 This evidence does not prove compiler correctness, type soundness, progress,
 termination without bounds, performance, or a stable bytecode representation.
@@ -250,16 +354,30 @@ rejections for both backends. The reference interpreter is refactored to use
 that seam without changing one canonical observation byte. The compiler never
 rechecks with a second typing rule and never compiles a rejected program.
 
-Differential agreement is:
+`compareKernelRunObservations(reference, compiled)` first inspects the nested
+observation tag and returns one deeply immutable closed result. Its strict
+Effect Schema rejects excess properties:
 
 ```text
-reference.tag != inconclusive
-and compiled.tag != inconclusive
-and encodeCanonicalKernelRunObservation(reference)
-    == encodeCanonicalKernelRunObservation(compiled)
+DifferentialComparison :=
+  {"tag":"agreement","canonical_bytes_hex":string}
+  | {"tag":"mismatch",
+     "reference_bytes_hex":string,
+     "compiled_bytes_hex":string}
+  | {"tag":"inconclusive",
+     "reference_reason":"fuel"|"trace"|null,
+     "compiled_reason":"fuel"|"trace"|null}
 ```
 
-Any other pair is mismatch or inconclusive, never agreement.
+If `reference.observation.tag` or `compiled.observation.tag` is `inconclusive`,
+the result has tag `inconclusive` and records each present `fuel` or `trace`
+reason. Only when neither is inconclusive does the comparator encode both
+complete observations. Byte equality returns tag `agreement`; inequality
+returns tag `mismatch`.
+The `*_bytes_hex` fields are lowercase, even-length hexadecimal encodings of
+the exact bytes returned by `encodeCanonicalKernelRunObservation`. In particular,
+byte-identical fuel/fuel and trace/trace pairs have tag `inconclusive`, never
+tag `agreement`.
 
 ## Oracle-first counterexamples
 
@@ -268,13 +386,20 @@ Any other pair is mismatch or inconclusive, never agreement.
 - A fully handled operation and one-shot resumption returns the same value.
 - Each representation, scope, type, effect, and affine mutation remains in its
   owning rejection phase and has byte-identical diagnostics.
-- Every term constructor, type constructor, and grade is visited by a valid
-  generated case under a fixed seed.
+- Every semantically admissible term constructor, every type constructor, and
+  every grade position is visited by a valid generated case under a fixed seed.
+- Raw `resumption` value syntax is generated only as an invalid constructor and
+  is rejected with `resumption.escape`; valid `resume` remains handler-scoped.
 - Returned function and thunk observations agree when placed in generated
   consuming contexts.
-- Equal `inconclusive` observations are rejected as evidence of agreement.
-- A backend that deliberately changes one returned integer, suspension label,
-  or rejection tag is found and shrunk to a replayable mismatch.
+- Byte-identical fuel/fuel and trace/trace inconclusive pairs are classified as
+  inconclusive, not agreement.
+- Test-only compiler perturbations that replace an opcode, redirect a branch,
+  or substitute a resolved slot are each found and shrunk to a replayable
+  mismatch; the perturbation adapter is private to compiler tests and an outward
+  observation wrapper is not used.
+- Compiled-custody inspection finds no source term, source binder distance,
+  derivation, or source-object identity.
 - Forged, mutated, proxy-backed, or foreign compiled values cannot execute.
 - A source scan fails if compiler or VM code imports or calls the reference
   machine, evaluator, resumer, or interpreter.
@@ -289,18 +414,23 @@ Feature 0032 is accepted when:
    byte-exact 0020 rejection observations;
 2. only genuine checked custody reaches compilation and only genuine opaque,
    deeply immutable compiled custody reaches the VM;
-3. the compiler produces a finite instruction/block graph and the VM executes
-   it without inspecting kernel AST nodes or reference-machine state;
+3. the compiler produces the closed source-free instruction algebra, resolves
+   every binder/resumption reference to a VM slot, and the VM executes it
+   without retaining or inspecting kernel AST nodes, derivations, or
+   reference-machine state;
 4. compiler and VM modules have no import or call path to `machine.ts`,
    `evaluate`, `resume`, or `interpretKernelJsonBytes`;
 5. every conclusive generated valid case has byte-identical canonical
    `semantic.kernel-run` observations;
 6. every deliberate invalid mutation remains in its named rejection phase and
    agrees byte-for-byte;
-7. `inconclusive` never counts as agreement;
-8. the deterministic valid corpus covers every term/type constructor and grade,
-   retains seeds and shrink paths, and persists every minimized mismatch;
-9. a deliberately perturbed backend is detected and minimized;
+7. the explicit comparator reads `.observation.tag`, and byte-identical fuel and
+   trace inconclusives never count as agreement;
+8. the deterministic valid corpus covers every semantically admissible
+   term/type constructor and grade position, while invalid-constructor coverage
+   pins raw `resumption` to `resumption.escape`;
+9. internal opcode, branch, and resolved-slot perturbations are each detected,
+   shrunk, and persisted with seed and path;
 10. configured byte, compile, graph, stack, fuel, trace, generation, and shrink
     bounds are enforced without ambient effects or host exceptions;
 11. Bun and genuine Node emit byte-identical selected observations and fixtures;
@@ -318,12 +448,13 @@ bun scripts/accept/0032-baseline-bytecode-backend.ts
 ## Kill or redesign criteria
 
 Stop or recut if compiled execution calls the reference evaluator; a structural
-object can forge compilation or execution custody; exact rejection equality
-requires a second decoder or checker; a valid 0018 constructor cannot be
-represented without changing kernel semantics; execution requires unbounded
-host recursion or allocation; `inconclusive` can pass equivalence; or version 1
-must expose a durable instruction encoding before the instruction semantics are
-stable.
+object can forge compilation or execution custody; a source AST node,
+derivation, or unresolved binder survives compilation; exact rejection equality
+requires a second decoder or checker; a semantically admissible 0018 constructor
+cannot be represented without changing kernel semantics; execution requires
+unbounded host recursion or allocation; `inconclusive` can pass equivalence; or
+version 1 must expose a durable instruction encoding before the instruction
+semantics are stable.
 
 ## Non-goals
 

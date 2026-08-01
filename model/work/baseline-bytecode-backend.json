@@ -17,8 +17,9 @@
           "Opaque immutable compiled custody contains a finite instruction/block graph",
           "The independent VM never imports or calls the reference machine or interpreter",
           "Every conclusive generated valid and deliberate-invalid case agrees as exact canonical kernel-run bytes",
-          "Inconclusive never counts as agreement and a perturbed backend is detected",
-          "Generation covers every 0018 term/type constructor and grade with deterministic shrinking",
+          "The explicit comparator inspects nested observation tags and equal fuel or trace inconclusives never agree",
+          "Valid generation covers every semantically admissible constructor and grade; raw resumption is invalid-only",
+          "Source-free custody retains no AST node or derivation and internal opcode, branch, and slot perturbations are detected",
           "Bytecode remains process-local and carries no durable or cross-value dependency authority"
         ],
         "delegation": {
