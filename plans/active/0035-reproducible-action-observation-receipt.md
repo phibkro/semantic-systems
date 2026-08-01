@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0035-reproducible-action-observation-receipt.md`](../../design-specs/0035-reproducible-action-observation-receipt.md).
 This execution record cannot redefine that contract.
 
-Status: implementation complete; integration gate retry and independent review pending
+Status: accepted for integration at implementation head `7e11b0f`
 
 Owner: delegated Semantic Systems language engineer
 
@@ -65,6 +65,21 @@ bun scripts/accept/0035-reproducible-action-observation-receipt.ts
   reported one curator readiness failure and two 5-second reference-custody
   timeouts. These failures are outside the 0035 paths; they remain an explicit
   integration-gate retry rather than being relabeled as acceptance.
+- 2026-08-01: integration head `7e11b0f` observes receipt and SHA-256 digest
+  byte lengths through intrinsic typed-array accessors before any defensive
+  allocation or copy. The exact acceptance passed 11 focused Bun tests with 71
+  assertions, genuine Node parity, all 16 inherited 0033 tests with 75
+  assertions, the complete repository suite with 759 passes, one declared
+  skip, zero failures, and 18,985 expectations, plus all 68 reference checks,
+  TypeScript 7 Effect diagnostics, Oxlint, Oxfmt, commit policy, model
+  validation, and generated-view equality.
+- 2026-08-01: an independent read-only review of exact implementation head
+  `7e11b0f` found no release blocker and approved integration. The reviewer
+  confirmed semantic-layer honesty, full identity recomputation, exact 0033
+  closure revalidation, closed capability admission, pre-allocation byte and
+  digest bounds, immutable custody, and Bun/Node portability. A direct hostile
+  digest-lookalike regression remains a non-blocking future coverage addition;
+  the intrinsic typed-array boundary already rejects that shape.
 
 ## Review questions
 

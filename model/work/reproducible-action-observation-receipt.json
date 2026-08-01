@@ -5,7 +5,7 @@
       "kind": "work_item",
       "name": "Execute a reproducible closure action and record its observation",
       "summary": "Interpret one finite host-neutral action over an accepted runtime closure while keeping recipe, declared environment, execution, observation, and deployment claims distinct.",
-      "status": "active",
+      "status": "complete",
       "tags": ["language", "build", "action", "content-addressed", "effect"],
       "attributes": {
         "phase": "implementation",
