@@ -1,0 +1,8 @@
+kernel "semantic.kernel-calculus/0018/v1";
+
+effect confirm.accept : Int -> Bool;
+effect fresh.allocate : Unit -> Int;
+
+run let allocated = perform[1] fresh.allocate(()) in
+  let accepted = perform[1] confirm.accept(allocated) in
+    return[1] accepted
