@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0041-surface-effect-driver-cli.md`](../../design-specs/0041-surface-effect-driver-cli.md).
 This execution record cannot redefine that contract.
 
-Status: contract frozen; implementation pending
+Status: accepted on candidate; integration pending
 
 Owner: primary Semantic Systems language lead
 
@@ -60,3 +60,16 @@ just accept 0041-surface-effect-driver-cli
 - 2026-08-01: installed Effect v4 includes an experimental CLI, but migrating
   the already frozen 0040 usage/error surface was separated from this semantic
   feature rather than silently changing its process contract.
+- 2026-08-01: exact executable head
+  `3d0d4f560b16847959eecb2cbfa3925b6f2629df`, tree
+  `635ce4a2fe8868cb5798355e00ee6c3ea323be11`, passed 10 injected-host
+  journeys, 5 genuine Bun/Node process journeys, 38 inherited runner/replay/
+  architecture journeys, and the complete 859-pass repository suite with one
+  intentional independent-oracle skip, 20,078 assertions, and 68 transition
+  parity checks. TypeScript 7 Effect diagnostics, Oxlint, Oxfmt, project-model,
+  generated-view, and commit-policy gates were green.
+- 2026-08-01: Fable 5 high independently reviewed that exact executable head,
+  reproduced the focused Node/Bun journeys and byte-differential preservation
+  of accepted `semantic run` outcomes, found no blocking issue, and returned
+  `VERDICT: APPROVE`. It recorded optional future test-strength and decoded-
+  script API refinements without changing the accepted boundary.
