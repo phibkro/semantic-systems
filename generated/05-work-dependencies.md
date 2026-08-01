@@ -50,6 +50,7 @@ flowchart LR
     work_surface_runner_cli["Run readable Semantic source from a command"]
     work_theory_identity["Define normalized theory identity"]
     work_translation_validation_spec["Specify translation-validation seams"]
+    work_user_defined_algebra_frontier["Define the user algebra promotion frontier"]
     work_wasm_contract_mapping["Research semantic contracts to WIT mapping"]
     work_baseline_bytecode_backend -->|requires| work_kernel_reference_interpreter
     work_baseline_bytecode_backend -->|requires| work_agent_facing_kernel_json
@@ -89,6 +90,10 @@ flowchart LR
     work_surface_effect_replay -->|requires| work_one_shot_external_effect_replay
     work_surface_runner_cli -->|requires| work_semantic_surface_language
     work_surface_runner_cli -->|requires| work_kernel_reference_interpreter
+    work_user_defined_algebra_frontier -->|requires| work_kernel_spec
+    work_user_defined_algebra_frontier -->|requires| work_semantic_surface_language
+    work_stm_laws -->|blocks| work_user_defined_algebra_frontier
+    work_user_defined_algebra_frontier -->|informs| decision_stm_library
     work_core_checker -->|blocks| work_kernel_spec
     work_kernel_spec -->|requires| decision_one_shot
     work_theory_identity -->|requires| decision_theory_identity
@@ -106,4 +111,4 @@ flowchart LR
 
 ## Weighted critical path
 
-Specify STM effect and handler laws → Implement minimal STM runtime → Model-check STM interleavings
+Define the user algebra promotion frontier → Specify STM effect and handler laws → Implement minimal STM runtime → Model-check STM interleavings

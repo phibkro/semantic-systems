@@ -42,7 +42,7 @@ Ready parallel work items: **20**.
 | Specify semantic attestation profile | design | ready | no | 87 | delegate with review | Define normalized theory identity |
 | Assemble a semantic runtime-closure manifest | implementation | complete | no | 87 | delegate with review |  |
 | Establish the Semantic surface language | implementation | in_progress | yes | 87 | delegate with review |  |
-| Specify STM effect and handler laws | research | in_progress | yes | 49 | bounded spike |  |
+| Specify STM effect and handler laws | research | in_progress | no | 49 | bounded spike | Define the user algebra promotion frontier |
 | Model-check STM interleavings | validation | planned | no | 94 | delegate with review | Implement minimal STM runtime |
 | Implement minimal STM runtime | implementation | planned | no | 68 | delegate with review | Specify STM effect and handler laws |
 | Drive readable Semantic effects from a command | implementation | in_progress | yes | 94 | delegate with review |  |
@@ -50,4 +50,5 @@ Ready parallel work items: **20**.
 | Run readable Semantic source from a command | implementation | in_progress | yes | 94 | delegate with review |  |
 | Define normalized theory identity | design | in_progress | yes | 41 | bounded spike |  |
 | Specify translation-validation seams | research | planned | yes | 45 | bounded spike |  |
+| Define the user algebra promotion frontier | research | in_progress | yes | 72 | delegate with review |  |
 | Research semantic contracts to WIT mapping | research | planned | yes | 86 | delegate directly |  |
