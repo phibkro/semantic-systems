@@ -19,13 +19,10 @@ Owner: main integration agent
   selected TypeScript, Unicorn, Import, and Promise rules. Effect-aware
   `@effect/tsgo` diagnostics and the local architecture plugin remain
   dependency-gated.
-- Remaining Python surface: the transitional reference-custody differential
-  test module plus transitional Nix/fast/integration wiring.
-  Catalog/lock parsing, atomic lock writing, the interoperable curator guard,
-  transactional offline locking from local siblings or managed object caches,
-  atomic offline materialization, checkout verification, and both network-free
-  status modes are now TypeScript (see item 6 below).
-  Project model, tracer, and governance tests are TypeScript.
+- Repository-owned runtime, command, test, and gate code is TypeScript. The
+  transitional reference-custody Python implementation, package metadata, and
+  Nix dependencies have been removed after preserving accepted golden
+  observations and Bun/Node cross-runtime checks.
 - External `.references/` checkouts are excluded from repository-source
   migration.
 
@@ -48,9 +45,8 @@ Other active feature worktrees and their owned files remain forbidden.
 2. Implement the project-model vertical slice with differential/golden oracles.
    **Complete.**
 3. Switch project-model active commands and gates after focused parity passes.
-   **Complete for host/active commands; the Nix derivation remains a declared
-   transitional differential oracle until dependencies are hermetically
-   packaged.**
+   **Complete. Nix now checks repository-source invariants and commit-policy
+   conformance without a transitional language runtime.**
 4. Implement the inventory-tracer vertical slice. **Complete; the former
    Python package and test suite were removed after exact result differential
    parity and a final pinned Python oracle pass.**
@@ -78,23 +74,25 @@ Other active feature worktrees and their owned files remain forbidden.
    offline lock publication, offline atomic materialization, checkout
    verification, both network-free status modes, online remote locking, and
    exact/ref/explicit-history remote materialization now run on Effect v4 under
-   Bun and Node. The parsing/status/writer suite remains differential against
-   the Python oracle; Git security boundaries use adversarial fixtures and
-   deliberately exceed Python where review exposed shared defects. Remote
+   Bun and Node. The parsing/status/writer suite retains accepted pre-removal
+   golden observations and independent Bun/Node live-layer checks; Git
+   boundaries use adversarial fixtures and deliberately exceed the
+   transitional implementation where review exposed shared defects. Remote
    publication is interruption-atomic across cache and canonical lock.
    Annotated-tag peeling and a reserved cache-ref namespace remain localized
    fail-closed follow-ups.
-7. Migrate development-control and policy tests to Bun. **Complete for
-   development-control and reuse-first governance; custody tests remain with
-   their owning implementation slice.**
+7. Migrate development-control and policy tests to Bun. **Complete, including
+   reference custody.**
 8. Migrate repository-owned shell orchestration and executable acceptance to
    Bun TypeScript, revising governance 0005 atomically. **Complete: checks,
    acceptance programs, and Git hooks are executable Bun TypeScript; Just is
    the pinned declarative task surface.**
 9. Remove Python packaging, source, tests, Nix dependencies, caches, legacy
    shell logic, Makefile indirection, and active command references.
+   **Complete.**
 10. Run exact acceptance, independent review, semantic/evidence audit, preview,
-    and integration gates.
+    and integration gates. **Ready for the final exact-head acceptance and
+    review after refreshing active navigation metadata.**
 11. Replace direct Bun/Node capability use in semantic programs with portable
     Effect platform services; compose official Bun and Node live layers at
     entrypoints and compare equivalent bounded observations. **Complete for the

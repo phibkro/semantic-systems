@@ -79,8 +79,8 @@ const render = (value: unknown, indentation: number | null, depth: number): stri
 };
 
 /**
- * Python `json.dumps(sort_keys=True, ensure_ascii=True)` compatible encoding
- * for the JSON-shaped values admitted by the reference custody schemas.
+ * Accepted canonical encoding for the JSON-shaped values admitted by the
+ * reference custody schemas: sorted keys with ASCII-only escapes.
  */
 export const stringifyCanonicalJson = (value: unknown, indentation: number | null = null): string =>
   render(value, indentation, 0);

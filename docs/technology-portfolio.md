@@ -10,17 +10,17 @@ replacement boundary.
 
 Technologies are evaluated against the project's values:
 
-| Criterion | Meaning |
-|---|---|
-| Semantic fit | The technology naturally expresses the relevant distinction |
-| Trust containment | Its complexity can remain outside the smallest trusted base |
-| Artifact quality | It can emit stable, inspectable, independently checkable artifacts |
-| Incrementality | It supports responsive edit-analyze-explain loops |
-| Interoperability | It has explicit boundaries rather than shared implicit state |
-| Reproducibility | Inputs, versions, outputs, and assumptions can be recorded |
-| Longevity | The project can retain its data if the technology is replaced |
-| Contributor accessibility | A new contributor can understand and modify the subsystem |
-| Operational suitability | Performance, concurrency, deployment, and maintenance fit |
+| Criterion                 | Meaning                                                            |
+| ------------------------- | ------------------------------------------------------------------ |
+| Semantic fit              | The technology naturally expresses the relevant distinction        |
+| Trust containment         | Its complexity can remain outside the smallest trusted base        |
+| Artifact quality          | It can emit stable, inspectable, independently checkable artifacts |
+| Incrementality            | It supports responsive edit-analyze-explain loops                  |
+| Interoperability          | It has explicit boundaries rather than shared implicit state       |
+| Reproducibility           | Inputs, versions, outputs, and assumptions can be recorded         |
+| Longevity                 | The project can retain its data if the technology is replaced      |
+| Contributor accessibility | A new contributor can understand and modify the subsystem          |
+| Operational suitability   | Performance, concurrency, deployment, and maintenance fit          |
 
 ## Production host: Rust
 
@@ -124,11 +124,11 @@ one executable semantics.
 Both systems exchange traces, counterexamples, and conformance results with the
 project. Their internal term formats are not package identities.
 
-## Bootstrap and research scripting: typed Python
+## Project tooling and research scripting: TypeScript, Bun, and Effect v4
 
 ### Recommended role
 
-Retain Python for:
+Use the repository-pinned TypeScript toolchain for:
 
 - project-model import and validation;
 - research data transformation;
@@ -136,13 +136,17 @@ Retain Python for:
 - external-tool adapters;
 - short-lived experiments.
 
-Continue using strict typing, Ruff, Pyright, and tests. Avoid moving critical
-semantic checking into Python merely because it is convenient.
+Use ordinary total TypeScript functions for pure semantic work and Effect
+Schema, typed errors, and injected platform services at untrusted and
+capability-bearing boundaries. Bun is the default runtime; Node supplies an
+independent live-layer observation where the contract requires portability.
+Disposable one-off experiments need not become repository source.
 
 ### Boundary
 
-Python generates or consumes canonical project artifacts. Generated views and
-indexes remain rebuildable.
+TypeScript programs generate or consume canonical project artifacts.
+Generated views and indexes remain rebuildable; runtime success remains test
+evidence rather than semantic authority.
 
 ## Syntax architecture: lossless immutable trees
 
@@ -202,8 +206,9 @@ awkward as imperative graph traversals:
 - call/effect/ownership analyses;
 - CALM-style monotonicity support analyses.
 
-Soufflé is suitable when datasets or analyses outgrow the current Python graph
-engine. Its fact schema should be generated from the canonical project model.
+Soufflé is suitable when datasets or analyses outgrow the current TypeScript
+graph engine. Its fact schema should be generated from the canonical project
+model.
 
 ### Boundary
 

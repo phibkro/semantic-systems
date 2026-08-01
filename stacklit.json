@@ -1,96 +1,1118 @@
 {
   "$schema": "https://stacklit.dev/schema/v1.json",
   "version": "1",
-  "generated_at": "2026-07-29T04:15:48Z",
+  "generated_at": "2026-08-01T16:10:07Z",
   "stacklit_version": "dev",
-  "merkle_hash": "76e185a712d56a8ebb2ce7c319946d75b3a1691aeb60662146507c4fc96c86bf",
+  "merkle_hash": "315da82038626c59d589665d3231cdec69da7620e66b32a6abc0356f3d84cfda",
   "project": {
     "name": "semantic",
     "root": ".",
-    "type": "single"
+    "type": "monorepo",
+    "workspaces": ["apps/control-room"]
   },
   "tech": {
-    "primary_language": "python",
+    "primary_language": "typescript",
     "languages": {
-      "python": {
-        "files": 10,
-        "lines": 856
+      "tsx": {
+        "files": 19,
+        "lines": 2888
       },
-      "shell": {
-        "files": 1,
-        "lines": 22
+      "typescript": {
+        "files": 294,
+        "lines": 78452
       }
     },
-    "frameworks": [
-      "GitHub Actions"
-    ]
+    "frameworks": ["GitHub Actions", "React"]
   },
   "structure": {
     "entrypoints": null,
-    "total_files": 11,
-    "total_lines": 878
+    "total_files": 313,
+    "total_lines": 81340
   },
   "modules": {
-    "scripts": {
-      "purpose": "Scripts",
-      "language": "shell",
-      "files": 1,
-      "lines": 22,
+    "apps/control-room": {
+      "purpose": "Control-room",
+      "language": "typescript",
+      "files": 4,
+      "lines": 119,
+      "file_list": ["alchemy.run.ts", "playwright.config.ts", "vite.config.ts", "vitest.config.ts"],
+      "exports": ["ALCHEMY_MEMO_INPUTS", "ControlRoomWebsite"],
+      "depends_on": ["apps/control-room/src"],
+      "depended_by": ["apps/control-room/tooling"],
+      "activity": "low"
+    },
+    "apps/control-room/src": {
+      "purpose": "Src",
+      "language": "typescript",
+      "files": 20,
+      "lines": 4018,
       "file_list": [
-        "check.sh"
+        "App.tsx",
+        "App.vitest.tsx",
+        "Portfolio.tsx",
+        "Portfolio.vitest.tsx",
+        "control-room-machine.ts",
+        "deployment.test.ts",
+        "deployment.ts",
+        "main.tsx",
+        "model.ts",
+        "portfolio-machine.ts",
+        "portfolio-snapshot.ts",
+        "portfolio-ui-machine.test.ts",
+        "portfolio-ui-machine.ts",
+        "roadmap-model.test.ts",
+        "roadmap-model.ts",
+        "snapshot-machine.ts",
+        "snapshot.test.ts",
+        "snapshot.ts",
+        "use-portfolio.ts",
+        "use-snapshot.ts"
+      ],
+      "exports": [
+        "InvalidContainmentTopology",
+        "PUBLIC_ENTITY_KINDS",
+        "PUBLIC_RELATION_KINDS",
+        "PortfolioCandidateError",
+        "RoadmapModelFailure",
+        "SNAPSHOT_SCHEMA",
+        "SnapshotCandidateError",
+        "VERSION_SCHEMA",
+        "controlRoomMachine",
+        "deriveRoadmapModel"
+      ],
+      "type_defs": {
+        "PortfolioCandidateError": "constructor",
+        "SnapshotCandidateError": "constructor"
+      },
+      "depended_by": ["apps/control-room", "apps/control-room/tooling"],
+      "activity": "low"
+    },
+    "apps/control-room/src/components": {
+      "purpose": "UI components",
+      "language": "tsx",
+      "files": 14,
+      "lines": 1407,
+      "file_list": [
+        "RoadmapExplorer.tsx",
+        "RoadmapGraph.tsx",
+        "RoadmapMosaic.tsx",
+        "RoadmapNavigation.tsx",
+        "badge.tsx",
+        "button.tsx",
+        "card.tsx",
+        "dialog.tsx",
+        "input.tsx",
+        "roadmap.vitest.tsx",
+        "scroll-area.tsx",
+        "select.tsx",
+        "separator.tsx",
+        "tabs.tsx"
+      ],
+      "exports": [
+        "Badge",
+        "Button",
+        "Card",
+        "CardAction",
+        "CardContent",
+        "CardDescription",
+        "CardFooter",
+        "CardHeader",
+        "CardTitle",
+        "Dialog"
       ],
       "activity": "low"
     },
-    "src/semantic_project_model": {
-      "purpose": "Semantic Project Model",
-      "language": "python",
+    "apps/control-room/src/lib": {
+      "purpose": "Shared library code",
+      "language": "typescript",
+      "files": 1,
+      "lines": 6,
+      "file_list": ["utils.ts"],
+      "exports": ["cn(...inputs: ClassValue[])"],
+      "activity": "low"
+    },
+    "apps/control-room/tooling": {
+      "purpose": "Tooling",
+      "language": "typescript",
       "files": 9,
-      "lines": 816,
+      "lines": 1929,
       "file_list": [
-        "__init__.py",
-        "__main__.py",
-        "cli.py",
-        "graph.py",
-        "loader.py",
-        "model.py",
-        "schedule.py",
-        "validate.py",
-        "views.py"
+        "alchemy-memo.test.ts",
+        "deploy-static.run.ts",
+        "deployment-identity.ts",
+        "export-public-data.ts",
+        "scan-public-payload.ts",
+        "serve-preview.ts",
+        "workflow-run-custody.test.ts",
+        "workflow-run-custody.ts",
+        "workflow-safety.test.ts"
       ],
       "exports": [
-        "adjacency(nodes: Iterable[str], edges: Iterable[tuple[str, str]]) -\u003e dict[str, set[str]]",
-        "assess_work(project: ProjectGraph) -\u003e tuple[WorkAssessment, ...]",
-        "class ProjectLoadError",
-        "concern_matrix(project: ProjectGraph) -\u003e str",
-        "critical_path(project: ProjectGraph) -\u003e tuple[str, ...]",
-        "delegation_frontier(project: ProjectGraph) -\u003e str",
-        "find_cycle(graph: dict[str, set[str]]) -\u003e tuple[str, ...] | None",
-        "generate_views(project: ProjectGraph) -\u003e dict[str, str]",
-        "index(project: ProjectGraph) -\u003e str",
-        "longest_path(graph: dict[str, set[str]], weights: dict[str, int]) -\u003e tuple[str, ...]"
+        "interface ArtifactIdentity",
+        "interface ClosedPreviewPostEffectReaders",
+        "interface ClosedPreviewProvenance",
+        "interface EffectObservation",
+        "interface ServedArtifactObservation",
+        "interface StaticArtifactObservation",
+        "interface WorkflowRunPostEffectReaders",
+        "interface WorkflowRunProvenance",
+        "observeClosedPreviewEffect",
+        "observeClosedPreviewPostEffect"
       ],
+      "depends_on": ["apps/control-room", "apps/control-room/src"],
+      "activity": "low"
+    },
+    "examples/kernel-calculus": {
+      "purpose": "Kernel-calculus",
+      "language": "typescript",
+      "files": 2,
+      "lines": 68,
+      "file_list": ["fresh.ts", "oracle.ts"],
+      "exports": [
+        "emptyOracleSignature",
+        "finiteOracleTypes",
+        "freshSignature",
+        "handledFresh",
+        "handledFreshCheck",
+        "langBangOracleProvenance",
+        "unhandledFresh"
+      ],
+      "activity": "low"
+    },
+    "research/experiments/independent-checker-policy": {
+      "purpose": "Independent-checker-policy",
+      "language": "typescript",
+      "files": 13,
+      "lines": 3939,
+      "file_list": [
+        "canonical-binding-adapter.ts",
+        "canonical.ts",
+        "checker.ts",
+        "classifier.test.ts",
+        "classifier.ts",
+        "fixtures.ts",
+        "hash-provider.ts",
+        "manifest.ts",
+        "measure.ts",
+        "policy-contract.ts",
+        "production-checker.test.ts",
+        "production.ts",
+        "shared-types.ts"
+      ],
+      "exports": [
+        "AMBIGUITY_POLICY",
+        "ARTIFACT_KIND_EVIDENCE_RESULT",
+        "ARTIFACT_KIND_RESOLUTION_CLAIM",
+        "BROKEN_COUNTEREXAMPLES",
+        "BROKEN_REALIZATION_DOCUMENT",
+        "BROKEN_REALIZATION_ID",
+        "DEVELOPMENT_POLICY_DOCUMENT",
+        "DIAGNOSTIC_REASON",
+        "EVIDENCE_CATEGORY",
+        "EVIDENCE_RESULT_SCHEMA_VERSION"
+      ],
+      "activity": "low"
+    },
+    "root": {
+      "purpose": "Root package",
+      "language": "typescript",
+      "files": 1,
+      "lines": 35,
+      "file_list": ["commitlint.config.ts"],
+      "activity": "low"
+    },
+    "scripts": {
+      "purpose": "Scripts",
+      "language": "typescript",
+      "files": 8,
+      "lines": 1586,
+      "file_list": [
+        "check-commit-policy.ts",
+        "check-fast.ts",
+        "check-feature-contract.ts",
+        "check-references.ts",
+        "check.ts",
+        "install-git-hooks.ts",
+        "run-feature-acceptance.ts",
+        "setup-effect-tsgo.ts"
+      ],
+      "exports": [
+        "DESIGN_LENS_HEADINGS",
+        "DESIGN_LENS_VERSION",
+        "changedPathsForRange",
+        "contractMigrationDeclarationsFor",
+        "contractMigrationsFor",
+        "featureIdsFromContractPaths",
+        "nonTrivialPaths",
+        "type ContractMigrationDeclarations",
+        "type FeatureSelection",
+        "validateDesignLensText"
+      ],
+      "type_defs": {
+        "ContractMigrationDeclarations": "current, preLens",
+        "FeatureSelection": "featureId, base, head, changedPaths, acceptanceScript, contractMigrations"
+      },
+      "depends_on": ["scripts/lib"],
+      "depended_by": ["scripts/accept"],
+      "activity": "low"
+    },
+    "scripts/accept": {
+      "purpose": "Accept",
+      "language": "typescript",
+      "files": 31,
+      "lines": 2477,
+      "file_list": [
+        "0005-autonomous-development-control-loop.ts",
+        "0007-reuse-first-engineering.ts",
+        "0010-typescript-effect-v4-runtime.ts",
+        "0012-minimal-actor-runtime.ts",
+        "0013-bounded-actor-trace-retention.ts",
+        "0014-stm-effect-handler-laws.ts",
+        "0015-open-semantic-system-design-lens.ts",
+        "0016-executable-semantic-system-kernel.ts",
+        "0017-control-room-reconstruction.ts",
+        "0018-minimal-kernel-calculus.ts",
+        "0019-normalized-core-format.ts",
+        "0020-agent-facing-kernel-json.ts",
+        "0021-pbk-portfolio-control-room.ts",
+        "0022-kernel-reference-interpreter.ts",
+        "0026-semantic-surface-language.ts",
+        "0027-semantic-artifact-store.ts",
+        "0028-control-room-alchemy-cli-compat.ts",
+        "0029-control-room-pinned-alchemy-workspace.ts",
+        "0030-reachability-analysis-receipt.ts",
+        "0031-control-room-interactive-skill-tree.ts"
+      ],
+      "depends_on": ["scripts", "scripts/lib"],
+      "activity": "low"
+    },
+    "scripts/lib": {
+      "purpose": "Shared library code",
+      "language": "typescript",
+      "files": 1,
+      "lines": 101,
+      "file_list": ["command.ts"],
+      "exports": [
+        "CommandFailed",
+        "ExecutableMissing",
+        "ToolMissing",
+        "exitCodeFor",
+        "requireExecutable",
+        "requireTool",
+        "runCommand",
+        "runMain",
+        "type CommandError"
+      ],
+      "type_defs": {
+        "CommandFailed": "message",
+        "ExecutableMissing": "message",
+        "ToolMissing": "message"
+      },
+      "depended_by": ["scripts", "scripts/accept"],
+      "activity": "low"
+    },
+    "scripts/oxlint": {
+      "purpose": "Oxlint",
+      "language": "typescript",
+      "files": 1,
+      "lines": 342,
+      "file_list": ["semantic-effect-rules.ts"],
+      "exports": [
+        "ambientConsole",
+        "ambientNondeterminism",
+        "effectRuntimeBoundary",
+        "portableRuntimeImports",
+        "schemaJsonBoundary",
+        "typedFailureBoundary"
+      ],
+      "activity": "low"
+    },
+    "src/actor": {
+      "purpose": "Actor",
+      "language": "typescript",
+      "files": 7,
+      "lines": 933,
+      "file_list": [
+        "cli.ts",
+        "inventory.ts",
+        "journey.ts",
+        "main-bun.ts",
+        "main-node.ts",
+        "runtime.ts",
+        "trace-retention-internal.ts"
+      ],
+      "exports": [
+        "ActorClosed",
+        "ActorExactCounter",
+        "ActorMessageNotTransferable",
+        "ActorTrace",
+        "ActorTraceSnapshot",
+        "ActorTransitionFailed",
+        "FreshIdentifier",
+        "FreshIdentifierExhausted",
+        "InvalidActorDefinition",
+        "acceptActorEnvelope"
+      ],
+      "type_defs": {
+        "ActorClosed": "message",
+        "ActorMessageNotTransferable": "message",
+        "ActorTransitionFailed": "message",
+        "FreshIdentifierExhausted": "message"
+      },
+      "depends_on": ["src/tracer"],
+      "depended_by": ["src/semantic-system"],
+      "activity": "low"
+    },
+    "src/algebra-frontier": {
+      "purpose": "Algebra-frontier",
+      "language": "typescript",
+      "files": 2,
+      "lines": 514,
+      "file_list": ["index.ts", "model.ts"],
+      "exports": [
+        "AlgebraFrontierReport",
+        "AlgebraFrontierReportSchema",
+        "PromotionDecision",
+        "PromotionDecisionSchema",
+        "PromotionObservations",
+        "PromotionObservationsSchema",
+        "WorkbenchCapability",
+        "WorkbenchCapabilitySchema",
+        "algebraFrontierBounds",
+        "algebraFrontierReport"
+      ],
+      "activity": "low"
+    },
+    "src/explorer-query": {
+      "purpose": "Explorer-query",
+      "language": "typescript",
+      "files": 2,
+      "lines": 891,
+      "file_list": ["index.ts", "query.ts"],
+      "exports": [
+        "ExplorerEntityFact",
+        "ExplorerEntityFactSchema",
+        "ExplorerFactSource",
+        "ExplorerFactSourceSchema",
+        "ExplorerListView",
+        "ExplorerMosaicView",
+        "ExplorerNodeProjection",
+        "ExplorerProvenance",
+        "ExplorerProvenanceSchema",
+        "ExplorerQuery"
+      ],
+      "depends_on": ["src/normalized-core"],
+      "activity": "low"
+    },
+    "src/kernel-bytecode": {
+      "purpose": "Kernel-bytecode",
+      "language": "typescript",
+      "files": 8,
+      "lines": 1931,
+      "file_list": [
+        "compiler.ts",
+        "custody.ts",
+        "differential.ts",
+        "index.ts",
+        "instruction.ts",
+        "schema.ts",
+        "testing.ts",
+        "vm.ts"
+      ],
+      "exports": [
+        "BytecodeCompilationFailure",
+        "BytecodeVmFailure",
+        "BytecodeVmInconclusive",
+        "BytecodeVmResumeFailure",
+        "CompiledGraphAudit",
+        "CompiledPerturbation",
+        "CompiledProgramProjection",
+        "DifferentialComparisonSchema",
+        "ExternalObservationScript",
+        "ExternalObservationValue"
+      ],
+      "depends_on": [
+        "src/kernel-calculus",
+        "src/kernel-execution",
+        "src/kernel-interpreter",
+        "src/kernel-json"
+      ],
+      "depended_by": ["src/surface-execution"],
+      "activity": "low"
+    },
+    "src/kernel-calculus": {
+      "purpose": "Kernel-calculus",
+      "language": "typescript",
+      "files": 7,
+      "lines": 4051,
+      "file_list": [
+        "ast.ts",
+        "checker.ts",
+        "effect-row.ts",
+        "grade.ts",
+        "index.ts",
+        "machine.ts",
+        "report.ts"
+      ],
+      "exports": [
+        "CheckAccepted",
+        "CheckRejected",
+        "CheckResult",
+        "CheckResultSchema",
+        "CheckedProgram",
+        "ComputationTerm",
+        "ComputationType",
+        "ComputationTypeSchema",
+        "DecodeBounds",
+        "DecodeDiagnostic"
+      ],
+      "type_defs": {
+        "KernelDecodeFailure": "message"
+      },
+      "depends_on": ["src/tracer"],
+      "depended_by": [
+        "src/kernel-bytecode",
+        "src/kernel-execution",
+        "src/kernel-interpreter",
+        "src/kernel-json",
+        "src/normalized-core"
+      ],
+      "activity": "low"
+    },
+    "src/kernel-cli": {
+      "purpose": "Kernel-cli",
+      "language": "typescript",
+      "files": 4,
+      "lines": 172,
+      "file_list": ["cli.ts", "main-bun.ts", "main-node.ts", "process-host.ts"],
+      "exports": [
+        "KernelCliHostError",
+        "interface KernelCliHost",
+        "kernelRunExitCode",
+        "makeProcessKernelCliHost",
+        "runKernelCli"
+      ],
+      "depends_on": ["src/kernel-interpreter", "src/kernel-json"],
+      "activity": "low"
+    },
+    "src/kernel-execution": {
+      "purpose": "Kernel-execution",
+      "language": "typescript",
+      "files": 2,
+      "lines": 607,
+      "file_list": ["external-observations.ts", "prepare.ts"],
+      "exports": [
+        "ExternalObservationScriptSchema",
+        "ExternalObservationValueSchema",
+        "KernelCheckRejected",
+        "KernelEffectRunObservationSchema",
+        "KernelRepresentationRejected",
+        "decodeExternalObservationScript",
+        "driveExternalObservations",
+        "encodeCanonicalKernelEffectRunObservation",
+        "interface EffectRunDiagnostic",
+        "interface ExternalObservationScript"
+      ],
+      "depends_on": [
+        "src/kernel-calculus",
+        "src/kernel-interpreter",
+        "src/kernel-json",
+        "src/normalized-core"
+      ],
+      "depended_by": ["src/kernel-bytecode", "src/kernel-interpreter", "src/surface-execution"],
+      "activity": "low"
+    },
+    "src/kernel-interpreter": {
+      "purpose": "Kernel-interpreter",
+      "language": "typescript",
+      "files": 4,
+      "lines": 729,
+      "file_list": ["index.ts", "observe.ts", "portable-fact.ts", "schema.ts"],
+      "exports": [
+        "EffectRunDiagnostic",
+        "ExternalObservationScript",
+        "ExternalObservationScriptSchema",
+        "ExternalObservationValue",
+        "ExternalObservationValueSchema",
+        "KernelEffectRunObservation",
+        "KernelEffectRunObservationSchema",
+        "KernelEffectRunResult",
+        "KernelInterpreterBounds",
+        "KernelRejectedCheckObservation"
+      ],
+      "depends_on": [
+        "src/kernel-calculus",
+        "src/kernel-execution",
+        "src/kernel-json",
+        "src/normalized-core"
+      ],
+      "depended_by": [
+        "src/kernel-bytecode",
+        "src/kernel-cli",
+        "src/kernel-execution",
+        "src/surface-cli",
+        "src/surface-execution"
+      ],
+      "activity": "low"
+    },
+    "src/kernel-json": {
+      "purpose": "Kernel-json",
+      "language": "typescript",
+      "files": 8,
+      "lines": 3406,
+      "file_list": [
+        "bounds.ts",
+        "canonical.ts",
+        "decode.ts",
+        "index.ts",
+        "observe.ts",
+        "schema-data.ts",
+        "schema.ts",
+        "types.ts"
+      ],
+      "exports": [
+        "BinderOriginKind",
+        "CheckAccepted",
+        "CheckDiagnostic",
+        "CheckRejected",
+        "ComputationJudgment",
+        "DiagnosticFact",
+        "InferredSummary",
+        "Judgment",
+        "KernelCheckEnvelopeBounds",
+        "KernelCheckObservation"
+      ],
+      "depends_on": ["src/kernel-calculus", "src/normalized-core"],
+      "depended_by": [
+        "src/kernel-bytecode",
+        "src/kernel-cli",
+        "src/kernel-execution",
+        "src/kernel-interpreter",
+        "src/surface-cli",
+        "src/surface-execution",
+        "src/surface-language"
+      ],
+      "activity": "low"
+    },
+    "src/language-build": {
+      "purpose": "Language-build",
+      "language": "typescript",
+      "files": 5,
+      "lines": 2456,
+      "file_list": [
+        "index.ts",
+        "reachability.ts",
+        "reproducible-action.ts",
+        "runtime-closure.ts",
+        "semantic-store.ts"
+      ],
+      "exports": [
+        "AuthoredNameAbsent",
+        "DeclaredDependencyGraph",
+        "DeclaredDependencyGraphSchema",
+        "DeclaredDependencyNode",
+        "DeclaredDependencyNodeSchema",
+        "NameBindingInput",
+        "NameBindingInputRejected",
+        "NameBindingInputSchema",
+        "NameBindingReceipt",
+        "NameLookupInput"
+      ],
+      "depends_on": ["src/normalized-core"],
+      "activity": "low"
+    },
+    "src/normalized-core": {
+      "purpose": "Normalized-core",
+      "language": "typescript",
+      "files": 5,
+      "lines": 2480,
+      "file_list": ["canonical.ts", "identity.ts", "index.ts", "normalize.ts", "schema.ts"],
+      "exports": [
+        "DecodeResult",
+        "EmissionMetadataInput",
+        "EmissionResult",
+        "Identity",
+        "ImportedAssumption",
+        "ImportedAssumptionInput",
+        "KernelComputationTerm",
+        "KernelComputationType",
+        "KernelValueTerm",
+        "KernelValueType"
+      ],
+      "depends_on": ["src/kernel-calculus"],
+      "depended_by": [
+        "src/explorer-query",
+        "src/kernel-execution",
+        "src/kernel-interpreter",
+        "src/kernel-json",
+        "src/language-build",
+        "src/project-model",
+        "src/surface-cli",
+        "src/surface-language"
+      ],
+      "activity": "low"
+    },
+    "src/portfolio-model": {
+      "purpose": "Portfolio-model",
+      "language": "typescript",
+      "files": 6,
+      "lines": 1135,
+      "file_list": [
+        "assemble.ts",
+        "decode.ts",
+        "index.ts",
+        "project.ts",
+        "public-export.ts",
+        "query.ts"
+      ],
+      "exports": [
+        "ArtifactSchema",
+        "AttributeValueSchema",
+        "LabelRuleSchema",
+        "LabelSchema",
+        "MembershipSchema",
+        "PORTFOLIO_PUBLIC_SCHEMA",
+        "PORTFOLIO_VERSION_SCHEMA",
+        "PortfolioDecodeFailure",
+        "PortfolioDocumentSchema",
+        "PortfolioExportFailure"
+      ],
+      "depends_on": ["src/project-model"],
+      "activity": "low"
+    },
+    "src/project-model": {
+      "purpose": "Project-model",
+      "language": "typescript",
+      "files": 11,
+      "lines": 2547,
+      "file_list": [
+        "cli.ts",
+        "graph.ts",
+        "loader.ts",
+        "main-bun.ts",
+        "main-node.ts",
+        "public-export.ts",
+        "relational-facts.ts",
+        "schedule.ts",
+        "types.ts",
+        "validate.ts",
+        "views.ts"
+      ],
+      "exports": [
+        "DEFAULT_REPOSITORY_URL",
+        "ENTITY_KINDS",
+        "EntityFactSchema",
+        "EvidenceQueryResultSchema",
+        "ImpactQueryResultSchema",
+        "PROJECT_DOCUMENT_SCHEMA_ID",
+        "PUBLIC_SNAPSHOT_SCHEMA",
+        "PUBLIC_VERSION_SCHEMA",
+        "ProjectDocumentSchema",
+        "ProjectLoadError"
+      ],
+      "depends_on": ["src/normalized-core"],
+      "depended_by": ["src/portfolio-model"],
+      "activity": "low"
+    },
+    "src/references": {
+      "purpose": "References",
+      "language": "typescript",
+      "files": 22,
+      "lines": 5912,
+      "file_list": [
+        "acquire.ts",
+        "canonical-json.ts",
+        "catalog.ts",
+        "cli.ts",
+        "curator-holder.ts",
+        "curator.ts",
+        "errors.ts",
+        "git.ts",
+        "lockfile.ts",
+        "main-bun.ts",
+        "main-node.ts",
+        "offline-lock.ts",
+        "offline-materialize.ts",
+        "paths.ts",
+        "remote-lock.ts",
+        "remote-materialize.ts",
+        "status.ts",
+        "strict-json.ts",
+        "toml-bun.ts",
+        "toml-node.ts"
+      ],
+      "exports": [
+        "AcquisitionError",
+        "CACHE_BRANCH",
+        "CatalogError",
+        "CuratorLockedError",
+        "CuratorProcess",
+        "GitEnvironment",
+        "JsonSyntaxError",
+        "LockFileError",
+        "NotLockableError",
+        "SCHEMA_NAME"
+      ],
+      "activity": "low"
+    },
+    "src/semantic-system": {
+      "purpose": "Semantic-system",
+      "language": "typescript",
+      "files": 9,
+      "lines": 3155,
+      "file_list": [
+        "actor.ts",
+        "custody.ts",
+        "definition.ts",
+        "driver.ts",
+        "graph.ts",
+        "index.ts",
+        "inventory.ts",
+        "kernel.ts",
+        "model.ts"
+      ],
+      "exports": [
+        "Answer",
+        "AnswerDraft",
+        "ArtifactEnvelope",
+        "CommandEnvelope",
+        "Diagnostic",
+        "DomainEventEnvelope",
+        "DriverBounds",
+        "DriverCompleted",
+        "DriverCounts",
+        "DriverResult"
+      ],
+      "type_defs": {
+        "InterpreterAttemptFailed": "message",
+        "InvalidDriverBounds": "message",
+        "InvalidInterpreterRegistry": "message",
+        "InvalidSemanticComponent": "message",
+        "SemanticKernelFailure": "message",
+        "SemanticValueRejected": "message"
+      },
+      "depends_on": ["src/actor", "src/tracer"],
+      "activity": "low"
+    },
+    "src/stm": {
+      "purpose": "Stm",
+      "language": "typescript",
+      "files": 4,
+      "lines": 2267,
+      "file_list": ["main-bun.ts", "main-node.ts", "model.ts", "report.ts"],
+      "exports": ["buildStmLawReport", "canonicalStmLawReport", "type RuntimeLayer"],
+      "depends_on": ["src/tracer"],
+      "activity": "low"
+    },
+    "src/surface-cli": {
+      "purpose": "Surface-cli",
+      "language": "typescript",
+      "files": 9,
+      "lines": 678,
+      "file_list": [
+        "cli.ts",
+        "drive.ts",
+        "effect-schema.ts",
+        "main-bun.ts",
+        "main-node.ts",
+        "observation-script-bytes.ts",
+        "process-host.ts",
+        "schema.ts",
+        "source.ts"
+      ],
+      "exports": [
+        "SurfaceCliHostError",
+        "SurfaceEffectRunObservationSchema",
+        "SurfaceEffectRunResultSchema",
+        "SurfaceRunObservationSchema",
+        "SurfaceRunResultSchema",
+        "SurfaceSourceDiagnosticSchema",
+        "compileSurfaceSourceBytes",
+        "decodeObservationScriptBytes",
+        "driveSurfaceCompilation",
+        "driveSurfaceSourceBytes"
+      ],
+      "depends_on": [
+        "src/kernel-interpreter",
+        "src/kernel-json",
+        "src/normalized-core",
+        "src/surface-language"
+      ],
+      "activity": "low"
+    },
+    "src/surface-execution": {
+      "purpose": "Surface-execution",
+      "language": "typescript",
+      "files": 1,
+      "lines": 55,
+      "file_list": ["index.ts"],
+      "exports": ["interface SurfaceEffectReplay", "replaySurfaceDocumentEffects"],
+      "depends_on": [
+        "src/kernel-bytecode",
+        "src/kernel-execution",
+        "src/kernel-interpreter",
+        "src/kernel-json",
+        "src/surface-language"
+      ],
+      "activity": "low"
+    },
+    "src/surface-language": {
+      "purpose": "Surface-language",
+      "language": "typescript",
+      "files": 6,
+      "lines": 1486,
+      "file_list": ["ast.ts", "elaborate.ts", "errors.ts", "index.ts", "lexer.ts", "parser.ts"],
+      "exports": [
+        "SourceSpan",
+        "SurfaceCompilation",
+        "SurfaceDocument",
+        "SurfaceElaborationError",
+        "SurfaceInputError",
+        "SurfaceKernelBoundaryError",
+        "SurfaceLanguageBounds",
+        "SurfaceLanguageError",
+        "SurfaceLexError",
+        "SurfaceParseError"
+      ],
+      "depends_on": ["src/kernel-json", "src/normalized-core"],
+      "depended_by": ["src/surface-cli", "src/surface-execution"],
+      "activity": "low"
+    },
+    "src/tracer": {
+      "purpose": "Tracer",
+      "language": "typescript",
+      "files": 17,
+      "lines": 3418,
+      "file_list": [
+        "canonical.ts",
+        "cli.ts",
+        "demo.ts",
+        "domain.ts",
+        "evidence-result.ts",
+        "evidence.ts",
+        "execution.ts",
+        "explanation.ts",
+        "json.ts",
+        "loader.ts",
+        "main-bun.ts",
+        "main-node.ts",
+        "operations.ts",
+        "realization.ts",
+        "resolution-claim.ts",
+        "resolver.ts",
+        "theory.ts"
+      ],
+      "exports": [
+        "ARTIFACT_KIND_EVIDENCE_RESULT",
+        "ARTIFACT_KIND_RESOLUTION_CLAIM",
+        "DocumentError",
+        "EVIDENCE_CATEGORY",
+        "EVIDENCE_RESULT_SCHEMA_VERSION",
+        "NORMALIZATION_VERSION",
+        "PRODUCER_DIAGNOSTIC_KINDS",
+        "REASON_AMBIGUOUS",
+        "REASON_ASSUMPTIONS_NOT_ALLOWED",
+        "REASON_CATEGORY_NOT_ACCEPTED"
+      ],
+      "depended_by": ["src/actor", "src/kernel-calculus", "src/semantic-system", "src/stm"],
       "activity": "low"
     }
   },
   "dependencies": {
-    "edges": null,
+    "edges": [
+      ["apps/control-room", "apps/control-room/src"],
+      ["apps/control-room/tooling", "apps/control-room"],
+      ["apps/control-room/tooling", "apps/control-room/src"],
+      ["scripts", "scripts/lib"],
+      ["scripts/accept", "scripts"],
+      ["scripts/accept", "scripts/lib"],
+      ["src/actor", "src/tracer"],
+      ["src/explorer-query", "src/normalized-core"],
+      ["src/kernel-bytecode", "src/kernel-calculus"],
+      ["src/kernel-bytecode", "src/kernel-execution"],
+      ["src/kernel-bytecode", "src/kernel-interpreter"],
+      ["src/kernel-bytecode", "src/kernel-json"],
+      ["src/kernel-calculus", "src/tracer"],
+      ["src/kernel-cli", "src/kernel-interpreter"],
+      ["src/kernel-cli", "src/kernel-json"],
+      ["src/kernel-execution", "src/kernel-calculus"],
+      ["src/kernel-execution", "src/kernel-interpreter"],
+      ["src/kernel-execution", "src/kernel-json"],
+      ["src/kernel-execution", "src/normalized-core"],
+      ["src/kernel-interpreter", "src/kernel-calculus"],
+      ["src/kernel-interpreter", "src/kernel-execution"],
+      ["src/kernel-interpreter", "src/kernel-json"],
+      ["src/kernel-interpreter", "src/normalized-core"],
+      ["src/kernel-json", "src/kernel-calculus"],
+      ["src/kernel-json", "src/normalized-core"],
+      ["src/language-build", "src/normalized-core"],
+      ["src/normalized-core", "src/kernel-calculus"],
+      ["src/portfolio-model", "src/project-model"],
+      ["src/project-model", "src/normalized-core"],
+      ["src/semantic-system", "src/actor"],
+      ["src/semantic-system", "src/tracer"],
+      ["src/stm", "src/tracer"],
+      ["src/surface-cli", "src/kernel-interpreter"],
+      ["src/surface-cli", "src/kernel-json"],
+      ["src/surface-cli", "src/normalized-core"],
+      ["src/surface-cli", "src/surface-language"],
+      ["src/surface-execution", "src/kernel-bytecode"],
+      ["src/surface-execution", "src/kernel-execution"],
+      ["src/surface-execution", "src/kernel-interpreter"],
+      ["src/surface-execution", "src/kernel-json"],
+      ["src/surface-execution", "src/surface-language"],
+      ["src/surface-language", "src/kernel-json"],
+      ["src/surface-language", "src/normalized-core"]
+    ],
     "entrypoints": null,
     "most_depended": [
-      "scripts",
-      "src/semantic_project_model"
+      "src/normalized-core",
+      "src/kernel-json",
+      "src/kernel-calculus",
+      "src/kernel-interpreter",
+      "src/tracer",
+      "src/kernel-execution",
+      "apps/control-room/src",
+      "scripts/lib",
+      "src/surface-language",
+      "apps/control-room"
     ],
     "isolated": [
-      "scripts",
-      "src/semantic_project_model"
+      "apps/control-room/src/components",
+      "apps/control-room/src/lib",
+      "examples/kernel-calculus",
+      "research/experiments/independent-checker-policy",
+      "root",
+      "scripts/oxlint",
+      "src/algebra-frontier",
+      "src/references"
     ]
   },
-  "git": {},
-  "hints": {
-    "test_command": "pytest",
-    "do_not_touch": [
-      "generated/",
-      ".github/"
+  "git": {
+    "hot_files": [
+      {
+        "path": "generated/README.md",
+        "commits_90d": 25
+      },
+      {
+        "path": "generated/06-delegation-frontier.md",
+        "commits_90d": 24
+      },
+      {
+        "path": "generated/05-work-dependencies.md",
+        "commits_90d": 21
+      },
+      {
+        "path": "plans/active/0005-autonomous-development-control-loop.md",
+        "commits_90d": 14
+      },
+      {
+        "path": "AGENTS.md",
+        "commits_90d": 11
+      },
+      {
+        "path": "plans/active/0002-reference-baselines-deep-research.md",
+        "commits_90d": 10
+      },
+      {
+        "path": "claims/registry.md",
+        "commits_90d": 8
+      },
+      {
+        "path": ".gitignore",
+        "commits_90d": 6
+      },
+      {
+        "path": "design-specs/0005-autonomous-development-control-loop.md",
+        "commits_90d": 6
+      },
+      {
+        "path": "package.json",
+        "commits_90d": 6
+      },
+      {
+        "path": "src/semantic_references/acquire.py",
+        "commits_90d": 6
+      },
+      {
+        "path": "tests/test_reference_custody.py",
+        "commits_90d": 6
+      },
+      {
+        "path": "flake.nix",
+        "commits_90d": 5
+      },
+      {
+        "path": "generated/04-evidence-map.md",
+        "commits_90d": 5
+      },
+      {
+        "path": "generated/07-runtime-view.md",
+        "commits_90d": 5
+      },
+      {
+        "path": "model/work/realization-roadmap.json",
+        "commits_90d": 5
+      },
+      {
+        "path": "model/work/work.json",
+        "commits_90d": 5
+      },
+      {
+        "path": "pyproject.toml",
+        "commits_90d": 5
+      },
+      {
+        "path": "src/semantic_references/cli.py",
+        "commits_90d": 5
+      },
+      {
+        "path": "src/semantic_references/gitutil.py",
+        "commits_90d": 5
+      }
+    ],
+    "recent": [
+      ".github/workflows/check.yml",
+      "AGENTS.md",
+      "CONTRIBUTING.md",
+      "README.md",
+      "docs/realization-strategy.md",
+      "docs/technology-portfolio.md",
+      "docs/tooling-project-model-spec.md",
+      "flake.nix",
+      "model/evidence/evidence.json",
+      "package.json"
+    ],
+    "stable": [
+      ".github/workflows/control-room-alchemy.yml",
+      ".oxlintrc.json",
+      "apps/control-room/alchemy.run.ts",
+      "apps/control-room/e2e/skill-tree.pw.ts",
+      "apps/control-room/playwright.config.mjs",
+      "apps/control-room/playwright.config.ts",
+      "apps/control-room/public/icon.svg",
+      "apps/control-room/src/App.vitest.tsx",
+      "apps/control-room/src/components/roadmap/RoadmapExplorer.tsx",
+      "apps/control-room/src/components/roadmap/RoadmapGraph.tsx"
     ]
+  },
+  "hints": {
+    "test_command": "npm test",
+    "env_vars": [
+      "CAPTURE_ARGS",
+      "CAPTURE_ENV",
+      "CONTROL_ROOM_ARTIFACT_COMMIT",
+      "CONTROL_ROOM_BASE",
+      "CONTROL_ROOM_STATIC_DIR",
+      "GH_TOKEN",
+      "GITHUB_API_URL",
+      "GITHUB_EVENT_PATH",
+      "LANG_BANG_LAKE_BIN",
+      "LANG_BANG_ORACLE_ROOT",
+      "REUSE_FIRST_AGENT_MAP",
+      "SEMANTIC_NODE_BIN"
+    ],
+    "do_not_touch": ["generated/", ".github/"]
   },
   "architecture": {}
 }

@@ -22,8 +22,6 @@ const label = "check-fast";
 const cacheRoot = resolve(process.env.TMPDIR ?? "/tmp", "semantic-systems-check-fast");
 const environment = {
   ...process.env,
-  PYTHONPYCACHEPREFIX: resolve(cacheRoot, "pycache"),
-  RUFF_CACHE_DIR: resolve(cacheRoot, "ruff"),
   XDG_CACHE_HOME: resolve(cacheRoot, "xdg"),
 };
 
@@ -32,7 +30,7 @@ const program = Effect.gen(function* () {
     try: () => mkdir(cacheRoot, { recursive: true }),
     catch: (cause) => new CacheRootCreateError({ path: cacheRoot, cause }),
   });
-  for (const tool of ["ruff", "bun", "actionlint", "just"]) yield* requireTool(label, tool);
+  for (const tool of ["bun", "actionlint", "just"]) yield* requireTool(label, tool);
   for (const executable of ["oxfmt", "oxlint", "tsc", "commitlint"]) {
     yield* requireExecutable(
       root,
@@ -45,8 +43,6 @@ const program = Effect.gen(function* () {
   for (const command of [
     ["bun", "run", "semproj", "--", "validate"],
     ["bun", "run", "semproj", "--", "generate", "--check"],
-    ["ruff", "check", "."],
-    ["ruff", "format", "--check", "."],
     ["actionlint", ".github/workflows/check.yml"],
     ["just", "--fmt", "--check"],
     ["bun", "scripts/setup-effect-tsgo.ts", "--check"],

@@ -66,9 +66,8 @@ export const validateSourceId = (sourceId: string): Effect.Effect<string, Catalo
 
 /**
  * Normalized, relative, `.`/`..`-free, forward-slash license artifact path
- * (mirrors the validation subset of Python's `PurePosixPath` normalization
- * check: reject anything whose reconstruction from its segments differs from
- * the original text).
+ * (a portable POSIX-path normalization subset: reject anything whose
+ * reconstruction from its segments differs from the original text).
  */
 export const isValidLicensePath = (rawPath: string): boolean => {
   if (rawPath.length === 0 || rawPath !== rawPath.trim()) return false;

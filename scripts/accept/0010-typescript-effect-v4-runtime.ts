@@ -58,7 +58,7 @@ const ownedShellPrograms = async (): Promise<string[]> => {
   return shell.sort();
 };
 
-const program = Effect.gen(function* () {
+export const pythonRemovalAcceptance = Effect.gen(function* () {
   const manifest = (yield* Effect.tryPromise({
     try: () => Bun.file(resolve(root, "package.json")).json(),
     catch: (cause) =>
@@ -70,7 +70,7 @@ const program = Effect.gen(function* () {
     });
   }
   const lock = (yield* Effect.tryPromise({
-    try: () => Bun.file(resolve(root, "bun.lock")).json(),
+    try: async () => Bun.JSONC.parse(await Bun.file(resolve(root, "bun.lock")).text()),
     catch: (cause) => new AcceptanceFailure({ message: `cannot load bun.lock: ${String(cause)}` }),
   })) as { workspaces?: { ""?: { dependencies?: Record<string, string> } } };
   if (lock.workspaces?.[""]?.dependencies?.effect !== expectedEffect) {
@@ -88,16 +88,6 @@ const program = Effect.gen(function* () {
     return yield* new AcceptanceFailure({
       message: `expected effect ${expectedEffect}, found ${effectPackage.default.version}`,
     });
-  }
-
-  for (const command of [
-    ["bun", "install", "--frozen-lockfile", "--ignore-scripts"],
-    ["bun", "run", "typecheck"],
-    ["bun", "test"],
-    ["bun", "run", "semproj", "--", "validate"],
-    ["bun", "run", "semproj", "--", "generate", "--check"],
-  ] as const) {
-    yield* runCommand(command, { cwd: root });
   }
 
   const pythonFiles = yield* Effect.promise(() => ownedFiles([".py"]));
@@ -129,8 +119,14 @@ const program = Effect.gen(function* () {
     }
   }
 
+  // The canonical integration gate owns the frozen install, Effect setup,
+  // typecheck, model projections, lint, and complete Bun suite. Calling those
+  // commands separately here would test the same head twice without adding an
+  // observation.
   yield* runCommand(["bun", "scripts/check.ts"], { cwd: root });
   yield* runCommand(["nix", "flake", "check"], { cwd: root });
 });
 
-runMain("accept/0010", program);
+if (import.meta.main) {
+  runMain("accept/0010", pythonRemovalAcceptance);
+}
