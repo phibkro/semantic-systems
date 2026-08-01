@@ -285,6 +285,65 @@ describe("project relational fact export 0034", () => {
     expect(accessorCalls).toBe(0);
   });
 
+  test("decodes one query descriptor snapshot instead of re-reading caller properties", async () => {
+    const artifact = await runBuild(buildRelationalFactExport(tracerGraph()));
+    let liveArrayCalls = 0;
+    let accessorCalls = 0;
+    const overLimit = Array.from(
+      { length: relationalFactBounds.maximumQueryRoots + 1 },
+      (_, index) => `component.${index}`,
+    );
+    Object.defineProperty(overLimit, relationalFactBounds.maximumQueryRoots, {
+      configurable: true,
+      enumerable: true,
+      get: () => {
+        liveArrayCalls += 1;
+        throw new Error("live over-limit query array must not be read");
+      },
+    });
+    const request = {
+      format: "semantic.impact-query",
+      version: 1,
+      subject_ids: ["component.c"],
+      max_depth: 1,
+      max_nodes: relationalFactBounds.maximumQueryNodes,
+    };
+    const disagreement = new Proxy(request, {
+      get: (target, key, receiver) =>
+        key === "subject_ids" ? overLimit : Reflect.get(target, key, receiver),
+      getOwnPropertyDescriptor: (target, key) =>
+        key === "subject_ids"
+          ? {
+              configurable: true,
+              enumerable: true,
+              writable: true,
+              value: ["component.c"],
+            }
+          : Reflect.getOwnPropertyDescriptor(target, key),
+    });
+    const snapshotted = await runCrypto(queryImpact(artifact.bytes, disagreement));
+    const accessorBacked = await runCrypto(
+      queryImpact(artifact.bytes, {
+        format: "semantic.impact-query",
+        version: 1,
+        get subject_ids(): Array<string> {
+          accessorCalls += 1;
+          return ["component.c"];
+        },
+        max_depth: 1,
+        max_nodes: relationalFactBounds.maximumQueryNodes,
+      }).pipe(Effect.result),
+    );
+
+    expect(snapshotted.subject_ids).toEqual(["component.c"]);
+    expect(Result.isFailure(accessorBacked)).toBeTrue();
+    if (Result.isFailure(accessorBacked)) {
+      expect(accessorBacked.failure).toBeInstanceOf(RelationalFactQueryRejected);
+    }
+    expect(liveArrayCalls).toBe(0);
+    expect(accessorCalls).toBe(0);
+  });
+
   test("rejects unknown roots, invalid project state, foreign paths, duplicates, and non-canonical bytes", async () => {
     const artifact = await runBuild(buildRelationalFactExport(tracerGraph()));
     const unknown = await runCrypto(

@@ -714,40 +714,82 @@ export const validateRelationalFactExportBytes = (
     return deepFreeze(decoded);
   });
 
-const preflightQueryRoots = (input: unknown): Effect.Effect<void, RelationalFactQueryRejected> =>
+interface CapturedQueryInput {
+  readonly kind: "Captured";
+  readonly value: unknown;
+}
+
+interface RejectedQueryInput {
+  readonly kind: "Rejected";
+  readonly reason: string;
+}
+
+type QueryInputCapture = CapturedQueryInput | RejectedQueryInput;
+
+const captureQueryRoots = (input: unknown): QueryInputCapture => {
+  if (!Array.isArray(input)) return { kind: "Captured", value: input };
+  const lengthDescriptor = Object.getOwnPropertyDescriptor(input, "length");
+  if (typeof lengthDescriptor?.value !== "number") {
+    return { kind: "Rejected", reason: "query subject_ids length is not observable" };
+  }
+  const length = lengthDescriptor.value;
+  if (length > relationalFactBounds.maximumQueryRoots) {
+    return {
+      kind: "Rejected",
+      reason: `query exceeds ${relationalFactBounds.maximumQueryRoots} roots`,
+    };
+  }
+  const snapshot: Array<unknown> = [];
+  snapshot.length = length;
+  for (let index = 0; index < length; index += 1) {
+    const descriptor = Object.getOwnPropertyDescriptor(input, String(index));
+    if (descriptor === undefined) continue;
+    if (!("value" in descriptor)) {
+      return { kind: "Rejected", reason: `query root ${index} must be a data property` };
+    }
+    snapshot[index] = descriptor.value;
+  }
+  return { kind: "Captured", value: snapshot };
+};
+
+const captureQueryInput = (input: unknown): Effect.Effect<unknown, RelationalFactQueryRejected> =>
   Effect.gen(function* () {
-    const observation = yield* Effect.try({
+    const capture = yield* Effect.try({
       try: () => {
         if (input === null || typeof input !== "object" || Array.isArray(input)) {
-          return undefined;
+          return { kind: "Captured", value: input } as const;
         }
-        const descriptor = Object.getOwnPropertyDescriptor(input, "subject_ids");
-        if (descriptor === undefined) return undefined;
-        if (!("value" in descriptor)) return { accessor: true } as const;
-        if (!Array.isArray(descriptor.value)) return undefined;
-        const lengthDescriptor = Object.getOwnPropertyDescriptor(descriptor.value, "length");
-        return typeof lengthDescriptor?.value === "number"
-          ? ({ length: lengthDescriptor.value } as const)
-          : ({ accessor: true } as const);
+        const snapshot = Object.create(null) as Record<string, unknown>;
+        for (const key of Reflect.ownKeys(input)) {
+          if (typeof key !== "string") {
+            return { kind: "Rejected", reason: "query contains a symbol property" } as const;
+          }
+          const descriptor = Object.getOwnPropertyDescriptor(input, key);
+          if (descriptor === undefined || !("value" in descriptor)) {
+            return {
+              kind: "Rejected",
+              reason: `query field ${key} must be an own data property`,
+            } as const;
+          }
+          const field = key === "subject_ids" ? captureQueryRoots(descriptor.value) : undefined;
+          if (field?.kind === "Rejected") return field;
+          Object.defineProperty(snapshot, key, {
+            configurable: true,
+            enumerable: descriptor.enumerable === true,
+            writable: true,
+            value: field?.value ?? descriptor.value,
+          });
+        }
+        return { kind: "Captured", value: snapshot } as const;
       },
       catch: (cause) =>
         new RelationalFactQueryRejected({
-          reason: `query roots could not be inspected: ${String(cause)}`,
+          reason: `query value could not be captured: ${String(cause)}`,
         }),
     });
-    if (observation?.accessor === true) {
-      return yield* new RelationalFactQueryRejected({
-        reason: "query subject_ids must be an array data property",
-      });
-    }
-    if (
-      observation?.length !== undefined &&
-      observation.length > relationalFactBounds.maximumQueryRoots
-    ) {
-      return yield* new RelationalFactQueryRejected({
-        reason: `query exceeds ${relationalFactBounds.maximumQueryRoots} roots`,
-      });
-    }
+    return capture.kind === "Captured"
+      ? capture.value
+      : yield* new RelationalFactQueryRejected({ reason: capture.reason });
   });
 
 const decodeRequest = (
@@ -755,10 +797,10 @@ const decodeRequest = (
   expectedFormat: RelationalQueryRequest["format"],
 ): Effect.Effect<RelationalQueryRequest, RelationalFactQueryRejected> =>
   Effect.gen(function* () {
-    yield* preflightQueryRoots(input);
+    const snapshot = yield* captureQueryInput(input);
     const request = yield* Schema.decodeUnknownEffect(RelationalQueryRequestSchema, {
       onExcessProperty: "error",
-    })(input).pipe(
+    })(snapshot).pipe(
       Effect.mapError(
         (cause) => new RelationalFactQueryRejected({ reason: `invalid query: ${cause.message}` }),
       ),
