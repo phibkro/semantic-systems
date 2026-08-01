@@ -1,8 +1,10 @@
 import { Match, Schema } from "effect";
 
-const freezeDeep = <Value>(value: Value): Value => {
+const freezeDeep = <Value>(value: Value, seen = new WeakSet<object>()): Value => {
   if (typeof value !== "object" || value === null) return value;
-  for (const child of Object.values(value)) freezeDeep(child);
+  if (seen.has(value)) return value;
+  seen.add(value);
+  for (const child of Object.values(value)) freezeDeep(child, seen);
   return Object.isFrozen(value) ? value : Object.freeze(value);
 };
 
@@ -48,6 +50,7 @@ export const PromotionObservationsSchema = Schema.Struct({
   repeated_ergonomic_demand: Schema.Boolean,
   faithful_surface_elaboration: Schema.Boolean,
   kernel_obstruction_established: Schema.Boolean,
+  smaller_trusted_boundary_after_promotion: Schema.Boolean,
 });
 export type PromotionObservations = typeof PromotionObservationsSchema.Type;
 
@@ -86,8 +89,10 @@ export const classifyPromotion = (observations: PromotionObservations): Promotio
       Match.when(
         {
           lawful_userland_model: true,
+          repeated_ergonomic_demand: true,
           faithful_surface_elaboration: false,
           kernel_obstruction_established: true,
+          smaller_trusted_boundary_after_promotion: true,
         },
         () => "candidate" as const,
       ),
@@ -106,7 +111,7 @@ const RuntimeAlternativeSchema = Schema.Struct({
   properties: boundedArray(StatementSchema, algebraFrontierBounds.maximumStatements),
 });
 
-const AlgebraCandidateSchema = Schema.Struct({
+const AlgebraCandidateFieldsSchema = Schema.Struct({
   id: Schema.Literals(["resource-lifecycle", "structured-concurrency", "stm"]),
   observations: PromotionObservationsSchema,
   observation_basis: boundedArray(StatementSchema, algebraFrontierBounds.maximumStatements),
@@ -120,6 +125,84 @@ const AlgebraCandidateSchema = Schema.Struct({
   ),
   open_obligations: boundedArray(StatementSchema, algebraFrontierBounds.maximumStatements),
 });
+type AlgebraCandidate = typeof AlgebraCandidateFieldsSchema.Type;
+
+const sameDecision = (left: PromotionDecision, right: PromotionDecision): boolean =>
+  left.consistency === right.consistency &&
+  left.userland === right.userland &&
+  left.surface === right.surface &&
+  left.kernel === right.kernel;
+
+const AlgebraCandidateSchema = AlgebraCandidateFieldsSchema.pipe(
+  Schema.check(
+    Schema.makeFilter<AlgebraCandidate>(
+      (candidate) => sameDecision(candidate.decision, classifyPromotion(candidate.observations)),
+      { expected: "a promotion decision derived from the candidate observations" },
+    ),
+  ),
+);
+
+const hasExactIds = <Value extends { readonly id: string }>(
+  values: ReadonlyArray<Value>,
+  expected: ReadonlyArray<string>,
+): boolean => {
+  const actual = values.map(({ id }) => id);
+  return (
+    actual.length === expected.length &&
+    new Set(actual).size === expected.length &&
+    expected.every((id) => actual.includes(id))
+  );
+};
+
+const WorkbenchSchema = exactArray(
+  WorkbenchCapabilitySchema,
+  algebraFrontierBounds.maximumWorkbenchCapabilities,
+).pipe(
+  Schema.check(
+    Schema.makeFilter(
+      (values: ReadonlyArray<WorkbenchCapability>) =>
+        hasExactIds(values, [
+          "signature",
+          "equations",
+          "composition",
+          "interpretation",
+          "scope-and-identity",
+          "evidence",
+          "reflection",
+          "discovery",
+        ]),
+      { expected: "each declared workbench capability exactly once" },
+    ),
+  ),
+);
+
+const CandidatesSchema = exactArray(
+  AlgebraCandidateSchema,
+  algebraFrontierBounds.maximumCandidates,
+).pipe(
+  Schema.check(
+    Schema.makeFilter(
+      (values: ReadonlyArray<AlgebraCandidate>) =>
+        hasExactIds(values, ["resource-lifecycle", "structured-concurrency", "stm"]),
+      { expected: "each declared algebra candidate exactly once" },
+    ),
+  ),
+);
+
+const PrecedentSchema = Schema.Struct({
+  id: Schema.Literals(["algebraic-data-types", "monadic-context"]),
+  lesson: StatementSchema,
+});
+type Precedent = typeof PrecedentSchema.Type;
+const PrecedentsSchema = exactArray(PrecedentSchema, algebraFrontierBounds.maximumPrecedents).pipe(
+  Schema.check(
+    Schema.makeFilter(
+      (values: ReadonlyArray<Precedent>) =>
+        hasExactIds(values, ["algebraic-data-types", "monadic-context"]),
+      { expected: "each declared precedent exactly once" },
+    ),
+  ),
+);
 
 export const AlgebraFrontierReportSchema = Schema.Struct({
   format: Schema.Literal("semantic.algebra-frontier"),
@@ -128,11 +211,11 @@ export const AlgebraFrontierReportSchema = Schema.Struct({
     maximum_string_code_units: Schema.Literal(algebraFrontierBounds.maximumStringCodeUnits),
     maximum_statements: Schema.Literal(algebraFrontierBounds.maximumStatements),
     maximum_runtime_alternatives: Schema.Literal(algebraFrontierBounds.maximumRuntimeAlternatives),
-    maximum_workbench_capabilities: Schema.Literal(
+    exact_workbench_capabilities: Schema.Literal(
       algebraFrontierBounds.maximumWorkbenchCapabilities,
     ),
-    maximum_candidates: Schema.Literal(algebraFrontierBounds.maximumCandidates),
-    maximum_precedents: Schema.Literal(algebraFrontierBounds.maximumPrecedents),
+    exact_candidates: Schema.Literal(algebraFrontierBounds.maximumCandidates),
+    exact_precedents: Schema.Literal(algebraFrontierBounds.maximumPrecedents),
     maximum_unsupported_claims: Schema.Literal(algebraFrontierBounds.maximumUnsupportedClaims),
   }),
   promotion_rule: Schema.Struct({
@@ -145,21 +228,17 @@ export const AlgebraFrontierReportSchema = Schema.Struct({
     candidate: StatementSchema,
   }),
   capability_identity: StatementSchema,
-  workbench: exactArray(
-    WorkbenchCapabilitySchema,
-    algebraFrontierBounds.maximumWorkbenchCapabilities,
-  ),
-  candidates: exactArray(AlgebraCandidateSchema, algebraFrontierBounds.maximumCandidates),
-  precedents: exactArray(
-    Schema.Struct({
-      id: Schema.Literals(["algebraic-data-types", "monadic-context"]),
-      lesson: StatementSchema,
-    }),
-    algebraFrontierBounds.maximumPrecedents,
-  ),
+  workbench: WorkbenchSchema,
+  candidates: CandidatesSchema,
+  precedents: PrecedentsSchema,
   unsupported_claims: boundedArray(StatementSchema, algebraFrontierBounds.maximumUnsupportedClaims),
 });
 export type AlgebraFrontierReport = typeof AlgebraFrontierReportSchema.Type;
+const decodeAlgebraFrontierReportStrict = Schema.decodeUnknownSync(AlgebraFrontierReportSchema, {
+  onExcessProperty: "error",
+});
+export const decodeAlgebraFrontierReport = (input: unknown): AlgebraFrontierReport =>
+  freezeDeep(decodeAlgebraFrontierReportStrict(input));
 
 const observations = {
   resources: freezeDeep({
@@ -167,31 +246,34 @@ const observations = {
     repeated_ergonomic_demand: true,
     faithful_surface_elaboration: false,
     kernel_obstruction_established: false,
+    smaller_trusted_boundary_after_promotion: false,
   }),
   concurrency: freezeDeep({
     lawful_userland_model: false,
     repeated_ergonomic_demand: true,
     faithful_surface_elaboration: true,
     kernel_obstruction_established: false,
+    smaller_trusted_boundary_after_promotion: false,
   }),
   stm: freezeDeep({
     lawful_userland_model: true,
     repeated_ergonomic_demand: true,
     faithful_surface_elaboration: true,
     kernel_obstruction_established: false,
+    smaller_trusted_boundary_after_promotion: false,
   }),
 } as const satisfies Readonly<Record<string, PromotionObservations>>;
 
-const report: AlgebraFrontierReport = freezeDeep({
+const report = decodeAlgebraFrontierReport({
   format: "semantic.algebra-frontier",
   version: 1,
   bounds: {
     maximum_string_code_units: algebraFrontierBounds.maximumStringCodeUnits,
     maximum_statements: algebraFrontierBounds.maximumStatements,
     maximum_runtime_alternatives: algebraFrontierBounds.maximumRuntimeAlternatives,
-    maximum_workbench_capabilities: algebraFrontierBounds.maximumWorkbenchCapabilities,
-    maximum_candidates: algebraFrontierBounds.maximumCandidates,
-    maximum_precedents: algebraFrontierBounds.maximumPrecedents,
+    exact_workbench_capabilities: algebraFrontierBounds.maximumWorkbenchCapabilities,
+    exact_candidates: algebraFrontierBounds.maximumCandidates,
+    exact_precedents: algebraFrontierBounds.maximumPrecedents,
     maximum_unsupported_claims: algebraFrontierBounds.maximumUnsupportedClaims,
   },
   promotion_rule: {
@@ -200,7 +282,7 @@ const report: AlgebraFrontierReport = freezeDeep({
     surface:
       "Requires a lawful userland model, repeated ergonomic demand, and faithful elaboration.",
     kernel:
-      "Requires a lawful model plus an established obstruction to faithful elaboration and a smaller trusted boundary.",
+      "Requires a lawful model, repeated ergonomic demand, an established obstruction to faithful elaboration, and a smaller trusted boundary.",
     runtime:
       "Capabilities belong to realizations and remain orthogonal to source and kernel syntax.",
     blocked:

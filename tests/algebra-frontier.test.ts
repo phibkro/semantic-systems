@@ -6,6 +6,7 @@ import {
   algebraFrontierBounds,
   algebraFrontierReport,
   classifyPromotion,
+  decodeAlgebraFrontierReport,
   type PromotionObservations,
 } from "../src/algebra-frontier/index.ts";
 
@@ -14,6 +15,7 @@ const observations = record({
   repeated_ergonomic_demand: boolean(),
   faithful_surface_elaboration: boolean(),
   kernel_obstruction_established: boolean(),
+  smaller_trusted_boundary_after_promotion: boolean(),
 });
 
 const assertDeeplyFrozen = (value: unknown, seen = new WeakSet<object>()): void => {
@@ -26,15 +28,15 @@ const assertDeeplyFrozen = (value: unknown, seen = new WeakSet<object>()): void 
 describe("user-defined algebra frontier", () => {
   test("emits one bounded schema-valid immutable report", () => {
     const report = algebraFrontierReport();
-    expect(() => Schema.decodeUnknownSync(AlgebraFrontierReportSchema)(report)).not.toThrow();
+    expect(() => decodeAlgebraFrontierReport(report)).not.toThrow();
     assertDeeplyFrozen(report);
     expect(report.bounds).toEqual({
       maximum_string_code_units: algebraFrontierBounds.maximumStringCodeUnits,
       maximum_statements: algebraFrontierBounds.maximumStatements,
       maximum_runtime_alternatives: algebraFrontierBounds.maximumRuntimeAlternatives,
-      maximum_workbench_capabilities: algebraFrontierBounds.maximumWorkbenchCapabilities,
-      maximum_candidates: algebraFrontierBounds.maximumCandidates,
-      maximum_precedents: algebraFrontierBounds.maximumPrecedents,
+      exact_workbench_capabilities: algebraFrontierBounds.maximumWorkbenchCapabilities,
+      exact_candidates: algebraFrontierBounds.maximumCandidates,
+      exact_precedents: algebraFrontierBounds.maximumPrecedents,
       maximum_unsupported_claims: algebraFrontierBounds.maximumUnsupportedClaims,
     });
     expect(report.workbench.map(({ id }) => id)).toEqual([
@@ -56,7 +58,9 @@ describe("user-defined algebra frontier", () => {
         expect(decision.kernel === "candidate").toBe(
           input.lawful_userland_model &&
             !input.faithful_surface_elaboration &&
-            input.kernel_obstruction_established,
+            input.kernel_obstruction_established &&
+            input.repeated_ergonomic_demand &&
+            input.smaller_trusted_boundary_after_promotion,
         );
       }),
     );
@@ -82,6 +86,7 @@ describe("user-defined algebra frontier", () => {
       repeated_ergonomic_demand: true,
       faithful_surface_elaboration: true,
       kernel_obstruction_established: true,
+      smaller_trusted_boundary_after_promotion: true,
     });
     expect(decision).toEqual({
       consistency: "contradictory-elaboration",
@@ -170,6 +175,48 @@ describe("user-defined algebra frontier", () => {
       Schema.decodeUnknownSync(AlgebraFrontierReportSchema)({
         ...report,
         capability_identity: "x".repeat(algebraFrontierBounds.maximumStringCodeUnits + 1),
+      }),
+    ).toThrow();
+  });
+
+  test("strictly decodes only coherent reports with every declared identity once", () => {
+    const report = algebraFrontierReport();
+    assertDeeplyFrozen(decodeAlgebraFrontierReport(report));
+    expect(() => decodeAlgebraFrontierReport({ ...report, extra: true })).toThrow();
+    expect(() =>
+      decodeAlgebraFrontierReport({
+        ...report,
+        workbench: report.workbench.map(() => report.workbench[0]),
+      }),
+    ).toThrow();
+    expect(() =>
+      decodeAlgebraFrontierReport({
+        ...report,
+        candidates: report.candidates.map(() => report.candidates[2]),
+      }),
+    ).toThrow();
+    expect(() =>
+      decodeAlgebraFrontierReport({
+        ...report,
+        precedents: report.precedents.map(() => report.precedents[0]),
+      }),
+    ).toThrow();
+    expect(() =>
+      decodeAlgebraFrontierReport({
+        ...report,
+        candidates: [
+          report.candidates[0],
+          report.candidates[1],
+          {
+            ...report.candidates[2],
+            decision: {
+              consistency: "consistent",
+              userland: "research",
+              surface: "blocked",
+              kernel: "blocked",
+            },
+          },
+        ],
       }),
     ).toThrow();
   });

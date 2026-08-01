@@ -6,6 +6,7 @@ export {
   algebraFrontierBounds,
   algebraFrontierReport,
   classifyPromotion,
+  decodeAlgebraFrontierReport,
   type AlgebraFrontierReport,
   type PromotionDecision,
   type PromotionObservations,

@@ -75,3 +75,7 @@ just accept 0042-user-defined-algebra-frontier
   internal-resumption storability, retain typed abort and exact STM evidence,
   clarify capability vocabulary and workbench ownership, strengthen deep
   freezing and independence tests, and add a second resource realization.
+- 2026-08-01: Opus 5 medium re-review of `5f761786` retained the semantic
+  conclusions but found external contract gaps: exact identity sets and
+  derived decisions were not Schema-enforced, strict excess-field policy was
+  implicit, and the smaller-trusted-boundary kernel gate had no observation.

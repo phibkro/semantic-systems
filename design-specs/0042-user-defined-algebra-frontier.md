@@ -62,13 +62,14 @@ provide a counterexample or proof obligation before promoting a primitive.
 
 ### Semantic inputs
 
-The promotion classifier receives four explicit observations:
+The promotion classifier receives five explicit observations:
 
 ```text
 lawful_userland_model
 repeated_ergonomic_demand
 faithful_surface_elaboration
 kernel_obstruction_established
+smaller_trusted_boundary_after_promotion
 ```
 
 These are claims supplied by research or executable evidence. The classifier
@@ -97,9 +98,11 @@ still requires review; it is not acceptance.
 
 ### Effect protocols and uncertainty
 
-No candidate is promoted to the kernel unless an obstruction to faithful
-elaboration is established. Repeated ergonomic demand can nominate surface
-syntax only after a lawful userland model and a faithful elaboration exist.
+No candidate is promoted to the kernel unless repeated ergonomic demand, an
+obstruction to faithful elaboration, and evidence that promotion shrinks the
+trusted boundary are all established. Repeated ergonomic demand can nominate
+surface syntax only after a lawful userland model and a faithful elaboration
+exist.
 
 The report calls acquire/release a lifecycle or finalization algebra, not an
 inverse algebra. Acquisition can fail, release can fail, and external effects
@@ -128,9 +131,12 @@ ergonomic adoption, and kernel expressiveness remain separate structures.
 
 The report is finite static data. Its exported Schema bounds strings to 2,048
 code units, statement collections to 32, runtime alternatives to 8, and the
-fixed workbench, candidate, and precedent collections to 8, 3, and 2 entries.
+exact workbench, candidate, and precedent collections to 8, 3, and 2 entries.
 Unsupported claims are bounded to 16 entries. The emitted report publishes
-all seven limits alongside the data it constrains.
+the three exact cardinalities separately from its four maxima. The public
+decoder rejects excess fields, duplicate or missing fixed identities, and a
+candidate decision that is not the classifier's derivation of its
+observations.
 The classifier performs no I/O, recursion, search, code generation, or effect
 execution. Arrays and records are deeply frozen before crossing the module
 boundary.
@@ -153,18 +159,21 @@ uncertainties rather than upgrading them to accepted language decisions.
 
 ## Promotion ladder
 
-Every algebra begins in userland. The three promotion thresholds are:
+Every algebra begins in userland. Surface and kernel candidacy are alternative
+promotion branches above that base, not sequential states:
 
 ```text
 userland theory
   requires: signature, equations, interpretation, executable evidence
 
 surface construct
-  additionally requires: repeated ergonomic demand and faithful elaboration
+  requires: lawful userland model, repeated ergonomic demand,
+            and faithful elaboration
 
 kernel primitive
-  additionally requires: an established semantic obstruction to elaboration
-  and a smaller overall trusted boundary after promotion
+  requires: lawful userland model, repeated ergonomic demand,
+            an established semantic obstruction to faithful elaboration,
+            and a smaller overall trusted boundary after promotion
 ```
 
 Runtime primitives are orthogonal. A library effect may need privileged host
