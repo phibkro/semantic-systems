@@ -72,8 +72,10 @@ closure.
 There is one command, one input read, one interpreter invocation, one canonical
 encoding, and at most one stdout write. Existing kernel JSON and evaluation
 bounds remain unchanged. The adapter adds no concurrency, retry, queue,
-background task, network capability, or wider bound. stdin must be rejected as
-a host I/O failure if the host cannot supply a finite byte sequence.
+background task, network capability, or wider bound. A stream longer than the
+raw byte limit is cut after the first over-limit byte and enters the existing
+representation-rejection path; the command never waits for the rest of an
+unbounded stream.
 
 ### Evidence, assumptions, and unsupported claims
 

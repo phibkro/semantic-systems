@@ -65,10 +65,19 @@ const write = (
   Effect.tryPromise({
     try: () =>
       new Promise<void>((resolve, reject) => {
-        stream.write(value, (error?: Error | null) => {
+        let settled = false;
+        const finish = (error: Error | null | undefined, removeErrorListener: boolean): void => {
+          if (settled) return;
+          settled = true;
+          if (removeErrorListener) stream.removeListener("error", onError);
           if (error === undefined || error === null) resolve();
           else reject(error);
-        });
+        };
+        const onError = (error: Error): void => finish(error, false);
+        stream.once("error", onError);
+        stream.write(value, (error?: Error | null) =>
+          finish(error, error === undefined || error === null),
+        );
       }),
     catch: () => hostFailure(operation),
   });

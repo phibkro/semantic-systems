@@ -70,3 +70,10 @@ just accept 0039-kernel-runner-cli
   826-pass repository suite with one intentional oracle skip, 19,982
   assertions, and 68 Python parity checks. Exact clean-head replay remains
   mandatory before review.
+- 2026-08-01: Fable 5 high rejected exact head `5ff3c06`: Node emitted an
+  uncaught stream-error trace and exit 1 when the output consumer closed, while
+  Bun correctly returned the typed exit-2 diagnostic. The stream adapter now
+  observes both callback and emitted errors through one settling promise, and a
+  genuine Bun/Node process journey pins the corrected behavior. The spec also
+  clarifies that over-limit stdin is cut at one excess byte and rejected by the
+  representation authority rather than classified as host I/O failure.

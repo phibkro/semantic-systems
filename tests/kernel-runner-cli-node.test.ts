@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import test from "node:test";
 
 const root = new URL("..", import.meta.url);
@@ -25,6 +25,33 @@ const run = (
     encoding: "buffer",
   });
 };
+
+const runWithClosedStdout = (
+  runtime: "bun" | "node",
+): Promise<{ readonly status: number | null; readonly stderr: string }> =>
+  new Promise((resolve, reject) => {
+    const executable = runtime === "bun" ? "bun" : nodeExecutable;
+    const entry = runtime === "bun" ? "src/kernel-cli/main-bun.ts" : "src/kernel-cli/main-node.ts";
+    const child = spawn(
+      executable,
+      [entry, "run", "examples/kernel-json/pure-program.kernel.json"],
+      { cwd: root, stdio: ["ignore", "pipe", "pipe"] },
+    );
+    let stderr = "";
+    child.stderr.setEncoding("utf8");
+    child.stderr.on("data", (chunk: string) => {
+      stderr += chunk;
+    });
+    const lifecycle = child as unknown as {
+      readonly once: {
+        (event: "error", listener: (error: Error) => void): void;
+        (event: "close", listener: (status: number | null) => void): void;
+      };
+    };
+    lifecycle.once("error", reject);
+    lifecycle.once("close", (status) => resolve({ status, stderr }));
+    child.stdout.destroy();
+  });
 
 test("genuine Node and Bun emit byte-identical canonical file observations", async () => {
   const expected = await readFile(
@@ -66,4 +93,11 @@ test("genuine Node and Bun keep host failures off stdout", () => {
   assert.equal(node.stdout.length, 0);
   assert.equal(bun.stderr.toString(), "semantic-kernel: unable to read input\n");
   assert.deepEqual(node.stderr, bun.stderr);
+});
+
+test("genuine Node and Bun classify a closed output stream without host details", async () => {
+  const [bun, node] = await Promise.all([runWithClosedStdout("bun"), runWithClosedStdout("node")]);
+
+  assert.deepEqual(bun, { status: 2, stderr: "semantic-kernel: unable to write output\n" });
+  assert.deepEqual(node, bun);
 });
