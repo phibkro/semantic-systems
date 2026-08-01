@@ -2,7 +2,7 @@
 
 <!-- Generated. Edit model sources, not this file. -->
 
-Ready parallel work items: **18**.
+Ready parallel work items: **17**.
 
 | Work item | Phase | Status | Ready | Score | Recommendation | Blockers |
 |---|---|---|---:|---:|---|---|
@@ -11,7 +11,7 @@ Ready parallel work items: **18**.
 | Design agent-facing kernel JSON | design | in_progress | yes | 75 | delegate with review |  |
 | Establish the autonomous development control loop | implementation | in_progress | yes | 83 | delegate with review |  |
 | Align Control Room with the pinned Alchemy CLI | validation | in_progress | yes | 84 | delegate with review |  |
-| Render the PBK roadmap as an interactive skill tree | implementation | in_progress | yes | 72 | delegate with review |  |
+| Render the PBK roadmap as an interactive skill tree | implementation | complete | no | 72 | delegate with review |  |
 | Bind Control Room deploy to pinned Alchemy | validation | in_progress | yes | 84 | delegate with review |  |
 | Reconstruct the Control Room on TypeScript and Effect v4 | validation | complete | no | 72 | delegate with review |  |
 | Implement core checker | implementation | planned | yes | 65 | delegate with review |  |

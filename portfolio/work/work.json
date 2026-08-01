@@ -520,7 +520,7 @@
         "kind": "feature",
         "title": "Interactive portfolio skill tree",
         "summary": "Render the PBK dependency roadmap as a clickable skill tree and semantic-zoom Mosaic over one immutable identity set.",
-        "status": "active",
+        "status": "accepted",
         "definition_of_done": [
           "Phone, keyboard, and pointer users can follow exact prerequisite and unlock paths without changing or inventing portfolio truth.",
           "Graph and Mosaic retain one selected identity and expose the existing exact work detail."

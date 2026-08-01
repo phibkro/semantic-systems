@@ -156,6 +156,22 @@
         "evidence_refs": ["artifact.semantic.reachability-receipt-spec"],
         "snapshot_id": null
       }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "receipt",
+      "value": {
+        "id": "receipt.semantic.control-room-skill-tree",
+        "work_id": "work.semantic.control-room-skill-tree",
+        "outcome": "accepted",
+        "commit": "264e34e3685aaccbe10525540105a1b589343e5f",
+        "observed_at": "2026-08-01T01:42:52Z",
+        "evidence_refs": [
+          "artifact.semantic.control-room-skill-tree-spec",
+          "artifact.semantic.control-room-skill-tree-acceptance"
+        ],
+        "snapshot_id": null
+      }
     }
   ]
 }

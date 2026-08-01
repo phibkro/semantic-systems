@@ -180,6 +180,30 @@
         "href": "https://github.com/phibkro/semantic-systems/blob/68417a25f47a9a3f48a8782fae7f598d38a2ccd2/design-specs/0030-reachability-analysis-receipt.md",
         "revision": "68417a25f47a9a3f48a8782fae7f598d38a2ccd2"
       }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "artifact",
+      "value": {
+        "id": "artifact.semantic.control-room-skill-tree-spec",
+        "work_id": "work.semantic.control-room-skill-tree",
+        "kind": "design",
+        "title": "Control Room interactive skill tree contract",
+        "href": "https://github.com/phibkro/semantic-systems/blob/264e34e3685aaccbe10525540105a1b589343e5f/design-specs/0031-control-room-interactive-skill-tree.md",
+        "revision": "264e34e3685aaccbe10525540105a1b589343e5f"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "artifact",
+      "value": {
+        "id": "artifact.semantic.control-room-skill-tree-acceptance",
+        "work_id": "work.semantic.control-room-skill-tree",
+        "kind": "evidence",
+        "title": "Control Room interactive skill tree acceptance gate",
+        "href": "https://github.com/phibkro/semantic-systems/blob/264e34e3685aaccbe10525540105a1b589343e5f/scripts/accept/0031-control-room-interactive-skill-tree.ts",
+        "revision": "264e34e3685aaccbe10525540105a1b589343e5f"
+      }
     }
   ]
 }

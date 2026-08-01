@@ -5,7 +5,7 @@
       "kind": "work_item",
       "name": "Render the PBK roadmap as an interactive skill tree",
       "summary": "Project one deterministic dependency model as a clickable graph, semantic-zoom Mosaic, and equivalent ordered navigation without changing portfolio truth.",
-      "status": "in_progress",
+      "status": "complete",
       "tags": [
         "pbk-technologies",
         "control-room",

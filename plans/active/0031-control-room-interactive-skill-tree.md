@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0031-control-room-interactive-skill-tree.md`](../../design-specs/0031-control-room-interactive-skill-tree.md).
 This execution record cannot redefine that contract.
 
-Status: frozen; implementation and exact acceptance pending
+Status: accepted on exact local head; publication pending
 
 Owner: primary Semantic Systems and PBK Technologies portfolio lead
 
@@ -103,13 +103,28 @@ bun scripts/accept/0031-control-room-interactive-skill-tree.ts
   tests. The frozen contract now requires typed topology rejection, preserved
   source diagnostics, guarded transitions, one visible ordered path, iterative
   bounded layout, and exact feature-owned acceptance artifacts.
+- 2026-08-01: exact implementation head `264e34e` passed 16 focused model,
+  component, and XState tests; 9 phone Chromium journeys including the exact
+  pointer, keyboard, Mosaic, and Axe paths; 703 Bun tests with one intentional
+  optional-oracle skip and 17,601 assertions; 68 Python tests; TypeScript 7;
+  Oxlint; Oxfmt; production builds; public-payload scans; project-model checks;
+  and the canonical full gate in the pinned environment.
+- 2026-08-01: revision-pinned review rejected `7b1a5fd` for a render-time typed
+  failure escape, undirected highlight traversal, missing spoken dependency
+  direction, inherited recursive graph projection, and ambiguous Mosaic
+  relation custody. Corrected head `264e34e` preserves typed projection
+  failure, walks prerequisite and unlock directions independently, speaks the
+  relation, derives the bounded graph iteratively, requires equal traversal
+  declarations, and was approved with no release-relevant findings.
 
-## Open review questions
+## Review disposition
 
-- Does every visual dependency preserve `prerequisite -> dependent` while the
-  authored relation remains `dependent requires prerequisite`?
-- Can focus change information density without changing model membership?
-- Can every canvas journey be completed through ordered HTML controls?
-- Does any rendering adapter gain mutation or semantic authority?
-- Does selected containment remain a valid acyclic milestone-to-feature
-  projection with one semantic identity behind every visual occurrence?
+- Every visual dependency preserves `prerequisite -> dependent` while the
+  authored relation remains `dependent requires prerequisite`.
+- Focus changes information density without changing canonical membership.
+- Pointer and ordered keyboard paths reach the same work detail; dependency
+  direction is visible and spoken.
+- React Flow receives fixed derived values and gains no mutation or semantic
+  authority.
+- Invalid selected containment is a typed roadmap rejection and does not make
+  the surrounding portfolio unavailable.
