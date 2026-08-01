@@ -124,16 +124,18 @@
       "kind": "work_item",
       "name": "Define relational fact export",
       "summary": "Specify stable facts for dependencies, effects, ownership, obligations, evidence, and source correspondence.",
-      "status": "ready",
+      "status": "in_progress",
       "tags": ["analysis", "tooling"],
       "attributes": {
-        "phase": "design",
+        "phase": "implementation",
         "effort": 5,
+        "design_spec": "design-specs/0034-relational-fact-export.md",
+        "plan": "plans/active/0034-relational-fact-export.md",
         "acceptance": [
-          "Facts are derived from canonical artifacts",
-          "Recursive queries cannot mutate canonical state",
-          "Schema evolution and provenance are explicit",
-          "At least one impact and one evidence query are demonstrated"
+          "Versioned facts are derived from one validated canonical project graph and remain explicitly non-authoritative",
+          "Every immutable fact has deterministic ordering and exact repository-relative source provenance",
+          "Recursive impact and evidence queries are bounded, validate their export bytes, and cannot mutate canonical state",
+          "Schema evolution, incomplete depth observations, and typed resource-limit failures remain explicit"
         ],
         "delegation": {
           "specification_completeness": 5,
