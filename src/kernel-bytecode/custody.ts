@@ -5,7 +5,11 @@ import type {
   ObservableComputationType,
   ObservableValueType,
 } from "../kernel-interpreter/schema.ts";
-import { createCheckedProgramGraphCompiler, type BytecodeCompilationFailure } from "./compiler.ts";
+import {
+  createCheckedProgramGraphCompiler,
+  type BytecodeCompilationFailure,
+  type CheckedProgramGraphCompiler,
+} from "./compiler.ts";
 import type { Constant, Instruction, InstructionGraph } from "./instruction.ts";
 import type { KernelBytecodeBounds } from "./schema.ts";
 import {
@@ -13,6 +17,7 @@ import {
   createInstructionGraphExecutor,
   type BytecodeVmError,
   type BytecodeVmOutcome,
+  type InstructionGraphExecutor,
 } from "./vm.ts";
 
 interface CompiledProgram {
@@ -29,8 +34,8 @@ export interface CompiledProgramProjection {
 export interface CompiledGraphAudit {
   readonly allObjectsFrozen: boolean;
   readonly sourceIdentityOverlap: boolean;
-  readonly forbiddenFields: ReadonlyArray<string>;
-  readonly serializedGraph: string;
+  readonly forbiddenSourceVocabularyAbsent: boolean;
+  readonly resolvedVmSlotObserved: boolean;
 }
 
 export type CompiledPerturbation = "opcode" | "branch" | "slot";
@@ -165,8 +170,17 @@ const snapshotGraph = (graph: InstructionGraph): InstructionGraph =>
     constants: graph.constants.map(snapshotConstant),
   });
 
-const compileGraph = createCheckedProgramGraphCompiler(runtimeAuthority);
-const runGraph = createInstructionGraphExecutor(runtimeAuthority);
+let memoizedCompiler: CheckedProgramGraphCompiler | undefined;
+const compileGraph: CheckedProgramGraphCompiler = (program, bounds) => {
+  const compiler = (memoizedCompiler ??= createCheckedProgramGraphCompiler(runtimeAuthority));
+  return compiler(program, bounds);
+};
+
+let memoizedExecutor: InstructionGraphExecutor | undefined;
+const runGraph: InstructionGraphExecutor = (graph, bounds) => {
+  const executor = (memoizedExecutor ??= createInstructionGraphExecutor(runtimeAuthority));
+  return executor(graph, bounds);
+};
 
 const collectObjects = (value: unknown, found = new Set<object>()): ReadonlySet<object> => {
   if (typeof value !== "object" || value === null || found.has(value)) return found;
@@ -359,16 +373,30 @@ export const createControlledCompiledTestHarness = (): ControlledCompiledTestHar
         const graph = runtime.inspect(compiled);
         if (graph === undefined) return Effect.die("test compiler minted foreign custody");
         const objects = collectObjects(graph);
+        const forbiddenSourceFields = new Set([
+          "tag",
+          "distance",
+          "derivation",
+          "parameter_type",
+          "resumption_distance",
+        ]);
+        const forbiddenSourceValues = new Set(["bound-value"]);
         return Effect.succeed(
           Object.freeze({
             allObjectsFrozen: [...objects].every(Object.isFrozen),
             sourceIdentityOverlap: [...objects].some((object) => sourceObjects.has(object)),
-            forbiddenFields: Object.freeze(
-              [...objects].flatMap((object) =>
-                ["tag", "distance", "derivation"].filter((key) => Object.hasOwn(object, key)),
+            forbiddenSourceVocabularyAbsent: [...objects].every((object) =>
+              Object.entries(object).every(
+                ([field, value]) =>
+                  !forbiddenSourceFields.has(field) &&
+                  !(typeof value === "string" && forbiddenSourceValues.has(value)),
               ),
             ),
-            serializedGraph: JSON.stringify(graph),
+            resolvedVmSlotObserved: graph.blocks.some((block) =>
+              block.instructions.some(
+                (instruction) => instruction.kind === "BindSlot" || instruction.kind === "LoadSlot",
+              ),
+            ),
           }),
         );
       }),

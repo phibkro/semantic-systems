@@ -70,6 +70,23 @@ const collectObjects = (value: unknown, found = new Set<object>()): ReadonlySet<
 };
 
 describe("baseline bytecode architecture and custody", () => {
+  test("compiler and VM modules initialize when imported as isolated roots", () => {
+    for (const module of ["compiler.ts", "vm.ts"]) {
+      const imported = Bun.spawnSync({
+        cmd: [
+          process.execPath,
+          "-e",
+          `await import(${JSON.stringify(resolve(root, "src/kernel-bytecode", module))})`,
+        ],
+        cwd: root,
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      expect(new TextDecoder().decode(imported.stderr)).toBe("");
+      expect(imported.exitCode).toBe(0);
+    }
+  });
+
   test("the compiled backend cannot transitively reach the reference machine", async () => {
     const closure = await relativeImportClosure(resolve(root, "src/kernel-bytecode/index.ts"));
     const relativePaths = [...closure].map((path) => path.slice(root.length + 1));
@@ -92,11 +109,8 @@ describe("baseline bytecode architecture and custody", () => {
     );
     expect(audit.sourceIdentityOverlap).toBeFalse();
     expect(audit.allObjectsFrozen).toBeTrue();
-    expect(audit.forbiddenFields).toEqual([]);
-    expect(audit.serializedGraph).not.toContain("bound-value");
-    expect(audit.serializedGraph).not.toContain("parameter_type");
-    expect(audit.serializedGraph).not.toContain("resumption_distance");
-    expect(audit.serializedGraph).toContain('"slot":');
+    expect(audit.forbiddenSourceVocabularyAbsent).toBeTrue();
+    expect(audit.resolvedVmSlotObserved).toBeTrue();
   });
 
   test("structural lookalikes and foreign closure custody cannot execute", () => {
