@@ -573,6 +573,14 @@ const interpret = (
             "transfer source does not own the resource",
           );
         }
+        if (event.from_scope === event.to_scope) {
+          return failure(
+            "resource.transfer-same-scope",
+            eventIndex,
+            `/events/${eventIndex}/to_scope`,
+            "transfer target must differ from its source scope",
+          );
+        }
         const source = scopes.get(event.from_scope);
         const target = scopes.get(event.to_scope);
         if (source === undefined || source.state !== "open") {

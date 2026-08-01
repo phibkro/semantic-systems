@@ -5,7 +5,7 @@
       "kind": "work_item",
       "name": "Establish resource lifecycle handler laws",
       "summary": "Execute a bounded affine cleanup model with explicit transfer, reverse finalization, child-scope blocking, and honest scripted outcomes before promoting syntax or kernel machinery.",
-      "status": "in_progress",
+      "status": "complete",
       "tags": ["language", "algebra", "resources", "effects", "affine"],
       "attributes": {
         "phase": "implementation",

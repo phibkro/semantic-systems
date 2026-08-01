@@ -137,6 +137,15 @@ describe("user-defined algebra frontier", () => {
     const resources = algebraFrontierReport().candidates.find(
       ({ id }) => id === "resource-lifecycle",
     )!;
+    expect(resources.decision).toEqual({
+      consistency: "consistent",
+      userland: "available",
+      surface: "defer",
+      kernel: "defer",
+    });
+    expect(resources.observation_basis).toContain(
+      "the executable 0044 bounded law tracer supplies a resource lifecycle userland model",
+    );
     expect(resources.operations).toContain("with_acquire");
     expect(resources.non_laws).toContain("release is not a mathematical inverse of acquire");
     expect(resources.open_obligations).toContain(

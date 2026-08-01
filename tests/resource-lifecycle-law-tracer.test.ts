@@ -221,7 +221,7 @@ describe("resource lifecycle law tracer", () => {
     );
   });
 
-  test("rejects double cleanup, transfer after cleanup, closed targets, and closed-scope use", () => {
+  test("rejects double cleanup, same-owner transfer, closed targets, and closed-scope use", () => {
     expect(
       reject([
         acquire("one", "root", "one"),
@@ -236,6 +236,12 @@ describe("resource lifecycle law tracer", () => {
         { tag: "transfer", resource: "one", from_scope: "root", to_scope: "root" },
       ]).code,
     ).toBe("resource.already-finalized");
+    expect(
+      reject([
+        acquire("live", "root", "live"),
+        { tag: "transfer", resource: "live", from_scope: "root", to_scope: "root" },
+      ]).code,
+    ).toBe("resource.transfer-same-scope");
     expect(
       reject([
         { tag: "open_scope", scope: "child", parent: "root" },

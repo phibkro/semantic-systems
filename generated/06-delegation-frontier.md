@@ -2,7 +2,7 @@
 
 <!-- Generated. Edit model sources, not this file. -->
 
-Ready parallel work items: **21**.
+Ready parallel work items: **20**.
 
 | Work item | Phase | Status | Ready | Score | Recommendation | Blockers |
 |---|---|---|---:|---:|---|---|
@@ -38,12 +38,12 @@ Ready parallel work items: **21**.
 | Define relational fact export | implementation | complete | no | 94 | delegate directly |  |
 | Execute a reproducible closure action and record its observation | implementation | complete | no | 87 | delegate with review |  |
 | Recut the independent resolution checker | design | complete | no | 83 | delegate with review |  |
-| Establish resource lifecycle handler laws | implementation | in_progress | yes | 87 | delegate with review |  |
+| Establish resource lifecycle handler laws | implementation | complete | no | 87 | delegate with review |  |
 | Establish the semantic artifact store tracer | implementation | complete | no | 87 | delegate with review |  |
 | Specify semantic attestation profile | design | ready | no | 87 | delegate with review | Define normalized theory identity |
 | Assemble a semantic runtime-closure manifest | implementation | complete | no | 87 | delegate with review |  |
 | Establish the Semantic surface language | implementation | in_progress | yes | 87 | delegate with review |  |
-| Specify STM effect and handler laws | research | in_progress | no | 49 | bounded spike | Define the user algebra promotion frontier |
+| Specify STM effect and handler laws | research | in_progress | yes | 49 | bounded spike |  |
 | Model-check STM interleavings | validation | planned | no | 94 | delegate with review | Implement minimal STM runtime |
 | Implement minimal STM runtime | implementation | planned | no | 68 | delegate with review | Specify STM effect and handler laws |
 | Drive readable Semantic effects from a command | implementation | in_progress | yes | 94 | delegate with review |  |
@@ -51,5 +51,5 @@ Ready parallel work items: **21**.
 | Run readable Semantic source from a command | implementation | in_progress | yes | 94 | delegate with review |  |
 | Define normalized theory identity | design | in_progress | yes | 41 | bounded spike |  |
 | Specify translation-validation seams | research | planned | yes | 45 | bounded spike |  |
-| Define the user algebra promotion frontier | research | in_progress | yes | 72 | delegate with review |  |
+| Define the user algebra promotion frontier | research | complete | no | 72 | delegate with review |  |
 | Research semantic contracts to WIT mapping | research | planned | yes | 86 | delegate directly |  |
