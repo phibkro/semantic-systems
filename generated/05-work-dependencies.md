@@ -39,6 +39,7 @@ flowchart LR
     work_reachability_analysis_receipt["Derive a declared reachability analysis receipt"]
     work_relational_fact_schema["Define relational fact export"]
     work_reproducible_action_observation_receipt["Execute a reproducible closure action and record its observation"]
+    work_resource_lifecycle_effect_projection["Project resource cleanup through affine surface effects"]
     work_resource_lifecycle_law_tracer["Establish resource lifecycle handler laws"]
     work_semantic_artifact_store["Establish the semantic artifact store tracer"]
     work_semantic_attestation_profile["Specify semantic attestation profile"]
@@ -81,6 +82,9 @@ flowchart LR
     work_deterministic_simulator_spec -->|blocks| work_stm_laws
     work_explorer_query_contract -->|informs| work_relational_fact_schema
     work_reproducible_action_observation_receipt -->|requires| work_semantic_runtime_closure_manifest
+    work_resource_lifecycle_effect_projection -->|requires| work_resource_lifecycle_law_tracer
+    work_resource_lifecycle_effect_projection -->|requires| work_surface_effect_replay
+    work_resource_lifecycle_effect_projection -->|informs| work_user_defined_algebra_frontier
     work_resource_lifecycle_law_tracer -->|requires| work_user_defined_algebra_frontier
     work_semantic_artifact_store -->|requires| work_normalized_core_format
     work_semantic_runtime_closure_manifest -->|requires| work_reachability_analysis_receipt

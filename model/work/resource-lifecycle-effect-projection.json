@@ -1,0 +1,67 @@
+{
+  "entities": [
+    {
+      "id": "work.resource-lifecycle-effect-projection",
+      "kind": "work_item",
+      "name": "Project resource cleanup through affine surface effects",
+      "summary": "Translate accepted resource events into readable effects and grade-1 cleanup thunks, then compare affine transfer and finalization traces without moving lifecycle authority into the kernel.",
+      "status": "in_progress",
+      "tags": ["language", "surface", "effects", "resources", "interpreter", "bytecode"],
+      "attributes": {
+        "phase": "design",
+        "effort": 5,
+        "design_spec": "design-specs/0045-resource-lifecycle-effect-projection.md",
+        "plan": "plans/active/0045-resource-lifecycle-effect-projection.md",
+        "acceptance": [
+          "Every accepted raw event is recoverable from one surface effect request",
+          "The 0044 tracer remains lifecycle law authority",
+          "Transfer consumes the current cleanup binder into one fresh affine binder",
+          "Cleanup request order and multiplicity agree with 0044 finalization observations",
+          "Reference and bytecode affine replays agree as canonical observations",
+          "All projection and generated-depth limits reject without truncation",
+          "Strict report revalidation rejects forged derived evidence",
+          "No result claims that unit acknowledgements are real resource effects"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 5,
+          "testability": 5,
+          "reversibility": 5,
+          "integration_independence": 4,
+          "blast_radius": 3,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source": "work.resource-lifecycle-effect-projection",
+      "target": "work.resource-lifecycle-law-tracer",
+      "kind": "requires",
+      "summary": "The accepted tracer supplies strict input capture and the only lifecycle-law authority.",
+      "attributes": {}
+    },
+    {
+      "source": "work.resource-lifecycle-effect-projection",
+      "target": "work.surface-effect-replay",
+      "kind": "requires",
+      "summary": "The accepted readable-source composition supplies independent reference and bytecode affine traces.",
+      "attributes": {}
+    },
+    {
+      "source": "work.resource-lifecycle-effect-projection",
+      "target": "work.user-defined-algebra-frontier",
+      "kind": "informs",
+      "summary": "Executable projection evidence narrows the remaining resource question without claiming faithful scoped elaboration or a kernel obstruction.",
+      "attributes": {}
+    },
+    {
+      "source": "work.resource-lifecycle-effect-projection",
+      "target": "component.kernel",
+      "kind": "informs",
+      "summary": "Supplies bounded evidence about what existing affine kernel machinery can reflect without changing kernel syntax or lifecycle authority.",
+      "attributes": {}
+    }
+  ]
+}
