@@ -1,6 +1,7 @@
 /** Lexical owner of compiled graph construction, custody, inspection, and execution. */
 import { Effect } from "effect";
 import type { CheckedProgram } from "../kernel-calculus/checker.ts";
+import type { ExternalObservationValue } from "../kernel-execution/external-observations.ts";
 import type {
   ObservableComputationType,
   ObservableValueType,
@@ -14,10 +15,12 @@ import type { Constant, Instruction, InstructionGraph } from "./instruction.ts";
 import type { KernelBytecodeBounds } from "./schema.ts";
 import {
   BytecodeVmFailure,
-  createInstructionGraphExecutor,
+  createInstructionGraphRuntime,
+  type BytecodeExternalSuspension,
   type BytecodeVmError,
   type BytecodeVmOutcome,
-  type InstructionGraphExecutor,
+  type BytecodeVmResumeFailure,
+  type InstructionGraphRuntime,
 } from "./vm.ts";
 
 interface CompiledProgram {
@@ -176,12 +179,6 @@ const compileGraph: CheckedProgramGraphCompiler = (program, bounds) => {
   return compiler(program, bounds);
 };
 
-let memoizedExecutor: InstructionGraphExecutor | undefined;
-const runGraph: InstructionGraphExecutor = (graph, bounds) => {
-  const executor = (memoizedExecutor ??= createInstructionGraphExecutor(runtimeAuthority));
-  return executor(graph, bounds);
-};
-
 const collectObjects = (value: unknown, found = new Set<object>()): ReadonlySet<object> => {
   if (typeof value !== "object" || value === null || found.has(value)) return found;
   found.add(value);
@@ -253,6 +250,11 @@ interface RuntimeCustody {
     program: CompiledProgram,
     bounds: KernelBytecodeBounds,
   ) => Effect.Effect<BytecodeVmOutcome, BytecodeVmError>;
+  readonly resume: (
+    token: BytecodeExternalSuspension,
+    observation: ExternalObservationValue,
+    bounds: KernelBytecodeBounds,
+  ) => Effect.Effect<BytecodeVmOutcome, BytecodeVmResumeFailure>;
   readonly inspect: (program: CompiledProgram) => InstructionGraph | undefined;
   readonly mint: (graph: InstructionGraph) => CompiledProgram;
   readonly project: (program: CompiledProgram) => CompiledProgramProjection | undefined;
@@ -261,6 +263,9 @@ interface RuntimeCustody {
 const createRuntimeCustody = (): RuntimeCustody => {
   const known = new WeakSet<object>();
   const graphs = new WeakMap<object, InstructionGraph>();
+  let graphRuntime: InstructionGraphRuntime | undefined;
+  const runtime = (): InstructionGraphRuntime =>
+    (graphRuntime ??= createInstructionGraphRuntime(runtimeAuthority));
   class CompiledProgramImpl implements CompiledProgram {
     readonly format = "semantic.kernel-bytecode/process-local/v1" as const;
     constructor(graph: InstructionGraph) {
@@ -286,12 +291,13 @@ const createRuntimeCustody = (): RuntimeCustody => {
             message: "execution requires a compiled program in private custody",
           }),
         )
-      : runGraph(graph, bounds);
+      : runtime().execute(graph, bounds);
   };
   return {
     mint,
     inspect,
     execute,
+    resume: (token, observation, bounds) => runtime().resume(token, observation, bounds),
     compile: (program, bounds) => Effect.map(compileGraph(program, bounds), mint),
     project: (program) => {
       const graph = inspect(program);
@@ -322,6 +328,13 @@ export const compileAndExecuteCheckedProgram = (
     production.execute(compiled, bounds),
   );
 
+export const resumeCompiledExternalSuspension = (
+  token: BytecodeExternalSuspension,
+  observation: ExternalObservationValue,
+  bounds: KernelBytecodeBounds,
+): Effect.Effect<BytecodeVmOutcome, BytecodeVmResumeFailure> =>
+  production.resume(token, observation, bounds);
+
 export interface ControlledCompiledTestHarness {
   readonly compileAndProject: (
     program: CheckedProgram,
@@ -337,6 +350,11 @@ export interface ControlledCompiledTestHarness {
     bounds: KernelBytecodeBounds,
     perturbation: CompiledPerturbation,
   ) => Effect.Effect<BytecodeVmOutcome, BytecodeCompilationFailure | BytecodeVmError>;
+  readonly resumeExternal: (
+    token: BytecodeExternalSuspension,
+    observation: ExternalObservationValue,
+    bounds: KernelBytecodeBounds,
+  ) => Effect.Effect<BytecodeVmOutcome, BytecodeVmResumeFailure>;
   readonly observeForged: (
     bounds: KernelBytecodeBounds,
   ) => Effect.Effect<BytecodeVmOutcome, BytecodeVmError>;
@@ -409,6 +427,7 @@ export const createControlledCompiledTestHarness = (): ControlledCompiledTestHar
           ? Effect.die("perturbation did not select an instruction")
           : runtime.execute(runtime.mint(changed), bounds);
       }),
+    resumeExternal: runtime.resume,
     observeForged: (bounds) =>
       runtime.execute({ format: "semantic.kernel-bytecode/process-local/v1" }, bounds),
     observeForeign: (bounds) => {

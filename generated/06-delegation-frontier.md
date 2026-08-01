@@ -2,7 +2,7 @@
 
 <!-- Generated. Edit model sources, not this file. -->
 
-Ready parallel work items: **15**.
+Ready parallel work items: **16**.
 
 | Work item | Phase | Status | Ready | Score | Recommendation | Blockers |
 |---|---|---|---:|---:|---|---|
@@ -30,6 +30,7 @@ Ready parallel work items: **15**.
 | Specify Lean evidence adapter | research | planned | yes | 60 | delegate with review |  |
 | Design lossless incremental frontend | design | planned | yes | 75 | delegate with review |  |
 | Specify normalized core artifact | validation | complete | no | 45 | bounded spike |  |
+| Replay external effects through affine continuations | implementation | in_progress | yes | 72 | delegate with review |  |
 | Implement package and evidence resolver | implementation | in_progress | no | 72 | delegate with review | Define normalized theory identity |
 | Build PBK Technologies portfolio Control Room | implementation | in_progress | yes | 72 | delegate with review |  |
 | Derive a declared reachability analysis receipt | implementation | complete | no | 87 | delegate with review |  |

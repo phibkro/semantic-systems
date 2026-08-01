@@ -88,7 +88,7 @@ export interface KernelRunObservation {
 const GradeSchema = Schema.Literals(["0", "1", "omega"]);
 const IntegerSchema = Schema.Finite.pipe(Schema.check(Schema.isInt()));
 
-const ObservableValueTypeSchema: Schema.Codec<ObservableValueType> = Schema.suspend(() =>
+export const ObservableValueTypeSchema: Schema.Codec<ObservableValueType> = Schema.suspend(() =>
   Schema.Union([
     Schema.Struct({ kind: Schema.Literals(["unit", "bool", "int"]) }),
     Schema.Struct({
@@ -104,8 +104,8 @@ const ObservableValueTypeSchema: Schema.Codec<ObservableValueType> = Schema.susp
   ]),
 );
 
-const ObservableComputationTypeSchema: Schema.Codec<ObservableComputationType> = Schema.suspend(
-  () =>
+export const ObservableComputationTypeSchema: Schema.Codec<ObservableComputationType> =
+  Schema.suspend(() =>
     Schema.Union([
       Schema.Struct({
         kind: Schema.Literal("return"),
@@ -120,19 +120,20 @@ const ObservableComputationTypeSchema: Schema.Codec<ObservableComputationType> =
         result: ObservableComputationTypeSchema,
       }),
     ]),
-);
+  );
 
-const ObservableRuntimeValueSchema: Schema.Codec<ObservableRuntimeValue> = Schema.suspend(() =>
-  Schema.Union([
-    Schema.Struct({ kind: Schema.Literals(["unit", "thunk"]) }),
-    Schema.Struct({ kind: Schema.Literal("bool"), value: Schema.Boolean }),
-    Schema.Struct({ kind: Schema.Literal("int"), value: IntegerSchema }),
-    Schema.Struct({
-      kind: Schema.Literal("pair"),
-      first: ObservableRuntimeValueSchema,
-      second: ObservableRuntimeValueSchema,
-    }),
-  ]),
+export const ObservableRuntimeValueSchema: Schema.Codec<ObservableRuntimeValue> = Schema.suspend(
+  () =>
+    Schema.Union([
+      Schema.Struct({ kind: Schema.Literals(["unit", "thunk"]) }),
+      Schema.Struct({ kind: Schema.Literal("bool"), value: Schema.Boolean }),
+      Schema.Struct({ kind: Schema.Literal("int"), value: IntegerSchema }),
+      Schema.Struct({
+        kind: Schema.Literal("pair"),
+        first: ObservableRuntimeValueSchema,
+        second: ObservableRuntimeValueSchema,
+      }),
+    ]),
 );
 
 const KernelRejectedCheckObservationSchema = Schema.declare<KernelRejectedCheckObservation>(
@@ -162,7 +163,7 @@ const PortableDiagnosticFactSchema = Schema.declare<CanonicalJsonValue>(
   { identifier: "PortableDiagnosticFact" },
 );
 
-const RuntimeDiagnosticSchema = Schema.Struct({
+export const ObservableRuntimeDiagnosticSchema = Schema.Struct({
   code: Schema.String,
   occurrence_path: Schema.String,
   message: Schema.String,
@@ -170,44 +171,48 @@ const RuntimeDiagnosticSchema = Schema.Struct({
   actual: Schema.optionalKey(PortableDiagnosticFactSchema),
 });
 
+export const ObservableOperationRequestSchema = Schema.Struct({
+  label: Schema.String,
+  operation: Schema.String,
+  argument: ObservableRuntimeValueSchema,
+  result_type: ObservableValueTypeSchema,
+});
+
+export const KernelRunResultSchema: Schema.Codec<KernelRunResult> = Schema.Union([
+  Schema.Struct({
+    tag: Schema.Literal("representation-rejected"),
+    diagnostics: Schema.Array(RepresentationDiagnosticSchema),
+  }),
+  Schema.Struct({
+    tag: Schema.Literal("check-rejected"),
+    check: KernelRejectedCheckObservationSchema,
+  }),
+  Schema.Struct({
+    tag: Schema.Literal("returned"),
+    value: Schema.Union([
+      ObservableRuntimeValueSchema,
+      Schema.Struct({ kind: Schema.Literal("function") }),
+    ]),
+  }),
+  Schema.Struct({
+    tag: Schema.Literal("suspended"),
+    request: ObservableOperationRequestSchema,
+  }),
+  Schema.Struct({
+    tag: Schema.Literal("runtime-rejected"),
+    diagnostic: ObservableRuntimeDiagnosticSchema,
+  }),
+  Schema.Struct({
+    tag: Schema.Literal("inconclusive"),
+    reason: Schema.Literals(["fuel", "trace"]),
+  }),
+]);
+
 const KernelRunObservationShapeSchema = Schema.Struct({
   format: Schema.Literal("semantic.kernel-run"),
   version: Schema.Literal(1),
   kernel: Schema.Literal("semantic.kernel-calculus/0018/v1"),
-  observation: Schema.Union([
-    Schema.Struct({
-      tag: Schema.Literal("representation-rejected"),
-      diagnostics: Schema.Array(RepresentationDiagnosticSchema),
-    }),
-    Schema.Struct({
-      tag: Schema.Literal("check-rejected"),
-      check: KernelRejectedCheckObservationSchema,
-    }),
-    Schema.Struct({
-      tag: Schema.Literal("returned"),
-      value: Schema.Union([
-        ObservableRuntimeValueSchema,
-        Schema.Struct({ kind: Schema.Literal("function") }),
-      ]),
-    }),
-    Schema.Struct({
-      tag: Schema.Literal("suspended"),
-      request: Schema.Struct({
-        label: Schema.String,
-        operation: Schema.String,
-        argument: ObservableRuntimeValueSchema,
-        result_type: ObservableValueTypeSchema,
-      }),
-    }),
-    Schema.Struct({
-      tag: Schema.Literal("runtime-rejected"),
-      diagnostic: RuntimeDiagnosticSchema,
-    }),
-    Schema.Struct({
-      tag: Schema.Literal("inconclusive"),
-      reason: Schema.Literals(["fuel", "trace"]),
-    }),
-  ]),
+  observation: KernelRunResultSchema,
 });
 
 export const isKernelRunObservation = (input: unknown): input is KernelRunObservation => {

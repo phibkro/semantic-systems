@@ -1,0 +1,58 @@
+{
+  "entities": [
+    {
+      "id": "work.one-shot-external-effect-replay",
+      "kind": "work_item",
+      "name": "Replay external effects through affine continuations",
+      "summary": "Drive strict first-order observation scripts through the reference interpreter and independent bytecode VM while retaining opaque one-shot continuation custody and exact differential request traces.",
+      "status": "in_progress",
+      "tags": ["language", "kernel", "effects", "interpreter", "bytecode", "property-testing"],
+      "attributes": {
+        "phase": "implementation",
+        "effort": 8,
+        "design_spec": "design-specs/0037-one-shot-external-effect-replay.md",
+        "plan": "plans/active/0037-one-shot-external-effect-replay.md",
+        "acceptance": [
+          "Strict bounded observation scripts drive multiple external requests in order",
+          "Reference and compiled continuations remain opaque process-local and one-shot",
+          "Every request, provided observation, applied observation, and final result remains explicit",
+          "Wrong-type, thunk-valued, forged, foreign, and duplicate resume attempts reject visibly",
+          "Conclusive reference and compiled effect-run observations agree as exact canonical bytes",
+          "Existing first-suspension kernel-run observations remain byte-identical"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 4,
+          "testability": 5,
+          "reversibility": 4,
+          "integration_independence": 3,
+          "blast_radius": 4,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source": "work.one-shot-external-effect-replay",
+      "target": "work.kernel-reference-interpreter",
+      "kind": "requires",
+      "summary": "The reference machine supplies the accepted semantic oracle and existing one-shot external token.",
+      "attributes": {}
+    },
+    {
+      "source": "work.one-shot-external-effect-replay",
+      "target": "work.baseline-bytecode-backend",
+      "kind": "requires",
+      "summary": "The independent VM must retain and resume its own continuation without calling the reference machine.",
+      "attributes": {}
+    },
+    {
+      "source": "work.one-shot-external-effect-replay",
+      "target": "component.kernel",
+      "kind": "implements",
+      "summary": "Adds a bounded request/observation interpretation journey over the kernel's existing affine effect semantics.",
+      "attributes": {}
+    }
+  ]
+}

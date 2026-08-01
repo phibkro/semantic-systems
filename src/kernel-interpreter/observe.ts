@@ -1,12 +1,25 @@
 import {
   defaultEvaluationBounds,
   evaluate,
+  resume,
+  runtimeBool,
+  runtimeInt,
+  runtimePair,
+  runtimeUnit,
+  type ExternalSuspension,
   type ComputationType,
   type EvaluationBounds,
   type EvaluationResult,
   type RuntimeValue,
   type ValueType,
 } from "../kernel-calculus/index.ts";
+import {
+  decodeExternalObservationScript,
+  driveExternalObservations,
+  type ExternalEffectStep,
+  type ExternalObservationValue,
+  type KernelEffectRunObservation,
+} from "../kernel-execution/external-observations.ts";
 import { defaultKernelJsonRawBounds, type KernelJsonRawBounds } from "../kernel-json/index.ts";
 import {
   kernelRunEnvelope,
@@ -157,6 +170,36 @@ const projectEvaluation = (result: EvaluationResult): KernelRunObservation => {
   }
 };
 
+const externalRuntimeValue = (value: ExternalObservationValue): RuntimeValue => {
+  switch (value.kind) {
+    case "unit":
+      return runtimeUnit();
+    case "bool":
+      return runtimeBool(value.value);
+    case "int":
+      return runtimeInt(value.value);
+    case "pair":
+      return runtimePair(externalRuntimeValue(value.first), externalRuntimeValue(value.second));
+  }
+};
+
+const externalStep = (result: EvaluationResult): ExternalEffectStep<ExternalSuspension> => {
+  const observation = projectEvaluation(result).observation;
+  return result.status === "suspended"
+    ? {
+        status: "suspended",
+        request: observation.tag === "suspended" ? observation.request : neverSuspended(),
+        token: result.oneShotToken,
+      }
+    : result.status === "returned"
+      ? { status: "returned", result: observation }
+      : { status: "terminal", result: observation };
+};
+
+const neverSuspended = (): never => {
+  throw new Error("suspended evaluation did not project to a suspended observation");
+};
+
 /**
  * Reference, deliberately unoptimized bytes-to-observation interpreter.
  * Representation, checking, and execution stay in their owning modules.
@@ -173,4 +216,35 @@ export const interpretKernelJsonBytes = (
       onSuccess: (checked) => projectEvaluation(evaluate(checked.program, evaluationBounds)),
     }),
   );
+};
+
+/** Drives a strict bounded observation script through the reference machine. */
+export const interpretKernelJsonBytesWithObservationScript = (
+  input: unknown,
+  scriptInput: unknown,
+  bounds: KernelInterpreterBounds = defaultKernelInterpreterBounds,
+): KernelEffectRunObservation => {
+  const decodedScript = decodeExternalObservationScript(scriptInput);
+  if (decodedScript.status === "rejected") return decodedScript.observation;
+  const jsonBounds = readBoundField(bounds, "json");
+  const evaluationBounds = narrowEvaluationBounds(readBoundField(bounds, "evaluation"));
+  const program = Effect.matchEffect(prepareKernelJsonBytes(input, jsonBounds), {
+    onFailure: (failure) =>
+      driveExternalObservations(
+        { status: "terminal", result: failure.observation.observation },
+        decodedScript.value,
+        () => Effect.die("preparation rejection has no suspension"),
+      ),
+    onSuccess: (checked) =>
+      driveExternalObservations(
+        externalStep(evaluate(checked.program, evaluationBounds)),
+        decodedScript.value,
+        (token, value) =>
+          Effect.succeed({
+            applied: true,
+            step: externalStep(resume(token, externalRuntimeValue(value), evaluationBounds)),
+          }),
+      ),
+  });
+  return Effect.runSync(program);
 };
