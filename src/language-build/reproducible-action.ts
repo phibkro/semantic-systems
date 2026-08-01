@@ -6,12 +6,7 @@
  * performs no host or deployment effects.
  */
 import { Crypto, Data, Effect, Match, Schema } from "effect";
-import {
-  canonicalBytes,
-  scanJson,
-  trustedUint8ArrayCopy,
-  type CanonicalJsonValue,
-} from "../normalized-core/canonical.ts";
+import { canonicalBytes, scanJson, type CanonicalJsonValue } from "../normalized-core/canonical.ts";
 import type { Identity } from "../normalized-core/index.ts";
 import {
   type RuntimeClosureManifest,
@@ -305,6 +300,35 @@ const snapshotReceiptBytes = (
       }),
   });
 
+const snapshotSha256Digest = (
+  phase: ReproducibleActionDigestFailure["phase"],
+  input: unknown,
+): Effect.Effect<Uint8Array, ReproducibleActionDigestFailure> =>
+  Effect.try({
+    try: () => {
+      if (
+        typedArrayTag === undefined ||
+        typedArrayLength === undefined ||
+        typedArrayTag.call(input) !== "Uint8Array"
+      ) {
+        throw new TypeError("digest observation must be a Uint8Array");
+      }
+      const length = typedArrayLength.call(input) as number;
+      if (length !== 32) {
+        throw new RangeError(`digest observation contains ${length} bytes rather than 32`);
+      }
+      const output = new Uint8Array(32);
+      Uint8Array.prototype.set.call(output, input as Uint8Array);
+      return output;
+    },
+    catch: (cause) =>
+      new ReproducibleActionDigestFailure({
+        phase,
+        message: `invalid SHA-256 digest observation for reproducible action ${phase} identity`,
+        cause,
+      }),
+  });
+
 const decodeReceiptBytes = (
   input: unknown,
 ): Effect.Effect<PreparedReceipt, ReproducibleActionReceiptRejected> =>
@@ -396,14 +420,7 @@ const deriveIdentity = (
           }),
       ),
     );
-    const trustedDigest = trustedUint8ArrayCopy(digest);
-    if (trustedDigest === undefined || trustedDigest.byteLength !== 32) {
-      return yield* new ReproducibleActionDigestFailure({
-        phase,
-        message: `invalid SHA-256 digest length for reproducible action ${phase} identity`,
-        cause: { expectedBytes: 32, actualBytes: trustedDigest?.byteLength },
-      });
-    }
+    const trustedDigest = yield* snapshotSha256Digest(phase, digest);
     return `sha256:${toHex(trustedDigest)}` as Identity;
   });
 

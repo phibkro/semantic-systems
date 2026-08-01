@@ -502,4 +502,38 @@ describe("reproducible action/observation receipt", () => {
       throw new Error("recipe identity must fail with ReproducibleActionDigestFailure");
     }
   });
+
+  test("rejects an oversized digest observation through the typed identity phase", async () => {
+    const fixture = await run(createFixture());
+    const recipeDomain = new TextEncoder().encode("semantic.language-build/action-recipe/v1");
+    const oversizedDigest = new Uint8Array(reproducibleActionBounds.maximumBytes + 1);
+    const crypto = Crypto.make({
+      digest: (_algorithm, bytes) => {
+        const isRecipe =
+          bytes.byteLength > recipeDomain.byteLength &&
+          recipeDomain.every((byte, index) => bytes[index] === byte) &&
+          bytes[recipeDomain.byteLength] === 0;
+        return Effect.succeed(
+          isRecipe ? oversizedDigest : new Bun.CryptoHasher("sha256").update(bytes).digest(),
+        );
+      },
+      randomBytes: (size) => new Uint8Array(size),
+    });
+    const result = await Effect.runPromise(
+      executeReproducibleAction(
+        fixture.snapshotJson,
+        fixture.closureBytes,
+        recipe({ kind: "closure.member-count" }),
+        environment([countCapability]),
+      ).pipe(Effect.provideService(Crypto.Crypto, crypto), Effect.result),
+    );
+
+    expect(Result.isFailure(result)).toBeTrue();
+    if (Result.isFailure(result) && result.failure instanceof ReproducibleActionDigestFailure) {
+      expect(result.failure.phase).toBe("recipe");
+      expect(result.failure.message).toContain("invalid SHA-256 digest observation");
+    } else {
+      throw new Error("oversized recipe digest must fail with ReproducibleActionDigestFailure");
+    }
+  });
 });
