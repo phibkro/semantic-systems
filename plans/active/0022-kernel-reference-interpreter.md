@@ -142,18 +142,16 @@ Exact feature acceptance and independent review remain before integration.
     the fact-boundary contract forbids. Such keys now reject outright, with
     hostile-proxy counterexamples (phantom tail key, at-length boundary
     key) committed alongside the existing sparse-array rejection;
-  - assessed, unchanged: the review note that `isKernelRunObservation`
-    performs two live walks (one Effect Schema walk, one `canonicalBytes`
-    walk). No exact contract failure could be stated: the interpreter only
-    produces deeply frozen inert observations, for which both walks see
-    identical data, and both public canonical encoders already snapshot
-    through `toPortableFact` first and validate that one snapshot, so no
-    custody path validates one view and encodes another. For a hostile
-    accessor-backed input, a boolean JS predicate cannot freeze its
-    argument: even a single-walk guard is invalidated by ordinary post-call
-    mutation, and snapshotting inside the guard would make it answer about
-    a value the caller never receives. Collapsing the walks would therefore
-    buy no caller-visible guarantee; the guard stays as is.
+  - assessed at this slice, then disproved by post-0025 exact-head review:
+    `isKernelRunObservation` performed a shape walk while the canonical
+    encoders separately snapshotted the whole observation. Interpreter-produced
+    observations are deeply frozen and never triggered the disagreement, but
+    the public guard and encoders did not accept the same caller-supplied set:
+    an alias shared between `expected` and `actual` passed two independent fact
+    predicates and then failed the whole-observation snapshot, while a valid
+    0020 check observation above the projector's ad hoc 10,000-object ceiling
+    passed the guard and failed both encoders. The later correction below
+    replaces this assessment with executable counterexamples.
 - 2026-07-31 (correction slice 0025): the 0024 residual — an accepted
   observation whose open diagnostic-fact record keys were inserted out of
   code-point order failing its own canonical byte decode with
@@ -178,3 +176,22 @@ Exact feature acceptance and independent review remain before integration.
   open fact records into null-prototype records, preserving every permitted
   string key as inert data. A focused value-decode, canonical-byte-decode, and
   byte-identical re-encode regression covers the exact counterexample.
+- 2026-08-02 (post-0025 interpreter custody correction): exact-head static
+  review returned `READY` for `a162f70ea663b7025a990e210e93e053753cbfd7`,
+  while identifying caller-facing guard/encoder set disagreement and several
+  custody gaps. Both disagreements were reproduced before correction: a
+  cross-field alias made the guard return true while both encoders threw, and
+  an independently decoded 0020 check observation with more than 10,000
+  object/array nodes made the guard return true while both encoders threw.
+  `snapshotKernelRunObservation` now owns one strict whole-observation
+  projection used by the public guard and both encoders. Its node and depth
+  budget is derived from the frozen 0020 observation budget plus the two
+  `semantic.kernel-run` wrapper records; individual runtime facts use the
+  existing 0020 observation limits instead of an undocumented narrower
+  10,000-node/64-depth ceiling. The public index no longer exports the
+  test-only `toPortableFact` seam. The architecture test scans all four
+  interpreter modules for ambient authority, and the 0020 acceptance gate
+  explicitly holds the generated type-mismatch input document. The own
+  `__proto__` regression now covers object, scalar, and null values. Focused
+  evidence after correction: 68 Bun tests / 5,658 expectations, TypeScript,
+  and strict Oxlint pass.

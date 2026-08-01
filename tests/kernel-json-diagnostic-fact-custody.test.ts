@@ -397,29 +397,34 @@ describe("the open fact vocabulary outside the reserved shapes is preserved", ()
     expect(decoded.status).toBe("decoded");
   });
 
-  test("an own __proto__ fact key survives value and canonical-byte decoding", () => {
-    const expected = JSON.parse('{"__proto__":{"nested":null}}') as Record<string, unknown>;
-    const decoded = decodeKernelCheckObservationValue(
-      rejectedObservation(diagnosticWith({ expected })),
-    );
-    expect(decoded.status).toBe("decoded");
-    if (decoded.status !== "decoded") return;
-    const observation = decoded.value.observation;
-    if (observation.tag !== "rejected") throw new Error("unreachable");
-    const decodedExpected = observation.diagnostics[0]?.expected as Record<string, unknown>;
-    expect(Object.hasOwn(decodedExpected, "__proto__")).toBe(true);
-    expect(Object.keys(decodedExpected)).toEqual(["__proto__"]);
-    expect(decodedExpected["__proto__"]).toEqual({ nested: null });
+  test("an own __proto__ fact key survives for every JSON value kind", () => {
+    for (const value of [{ nested: null }, 1, null]) {
+      const expected = JSON.parse(`{"__proto__":${JSON.stringify(value)}}`) as Record<
+        string,
+        unknown
+      >;
+      const decoded = decodeKernelCheckObservationValue(
+        rejectedObservation(diagnosticWith({ expected })),
+      );
+      expect(decoded.status).toBe("decoded");
+      if (decoded.status !== "decoded") continue;
+      const observation = decoded.value.observation;
+      if (observation.tag !== "rejected") throw new Error("unreachable");
+      const decodedExpected = observation.diagnostics[0]?.expected as Record<string, unknown>;
+      expect(Object.hasOwn(decodedExpected, "__proto__")).toBe(true);
+      expect(Object.keys(decodedExpected)).toEqual(["__proto__"]);
+      expect(decodedExpected["__proto__"]).toEqual(value);
 
-    const canonical = encodeCanonicalKernelCheckObservation(decoded.value);
-    const byteDecoded = decodeKernelCheckObservationBytes(canonical);
-    expect(byteDecoded.status).toBe("decoded");
-    if (byteDecoded.status !== "decoded") return;
-    const byteObservation = byteDecoded.value.observation;
-    if (byteObservation.tag !== "rejected") throw new Error("unreachable");
-    const byteExpected = byteObservation.diagnostics[0]?.expected as Record<string, unknown>;
-    expect(Object.hasOwn(byteExpected, "__proto__")).toBe(true);
-    expect(byteExpected["__proto__"]).toEqual({ nested: null });
-    expect(encodeCanonicalKernelCheckObservation(byteDecoded.value)).toEqual(canonical);
+      const canonical = encodeCanonicalKernelCheckObservation(decoded.value);
+      const byteDecoded = decodeKernelCheckObservationBytes(canonical);
+      expect(byteDecoded.status).toBe("decoded");
+      if (byteDecoded.status !== "decoded") continue;
+      const byteObservation = byteDecoded.value.observation;
+      if (byteObservation.tag !== "rejected") throw new Error("unreachable");
+      const byteExpected = byteObservation.diagnostics[0]?.expected as Record<string, unknown>;
+      expect(Object.hasOwn(byteExpected, "__proto__")).toBe(true);
+      expect(byteExpected["__proto__"]).toEqual(value);
+      expect(encodeCanonicalKernelCheckObservation(byteDecoded.value)).toEqual(canonical);
+    }
   });
 });

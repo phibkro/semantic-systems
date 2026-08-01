@@ -7,7 +7,7 @@ import {
   type KernelCheckObservation,
   type KernelJsonDiagnostic,
 } from "../kernel-json/index.ts";
-import { toPortableFact } from "./portable-fact.ts";
+import { toPortableFact, toPortableKernelRunObservation } from "./portable-fact.ts";
 
 export type ObservableValueType =
   | { readonly kind: "unit" | "bool" | "int" }
@@ -210,23 +210,28 @@ const KernelRunObservationShapeSchema = Schema.Struct({
   ]),
 });
 
-export const isKernelRunObservation = (input: unknown): input is KernelRunObservation => {
+export const snapshotKernelRunObservation = (input: unknown): KernelRunObservation | undefined => {
+  const snapshot = toPortableKernelRunObservation(input);
   if (
+    snapshot === undefined ||
     Exit.isFailure(
       Schema.decodeUnknownExit(KernelRunObservationShapeSchema, {
         onExcessProperty: "error",
-      })(input),
+      })(snapshot),
     )
   ) {
-    return false;
+    return undefined;
   }
   try {
-    canonicalBytes(input as CanonicalJsonValue);
-    return true;
+    canonicalBytes(snapshot);
+    return snapshot as unknown as KernelRunObservation;
   } catch {
-    return false;
+    return undefined;
   }
 };
+
+export const isKernelRunObservation = (input: unknown): input is KernelRunObservation =>
+  snapshotKernelRunObservation(input) !== undefined;
 
 export const KernelRunObservationSchema = Schema.declare<KernelRunObservation>(
   isKernelRunObservation,

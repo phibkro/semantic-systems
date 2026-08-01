@@ -244,3 +244,9 @@ failure is not a warning.
   removes a host-object collision rather than changing semantics. The
   regression proves the own key and nested value survive value decoding,
   canonical encoding, byte decoding, and byte-identical re-encoding.
+- 2026-08-02 (interpreter review custody follow-up): the own `__proto__`
+  regression now exercises object, scalar, and null values, pinning ordinary
+  own-property materialization rather than only the prototype-mutation
+  variant. The 0020 acceptance artifact list now also holds
+  `rejected-type-mismatch.kernel.json`, the generated input consumed by the
+  0022 Bun and genuine-Node corpora.

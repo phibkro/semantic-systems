@@ -1,9 +1,24 @@
 import type { CanonicalJsonValue } from "../normalized-core/canonical.ts";
+import { defaultKernelCheckEnvelopeBounds } from "../kernel-json/bounds.ts";
 
-const MAXIMUM_FACT_NODES = 10_000;
-const MAXIMUM_FACT_DEPTH = 64;
+interface ProjectionBounds {
+  readonly maximumNodes: number;
+  readonly maximumDepth: number;
+}
 
-interface FactInspection {
+const FACT_PROJECTION_BOUNDS: ProjectionBounds = Object.freeze({
+  maximumNodes: defaultKernelCheckEnvelopeBounds.maximumObservationNodes,
+  maximumDepth: defaultKernelCheckEnvelopeBounds.maximumObservationDepth,
+});
+
+// A run observation adds exactly the top-level envelope and tagged-result
+// record around its largest nested 0020 check observation.
+const RUN_OBSERVATION_PROJECTION_BOUNDS: ProjectionBounds = Object.freeze({
+  maximumNodes: defaultKernelCheckEnvelopeBounds.maximumObservationNodes + 2,
+  maximumDepth: defaultKernelCheckEnvelopeBounds.maximumObservationDepth + 2,
+});
+
+interface FactInspection extends ProjectionBounds {
   readonly seen: WeakSet<object>;
   nodes: number;
 }
@@ -105,7 +120,7 @@ const project = (
   if (typeof input === "boolean" || typeof input === "string") return input;
   if (typeof input === "number") return Number.isSafeInteger(input) ? input : undefined;
   if (typeof input !== "object") return undefined; // undefined, function, bigint, symbol
-  if (depth > MAXIMUM_FACT_DEPTH) return undefined;
+  if (depth > inspection.maximumDepth) return undefined;
   // Persistent for the whole projection, never released once visited: this
   // rejects a true cycle and a non-cyclic alias (the same reference reached
   // twice through different paths) alike. A cycle-only guard that releases
@@ -113,7 +128,7 @@ const project = (
   // as an indistinguishable duplicate, which is exactly the earlier defect.
   if (inspection.seen.has(input)) return undefined;
   inspection.nodes += 1;
-  if (inspection.nodes > MAXIMUM_FACT_NODES) return undefined;
+  if (inspection.nodes > inspection.maximumNodes) return undefined;
   inspection.seen.add(input);
   return Array.isArray(input)
     ? projectArray(input, inspection, depth)
@@ -143,10 +158,28 @@ const project = (
  * caught here and rejected the same way as any other non-representable
  * shape, rather than escaping as a host error.
  */
-export const toPortableFact = (input: unknown): CanonicalJsonValue | undefined => {
+const projectPortable = (
+  input: unknown,
+  bounds: ProjectionBounds,
+): CanonicalJsonValue | undefined => {
   try {
-    return project(input, { seen: new WeakSet(), nodes: 0 }, 0);
+    return project(
+      input,
+      {
+        seen: new WeakSet(),
+        nodes: 0,
+        maximumNodes: bounds.maximumNodes,
+        maximumDepth: bounds.maximumDepth,
+      },
+      0,
+    );
   } catch {
     return undefined;
   }
 };
+
+export const toPortableFact = (input: unknown): CanonicalJsonValue | undefined =>
+  projectPortable(input, FACT_PROJECTION_BOUNDS);
+
+export const toPortableKernelRunObservation = (input: unknown): CanonicalJsonValue | undefined =>
+  projectPortable(input, RUN_OBSERVATION_PROJECTION_BOUNDS);

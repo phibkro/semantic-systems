@@ -5,11 +5,12 @@ import {
   encodeCanonicalKernelRunObservation,
   interpretKernelJsonBytes,
   isKernelRunObservation,
-  toPortableFact,
   type KernelRunObservation,
 } from "../src/kernel-interpreter/index.ts";
+import { toPortableFact } from "../src/kernel-interpreter/portable-fact.ts";
 import {
   checkKernelDocument,
+  decodeKernelCheckObservationValue,
   decodeKernelDocumentBytes,
   defaultKernelJsonRawBounds,
 } from "../src/kernel-json/index.ts";
@@ -245,22 +246,26 @@ const assertRunObservationCustody = (observation: KernelRunObservation): void =>
 
 describe("kernel reference interpreter examples", () => {
   test("the composition boundary keeps ambient authority and unchecked evaluation out", async () => {
-    const source = await Bun.file(
-      new URL("../src/kernel-interpreter/observe.ts", import.meta.url),
-    ).text();
-    for (const forbidden of [
-      "JSON.parse",
-      'from "node:',
-      "Bun.",
-      "process.",
-      "Math.random",
-      "fetch(",
-      "console.",
-    ]) {
-      expect(source).not.toContain(forbidden);
+    const [indexSource, observationSource, portableFactSource, schemaSource] = await Promise.all(
+      ["index.ts", "observe.ts", "portable-fact.ts", "schema.ts"].map((name) =>
+        Bun.file(new URL(`../src/kernel-interpreter/${name}`, import.meta.url)).text(),
+      ),
+    );
+    for (const source of [indexSource, observationSource, portableFactSource, schemaSource]) {
+      for (const forbidden of [
+        "JSON.parse",
+        'from "node:',
+        "Bun.",
+        "process.",
+        "Math.random",
+        "fetch(",
+        "console.",
+      ]) {
+        expect(source).not.toContain(forbidden);
+      }
     }
-    expect(source).toContain("evaluate(checked.program");
-    expect(source).not.toContain("evaluate(projected.value");
+    expect(observationSource).toContain("evaluate(checked.program");
+    expect(observationSource).not.toContain("evaluate(projected.value");
   });
 
   test("selected observations equal the portable golden bytes", async () => {
@@ -866,6 +871,78 @@ describe("the public schema boundary rejects the same hostile facts as toPortabl
       expect(() => encodeCanonicalKernelRunObservation(observation)).not.toThrow();
       expect(() => canonicalKernelRunObservationJson(observation)).not.toThrow();
     }
+  });
+
+  test("the guard and canonical encoders reject an alias shared between expected and actual", () => {
+    const shared = { nested: null };
+    const observation = {
+      format: "semantic.kernel-run",
+      version: 1,
+      kernel: "semantic.kernel-calculus/0018/v1",
+      observation: {
+        tag: "runtime-rejected",
+        diagnostic: {
+          code: "interpreter.example",
+          occurrence_path: "/program",
+          message: "m",
+          expected: shared,
+          actual: shared,
+        },
+      },
+    } as never;
+
+    expect(isKernelRunObservation(observation)).toBe(false);
+    expect(() => encodeCanonicalKernelRunObservation(observation)).toThrow();
+    expect(() => canonicalKernelRunObservationJson(observation)).toThrow();
+  });
+
+  test("the guard and canonical encoders accept a 0020-bounded observation above the old fact ceiling", async () => {
+    const source = new Uint8Array(
+      await Bun.file(
+        new URL("../examples/kernel-json/rejected-type-mismatch.kernel.json", import.meta.url),
+      ).arrayBuffer(),
+    );
+    const base = interpretKernelJsonBytes(source);
+    expect(base.observation.tag).toBe("check-rejected");
+    if (base.observation.tag !== "check-rejected") return;
+    const diagnostic = base.observation.check.observation.diagnostics[0];
+    if (
+      diagnostic === undefined ||
+      typeof diagnostic.expected !== "object" ||
+      diagnostic.expected === null ||
+      typeof diagnostic.actual !== "object" ||
+      diagnostic.actual === null
+    ) {
+      throw new Error("expected a rejected-check diagnostic with type facts");
+    }
+    const expectedType = diagnostic.expected as Readonly<Record<string, unknown>>;
+    const actualType = diagnostic.actual as Readonly<Record<string, unknown>>;
+    const check = {
+      ...base.observation.check,
+      observation: {
+        ...base.observation.check.observation,
+        diagnostics: Array.from({ length: 100 }, () => ({
+          ...diagnostic,
+          expected: {
+            type: { ...expectedType },
+            payload: Array.from({ length: 100 }, () => [0]),
+          },
+          actual: {
+            type: { ...actualType },
+            payload: Array.from({ length: 100 }, () => [0]),
+          },
+        })),
+      },
+    };
+    expect(decodeKernelCheckObservationValue(check).status).toBe("decoded");
+    const observation = {
+      ...base,
+      observation: { tag: "check-rejected", check },
+    } as unknown as KernelRunObservation;
+
+    expect(isKernelRunObservation(observation)).toBe(true);
+    expect(() => encodeCanonicalKernelRunObservation(observation)).not.toThrow();
+    expect(() => canonicalKernelRunObservationJson(observation)).not.toThrow();
   });
 
   test("an observation entirely omitting expected/actual remains valid: absence is not an invalid present value", () => {
