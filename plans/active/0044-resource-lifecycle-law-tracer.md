@@ -63,5 +63,9 @@ bun scripts/accept/0044-resource-lifecycle-law-tracer.ts
   local lifecycle law tracer or region elaboration.
 - 2026-08-01: the contract deliberately models scripted outcomes and cleanup
   ownership before choosing syntax, runtime capabilities, or kernel forms.
+- 2026-08-01: independent contract review removed unsupported handle-use and
+  escape claims, made live resources explicit for scripts that leave scopes
+  open, defined transfer as appending to the target cleanup order, and scoped
+  exit completeness to resources owned at the accepted exit.
 - 2026-08-01: no provider, network, deployment, external resource, or adjacent
   repository effect occurred during contract freeze.
