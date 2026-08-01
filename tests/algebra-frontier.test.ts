@@ -158,6 +158,15 @@ describe("user-defined algebra frontier", () => {
     const concurrency = report.candidates.find(({ id }) => id === "structured-concurrency")!;
     const resources = report.candidates.find(({ id }) => id === "resource-lifecycle")!;
     expect(concurrency.laws).toContain("ordinary scheduling consumes one-shot continuations");
+    expect(concurrency.decision).toEqual({
+      consistency: "consistent",
+      userland: "available",
+      surface: "defer",
+      kernel: "defer",
+    });
+    expect(concurrency.observation_basis).toContain(
+      "the executable 0047 bounded comparison supplies a structured-concurrency userland law model",
+    );
     expect(resources.laws).toContain(
       "parent cleanup waits until owned children can no longer use the resource",
     );

@@ -1,0 +1,51 @@
+{
+  "entities": [
+    {
+      "id": "work.structured-concurrency-law-tracer",
+      "kind": "work_item",
+      "name": "Establish bounded structured-concurrency laws",
+      "summary": "Compare a pure finite task/scope oracle with a scoped Effect v4 realization under explicit one-shot dispatch, cancellation delivery, ownership transfer, join, and exit semantics.",
+      "status": "complete",
+      "tags": ["language", "algebra", "concurrency", "effects", "structured-concurrency"],
+      "attributes": {
+        "phase": "implementation",
+        "effort": 5,
+        "design_spec": "design-specs/0047-structured-concurrency-law-tracer.md",
+        "plan": "plans/active/0047-structured-concurrency-law-tracer.md",
+        "acceptance": [
+          "Every live task has exactly one open owning scope unless explicitly transferred",
+          "Every dispatch is explicit and consumes exactly one finite task step",
+          "Cancellation request is idempotent and distinct from cancellation delivery",
+          "Join observes blocked progress or one stable terminal outcome",
+          "Scope exit requests cancellation and waits for owned live tasks and open child scopes",
+          "Pure and Effect v4 observations compare exactly without claiming production or kernel equivalence"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 5,
+          "testability": 5,
+          "reversibility": 5,
+          "integration_independence": 4,
+          "blast_radius": 3,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source": "work.structured-concurrency-law-tracer",
+      "target": "work.user-defined-algebra-frontier",
+      "kind": "requires",
+      "summary": "The tracer discharges the bounded userland-law-model obligation selected by the algebra promotion frontier.",
+      "attributes": {}
+    },
+    {
+      "source": "work.structured-concurrency-law-tracer",
+      "target": "component.runtime",
+      "kind": "informs",
+      "summary": "The comparison constrains later task executors without selecting production scheduler or kernel machinery.",
+      "attributes": {}
+    }
+  ]
+}

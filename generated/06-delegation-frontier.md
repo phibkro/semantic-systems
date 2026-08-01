@@ -48,6 +48,7 @@ Ready parallel work items: **20**.
 | Specify STM effect and handler laws | research | in_progress | yes | 49 | bounded spike |  |
 | Model-check STM interleavings | validation | planned | no | 94 | delegate with review | Implement minimal STM runtime |
 | Implement minimal STM runtime | implementation | planned | no | 68 | delegate with review | Specify STM effect and handler laws |
+| Establish bounded structured-concurrency laws | implementation | complete | no | 87 | delegate with review |  |
 | Drive readable Semantic effects from a command | implementation | in_progress | yes | 94 | delegate with review |  |
 | Replay external effects from readable Semantic source | implementation | in_progress | yes | 87 | delegate with review |  |
 | Run readable Semantic source from a command | implementation | in_progress | yes | 94 | delegate with review |  |
