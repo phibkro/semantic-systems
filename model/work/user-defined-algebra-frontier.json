@@ -1,0 +1,66 @@
+{
+  "entities": [
+    {
+      "id": "work.user-defined-algebra-frontier",
+      "kind": "work_item",
+      "name": "Define the user algebra promotion frontier",
+      "summary": "Separate library theory, surface ergonomics, kernel necessity, and runtime capabilities for resource, concurrency, and STM algebras.",
+      "status": "in_progress",
+      "tags": ["language", "theory", "algebra", "effects", "resources", "concurrency", "stm"],
+      "attributes": {
+        "phase": "research",
+        "effort": 5,
+        "design_spec": "design-specs/0042-user-defined-algebra-frontier.md",
+        "plan": "plans/active/0042-user-defined-algebra-frontier.md",
+        "decision": "decisions/0007-algebra-promotion-ladder.md",
+        "acceptance": [
+          "Promotion decisions keep userland, surface, kernel, and runtime layers distinct",
+          "Users receive an explicit minimum workbench for authoring and discovering algebras",
+          "Resource lifecycle laws distinguish finalization from mathematical inversion",
+          "Structured concurrency uses one-shot continuations and scope-owned children",
+          "STM retains both owner-actor and shared-memory realization paths",
+          "Kernel promotion requires an established elaboration obstruction"
+        ],
+        "delegation": {
+          "specification_completeness": 4,
+          "context_locality": 4,
+          "testability": 5,
+          "reversibility": 5,
+          "integration_independence": 3,
+          "blast_radius": 4,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source": "work.user-defined-algebra-frontier",
+      "target": "work.kernel-spec",
+      "kind": "requires",
+      "summary": "The accepted kernel is the elaboration target whose sufficiency must be tested.",
+      "attributes": {}
+    },
+    {
+      "source": "work.user-defined-algebra-frontier",
+      "target": "work.semantic-surface-language",
+      "kind": "requires",
+      "summary": "The accepted surface compiler provides the current syntax and elaboration baseline.",
+      "attributes": {}
+    },
+    {
+      "source": "work.stm-laws",
+      "target": "work.user-defined-algebra-frontier",
+      "kind": "blocks",
+      "summary": "STM promotion waits for explicit concurrency, resource, and runtime-substrate classification.",
+      "attributes": {}
+    },
+    {
+      "source": "work.user-defined-algebra-frontier",
+      "target": "decision.stm-library",
+      "kind": "informs",
+      "summary": "Alternative runtime realizations and promotion gates inform the STM library decision.",
+      "attributes": {}
+    }
+  ]
+}
