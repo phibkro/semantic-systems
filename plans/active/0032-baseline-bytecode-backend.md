@@ -63,7 +63,9 @@ shell programs.
 - Compare exact canonical 0022 bytes through the frozen
   `agreement | mismatch | inconclusive` comparator, inspecting nested
   `.observation.tag` before bytes.
-- Preserve seed, path, and minimized canonical bytes for every mismatch.
+- Preserve seed, path, and minimized canonical bytes for every generated source
+  mismatch. Keep injected graph perturbations as direct, small named fixtures
+  without fabricating a generator shrink history.
 - Evaluate existing repository scaffolds and dependencies before hand-writing;
   record reused patterns and license provenance for any upstream technique.
 
@@ -83,8 +85,8 @@ shell programs.
 7. Add grammar-directed valid generation and deliberate invalid mutations with
    explicit coverage counters.
 8. Add explicit differential classification, equal fuel/trace inconclusive
-   rejection, and internal opcode/branch/slot perturbations with replayable
-   shrinking.
+   rejection, generated-source shrinking, and direct named
+   opcode/branch/slot perturbation counterexamples.
 9. Add genuine Node/Bun byte parity and committed minimized fixtures.
 10. Reobserve the current 0018, 0020, and 0022 seams directly, then run 0032 and
     the full repository gate at one clean head. Preserve their accepted receipts

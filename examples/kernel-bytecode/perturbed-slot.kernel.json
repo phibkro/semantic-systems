@@ -1,0 +1,24 @@
+{
+  "format": "semantic.kernel-bytecode-counterexample",
+  "kernel_document": {
+    "format": "semantic.kernel-json",
+    "kernel": "semantic.kernel-calculus/0018/v1",
+    "program": {
+      "body": {
+        "body": {
+          "grade": "1",
+          "tag": "return",
+          "value": { "distance": 0, "tag": "bound-value" }
+        },
+        "bound": { "grade": "1", "tag": "return", "value": { "tag": "int", "value": 2 } },
+        "tag": "let"
+      },
+      "bound": { "grade": "1", "tag": "return", "value": { "tag": "int", "value": 1 } },
+      "tag": "let"
+    },
+    "signature": [],
+    "version": 1
+  },
+  "mutation": "slot",
+  "version": 1
+}

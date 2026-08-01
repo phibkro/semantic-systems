@@ -333,11 +333,13 @@ invalid-constructor corpus visited raw `resumption`; they do not prove all
 programs were generated. Differential properties observe agreement over valid
 and deliberately invalid cases. Test-only compiler adapters must independently
 replace one opcode, redirect one branch target, and substitute one resolved slot
-inside genuine compiled custody. Each perturbation must produce a minimized
-mismatch. Changing only the outward `KernelRunObservation` is not a sufficient
-perturbation test. Bun and genuine Node must produce byte-identical compiled
-observations, reference observations, and minimized fixtures over the selected
-corpus.
+inside genuine compiled custody. Each perturbation must be detected against a
+small named canonical mismatch fixture. These injected graph probes are direct
+counterexamples, not generated source cases, and therefore do not claim a
+fast-check shrink path. Changing only the outward `KernelRunObservation` is not
+a sufficient perturbation test. Bun and genuine Node must produce byte-identical
+compiled observations, reference observations, and selected fixtures over the
+selected corpus.
 
 This evidence does not prove compiler correctness, type soundness, progress,
 termination without bounds, performance, or a stable bytecode representation.
@@ -402,9 +404,9 @@ tag `agreement`.
 - Byte-identical fuel/fuel and trace/trace inconclusive pairs are classified as
   inconclusive, not agreement.
 - Test-only compiler perturbations that replace an opcode, redirect a branch,
-  or substitute a resolved slot are each found and shrunk to a replayable
-  mismatch; the perturbation adapter is private to compiler tests and an outward
-  observation wrapper is not used.
+  or substitute a resolved slot are each detected against a small named
+  canonical mismatch; the perturbation adapter is private to compiler tests and
+  an outward observation wrapper is not used.
 - Compiled-custody inspection finds no source term, source binder distance,
   derivation, or source-object identity.
 - Forged, mutated, proxy-backed, or foreign compiled values cannot execute.
@@ -436,8 +438,9 @@ Feature 0032 is accepted when:
 8. the deterministic valid corpus covers every semantically admissible
    term/type constructor and grade position, while invalid-constructor coverage
    pins raw `resumption` to `resumption.escape`;
-9. internal opcode, branch, and resolved-slot perturbations are each detected,
-   shrunk, and persisted with seed and path;
+9. internal opcode, branch, and resolved-slot perturbations are each detected
+   against a small persisted canonical mismatch fixture, without claiming a
+   generated shrink path for an injected graph mutation;
 10. configured byte, compile, graph, stack, fuel, trace, generation, and shrink
     bounds are enforced without ambient effects or host exceptions;
 11. Bun and genuine Node emit byte-identical selected observations and fixtures;
@@ -481,6 +484,15 @@ semantics are stable.
   resumptions at grades `0` or `1`; repeated sequential handling composes fresh
   one-shot handler installations rather than cloning a consumed continuation.
 - A proof of compiler correctness, type soundness, progress, or preservation.
+
+Any future multi-shot extension must be a separate, explicit capability rather
+than a reinterpretation of grade `1`. Its contract must expose finite budgets
+for continuation copies, retained continuation bytes, and execution fuel; make
+their consumption observable; and reject admission when required budgets are
+absent. The compiler and runtime must never silently promote an affine
+continuation to a cloneable one. An intentionally unbounded host capability, if
+ever offered, must remain visibly distinct from ordinary language execution and
+must report a high-resource warning before it runs.
 
 ## Semantic diff
 

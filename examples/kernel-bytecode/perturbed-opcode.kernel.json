@@ -1,0 +1,12 @@
+{
+  "format": "semantic.kernel-bytecode-counterexample",
+  "kernel_document": {
+    "format": "semantic.kernel-json",
+    "kernel": "semantic.kernel-calculus/0018/v1",
+    "program": { "grade": "1", "tag": "return", "value": { "tag": "bool", "value": true } },
+    "signature": [],
+    "version": 1
+  },
+  "mutation": "opcode",
+  "version": 1
+}

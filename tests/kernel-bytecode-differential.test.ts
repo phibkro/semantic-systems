@@ -1,8 +1,21 @@
 import { describe, expect, test } from "bun:test";
 import * as fc from "fast-check";
+import { Effect, Schema } from "effect";
+import { compileCheckedProgram } from "../src/kernel-bytecode/compiler.ts";
 import { compareKernelRunObservations } from "../src/kernel-bytecode/differential.ts";
-import { runCompiledKernelJsonBytes } from "../src/kernel-bytecode/index.ts";
-import { interpretKernelJsonBytes } from "../src/kernel-interpreter/index.ts";
+import {
+  defaultKernelBytecodeBackendBounds,
+  runCompiledKernelJsonBytes,
+} from "../src/kernel-bytecode/index.ts";
+import { perturbCompiledProgramForTest } from "../src/kernel-bytecode/testing.ts";
+import { executeCompiledProgram } from "../src/kernel-bytecode/vm.ts";
+import { kernelRunEnvelope, prepareKernelJsonBytes } from "../src/kernel-execution/prepare.ts";
+import {
+  encodeCanonicalKernelRunObservation,
+  interpretKernelJsonBytes,
+  type KernelRunObservation,
+} from "../src/kernel-interpreter/index.ts";
+import { decodeKernelDocumentValue } from "../src/kernel-json/index.ts";
 
 type Grade = "0" | "1" | "omega";
 
@@ -322,4 +335,165 @@ describe("baseline bytecode fixed-seed differential corpus", () => {
       expect(coverage.get(key) ?? 0).toBeGreaterThan(0);
     }
   });
+});
+
+const checkDiagnosticCode = (observation: KernelRunObservation): string | undefined =>
+  observation.observation.tag === "representation-rejected"
+    ? observation.observation.diagnostics[0]?.code
+    : observation.observation.tag === "check-rejected"
+      ? observation.observation.check.observation.diagnostics[0]?.code
+      : undefined;
+
+describe("single-boundary invalid differential corpus", () => {
+  test("representation, scope, type, effect, affine, and raw-resumption rejections stay exact", async () => {
+    const handled = {
+      tag: "handle",
+      label: "generated",
+      computation: {
+        tag: "operation",
+        grade: "1",
+        label: "generated",
+        operation: "choose",
+        argument: { tag: "unit" },
+      },
+      return_clause: {
+        body: {
+          tag: "return",
+          grade: "1",
+          value: { tag: "bound-value", distance: 0 },
+        },
+      },
+      operation_clauses: [
+        {
+          operation: "choose",
+          body: {
+            tag: "resume",
+            resumption_distance: 0,
+            value: { tag: "int", value: 7 },
+          },
+        },
+      ],
+    };
+    const doubleResume = await Bun.file(
+      new URL("../examples/kernel-json/rejected-double-resume.kernel.json", import.meta.url),
+    ).json();
+    const cases = [
+      {
+        boundary: "representation",
+        expectedCode: "decode.excess-property",
+        source: { ...document({ tag: "return", grade: "1", value: { tag: "unit" } }), extra: true },
+      },
+      {
+        boundary: "scope",
+        expectedCode: "scope.variable-out-of-range",
+        source: document({
+          tag: "return",
+          grade: "1",
+          value: { tag: "bound-value", distance: 0 },
+        }),
+      },
+      {
+        boundary: "type",
+        expectedCode: "type.argument-mismatch",
+        source: document({
+          tag: "apply",
+          computation: {
+            tag: "lambda",
+            parameter_type: { tag: "bool" },
+            grade: "1",
+            body: { tag: "return", grade: "1", value: { tag: "unit" } },
+          },
+          argument: { tag: "int", value: 1 },
+        }),
+      },
+      {
+        boundary: "effect",
+        expectedCode: "handler.label-unknown",
+        source: document({ ...handled, label: "missing" }, operationSignature),
+      },
+      {
+        boundary: "affine-resumption",
+        expectedCode: "usage.affine-duplicated",
+        source: doubleResume,
+      },
+      {
+        boundary: "raw-resumption",
+        expectedCode: "resumption.escape",
+        source: document({
+          tag: "return",
+          grade: "1",
+          value: { tag: "resumption", distance: 0 },
+        }),
+      },
+    ] as const;
+
+    for (const candidate of cases) {
+      const source = bytes(candidate.source);
+      const reference = interpretKernelJsonBytes(source);
+      const compiled = runCompiledKernelJsonBytes(source);
+      expect(checkDiagnosticCode(reference), candidate.boundary).toBe(candidate.expectedCode);
+      expect(encodeCanonicalKernelRunObservation(compiled), candidate.boundary).toEqual(
+        encodeCanonicalKernelRunObservation(reference),
+      );
+      expect(compareKernelRunObservations(reference, compiled).tag, candidate.boundary).toBe(
+        "agreement",
+      );
+    }
+  });
+});
+
+const CounterexampleFixtureSchema = Schema.Struct({
+  format: Schema.Literal("semantic.kernel-bytecode-counterexample"),
+  version: Schema.Literal(1),
+  mutation: Schema.Literals(["opcode", "branch", "slot"]),
+  kernel_document: Schema.Unknown,
+});
+
+const runPerturbedFixture = async (
+  name: "perturbed-opcode" | "perturbed-branch" | "perturbed-slot",
+): Promise<{
+  readonly reference: KernelRunObservation;
+  readonly perturbed: KernelRunObservation;
+}> => {
+  const fixture = Schema.decodeUnknownSync(CounterexampleFixtureSchema, {
+    onExcessProperty: "error",
+  })(
+    await Bun.file(
+      new URL(`../examples/kernel-bytecode/${name}.kernel.json`, import.meta.url),
+    ).json(),
+  );
+  const decoded = decodeKernelDocumentValue(fixture.kernel_document);
+  if (decoded.status !== "decoded") throw new Error(`${name} does not contain canonical kernel`);
+  const source = bytes(decoded.value);
+  const prepared = Effect.runSync(prepareKernelJsonBytes(source));
+  const compiled = Effect.runSync(
+    compileCheckedProgram(prepared.program, defaultKernelBytecodeBackendBounds.bytecode),
+  );
+  const perturbed = perturbCompiledProgramForTest(compiled, fixture.mutation);
+  if (perturbed === undefined) throw new Error(`${name} mutation did not select an instruction`);
+  const outcome = Effect.runSync(
+    executeCompiledProgram(perturbed, defaultKernelBytecodeBackendBounds.bytecode),
+  );
+  return {
+    reference: interpretKernelJsonBytes(source),
+    perturbed:
+      outcome.status === "returned"
+        ? kernelRunEnvelope({ tag: "returned", value: outcome.value })
+        : kernelRunEnvelope({ tag: "suspended", request: outcome.request }),
+  };
+};
+
+describe("internal compiled-graph perturbation counterexamples", () => {
+  for (const name of ["perturbed-opcode", "perturbed-branch", "perturbed-slot"] as const) {
+    test(`${name} is a replayable conclusive mismatch`, async () => {
+      const counterexample = await runPerturbedFixture(name);
+      expect(counterexample.reference.observation.tag).not.toBe("inconclusive");
+      expect(counterexample.perturbed.observation.tag).not.toBe("inconclusive");
+      const comparison = compareKernelRunObservations(
+        counterexample.reference,
+        counterexample.perturbed,
+      );
+      expect(comparison.tag).toBe("mismatch");
+    });
+  }
 });

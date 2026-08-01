@@ -1,0 +1,35 @@
+{
+  "format": "semantic.kernel-bytecode-counterexample",
+  "kernel_document": {
+    "format": "semantic.kernel-json",
+    "kernel": "semantic.kernel-calculus/0018/v1",
+    "program": {
+      "body": {
+        "argument": { "tag": "int", "value": 9 },
+        "computation": {
+          "body": {
+            "grade": "1",
+            "tag": "return",
+            "value": { "distance": 0, "tag": "bound-value" }
+          },
+          "grade": "1",
+          "parameter_type": { "tag": "int" },
+          "tag": "lambda"
+        },
+        "tag": "apply"
+      },
+      "bound": {
+        "tag": "force",
+        "value": {
+          "body": { "grade": "1", "tag": "return", "value": { "tag": "int", "value": 7 } },
+          "tag": "thunk"
+        }
+      },
+      "tag": "let"
+    },
+    "signature": [],
+    "version": 1
+  },
+  "mutation": "branch",
+  "version": 1
+}
