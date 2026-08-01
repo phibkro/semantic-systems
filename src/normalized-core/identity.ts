@@ -1,4 +1,4 @@
-import { Crypto, Data, Effect } from "effect";
+import { Crypto, Data, Effect, Encoding } from "effect";
 import { canonicalBytes, trustedUint8ArrayCopy, type CanonicalJsonValue } from "./canonical.ts";
 import type { Identity } from "./schema.ts";
 
@@ -14,14 +14,6 @@ export class NormalizedCoreDigestFailure extends Data.TaggedError("NormalizedCor
   readonly message: string;
   readonly cause: unknown;
 }> {}
-
-const toHex = (bytes: Uint8Array): string => {
-  let output = "";
-  for (let index = 0; index < bytes.byteLength; index += 1) {
-    output += bytes[index]!.toString(16).padStart(2, "0");
-  }
-  return output;
-};
 
 export const deriveIdentity = (
   domain: (typeof identityDomains)[keyof typeof identityDomains],
@@ -51,5 +43,5 @@ export const deriveIdentity = (
         cause: { expectedBytes: 32, actualBytes: trustedDigest?.byteLength },
       });
     }
-    return `sha256:${toHex(trustedDigest)}` as Identity;
+    return `sha256:${Encoding.encodeHex(trustedDigest)}` as Identity;
   });

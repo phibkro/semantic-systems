@@ -1,4 +1,4 @@
-import { Crypto, Effect } from "effect";
+import { Crypto, Effect, Encoding } from "effect";
 import { DocumentError, type JsonObject, type JsonValue } from "./json.ts";
 
 const canonicalize = (value: JsonValue): JsonValue => {
@@ -18,9 +18,6 @@ const canonicalize = (value: JsonValue): JsonValue => {
 
 export const canonicalJson = (value: JsonValue): string => JSON.stringify(canonicalize(value));
 
-const toHex = (bytes: Uint8Array): string =>
-  Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-
 export const contentIdentity = (
   value: JsonValue,
 ): Effect.Effect<string, DocumentError, Crypto.Crypto> =>
@@ -39,7 +36,7 @@ export const contentIdentity = (
             new DocumentError({ message: "cannot compute SHA-256 content identity", cause }),
         ),
       );
-    return `sha256:${toHex(digest)}`;
+    return `sha256:${Encoding.encodeHex(digest)}`;
   });
 
 export const jsonEqual = (left: JsonValue, right: JsonValue): boolean =>

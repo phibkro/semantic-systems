@@ -1,4 +1,4 @@
-import { Crypto, Data, Effect, Schema } from "effect";
+import { Crypto, Data, Effect, Encoding, Schema } from "effect";
 import { assessWork } from "./schedule.ts";
 import {
   ENTITY_KINDS,
@@ -219,9 +219,6 @@ export const stringifyPublicJson = (value: JsonValue): Effect.Effect<string, Pub
     }),
   );
 
-const toHex = (bytes: Uint8Array): string =>
-  Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-
 const digestBytes = (value: string): Effect.Effect<string, PublicExportError, Crypto.Crypto> =>
   Effect.gen(function* () {
     const crypto = yield* Crypto.Crypto;
@@ -234,7 +231,7 @@ const digestBytes = (value: string): Effect.Effect<string, PublicExportError, Cr
           }),
       ),
     );
-    return toHex(digest);
+    return Encoding.encodeHex(digest);
   });
 
 const validateTimestamp = (value: string): Effect.Effect<void, PublicExportError> =>
