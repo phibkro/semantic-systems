@@ -22,10 +22,17 @@ Owner: primary Semantic Systems language lead
 
 - this design spec, plan, work item, and exact acceptance script;
 - `src/kernel-execution/**` for the shared strict preparation seam;
+- the narrow direct-import and shared-check refactor in
+  `src/kernel-json/observe.ts`, plus its existing focused checks, required to
+  return exact check observations and genuine checked custody without pulling
+  the reference machine into the compiled backend's module graph;
 - the narrow 0022 interpreter refactor required to consume that seam;
 - `src/kernel-bytecode/**` for compiler, opaque custody, VM, projection, and
   public entry point;
-- `tests/kernel-bytecode-backend*.test.ts`;
+- `tests/kernel-execution-preparation.test.ts` and
+  `tests/kernel-bytecode-*.test.ts`;
+- `tests/kernel-json-check-view.test.ts` when the shared-check composition needs
+  direct regression evidence;
 - `examples/kernel-bytecode/**` for minimized mismatch fixtures; and
 - derived generated project-model views.
 

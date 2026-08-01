@@ -61,6 +61,10 @@ Feature 0032 owns:
 
 - one shared, strict bytes-to-check preparation seam used by both reference and
   compiled execution;
+- the narrow kernel-JSON direct-import and check-composition refactor required
+  for that seam to return the exact accepted observation together with genuine
+  checked-program custody, without placing the reference machine in the
+  compiled backend's transitive module graph;
 - one baseline compiler from genuine checked-program custody to a finite
   instruction/block graph;
 - one opaque, deeply immutable compiled-program custody value whose constructor
@@ -278,7 +282,10 @@ Each literal, label, operation name, or result-type occurrence appends one
 constant in deterministic compiler traversal order; version 1 performs no
 deduplication. A constant index is checked before use. The descriptor is the
 closed observable type vocabulary already frozen by 0022, not a source type
-node or object reference. Grades and derivations are erased after checking.
+node or object reference. Source-term grade annotations and checker derivations
+are erased from instructions after checking. Grades nested inside the frozen
+0022 observable type descriptor remain because they are part of an externally
+observable suspended-operation result type.
 
 No `ComputationTerm`, `ValueTerm`, checker derivation, de Bruijn distance,
 source binder object, source occurrence node, or reference to any source AST
