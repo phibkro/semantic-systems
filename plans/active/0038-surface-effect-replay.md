@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0038-surface-effect-replay.md`](../../design-specs/0038-surface-effect-replay.md).
 This execution record cannot redefine that contract.
 
-Status: frozen; implementation pending
+Status: implementation complete; verification pending
 
 Owner: primary Semantic Systems language lead
 
@@ -62,3 +62,10 @@ just accept 0038-surface-effect-replay
 - 2026-08-01: no library or generator is needed; the accepted Effect program,
   canonical kernel encoder, and two replay entry points already provide the
   complete implementation vocabulary.
+- 2026-08-01: `src/surface-execution/index.ts` now compiles source once,
+  canonically encodes the accepted kernel once, captures the caller's script
+  once, and returns immutable reference and compiled observations without an
+  agreement claim.
+- 2026-08-01: focused Bun tests passed 36 inherited surface/replay/architecture
+  journeys plus 8 new journeys and 305 assertions; the genuine Node journey,
+  TypeScript 7 Effect diagnostics, Oxlint, and focused Oxfmt checks also passed.
