@@ -31,6 +31,7 @@ flowchart LR
     work_normalized_core_format["Specify normalized core artifact"]
     work_package_resolver["Implement package and evidence resolver"]
     work_pbk_portfolio_control_room["Build PBK Technologies portfolio Control Room"]
+    work_reachability_analysis_receipt["Derive a declared reachability analysis receipt"]
     work_relational_fact_schema["Define relational fact export"]
     work_semantic_artifact_store["Establish the semantic artifact store tracer"]
     work_semantic_attestation_profile["Specify semantic attestation profile"]
@@ -48,6 +49,7 @@ flowchart LR
     work_inventory_resolution_tracer -->|requires| decision_theory_identity
     work_kernel_reference_interpreter -->|requires| work_agent_facing_kernel_json
     work_pbk_portfolio_control_room -->|requires| work_control_room_reconstruction
+    work_reachability_analysis_receipt -->|requires| work_semantic_artifact_store
     work_normalized_core_format -->|blocks| work_kernel_spec
     work_lossless_frontend_spec -->|blocks| work_normalized_core_format
     work_agent_facing_kernel_json -->|blocks| work_normalized_core_format
