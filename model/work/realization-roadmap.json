@@ -261,11 +261,13 @@
       "kind": "work_item",
       "name": "Specify explorer query contract",
       "summary": "Define recursive navigation, view projections, provenance, filtering, and introspection without coupling the UI to storage internals.",
-      "status": "ready",
+      "status": "review",
       "tags": ["tooling", "visualization"],
       "attributes": {
-        "phase": "design",
+        "phase": "validation",
         "effort": 5,
+        "design_spec": "design-specs/0036-explorer-query-contract.md",
+        "plan": "plans/active/0036-explorer-query-contract.md",
         "acceptance": [
           "Recursive components can be expanded and collapsed",
           "Architecture, semantic, evidence, and work relations remain filterable",
