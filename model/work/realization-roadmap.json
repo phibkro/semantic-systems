@@ -68,7 +68,7 @@
       "kind": "work_item",
       "name": "Design agent-facing kernel JSON",
       "summary": "Freeze recursive JSON as the stable agent-facing kernel interface: raw documents, an explicit checked observation recorded by the 0018 checker seam, one JSON Schema, strict boundaries, and storage independence.",
-      "status": "review",
+      "status": "in_progress",
       "tags": ["compiler", "tooling"],
       "attributes": {
         "phase": "design",
