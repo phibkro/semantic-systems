@@ -16,8 +16,10 @@ projections. The Control Room does not yet render a dependency graph. Its
 Roadmap presents every work item in a flat card grid and lists typed edges in a
 separate ledger. The already-derived prerequisite depth is unused. Mosaic
 groups cards by project, but its one-level filter does not express the
-portfolio, project, milestone, and feature hierarchy requested by the
-operator.
+portfolio, project, and authored milestone-to-feature containment requested by
+the operator. The decoded portfolio boundary does not itself constrain
+`contains` to this display hierarchy, so this feature validates the subset it
+renders instead of silently inventing parents.
 
 The product therefore has the data model of a skill tree without the user
 journey of one. A phone or keyboard user cannot visually follow prerequisite
@@ -62,12 +64,15 @@ The public model constructor is:
 
 ```ts
 deriveRoadmapModel(document: PortfolioDocument)
-  -> Effect<RoadmapModel, RoadmapModelFailure>
+  -> Effect<RoadmapModel, RoadmapModelFailure | InvalidContainmentTopology>
 ```
 
 It requires exactly one saved `view.roadmap` with presentation `dag` and one
 saved `view.roadmap-mosaic` with presentation `mosaic`. Both projections must
-select the same identities. Every selected relation endpoint must be selected.
+select the same work identities. Every selected relation endpoint must be
+selected. The model preserves each projection's saved-view identity, source
+identity set, and `QueryDiagnostics`; renderers cannot erase exclusions,
+unknown-label observations, or other query provenance.
 
 UI commands are finite XState events:
 
@@ -80,14 +85,25 @@ work.select(workId) | work.close
 ```
 
 Focus and selection are presentation state. They do not mutate the portfolio
-or narrow its canonical query result.
+or narrow its canonical query result. `work.select` remains the existing
+global detail command and accepts any known document work identity; Roadmap
+renderers emit it only for work in the shared roadmap set. Events carrying an
+unknown work identity, a non-project project identity, or a non-milestone
+milestone identity are rejected by XState guards and leave the complete prior
+state unchanged. Milestone focus is valid only for a roadmap milestone owned
+by the currently focused project; a mismatched focus is rejected, and focusing
+a different project clears the narrower milestone focus.
 
 ### Semantic outputs
 
 `RoadmapModel` is deeply immutable and contains:
 
 ```text
-identities: Identity[]
+work_identities: Identity[]
+projection_sources: {
+  graph: { view_id, identity_ids, diagnostics },
+  mosaic: { view_id, identity_ids, diagnostics }
+}
 nodes: {
   id, project_id, kind, title, summary, status,
   depth, lane, position,
@@ -103,18 +119,26 @@ dependency_edges: {
   visual_target_id
 }[]
 containment_edges: { id, container_id, contained_id }[]
-projects: { project_id, identity_ids, milestone_ids, standalone_feature_ids }[]
-accessible_order: Identity[]
+projects: { project_id, name, summary, identity_ids, milestone_ids,
+            standalone_feature_ids }[]
+accessible_targets: (
+  | { kind: "project", project_id }
+  | { kind: "milestone" | "feature", work_id }
+  | { kind: "dependency", relation_id, prerequisite_id, dependent_id }
+)[]
 ```
 
 For authored `dependent requires prerequisite`, the visual arrow is
 `prerequisite -> dependent`. Every dependency satisfies
 `prerequisite.depth < dependent.depth`. Lane and position are stable functions
 of depth and UTF-16 identity order, not viewport measurement, insertion order,
-priority, effort, or time.
+priority, effort, or time. Work targets use stable depth-then-UTF-16 order;
+projects and authored dependency relations use stable identity order.
 
-The Graph and Mosaic renderers consume this same model. Visual focus may dim or
-expand nodes, but `identities` and `accessible_order` never change. The
+The Graph and Mosaic renderers consume this same model. Equality applies to
+the saved views' `work_identities`; project and containment occurrences are
+derived structure, not extra work identities. Visual focus may dim or expand
+nodes, but `work_identities` and `accessible_targets` never change. The
 existing work-detail projection remains the sole detail source.
 
 ### Effect protocols and uncertainty
@@ -123,11 +147,14 @@ Model derivation is a finite local Effect program over immutable data. XState
 owns view, focus, and selected-work transitions. React owns no hidden
 synchronization lifecycle and product components add no `useEffect`.
 
-React Flow is a replaceable rendering adapter for panning, zooming, edges, and
-canvas keyboard behavior. It receives deterministic fixed positions from the
-roadmap model and receives no mutation, connection, deletion, or layout
-authority. An ordered HTML control list remains available and authoritative
-for keyboard and assistive-technology navigation.
+React Flow is a replaceable rendering adapter for panning, zooming, and visual
+edges. It receives deterministic fixed positions from the roadmap model and
+receives no mutation, connection, deletion, or layout authority. Its semantic
+node and edge tab stops are disabled to avoid a duplicate navigation tree;
+canvas keyboard support is limited to viewport controls. A visible ordered
+HTML control list is authoritative for keyboard and assistive-technology
+navigation, including project focus, every work item, dependency direction,
+and detail opening.
 
 The renderer follows the official React Flow
 [installation](https://reactflow.dev/learn),
@@ -158,9 +185,11 @@ store. XState never becomes evidence authority.
 
 The existing portfolio bounds remain authoritative: at most 2,048 work nodes
 and 8,192 relations. Derivation visits nodes and relations a bounded number of
-times and sorts stable identity arrays. No iterative physics, DOM-measurement
-loop, timer, polling loop, background Fiber, or recursive unbounded layout is
-introduced.
+times and sorts stable identity arrays. Dependency depth and containment
+validation use iterative topological traversal, not recursive descent, and are
+tested at the maximum declared node bound. No iterative physics,
+DOM-measurement loop, timer, polling loop, background Fiber, or recursive
+unbounded layout is introduced.
 
 The graph canvas renders only the selected saved-view identities. The ordered
 HTML fallback exposes the same identities once. The feature does not raise any
@@ -190,16 +219,21 @@ prerequisites. Because the decoded portfolio already rejects `requires`
 cycles, this derivation terminates.
 
 Within each depth, nodes are ordered by UTF-16 code units and assigned lanes
-from zero. Version 1 uses fixed major and minor node dimensions and fixed lane
-and depth gaps. Coordinates are part of the replaceable view model, not the
+from zero. Prerequisite depth is the vertical `y` axis. Version 1 uses 280 px
+major width, 232 px minor width, 56 px horizontal lane gap, and 188 px vertical
+depth gap. Coordinates are part of the replaceable view model, not the
 portfolio identity or snapshot digest.
 
 ### Hierarchy
 
-Projects come from `project_id`. Milestone-to-work hierarchy comes only from
-authored `contains` relations. A feature without a selected container remains
-a standalone project feature. Multiple containers remain explicit rather than
-being silently collapsed into one parent.
+Projects come from `project_id`. Version 1 renders only authored
+milestone-to-feature `contains` relations. `deriveRoadmapModel` returns typed
+`InvalidContainmentTopology` for a selected containment cycle, a non-milestone
+container, a non-feature contained item, or a cross-project pair. A feature
+without a selected container remains a standalone project feature. Multiple
+containers create multiple visual containment occurrences that point to one
+semantic work identity; selection and detail remain keyed by that single work
+identity.
 
 Mosaic always retains all selected identities in its model and accessible
 order. Project focus expands that project. Milestone focus expands the exact
@@ -212,7 +246,12 @@ Graph and Mosaic share one XState actor. Switching presentation preserves
 `selectedId`, `focusProject`, and `focusMilestone`. Closing detail clears only
 selection. Clearing milestone focus keeps project focus. Clearing project
 focus clears milestone focus because the narrower scope no longer has a
-visible owner.
+visible owner. Roadmap mode and project or milestone focus events are accepted
+only while the actor is on the Roadmap view. The existing global work-detail
+selection remains available in every view for known document work. Focusing a
+valid milestone requires its owning project to be focused already. Every
+rejected event is observable as an unchanged snapshot; it cannot partially
+update focus or selection.
 
 Visual nodes are not draggable or connectable. Delete and edit shortcuts are
 disabled. Selecting a node may open the existing detail dialog but cannot
@@ -235,23 +274,26 @@ change portfolio data.
 
 Feature 0031 is accepted when one clean head:
 
-1. derives the exact immutable roadmap model above from the two saved views;
+1. derives the exact immutable roadmap model, source diagnostics, structural
+   project records, and accessible targets above from the two saved views;
 2. uses only `requires` for prerequisite depth and visual arrows;
 3. keeps project membership and `contains` hierarchy distinct;
 4. renders deterministic major/minor nodes through React Flow with editing
    disabled;
-5. renders portfolio to project to milestone to feature Mosaic zoom over the
-   same identities;
+5. renders portfolio to project to authored milestone-to-feature Mosaic zoom
+   over the same work identities and rejects unsupported containment topology;
 6. retains selection and focus across Graph/Mosaic transitions through XState;
-7. exposes every node and dependency through ordered keyboard-operable HTML;
+7. exposes every project, work node, and dependency direction through visible
+   ordered keyboard-operable HTML without duplicate canvas tab stops;
 8. opens the existing definition-of-done, metadata, relation, artifact,
    receipt, and snapshot detail from either presentation;
 9. includes current Semantic surface-language, artifact-store, reachability,
    and skill-tree work in the portfolio vertical slice with exact artifacts
    and receipts where accepted;
-10. passes pure model, component, XState, phone Playwright, Axe, TypeScript 7,
-    Oxlint, Oxfmt, production build, static scan, 0017/0021 regression, project
-    model, and full repository gates; and
+10. passes feature-specific pure model, component, XState, phone Playwright,
+    Axe, and exact portfolio-evidence tests plus TypeScript 7, Oxlint, Oxfmt,
+    production build, static scan, 0017/0021 regression, project model, and
+    full repository gates; and
 11. receives revision-pinned independent review before integration.
 
 The exact local command is:

@@ -14,8 +14,14 @@ const artifacts = [
   "model/work/control-room-interactive-skill-tree.json",
   "apps/control-room/src/roadmap-model.ts",
   "apps/control-room/src/roadmap-model.test.ts",
-  "apps/control-room/src/components/roadmap/skill-tree.tsx",
-  "apps/control-room/src/components/roadmap/mosaic.tsx",
+  "apps/control-room/src/portfolio-ui-machine.test.ts",
+  "apps/control-room/src/components/roadmap/RoadmapGraph.tsx",
+  "apps/control-room/src/components/roadmap/RoadmapMosaic.tsx",
+  "apps/control-room/src/components/roadmap/RoadmapNavigation.tsx",
+  "apps/control-room/src/components/roadmap/RoadmapExplorer.tsx",
+  "apps/control-room/src/components/roadmap/roadmap.vitest.tsx",
+  "apps/control-room/e2e/skill-tree.pw.ts",
+  "tests/pbk-portfolio-model.test.ts",
 ] as const;
 
 const program = Effect.gen(function* () {
@@ -31,8 +37,22 @@ const program = Effect.gen(function* () {
       "bunx",
       "vitest",
       "run",
-      "apps/control-room/src/roadmap-model.test.ts",
-      "apps/control-room/src/Portfolio.vitest.tsx",
+      "src/roadmap-model.test.ts",
+      "src/portfolio-ui-machine.test.ts",
+      "src/components/roadmap/roadmap.vitest.tsx",
+    ],
+    { cwd: resolve(root, "apps/control-room") },
+  );
+  yield* runCommand(["bun", "test", "tests/pbk-portfolio-model.test.ts"], { cwd: root });
+  yield* runCommand(
+    [
+      "nix",
+      "develop",
+      "--offline",
+      "--command",
+      "bash",
+      "-lc",
+      "cd apps/control-room && bun run build && bunx playwright test e2e/skill-tree.pw.ts",
     ],
     { cwd: root },
   );

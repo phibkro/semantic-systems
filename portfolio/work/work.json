@@ -411,6 +411,69 @@
       "schema_version": "pbk.portfolio-row/v1",
       "record_type": "work",
       "value": {
+        "id": "work.semantic.normalized-core",
+        "project_id": "project.semantic",
+        "kind": "feature",
+        "title": "Normalized core format",
+        "summary": "Normalize checked kernel programs into one deterministic semantic-value representation with content-derived identity.",
+        "status": "accepted",
+        "definition_of_done": [
+          "Equivalent accepted kernel programs produce the same canonical normalized bytes and semantic identity.",
+          "Normalization rejects programs that have not crossed the strict representation and checking boundary."
+        ],
+        "attributes": {
+          "work.discipline": "engineering",
+          "work.layer": "normalized-core",
+          "work.agent-facing": true
+        }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
+        "id": "work.semantic.artifact-store",
+        "project_id": "project.semantic",
+        "kind": "feature",
+        "title": "Semantic artifact store",
+        "summary": "Persist accepted normalized semantic values by content identity while keeping authored names and assertions separate.",
+        "status": "accepted",
+        "definition_of_done": [
+          "Only accepted normalized semantic values enter the store under their verified content identity.",
+          "Authored aliases and caller assertions remain projections and never redefine semantic identity."
+        ],
+        "attributes": {
+          "work.discipline": "engineering",
+          "work.layer": "language-build",
+          "work.agent-facing": true
+        }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
+        "id": "work.semantic.reachability-receipt",
+        "project_id": "project.semantic",
+        "kind": "feature",
+        "title": "Reachability analysis receipt",
+        "summary": "Traverse caller-declared semantic-value edges and emit deterministic receipts without claiming compiler-derived authority.",
+        "status": "accepted",
+        "definition_of_done": [
+          "A finite analysis returns deterministic reachable, unreachable, missing, and cycle observations from exact store identities.",
+          "Every receipt preserves caller-declared edge authority and binds its root, graph observation, policy, and store revision."
+        ],
+        "attributes": {
+          "work.discipline": "engineering",
+          "work.layer": "language-build",
+          "work.agent-facing": true
+        }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
         "id": "work.semantic.optimized-compiler",
         "project_id": "project.semantic",
         "kind": "feature",
@@ -478,10 +541,11 @@
         "project_id": "project.semantic",
         "kind": "feature",
         "title": "Surface language grammar",
-        "summary": "Design the readable surface language and Pratt-parsed grammar that elaborates to the frozen kernel interface.",
-        "status": "candidate",
+        "summary": "Parse a readable surface language with a Pratt expression grammar and elaborate it to the frozen kernel interface with explicit correspondence evidence.",
+        "status": "accepted",
         "definition_of_done": [
-          "One complete grammar parses, preserves source structure, and elaborates through explicit correspondence evidence."
+          "The complete grammar parses and preserves source spans before elaborating to the strict kernel JSON boundary.",
+          "Elaboration emits explicit source-to-kernel correspondence evidence and the resulting program executes through the accepted reference interpreter."
         ],
         "attributes": {
           "work.discipline": "language-design",

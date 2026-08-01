@@ -56,11 +56,11 @@ describe("PBK portfolio Control Room", () => {
     render(<Portfolio provided={currentPortfolio()} />);
     await user.click(screen.getByRole("tab", { name: /Roadmap/ }));
     expect(
-      screen.getAllByRole("button", { name: /Agent-facing kernel JSON/ }).length,
+      (await screen.findAllByRole("button", { name: /Agent-facing kernel JSON/ })).length,
     ).toBeGreaterThan(0);
     await user.click(screen.getByRole("tab", { name: "Mosaic" }));
     expect(
-      screen.getAllByRole("button", { name: /Agent-facing kernel JSON/ }).length,
+      (await screen.findAllByRole("button", { name: /Agent-facing kernel JSON/ })).length,
     ).toBeGreaterThan(0);
   });
 

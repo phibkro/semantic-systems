@@ -48,9 +48,12 @@ meaning; editing operator-owned `AGENTS.md`; adding a time axis; adding
 - Derive one deeply immutable roadmap model before rendering.
 - Reuse 0021 saved-view interpreters and existing work detail.
 - Keep `requires`, `contains`, and project membership orthogonal.
+- Preserve both saved-view source identities and query diagnostics; reject
+  unsupported selected containment topology through a typed failure.
 - Use deterministic fixed lanes and coordinates; React Flow renders but does
   not own layout or data.
-- Keep focus and selection in the existing XState UI actor.
+- Keep guarded focus and selection in the existing XState UI actor; invalid
+  identities and view-inapplicable events leave its snapshot unchanged.
 - Use Tailwind, shadcn, Base UI, OKLCH tokens, and the maintained React Flow
   base stylesheet. Add no feature-specific global CSS.
 - Retain an ordered semantic HTML path for keyboard and assistive technology.
@@ -63,7 +66,8 @@ meaning; editing operator-owned `AGENTS.md`; adding a time axis; adding
 2. Add React Flow through the workspace package boundary.
 3. Implement and independently property-test the pure roadmap model.
 4. Extend the XState focus and selection transitions.
-5. Implement the read-only skill-tree renderer and ordered navigation.
+5. Implement the read-only skill-tree renderer and visible ordered navigation
+   without duplicate semantic canvas tab stops.
 6. Implement project and milestone semantic-zoom Mosaic over the same model.
 7. Integrate current Semantic work, artifacts, relations, and receipts.
 8. Add component, phone Playwright, keyboard, and Axe journeys.
@@ -92,6 +96,13 @@ bun scripts/accept/0031-control-room-interactive-skill-tree.ts
 - 2026-08-01: official React Flow guidance confirms maintained fixed-layout,
   focusable node/edge, keyboard, screen-reader, zoom, and pan primitives. The
   product retains a separate ordered HTML navigation path.
+- 2026-08-01: independent review of frozen commit `523448c` found that the
+  initial contract assumed a containment tree the base portfolio decoder does
+  not warrant, discarded query diagnostics, underspecified invalid XState
+  events and keyboard ownership, and could pass without feature-specific
+  tests. The frozen contract now requires typed topology rejection, preserved
+  source diagnostics, guarded transitions, one visible ordered path, iterative
+  bounded layout, and exact feature-owned acceptance artifacts.
 
 ## Open review questions
 
@@ -100,3 +111,5 @@ bun scripts/accept/0031-control-room-interactive-skill-tree.ts
 - Can focus change information density without changing model membership?
 - Can every canvas journey be completed through ordered HTML controls?
 - Does any rendering adapter gain mutation or semantic authority?
+- Does selected containment remain a valid acyclic milestone-to-feature
+  projection with one semantic identity behind every visual occurrence?

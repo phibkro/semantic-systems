@@ -38,10 +38,45 @@ describe("PBK portfolio boundary", () => {
   test("assembles strict rows into a frozen portfolio observation", () => {
     expect(portfolio.studio.name).toBe("PBK Technologies");
     expect(portfolio.projects).toHaveLength(9);
-    expect(portfolio.work).toHaveLength(24);
+    expect(portfolio.work).toHaveLength(27);
     expect(portfolio.work.some(({ id }) => id === "work.semantic.control-room-skill-tree")).toBe(
       true,
     );
+    expect(
+      portfolio.work
+        .filter(({ id }) =>
+          [
+            "work.semantic.normalized-core",
+            "work.semantic.artifact-store",
+            "work.semantic.reachability-receipt",
+          ].includes(id),
+        )
+        .every(({ status }) => status === "accepted"),
+    ).toBe(true);
+    expect(
+      Object.fromEntries(
+        portfolio.artifacts
+          .filter(({ id }) => id.startsWith("artifact.semantic."))
+          .map(({ id, revision }) => [id, revision]),
+      ),
+    ).toMatchObject({
+      "artifact.semantic.normalized-core-spec": "2959681e01df2acc4ea1318b8ce634b9ccf7d10c",
+      "artifact.semantic.surface-language-spec": "0302b468cac9f9d8f55d5e68b9a0e50e5fac9ac1",
+      "artifact.semantic.artifact-store-spec": "800d70b74c96a476d34b9690374683b1843343b2",
+      "artifact.semantic.reachability-receipt-spec": "68417a25f47a9a3f48a8782fae7f598d38a2ccd2",
+    });
+    expect(
+      Object.fromEntries(
+        portfolio.receipts
+          .filter(({ id }) => id.startsWith("receipt.semantic."))
+          .map(({ id, commit }) => [id, commit]),
+      ),
+    ).toMatchObject({
+      "receipt.semantic.normalized-core": "2959681e01df2acc4ea1318b8ce634b9ccf7d10c",
+      "receipt.semantic.surface-language": "0302b468cac9f9d8f55d5e68b9a0e50e5fac9ac1",
+      "receipt.semantic.artifact-store": "800d70b74c96a476d34b9690374683b1843343b2",
+      "receipt.semantic.reachability-receipt": "68417a25f47a9a3f48a8782fae7f598d38a2ccd2",
+    });
     expect(Object.isFrozen(portfolio)).toBe(true);
     expect(Object.isFrozen(portfolio.work[0])).toBe(true);
   });

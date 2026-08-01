@@ -23,12 +23,13 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { RoadmapExplorer } from "@/components/roadmap/RoadmapExplorer";
 import type {
   PortfolioDocument,
   WorkDefinition,
   WorkStatus,
 } from "../../../src/portfolio-model/decode.ts";
-import { projectPortfolio, projectWork } from "../../../src/portfolio-model/project.ts";
+import { projectPortfolio } from "../../../src/portfolio-model/project.ts";
 import type { DataState } from "./model.ts";
 import {
   portfolioUiMachine,
@@ -36,6 +37,7 @@ import {
   type RoadmapMode,
 } from "./portfolio-ui-machine.ts";
 import type { PortfolioState } from "./portfolio-snapshot.ts";
+import { deriveRoadmapModel } from "./roadmap-model.ts";
 import { usePortfolio } from "./use-portfolio.ts";
 
 const VIEWS: ReadonlyArray<{
@@ -360,140 +362,6 @@ const Features = ({ document, onSelect }: ViewProps) => {
   );
 };
 
-const Roadmap = ({
-  document,
-  onSelect,
-  mode,
-  focusProject,
-  onMode,
-  onFocus,
-}: ViewProps & {
-  readonly mode: RoadmapMode;
-  readonly focusProject: string | null;
-  readonly onMode: (mode: RoadmapMode) => void;
-  readonly onFocus: (project: string | null) => void;
-}) => {
-  const graphView = document.views.find(({ id }) => id === "view.roadmap")!;
-  const mosaicView = document.views.find(({ id }) => id === "view.roadmap-mosaic")!;
-  const graph = Effect.runSync(projectWork(document, graphView));
-  const mosaic = Effect.runSync(projectWork(document, mosaicView));
-  if (graph.presentation !== "dag" || mosaic.presentation !== "mosaic") {
-    throw new Error("roadmap saved views do not select their frozen presentations");
-  }
-  const byId = new Map(document.work.map((work) => [work.id, work]));
-  const visibleProjects =
-    focusProject === null
-      ? mosaic.projects
-      : mosaic.projects.filter(({ project_id }) => project_id === focusProject);
-  return (
-    <section className="grid gap-4" aria-label="PBK dependency roadmap">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Tabs value={mode} onValueChange={(value) => onMode(value as RoadmapMode)}>
-          <TabsList aria-label="Roadmap presentation">
-            <TabsTrigger value="graph">Graph</TabsTrigger>
-            <TabsTrigger value="mosaic">Mosaic</TabsTrigger>
-          </TabsList>
-        </Tabs>
-        <p className="text-sm text-muted-foreground">No time axis. Edges are typed dependencies.</p>
-      </div>
-      {mode === "graph" ? (
-        <div className="grid gap-4">
-          <div
-            className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4"
-            aria-label="Roadmap project nodes"
-          >
-            {document.projects.map((project) => (
-              <Card className="gap-2 p-3" key={project.id}>
-                <Badge variant="outline">project</Badge>
-                <strong>{project.name}</strong>
-              </Card>
-            ))}
-          </div>
-          <ol className="grid gap-3 md:grid-cols-2 xl:grid-cols-3" aria-label="Roadmap work nodes">
-            {graph.nodes.map((node) => (
-              <li key={node.id}>
-                <WorkButton document={document} work={node} onSelect={onSelect} />
-              </li>
-            ))}
-          </ol>
-          <Card>
-            <CardHeader>
-              <CardTitle>Typed edges</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-2">
-              {graph.edges.map((edge) => (
-                <div
-                  className="grid gap-2 rounded-lg border p-3 sm:grid-cols-[auto_1fr_auto_1fr] sm:items-center"
-                  key={edge.id}
-                >
-                  <Badge variant="outline">{edge.kind}</Badge>
-                  <Button
-                    className="justify-start whitespace-normal"
-                    variant="ghost"
-                    onClick={() => onSelect(byId.get(edge.source_id)!)}
-                  >
-                    {byId.get(edge.source_id)?.title}
-                  </Button>
-                  <span aria-hidden="true">→</span>
-                  <Button
-                    className="justify-start whitespace-normal"
-                    variant="ghost"
-                    onClick={() => onSelect(byId.get(edge.target_id)!)}
-                  >
-                    {byId.get(edge.target_id)?.title}
-                  </Button>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
-      ) : (
-        <div className="grid gap-4">
-          <div className="flex items-center gap-2 text-sm">
-            <Button variant="link" onClick={() => onFocus(null)}>
-              PBK Technologies
-            </Button>
-            {focusProject !== null && <span>/ {projectName(document, focusProject)}</span>}
-          </div>
-          <div className="grid gap-4 lg:grid-cols-2">
-            {visibleProjects.map(({ project_id, identities }) => (
-              <Card key={project_id}>
-                <CardHeader className="flex-row items-start justify-between">
-                  <div className="grid gap-2">
-                    <Badge variant="outline">project</Badge>
-                    <CardTitle>{projectName(document, project_id)}</CardTitle>
-                  </div>
-                  {focusProject === null && (
-                    <Button size="sm" variant="outline" onClick={() => onFocus(project_id)}>
-                      Zoom
-                    </Button>
-                  )}
-                </CardHeader>
-                <CardContent className="grid gap-2 sm:grid-cols-2">
-                  {identities.map((id) => (
-                    <WorkButton
-                      compact={focusProject === null}
-                      document={document}
-                      key={id}
-                      work={byId.get(id)!}
-                      onSelect={onSelect}
-                    />
-                  ))}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-          <ol className="sr-only" aria-label="Mosaic accessible work nodes">
-            {mosaic.identities.map((id) => (
-              <li key={id}>{byId.get(id)?.title}</li>
-            ))}
-          </ol>
-        </div>
-      )}
-    </section>
-  );
-};
-
 const History = ({ document, onSelect }: ViewProps) => {
   const history = projectPortfolio(document).history;
   const byId = new Map(document.work.map((work) => [work.id, work]));
@@ -696,8 +564,15 @@ const PortfolioBody = ({
   readonly onRefresh: () => void;
   readonly scopeControls?: ReactNode;
 }) => {
-  const [ui, send] = useMachine(portfolioUiMachine);
   const document = result.snapshot?.document ?? null;
+  const roadmapModel = document === null ? null : Effect.runSync(deriveRoadmapModel(document));
+  const [ui, send] = useMachine(portfolioUiMachine, {
+    input: {
+      work: document?.work ?? [],
+      projectIds: roadmapModel?.projects.map(({ project_id }) => project_id) ?? [],
+      roadmapWorkIds: roadmapModel?.work_identities ?? [],
+    },
+  });
   const view = viewValue(ui.value);
   const mode: RoadmapMode = ui.matches({ roadmap: "mosaic" }) ? "mosaic" : "graph";
   const selected = document?.work.find(({ id }) => id === ui.context.selectedId) ?? null;
@@ -758,12 +633,20 @@ const PortfolioBody = ({
                 <Features document={document} onSelect={onSelect} />
               </TabsContent>
               <TabsContent value="roadmap">
-                <Roadmap
+                <RoadmapExplorer
                   document={document}
+                  model={roadmapModel!}
                   focusProject={ui.context.focusProject}
+                  focusMilestone={ui.context.focusMilestone}
                   mode={mode}
-                  onFocus={(id) =>
+                  selectedId={ui.context.selectedId}
+                  onProjectFocus={(id) =>
                     send(id === null ? { type: "project.clear" } : { type: "project.focus", id })
+                  }
+                  onMilestoneFocus={(id) =>
+                    send(
+                      id === null ? { type: "milestone.clear" } : { type: "milestone.focus", id },
+                    )
                   }
                   onMode={(next) => send({ type: `roadmap.${next}` })}
                   onSelect={onSelect}
@@ -805,6 +688,7 @@ const LivePortfolio = ({ scopeControls }: { readonly scopeControls?: ReactNode }
   const result = usePortfolio();
   return (
     <PortfolioBody
+      key={result.snapshot?.metadata.digest ?? result.state}
       result={result}
       onApply={result.applyUpdate}
       onRefresh={result.refresh}
@@ -824,6 +708,7 @@ export default function Portfolio({
     <LivePortfolio scopeControls={scopeControls} />
   ) : (
     <PortfolioBody
+      key={provided.snapshot?.metadata.digest ?? provided.state}
       result={provided}
       onApply={() => undefined}
       onRefresh={() => undefined}
