@@ -46,3 +46,29 @@ export type {
   RuntimeDependencyGraph,
   RuntimeDependencyNode,
 } from "./reachability.ts";
+export {
+  buildRuntimeClosure,
+  RuntimeArtifactSelectionMemberSchema,
+  RuntimeArtifactSelectionSchema,
+  RuntimeClosureDigestFailure,
+  RuntimeClosureManifestRejected,
+  RuntimeClosureManifestSchema,
+  RuntimeClosureMemberSchema,
+  RuntimeClosureMembershipRejected,
+  RuntimeClosureSelectionRejected,
+  RuntimeClosureSnapshotRejected,
+  runtimeClosureBounds,
+  runtimeClosureIdentityDomain,
+  runtimeClosureProcedureIdentity,
+  validateRuntimeClosureBytes,
+} from "./runtime-closure.ts";
+export type {
+  RuntimeArtifactSelection,
+  RuntimeArtifactSelectionMember,
+  RuntimeClosureArtifact,
+  RuntimeClosureBuildFailure,
+  RuntimeClosureManifest,
+  RuntimeClosureMember,
+  RuntimeClosureReceiptFailure,
+  RuntimeClosureValidationFailure,
+} from "./runtime-closure.ts";

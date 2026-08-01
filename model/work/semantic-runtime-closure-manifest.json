@@ -1,0 +1,57 @@
+{
+  "entities": [
+    {
+      "id": "work.semantic-runtime-closure-manifest",
+      "kind": "work_item",
+      "name": "Assemble a semantic runtime-closure manifest",
+      "summary": "Join one accepted reachability receipt with one exact artifact variant per reachable semantic value and emit a canonical content-addressed compiler-to-build closure manifest.",
+      "status": "complete",
+      "tags": ["language", "compiler", "build", "content-addressed", "effect"],
+      "attributes": {
+        "phase": "implementation",
+        "effort": 5,
+        "design_spec": "design-specs/0033-semantic-runtime-closure-manifest.md",
+        "plan": "plans/active/0033-semantic-runtime-closure-manifest.md",
+        "acceptance": [
+          "One primitive snapshot JSON witness is total-byte bounded, decoded to an inert name-free projection, and admitted by accepted 0027 replay before one normalized private-store observation",
+          "Members cover the reachable set exactly and exclude every unreachable or outside-universe value",
+          "Artifact selection remains explicitly caller-selected and distinct from dependency-edge authority",
+          "Manifest bytes and identity are deterministic, permutation invariant, and sensitive to exact artifact variants",
+          "Malformed, forged, stale, over-limit, and digest-failing inputs return typed failures without a manifest"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 5,
+          "testability": 5,
+          "reversibility": 5,
+          "integration_independence": 4,
+          "blast_radius": 3,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source": "work.semantic-runtime-closure-manifest",
+      "target": "work.reachability-analysis-receipt",
+      "kind": "requires",
+      "summary": "The manifest embeds and revalidates the accepted bounded reachability analysis.",
+      "attributes": {}
+    },
+    {
+      "source": "work.semantic-runtime-closure-manifest",
+      "target": "work.semantic-artifact-store",
+      "kind": "requires",
+      "summary": "Exact artifact variants and semantic membership come from one bounded snapshot JSON witness decoded to an inert name-free store projection.",
+      "attributes": {}
+    },
+    {
+      "source": "work.semantic-runtime-closure-manifest",
+      "target": "component.artifact-distribution",
+      "kind": "informs",
+      "summary": "The manifest establishes a transport-neutral input closure without claiming publication or deployment.",
+      "attributes": {}
+    }
+  ]
+}

@@ -37,6 +37,7 @@ Ready parallel work items: **17**.
 | Recut the independent resolution checker | design | complete | no | 83 | delegate with review |  |
 | Establish the semantic artifact store tracer | implementation | complete | no | 87 | delegate with review |  |
 | Specify semantic attestation profile | design | ready | no | 87 | delegate with review | Define normalized theory identity |
+| Assemble a semantic runtime-closure manifest | implementation | complete | no | 87 | delegate with review |  |
 | Establish the Semantic surface language | implementation | in_progress | yes | 87 | delegate with review |  |
 | Specify STM effect and handler laws | research | in_progress | yes | 49 | bounded spike |  |
 | Model-check STM interleavings | validation | planned | no | 94 | delegate with review | Implement minimal STM runtime |
