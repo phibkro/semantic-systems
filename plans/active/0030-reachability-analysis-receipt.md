@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0030-reachability-analysis-receipt.md`](../../design-specs/0030-reachability-analysis-receipt.md).
 This execution record cannot redefine that contract.
 
-Status: implementation candidate green; exact acceptance and revision-pinned review pending
+Status: accepted on exact local head; publication pending
 
 Owner: primary Semantic Systems language lead
 
@@ -75,17 +75,23 @@ bun scripts/accept/0030-reachability-analysis-receipt.ts
   receipt now labels edge authority as caller-declared, embeds its canonical
   graph, and has a strict byte-validation boundary. Omitted stored values are
   outside the graph rather than being mislabeled unreachable.
-- 2026-08-01: the implementation candidate passed 13 focused Bun tests with
-  199 assertions, including 64 generated graph-oracle runs, plus one genuine
-  Node parity test. TypeScript 7, Oxlint, Oxfmt, project-model validation, and
-  generated projection checks passed. Full repository acceptance and
-  revision-pinned review remain pending.
+- 2026-08-01: exact implementation head `6619778` passed 13 focused Bun tests
+  with 202 assertions, including 64 fixed-seed generated graph-oracle runs,
+  plus one genuine Node parity test. Exact full acceptance passed 692 Bun tests
+  with one intentional optional-oracle skip, 68 Python tests, TypeScript 7,
+  Oxlint, Oxfmt, project-model validation, and generated projection checks.
+- 2026-08-01: revision-pinned review of `052bade` found no blocker or major and
+  identified two minor evidence/order gaps. Head `6619778` admits malformed
+  representations before observing the store and pins the generated oracle;
+  independent delta review approved it with no remaining finding.
 
-## Open review questions
+## Review disposition
 
-- Is the declared closed graph the smallest honest universe for complement
-  facts?
-- Can any caller-controlled object be observed after primitive JSON capture?
-- Do cycles, duplicate edges, and changing roots preserve the stated identity
-  laws?
-- Does any output name imply compiler-derived dependency authority?
+- The declared closed graph is the smallest honest complement universe until a
+  compiler-owned dependency extractor exists.
+- Primitive JSON and receipt bytes are captured before the store observation;
+  malformed representations consume no snapshot.
+- Generated closure oracles, explicit permutations, cycles, duplicates, and
+  changing-root journeys enforce the stated identity and termination laws.
+- `edge_authority: caller-declared` keeps compiler-derived authority explicitly
+  out of the receipt.

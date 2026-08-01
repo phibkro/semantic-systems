@@ -5,7 +5,7 @@
       "kind": "work_item",
       "name": "Derive a declared reachability analysis receipt",
       "summary": "Compute one bounded content-addressed closure over an explicit closed dependency graph whose subjects are present in a captured semantic-store projection.",
-      "status": "in_progress",
+      "status": "complete",
       "tags": ["language", "compiler", "build", "analysis", "content-addressed", "effect"],
       "attributes": {
         "phase": "implementation",
