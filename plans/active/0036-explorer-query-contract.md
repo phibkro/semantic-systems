@@ -81,3 +81,9 @@ bun scripts/accept/0036-explorer-query-contract.ts
   facts. The correction captures bounded descriptor snapshots before Schema,
   separates selected and available kind bounds, and exercises an actual 0034
   Unicode/empty-display artifact through a lossless discriminator adapter.
+- 2026-08-01: follow-up review confirmed those three corrections and exposed one
+  remaining admission-order defect: per-kind fact quotas were counted only after
+  complete capture. The boundary now counts each fact from its cached own data
+  discriminator and rejects the first excess entity or relation before observing
+  its record body; symmetric limit-plus-one counterexamples observe zero body
+  properties on the rejected record.

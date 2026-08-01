@@ -316,7 +316,13 @@ type InputCapture = CapturedInput | RejectedInput;
 interface CaptureBudget {
   valueCount: number;
   codeUnits: number;
+  entityFactCount: number;
+  relationFactCount: number;
   readonly stack: WeakSet<object>;
+}
+
+interface PreobservedRecord {
+  readonly descriptors: ReadonlyMap<string, PropertyDescriptor>;
 }
 
 const captureArrayLimits: Readonly<Record<string, number>> = Object.freeze({
@@ -350,6 +356,7 @@ const captureInertValue = (
   path: string,
   depth: number,
   budget: CaptureBudget,
+  preobserved?: PreobservedRecord,
 ): InputCapture => {
   budget.valueCount += 1;
   if (budget.valueCount > explorerBounds.maximumCapturedValues) {
@@ -405,6 +412,7 @@ const captureInertValue = (
       }
       indices.push(index);
     }
+    indices.sort((left, right) => left - right);
 
     budget.stack.add(input);
     const snapshot: Array<unknown> = [];
@@ -414,7 +422,48 @@ const captureInertValue = (
       if (descriptor === undefined || !("value" in descriptor) || descriptor.enumerable !== true) {
         return { kind: "Rejected", reason: `${path}[${index}] must be an own data property` };
       }
-      const captured = captureInertValue(descriptor.value, `${path}[]`, depth + 1, budget);
+      let factRecord: PreobservedRecord | undefined;
+      if (path === "source.facts") {
+        if (
+          descriptor.value === null ||
+          typeof descriptor.value !== "object" ||
+          Array.isArray(descriptor.value)
+        ) {
+          return { kind: "Rejected", reason: `${path}[${index}] must be a fact record` };
+        }
+        const factType = Object.getOwnPropertyDescriptor(descriptor.value, "fact_type");
+        if (factType === undefined || !("value" in factType) || factType.enumerable !== true) {
+          return {
+            kind: "Rejected",
+            reason: `${path}[${index}].fact_type must be an own data property`,
+          };
+        }
+        if (factType.value === "entity") {
+          budget.entityFactCount += 1;
+          if (budget.entityFactCount > explorerBounds.maximumEntities) {
+            return {
+              kind: "Rejected",
+              reason: `source exceeds ${explorerBounds.maximumEntities} entity facts`,
+            };
+          }
+        } else if (factType.value === "relation") {
+          budget.relationFactCount += 1;
+          if (budget.relationFactCount > explorerBounds.maximumRelations) {
+            return {
+              kind: "Rejected",
+              reason: `source exceeds ${explorerBounds.maximumRelations} relation facts`,
+            };
+          }
+        }
+        factRecord = { descriptors: new Map([["fact_type", factType]]) };
+      }
+      const captured = captureInertValue(
+        descriptor.value,
+        `${path}[]`,
+        depth + 1,
+        budget,
+        factRecord,
+      );
       if (captured.kind === "Rejected") return captured;
       snapshot[index] = captured.value;
     }
@@ -437,7 +486,8 @@ const captureInertValue = (
     }
     const keyIssue = captureString(key, budget, `${path} property`);
     if (keyIssue !== undefined) return keyIssue;
-    const descriptor = Object.getOwnPropertyDescriptor(input, key);
+    const descriptor =
+      preobserved?.descriptors.get(key) ?? Object.getOwnPropertyDescriptor(input, key);
     if (descriptor === undefined || !("value" in descriptor) || descriptor.enumerable !== true) {
       return { kind: "Rejected", reason: `${path}.${key} must be an own data property` };
     }
@@ -464,6 +514,8 @@ const captureInput = (
         captureInertValue(input, root, 0, {
           valueCount: 0,
           codeUnits: 0,
+          entityFactCount: 0,
+          relationFactCount: 0,
           stack: new WeakSet(),
         }),
       catch: () => reject(root, `${root} value could not be captured`),

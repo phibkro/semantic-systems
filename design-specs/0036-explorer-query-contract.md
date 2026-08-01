@@ -68,7 +68,9 @@ data-property descriptors into bounded plain snapshots before Schema decoding.
 Array length is admitted before any element descriptor is inspected. Accessors,
 symbols, cycles, revoked observations, moving live properties, and arrays beyond
 their field-specific limits reject through the typed channel; Schema never
-decodes the live caller objects.
+decodes the live caller objects. While capturing facts, the boundary observes
+each own data-property discriminator once and rejects the first excess entity or
+relation before observing the rest of that record.
 
 ### Semantic outputs
 
@@ -127,9 +129,10 @@ does not inspect storage internals.
 Example and property tests observe permutation invariance, recursive
 expand/collapse behavior, direction and family filtering, cycle termination,
 cross-view identity equality, exact provenance, immutability, bounded inert
-capture, output-schema closure, and lossless adaptation of one actual accepted
-0034 artifact. These observations do not prove source authenticity, relational
-truth, rendering usability, database performance, or UI accessibility.
+capture (including pre-body per-kind admission), output-schema closure, and
+lossless adaptation of one actual accepted 0034 artifact. These observations do
+not prove source authenticity, relational truth, rendering usability, database
+performance, or UI accessibility.
 
 The contract assumes fact keys and provenance are supplied by a canonical
 source or adapter. Feature 0034 informed the minimal fact vocabulary but is not

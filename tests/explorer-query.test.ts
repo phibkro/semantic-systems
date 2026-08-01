@@ -315,6 +315,94 @@ describe("storage-independent explorer query", () => {
     }
   });
 
+  test("rejects per-kind fact excess before observing the excess record body", async () => {
+    const minimalEntity = {
+      fact_type: "entity" as const,
+      fact_key: "e",
+      subject_id: "a",
+      entity_kind: "e",
+      status: null,
+      name: "",
+      provenance: {
+        source_schema: "s",
+        source_document: "d",
+        source_record_kind: "entity" as const,
+        source_record_key: "e",
+      },
+    };
+    const minimalRelation = {
+      fact_type: "relation" as const,
+      fact_key: "r",
+      subject_id: "a",
+      object_id: "a",
+      relation_kind: "r",
+      family: "dependency" as const,
+      provenance: {
+        source_schema: "s",
+        source_document: "d",
+        source_record_kind: "relation" as const,
+        source_record_key: "r",
+      },
+    };
+    const guardedExcess = (factType: "entity" | "relation") => {
+      let bodyObservations = 0;
+      const value = new Proxy(
+        { ...minimalEntity, fact_type: factType },
+        {
+          ownKeys: () => {
+            bodyObservations += 1;
+            throw new Error("excess fact body must not be observed");
+          },
+          getOwnPropertyDescriptor: (target, key) => {
+            if (key === "fact_type") return Reflect.getOwnPropertyDescriptor(target, key);
+            bodyObservations += 1;
+            throw new Error("excess fact body must not be observed");
+          },
+        },
+      );
+      return { value, observations: () => bodyObservations };
+    };
+
+    const excessEntity = guardedExcess("entity");
+    const entityResult = await Effect.runPromise(
+      Effect.result(
+        queryExplorer(
+          {
+            format: "semantic.explorer-fact-source",
+            version: 1,
+            facts: [
+              ...Array.from({ length: explorerBounds.maximumEntities }, () => minimalEntity),
+              excessEntity.value,
+            ],
+          },
+          query(),
+        ),
+      ),
+    );
+    expect(Result.isFailure(entityResult)).toBeTrue();
+    expect(excessEntity.observations()).toBe(0);
+
+    const excessRelation = guardedExcess("relation");
+    const relationResult = await Effect.runPromise(
+      Effect.result(
+        queryExplorer(
+          {
+            format: "semantic.explorer-fact-source",
+            version: 1,
+            facts: [
+              minimalEntity,
+              ...Array.from({ length: explorerBounds.maximumRelations }, () => minimalRelation),
+              excessRelation.value,
+            ],
+          },
+          query(),
+        ),
+      ),
+    );
+    expect(Result.isFailure(relationResult)).toBeTrue();
+    expect(excessRelation.observations()).toBe(0);
+  });
+
   test("keeps available relation-kind introspection inside its exported result schema", async () => {
     const manyKinds = {
       format: "semantic.explorer-fact-source" as const,
