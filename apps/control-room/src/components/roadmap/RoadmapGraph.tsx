@@ -66,11 +66,28 @@ const labelFor = (
   </div>
 );
 
-export const RoadmapGraph = ({ document, model, selectedId, onSelect }: RoadmapGraphProps) => {
+const projectNodeId = (projectId: string): string => `roadmap-project:${projectId}`;
+
+const projectLabel = (project: RoadmapModel["projects"][number]): ReactNode => (
+  <div className="grid gap-1.5 text-left">
+    <span className="flex items-center justify-between gap-2">
+      <Badge variant="outline">project</Badge>
+      <Badge variant="secondary">{project.status}</Badge>
+    </span>
+    <strong className="text-base">{project.name}</strong>
+    <span className="line-clamp-2 text-xs text-muted-foreground">{project.summary}</span>
+  </div>
+);
+
+export const roadmapGraphElements = (
+  document: PortfolioDocument,
+  model: RoadmapModel,
+  selectedId: string | null,
+) => {
   const projects = new Map(document.projects.map((project) => [project.id, project.name]));
   const work = new Map(document.work.map((item) => [item.id, item]));
   const related = relatedRoadmapIdentities(model, selectedId);
-  const nodes: Array<Node<{ readonly label: ReactNode }>> = model.nodes.map((node) => ({
+  const workNodes: Array<Node<{ readonly label: ReactNode }>> = model.nodes.map((node) => ({
     id: node.id,
     position: node.position,
     data: {
@@ -95,20 +112,101 @@ export const RoadmapGraph = ({ document, model, selectedId, onSelect }: RoadmapG
       node.id === selectedId && "ring-2 ring-primary",
     ),
   }));
-  const edges: Array<Edge> = model.dependency_edges.map((edge) => ({
+  const projectNodes: Array<Node<{ readonly label: ReactNode }>> = model.projects.map(
+    (project, index) => {
+      const memberPositions = project.identity_ids
+        .map((identity) => model.nodes.find(({ id }) => id === identity)?.position.x)
+        .filter((position): position is number => position !== undefined);
+      const x =
+        memberPositions.length === 0
+          ? index * 360
+          : memberPositions.reduce((total, position) => total + position, 0) /
+            memberPositions.length;
+      const selectedProject =
+        selectedId !== null && work.get(selectedId)?.project_id === project.project_id;
+      return {
+        id: projectNodeId(project.project_id),
+        position: { x, y: -220 },
+        data: { label: projectLabel(project) },
+        draggable: false,
+        connectable: false,
+        selectable: false,
+        focusable: false,
+        sourcePosition: Position.Bottom,
+        targetPosition: Position.Top,
+        ariaLabel: `project ${project.name}; ${project.identity_ids.length} roadmap identities`,
+        style: { width: 304 },
+        className: cn(
+          "rounded-xl border-2 border-primary/60 bg-card p-3 text-card-foreground shadow-sm",
+          selectedId !== null && !selectedProject && "border-dashed bg-muted/30",
+          selectedProject && "ring-2 ring-primary",
+        ),
+      };
+    },
+  );
+  const dependencyEdges: Array<Edge> = model.dependency_edges.map((edge) => ({
     id: edge.id,
     source: edge.visual_source_id,
     target: edge.visual_target_id,
     type: "smoothstep",
+    label: "unlocks",
+    data: {
+      authored_relation: "requires",
+      prerequisite_id: edge.prerequisite_id,
+      dependent_id: edge.dependent_id,
+    },
     focusable: false,
     selectable: false,
     ariaLabel: `${work.get(edge.prerequisite_id)?.title ?? edge.prerequisite_id} unlocks ${work.get(edge.dependent_id)?.title ?? edge.dependent_id}`,
     markerEnd: { type: MarkerType.ArrowClosed },
-    ...(selectedId !== null &&
-    !(related.has(edge.prerequisite_id) && related.has(edge.dependent_id))
+    className: cn(
+      "text-primary",
+      selectedId !== null &&
+        !(related.has(edge.prerequisite_id) && related.has(edge.dependent_id)) &&
+        "opacity-20",
+    ),
+  }));
+  const containmentEdges: Array<Edge> = model.containment_edges.map((edge) => ({
+    id: edge.id,
+    source: edge.container_id,
+    target: edge.contained_id,
+    type: "smoothstep",
+    label: "contains",
+    focusable: false,
+    selectable: false,
+    ariaLabel: `Containment: ${work.get(edge.container_id)?.title ?? edge.container_id} contains ${work.get(edge.contained_id)?.title ?? edge.contained_id}`,
+    style: { strokeDasharray: "7 5" },
+    ...(selectedId !== null && !(related.has(edge.container_id) && related.has(edge.contained_id))
       ? { className: "opacity-20" }
       : {}),
   }));
+  const membershipEdges: Array<Edge> = model.projects.flatMap((project) =>
+    [...project.milestone_ids, ...project.standalone_feature_ids].map((identity) => ({
+      id: `project-membership:${project.project_id}:${identity}`,
+      source: projectNodeId(project.project_id),
+      target: identity,
+      type: "smoothstep",
+      label: "membership",
+      focusable: false,
+      selectable: false,
+      ariaLabel: `Project membership: ${project.name} groups ${work.get(identity)?.title ?? identity}`,
+      style: { strokeDasharray: "2 5" },
+      className: cn(
+        selectedId !== null &&
+          work.get(selectedId)?.project_id !== project.project_id &&
+          "opacity-20",
+      ),
+    })),
+  );
+  const nodes = [...projectNodes, ...workNodes];
+  const edges = [...membershipEdges, ...containmentEdges, ...dependencyEdges];
+
+  return { nodes, edges };
+};
+
+export const RoadmapGraph = ({ document, model, selectedId, onSelect }: RoadmapGraphProps) => {
+  const work = new Map(document.work.map((item) => [item.id, item]));
+  const { nodes, edges } = roadmapGraphElements(document, model, selectedId);
 
   return (
     <div

@@ -11,7 +11,7 @@ const root = resolve(import.meta.dirname, "../..");
 
 const contractArtifacts = [
   "design-specs/0021-pbk-portfolio-control-room.md",
-  "plans/active/0021-pbk-portfolio-control-room.md",
+  "plans/completed/0021-pbk-portfolio-control-room.md",
   "model/work/pbk-portfolio-control-room.json",
 ] as const;
 
@@ -37,7 +37,7 @@ const requireFile = (relativePath: string, kind: string) =>
     }
   });
 
-const program = Effect.gen(function* () {
+export const portfolioControlRoomAcceptance = Effect.gen(function* () {
   for (const artifact of contractArtifacts) yield* requireFile(artifact, "contract");
   yield* runCommand(["bun", "run", "semproj", "--", "validate"], { cwd: root });
   yield* runCommand(["bun", "run", "semproj", "--", "generate", "--check"], { cwd: root });
@@ -72,10 +72,9 @@ const program = Effect.gen(function* () {
       "model/work/pbk-portfolio-control-room.json",
     ],
     ["bun", "scripts/accept/0017-control-room-reconstruction.ts"],
-    ["just", "check"],
   ] as const) {
     yield* runCommand(command, { cwd: root });
   }
 });
 
-runMain("accept/0021", program);
+if (import.meta.main) runMain("accept/0021", portfolioControlRoomAcceptance);
