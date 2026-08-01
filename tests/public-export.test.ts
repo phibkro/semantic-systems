@@ -1,7 +1,12 @@
 import { BunCrypto } from "@effect/platform-bun";
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
 import { describe, expect, test } from "bun:test";
-import { buildPublicArtifact, type ExportObservation } from "../src/project-model/public-export.ts";
+import {
+  PublicSnapshotSchema,
+  PublicVersionSchema,
+  buildPublicArtifact,
+  type ExportObservation,
+} from "../src/project-model/public-export.ts";
 import { assessWork } from "../src/project-model/schedule.ts";
 import type { Entity, ProjectGraph, Relation } from "../src/project-model/types.ts";
 
@@ -110,6 +115,12 @@ describe("strict public projection", () => {
     expect(first.snapshotName).toBe(`snapshot.${first.digest}.json`);
     expect(first.version.snapshot).toBe(first.snapshotName);
     expect(Object.isFrozen(first.snapshot.entities[0])).toBe(true);
+    expect(
+      Schema.decodeUnknownSync(PublicSnapshotSchema, { onExcessProperty: "error" })(first.snapshot),
+    ).toEqual(first.snapshot);
+    expect(
+      Schema.decodeUnknownSync(PublicVersionSchema, { onExcessProperty: "error" })(first.version),
+    ).toEqual(first.version);
 
     const encoded = first.snapshotBytes;
     for (const forbidden of [
@@ -162,6 +173,9 @@ describe("strict public projection", () => {
     ).rejects.toThrow("outside model");
     await expect(run(graph(), observation({ commit: "abc123" }))).rejects.toThrow(
       "exact lowercase",
+    );
+    await expect(run(graph(), observation({ observedAt: "2026-07-31" }))).rejects.toThrow(
+      "canonical whole-second",
     );
     await expect(run(graph(), observation({ observedAt: "2026-02-30T12:00:00Z" }))).rejects.toThrow(
       "valid whole-second",

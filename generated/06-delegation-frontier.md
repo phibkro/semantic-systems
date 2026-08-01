@@ -18,6 +18,7 @@ Ready parallel work items: **20**.
 | Implement core checker | implementation | planned | yes | 65 | delegate with review |  |
 | Design deterministic concurrency simulator | design | planned | no | 68 | delegate with review | Specify STM effect and handler laws |
 | Adopt Effect Graph as a portfolio execution index | implementation | complete | no | 90 | delegate with review |  |
+| Adopt Effect Schema at the public snapshot boundary | validation | complete | no | 90 | delegate with review |  |
 | Build the executable semantic system kernel | validation | complete | no | 72 | delegate with review |  |
 | Specify explorer query contract | validation | review | no | 94 | delegate directly |  |
 | Implement inventory actor realization | validation | complete | no | 94 | delegate directly |  |
