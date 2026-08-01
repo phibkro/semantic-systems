@@ -23,9 +23,10 @@ not choose Datalog, SQL, SQLite, or a hosted graph service.
 ## Felt journey
 
 The accepted project model is loaded and validated. Export emits canonical
-UTF-8 JSON containing one entity fact per canonical entity and one relation
-fact per canonical relation. Every fact has a stable ordering key and a
-relative source-document reference. The export has an exact content identity.
+UTF-8 JSON containing one entity fact per observed canonical entity record and
+one relation fact per observed canonical relation record. Every fact has a
+stable ordering key and a relative source-document reference. The export has
+an exact content identity.
 
 Given the exported bytes and a changed dependency, the impact query returns a
 deterministic shortest dependency path to each affected subject. Given a claim,
@@ -99,10 +100,11 @@ The export is exactly:
 }
 ```
 
-An entity fact contains `fact_key`, `subject_id`, `entity_kind`, `name`,
-`status`, and provenance. A relation fact contains `fact_key`, one explicit
-`family`, canonical `subject_id`, canonical `object_id`, the exact
-`relation_kind`, and provenance. Provenance is:
+An entity fact contains `_tag: "EntityFact"`, `fact_key`, `subject_id`,
+`entity_kind`, `name`, `status`, and provenance. A relation fact contains
+`_tag: "RelationFact"`, `fact_key`, one explicit `family`, canonical
+`subject_id`, canonical `object_id`, the exact `relation_kind`, and provenance.
+Provenance is:
 
 ```text
 {
@@ -112,6 +114,12 @@ An entity fact contains `fact_key`, `subject_id`, `entity_kind`, `name`,
   source_record_key: <stable canonical tuple string>
 }
 ```
+
+A canonical relation record is one accepted authored `ProjectGraph` relation,
+including its source document. Equal relation tuples authored in different
+documents therefore remain distinct facts with distinct exact provenance;
+repeating the tuple in the same source document produces a duplicate fact key
+and rejects the export.
 
 Version-1 relation families are disjoint projections of exact relation kinds:
 

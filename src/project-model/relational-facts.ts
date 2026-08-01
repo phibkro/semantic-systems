@@ -724,6 +724,9 @@ const decodeRequest = (
     Effect.mapError(
       (cause) => new RelationalFactQueryRejected({ reason: `invalid query: ${cause.message}` }),
     ),
+    Effect.catchDefect(() =>
+      Effect.fail(new RelationalFactQueryRejected({ reason: "query value could not be decoded" })),
+    ),
     Effect.flatMap((request) => {
       if (request.format !== expectedFormat) {
         return Effect.fail(

@@ -241,6 +241,18 @@ describe("project relational fact export 0034", () => {
     }
   });
 
+  test("maps hostile query request observations into the typed rejection channel", async () => {
+    const artifact = await runBuild(buildRelationalFactExport(tracerGraph()));
+    const revoked = Proxy.revocable({}, {});
+    revoked.revoke();
+    const result = await runCrypto(queryImpact(artifact.bytes, revoked.proxy).pipe(Effect.result));
+
+    expect(Result.isFailure(result)).toBeTrue();
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(RelationalFactQueryRejected);
+    }
+  });
+
   test("rejects unknown roots, invalid project state, foreign paths, duplicates, and non-canonical bytes", async () => {
     const artifact = await runBuild(buildRelationalFactExport(tracerGraph()));
     const unknown = await runCrypto(
