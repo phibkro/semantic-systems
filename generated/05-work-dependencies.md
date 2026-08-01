@@ -18,6 +18,7 @@ flowchart LR
     work_control_room_reconstruction["Reconstruct the Control Room on TypeScript and Effect v4"]
     work_core_checker["Implement core checker"]
     work_deterministic_simulator_spec["Design deterministic concurrency simulator"]
+    work_effect_graph_execution_index["Adopt Effect Graph as a portfolio execution index"]
     work_executable_semantic_system_kernel["Build the executable semantic system kernel"]
     work_explorer_query_contract["Specify explorer query contract"]
     work_inventory_actor["Implement inventory actor realization"]
@@ -59,6 +60,7 @@ flowchart LR
     work_control_room_interactive_skill_tree -->|requires| work_pbk_portfolio_control_room
     work_control_room_pinned_alchemy_workspace -->|requires| work_control_room_alchemy_cli_compat
     decision_gated_autonomous_merges -->|informs| work_autonomous_development_loop
+    work_effect_graph_execution_index -->|requires| work_pbk_portfolio_control_room
     work_executable_semantic_system_kernel -->|blocks| work_actor_runtime
     work_inventory_resolution_tracer -->|requires| decision_theory_identity
     work_kernel_reference_interpreter -->|requires| work_agent_facing_kernel_json
