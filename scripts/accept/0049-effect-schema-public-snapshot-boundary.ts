@@ -10,7 +10,7 @@ class AcceptanceFailure extends Data.TaggedError("AcceptanceFailure")<{
 const root = resolve(import.meta.dirname, "../..");
 const required = [
   "design-specs/0049-effect-schema-public-snapshot-boundary.md",
-  "plans/active/0049-effect-schema-public-snapshot-boundary.md",
+  "plans/completed/0049-effect-schema-public-snapshot-boundary.md",
   "model/work/effect-schema-public-snapshot-boundary.json",
   "src/project-model/public-export.ts",
   "tests/public-export.test.ts",
@@ -46,7 +46,7 @@ const program = Effect.gen(function* () {
       "apps/control-room/src/snapshot.test.ts",
       "scripts/accept/0049-effect-schema-public-snapshot-boundary.ts",
       "design-specs/0049-effect-schema-public-snapshot-boundary.md",
-      "plans/active/0049-effect-schema-public-snapshot-boundary.md",
+      "plans/completed/0049-effect-schema-public-snapshot-boundary.md",
       "model/work/effect-schema-public-snapshot-boundary.json",
     ],
     { cwd: root },

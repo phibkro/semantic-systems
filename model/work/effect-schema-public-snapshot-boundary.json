@@ -5,13 +5,13 @@
       "kind": "work_item",
       "name": "Adopt Effect Schema at the public snapshot boundary",
       "summary": "Replace parallel handwritten Control Room snapshot guards with one authoritative strict Effect Schema while preserving public bytes, content identity, cache custody, errors, and UI behavior.",
-      "status": "in_progress",
+      "status": "complete",
       "tags": ["control-room", "effect", "schema", "snapshot", "custody"],
       "attributes": {
-        "phase": "implementation",
+        "phase": "validation",
         "effort": 3,
         "design_spec": "design-specs/0049-effect-schema-public-snapshot-boundary.md",
-        "plan": "plans/active/0049-effect-schema-public-snapshot-boundary.md",
+        "plan": "plans/completed/0049-effect-schema-public-snapshot-boundary.md",
         "acceptance": [
           "Producer and browser share one authoritative public snapshot Schema",
           "Closed values reject excess properties at every nesting level",

@@ -240,6 +240,24 @@ describe("snapshot custody", () => {
     await expect(readCachedSnapshot(storage)).resolves.toEqual(pair.snapshot);
   });
 
+  test("refuses to normalize excess nested fields into an adoptable cache entry", async () => {
+    const pair = await validPair();
+    const snapshotWithPrivateMetadata = {
+      ...pair.snapshot,
+      metadata: {
+        ...pair.snapshot.metadata,
+        private: "unexpected",
+      },
+    };
+    const storage = new MemoryStorage();
+
+    expect(() => writeCachedSnapshot(snapshotWithPrivateMetadata, storage)).toThrow();
+    expect(storage.length).toBe(0);
+    await expect(
+      readCachedValue({ snapshot: snapshotWithPrivateMetadata, version: pair.version }),
+    ).resolves.toBeNull();
+  });
+
   test("treats malformed and schema-invalid cache JSON as absent", async () => {
     const storage = new MemoryStorage();
     storage.setItem("semantic-control-room.snapshot-v1", "{not-json");

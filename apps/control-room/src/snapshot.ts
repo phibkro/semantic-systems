@@ -138,7 +138,10 @@ export const writeCachedSnapshot = (
 ): void => {
   storage.setItem(
     CACHE_KEY,
-    Schema.encodeSync(CachedSnapshotPairJsonSchema)({
+    Schema.encodeSync(
+      CachedSnapshotPairJsonSchema,
+      strictDecode,
+    )({
       snapshot,
       version: versionForSnapshot(snapshot),
     }),

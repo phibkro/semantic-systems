@@ -1,10 +1,10 @@
-# Active plan 0049: Effect Schema public snapshot boundary
+# Completed plan 0049: Effect Schema public snapshot boundary
 
 Canonical frozen contract:
 [`design-specs/0049-effect-schema-public-snapshot-boundary.md`](../../design-specs/0049-effect-schema-public-snapshot-boundary.md).
 This execution record cannot redefine that contract.
 
-Status: contract frozen; implementation in progress
+Status: implementation and local acceptance complete; integration pending
 
 Owner: Semantic Systems Control Room boundary engineer
 
@@ -18,7 +18,7 @@ Owner: Semantic Systems Control Room boundary engineer
 ## Owned paths
 
 - `design-specs/0049-effect-schema-public-snapshot-boundary.md`
-- `plans/active/0049-effect-schema-public-snapshot-boundary.md`
+- `plans/completed/0049-effect-schema-public-snapshot-boundary.md`
 - `model/work/effect-schema-public-snapshot-boundary.json`
 - `scripts/accept/0049-effect-schema-public-snapshot-boundary.ts`
 - `src/project-model/public-export.ts`
@@ -72,7 +72,17 @@ bun scripts/accept/0049-effect-schema-public-snapshot-boundary.ts
 - 2026-08-01: generic Effect DateTime decoding was rejected because it accepts
   and normalizes a broader language than the frozen whole-second UTC bytes.
 - 2026-08-01: focused producer and browser tests, root and app type checks,
-  root and app lint, model validation, generated-view checks, 76 Control Room
-  tests, nine mobile Chromium journeys, payload scanning, and the 895-pass root
+  root and app lint, model validation, generated-view checks, 77 Control Room
+  tests, nine mobile Chromium journeys, payload scanning, and the 896-pass root
   suite all completed without failure; the one configured external-oracle test
   remained explicitly skipped.
+- 2026-08-01: independent review found that default Schema encoding could
+  discard excess cache fields and that the accepted candidate remained marked
+  in progress. Strict encode options now reject rather than normalize a nested
+  excess field, and the work record and projections are terminal.
+
+## Completion state
+
+Implementation, local product verification, and independent-review
+corrections are complete. Exact-head approval, integration onto the newer
+`origin/main`, protected checks, and merge remain integration-owned boundaries.
