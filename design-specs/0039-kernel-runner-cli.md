@@ -52,8 +52,11 @@ diagnostics go only to stderr and are not semantic observations.
 `returned` and `suspended` observations exit 0: suspension reports an outward
 operation request but does not claim delivery. `representation-rejected`,
 `check-rejected`, `runtime-rejected`, and `inconclusive` observations exit 1.
-Invocation or host I/O failure exits 2 and writes no stdout. The command does
-not retry, resume, reconcile, contact a network, or interpret an operation.
+Invocation or input-read failure exits 2 before any stdout write. An output
+failure also exits 2, but the host may already have accepted a prefix: ordinary
+process streams do not provide an atomic-write guarantee. Such a prefix is not
+a semantic observation. The command does not retry, resume, reconcile, contact
+a network, or interpret an operation.
 
 ### Components and orthogonal structures
 
@@ -74,13 +77,13 @@ a host I/O failure if the host cannot supply a finite byte sequence.
 
 ### Evidence, assumptions, and unsupported claims
 
-Focused Bun tests observe invocation, read count, exact bytes, exit codes, and
-host failures. Genuine Node tests compare the process boundary with Bun on the
-same fixtures. Architecture tests reject bytecode imports and direct
+Focused Bun tests observe invocation, read count, exact successful bytes, exit
+codes, and host failures. Genuine Node tests compare the process boundary with
+Bun on the same fixtures. Architecture tests reject bytecode imports and direct
 `JSON.parse`. Existing 0020 and 0022 acceptance remains the semantic evidence.
 This feature does not prove that a suspended request was handled, that a
-rejected program ran, that the optimized VM agrees, or that arbitrary host I/O
-is deterministic.
+rejected program ran, that the optimized VM agrees, that a failed output stream
+is atomic, or that arbitrary host I/O is deterministic.
 
 ## Deep-module contract
 
@@ -104,8 +107,9 @@ tests. It must expose one read operation and separate stdout/stderr writes.
 - a semantic rejection never reaches evaluation;
 - an unhandled operation exits 0 with `suspended`, without implying delivery;
 - an input capability that changes on a second read is observed once;
-- a missing file, failed stdin, or failed stdout exits 2 without partial
-  semantic stdout or a host stack trace;
+- a missing file or failed stdin exits 2 before stdout; a failed stdout exits 2
+  without a host stack trace and any accepted prefix is explicitly
+  non-semantic;
 - excess arguments exit 2 without reading input;
 - Bun and Node emit byte-identical stdout for accepted and rejected inputs;
 - the command closure contains no bytecode import, direct `JSON.parse`, or

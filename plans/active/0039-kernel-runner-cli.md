@@ -59,3 +59,6 @@ just accept 0039-kernel-runner-cli
   rejected as redundant or outside this interpreter-first slice.
 - 2026-08-01: no external scaffold is needed; established repository CLI
   entry-point and platform-layer patterns are sufficient.
+- 2026-08-01: pre-implementation review removed an impossible atomic-output
+  claim. Usage and input-read failures precede stdout; a host output failure may
+  have accepted a non-semantic prefix and remains an explicit exit-2 condition.
