@@ -55,7 +55,9 @@ export const runCompiledKernelJsonBytes = (
   const program = Effect.flatMap(prepareKernelJsonBytes(input, jsonBounds), (checked) =>
     Effect.flatMap(compileCheckedProgram(checked.program, bytecodeBounds), (compiled) =>
       Effect.map(executeCompiledProgram(compiled, bytecodeBounds), (returned) =>
-        kernelRunEnvelope({ tag: "returned", value: returned.value }),
+        returned.status === "returned"
+          ? kernelRunEnvelope({ tag: "returned", value: returned.value })
+          : kernelRunEnvelope({ tag: "suspended", request: returned.request }),
       ),
     ),
   );

@@ -1,6 +1,12 @@
 /** Deterministic baseline compiler from genuine checker custody to closed instructions. */
 import { Data, Effect } from "effect";
-import type { ComputationTerm, ValueTerm } from "../kernel-calculus/ast.ts";
+import type {
+  ComputationTerm,
+  ComputationType,
+  OperationSignature,
+  ValueTerm,
+  ValueType,
+} from "../kernel-calculus/ast.ts";
 import { requireCheckedProgram, type CheckedProgram } from "../kernel-calculus/checker.ts";
 import { mintCompiledProgram, type CompiledProgram } from "./custody.ts";
 import type {
@@ -11,6 +17,10 @@ import type {
   VmSlot,
 } from "./instruction.ts";
 import type { KernelBytecodeBounds } from "./schema.ts";
+import type {
+  ObservableComputationType,
+  ObservableValueType,
+} from "../kernel-interpreter/schema.ts";
 
 export class BytecodeCompilationFailure extends Data.TaggedError("BytecodeCompilationFailure")<{
   readonly code: string;
@@ -22,15 +32,57 @@ interface CompileContext {
   readonly resumptionSlots: ReadonlyArray<VmSlot>;
 }
 
+const observableValueType = (type: ValueType): ObservableValueType => {
+  switch (type.kind) {
+    case "unit":
+    case "bool":
+    case "int":
+      return { kind: type.kind };
+    case "pair":
+      return {
+        kind: "pair",
+        first: observableValueType(type.first),
+        second: observableValueType(type.second),
+      };
+    case "thunk":
+      return {
+        kind: "thunk",
+        effects: [...type.effects],
+        computation: observableComputationType(type.computation),
+      };
+  }
+};
+
+const observableComputationType = (type: ComputationType): ObservableComputationType => {
+  switch (type.kind) {
+    case "return":
+      return {
+        kind: "return",
+        grade: type.grade,
+        value: observableValueType(type.value),
+      };
+    case "function":
+      return {
+        kind: "function",
+        parameter: observableValueType(type.parameter),
+        grade: type.grade,
+        effects: [...type.effects],
+        result: observableComputationType(type.result),
+      };
+  }
+};
+
 class Builder {
   readonly #bounds: KernelBytecodeBounds;
+  readonly #signature: OperationSignature;
   readonly #blocks: Array<Array<Instruction>> = [];
   readonly #constants: Array<Constant> = [];
   #instructionCount = 0;
   #nextSlot = 0;
 
-  constructor(bounds: KernelBytecodeBounds) {
+  constructor(bounds: KernelBytecodeBounds, signature: OperationSignature) {
     this.#bounds = bounds;
+    this.#signature = signature;
   }
 
   slot(): VmSlot {
@@ -114,7 +166,7 @@ class Builder {
         this.emit(block, {
           kind: "MakeThunk",
           entryBlock,
-          capturedSlots: [...context.valueSlots],
+          capturedSlots: [...context.valueSlots, ...context.resumptionSlots],
         });
         return;
       }
@@ -152,7 +204,7 @@ class Builder {
           kind: "MakeFunction",
           entryBlock,
           parameterSlot,
-          capturedSlots: [...context.valueSlots],
+          capturedSlots: [...context.valueSlots, ...context.resumptionSlots],
         });
         return;
       }
@@ -161,13 +213,67 @@ class Builder {
         this.compileValue(block, term.argument, context);
         this.emit(block, { kind: "Call" });
         return;
-      case "operation":
-      case "handle":
-      case "resume":
-        throw new BytecodeCompilationFailure({
-          code: "bytecode.compile.effect-term-not-yet-implemented",
-          message: `baseline effect instruction selection is not implemented for ${term.kind}`,
+      case "operation": {
+        this.compileValue(block, term.argument, context);
+        const declaration = this.#signature.operations.find(
+          (candidate) => candidate.label === term.label && candidate.operation === term.operation,
+        );
+        if (declaration === undefined) {
+          this.invalidCustody("operation was not resolved by checking");
+        }
+        this.emit(block, {
+          kind: "Request",
+          labelConstantSlot: this.constant({ kind: "TextConstant", value: term.label }),
+          operationConstantSlot: this.constant({ kind: "TextConstant", value: term.operation }),
+          resultTypeConstantSlot: this.constant({
+            kind: "ObservableTypeConstant",
+            descriptor: observableValueType(declaration.resultType),
+          }),
         });
+        return;
+      }
+      case "handle": {
+        const returnSlot = this.slot();
+        const returnBlock = this.compileClosedBlock(term.returnClause.body, {
+          ...context,
+          valueSlots: [returnSlot, ...context.valueSlots],
+        });
+        const clauses = term.operationClauses.map((clause) => {
+          const argumentSlot = this.slot();
+          const resumptionSlot = this.slot();
+          return {
+            operationConstantSlot: this.constant({
+              kind: "TextConstant" as const,
+              value: clause.operation,
+            }),
+            entryBlock: this.compileClosedBlock(clause.body, {
+              valueSlots: [argumentSlot, ...context.valueSlots],
+              resumptionSlots: [resumptionSlot, ...context.resumptionSlots],
+            }),
+            argumentSlot,
+            resumptionSlot,
+          };
+        });
+        this.emit(block, {
+          kind: "EnterHandler",
+          labelConstantSlot: this.constant({ kind: "TextConstant", value: term.label }),
+          returnBlock,
+          returnSlot,
+          clauses,
+        });
+        this.compileComputation(block, term.computation, context);
+        this.emit(block, { kind: "LeaveHandler" });
+        return;
+      }
+      case "resume": {
+        const resumptionSlot = context.resumptionSlots[term.resumption];
+        if (resumptionSlot === undefined) {
+          this.invalidCustody("resumption slot was not resolved by checking");
+        }
+        this.compileValue(block, term.value, context);
+        this.emit(block, { kind: "ResumeSlot", resumptionSlot });
+        return;
+      }
     }
   }
 
@@ -207,7 +313,7 @@ export const compileCheckedProgram = (
           message: "compilation requires a checked program in private custody",
         });
       }
-      return mintCompiledProgram(new Builder(bounds).graph(checked.term));
+      return mintCompiledProgram(new Builder(bounds, checked.signature).graph(checked.term));
     },
     catch: (cause) =>
       cause instanceof BytecodeCompilationFailure

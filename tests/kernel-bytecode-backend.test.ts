@@ -132,18 +132,53 @@ describe("baseline bytecode pure vertical journey", () => {
     expect(projection?.constantCount).toBe(2);
   });
 
-  test("effect terms are a typed provisional runtime rejection", async () => {
+  test("a handled operation and one-shot resume agree exactly", async () => {
     const source = await Bun.file(
       new URL("../examples/kernel-json/handled-program.kernel.json", import.meta.url),
     ).bytes();
-    const result = runCompiledKernelJsonBytes(source);
-    expect(result.observation).toEqual({
-      tag: "runtime-rejected",
-      diagnostic: {
-        code: "bytecode.compile.effect-term-not-yet-implemented",
-        occurrence_path: "/program",
-        message: "baseline effect instruction selection is not implemented for handle",
+    const reference = interpretKernelJsonBytes(source);
+    const compiled = runCompiledKernelJsonBytes(source);
+    expect(compiled.observation).toEqual({
+      tag: "returned",
+      value: { kind: "int", value: 7 },
+    });
+    expect(compareKernelRunObservations(reference, compiled).tag).toBe("agreement");
+  });
+
+  test("an unhandled operation suspends with the exact observable request", () => {
+    const source = new TextEncoder().encode(
+      JSON.stringify({
+        format: "semantic.kernel-json",
+        version: 1,
+        kernel: "semantic.kernel-calculus/0018/v1",
+        signature: [
+          {
+            label: "outside",
+            operation: "read",
+            argument_type: { tag: "bool" },
+            result_type: { tag: "int" },
+          },
+        ],
+        program: {
+          tag: "operation",
+          grade: "1",
+          label: "outside",
+          operation: "read",
+          argument: { tag: "bool", value: true },
+        },
+      }),
+    );
+    const reference = interpretKernelJsonBytes(source);
+    const compiled = runCompiledKernelJsonBytes(source);
+    expect(compiled.observation).toEqual({
+      tag: "suspended",
+      request: {
+        label: "outside",
+        operation: "read",
+        argument: { kind: "bool", value: true },
+        result_type: { kind: "int" },
       },
     });
+    expect(compareKernelRunObservations(reference, compiled).tag).toBe("agreement");
   });
 });
