@@ -1,0 +1,57 @@
+{
+  "entities": [
+    {
+      "id": "work.surface-effect-replay",
+      "kind": "work_item",
+      "name": "Replay external effects from readable Semantic source",
+      "summary": "Compile one named surface program and capture one strict observation script before producing separate reference and bytecode affine effect traces.",
+      "status": "in_progress",
+      "tags": ["language", "surface", "effects", "interpreter", "bytecode"],
+      "attributes": {
+        "phase": "implementation",
+        "effort": 5,
+        "design_spec": "design-specs/0038-surface-effect-replay.md",
+        "plan": "plans/active/0038-surface-effect-replay.md",
+        "acceptance": [
+          "Readable source and one strict observation script produce both backend traces",
+          "Source compiles once and the caller script is captured once",
+          "Reference and bytecode observations retain their existing independent formats",
+          "Wrong-type, prefix, script, and checker rejections remain explicit",
+          "Generated conclusive journeys agree as exact canonical bytes"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 5,
+          "testability": 5,
+          "reversibility": 5,
+          "integration_independence": 4,
+          "blast_radius": 3,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source": "work.surface-effect-replay",
+      "target": "work.semantic-surface-language",
+      "kind": "requires",
+      "summary": "The accepted surface compiler supplies the one named-source compilation and strict kernel document.",
+      "attributes": {}
+    },
+    {
+      "source": "work.surface-effect-replay",
+      "target": "work.one-shot-external-effect-replay",
+      "kind": "requires",
+      "summary": "The accepted reference and bytecode drivers supply distinct affine replay observations.",
+      "attributes": {}
+    },
+    {
+      "source": "work.surface-effect-replay",
+      "target": "component.kernel",
+      "kind": "implements",
+      "summary": "Adds a readable-source composition root without changing the kernel or surface language semantics.",
+      "attributes": {}
+    }
+  ]
+}
