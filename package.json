@@ -17,6 +17,8 @@
     "semantic-tracer:node": "node src/tracer/main-node.ts",
     "semantic-actor": "bun src/actor/main-bun.ts",
     "semantic-actor:node": "node src/actor/main-node.ts",
+    "semantic": "bun src/surface-cli/main-bun.ts",
+    "semantic:node": "node src/surface-cli/main-node.ts",
     "semantic-kernel": "bun src/kernel-cli/main-bun.ts",
     "semantic-kernel:node": "node src/kernel-cli/main-node.ts",
     "test": "bun test",
