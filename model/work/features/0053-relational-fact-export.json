@@ -1,12 +1,12 @@
 {
   "entities": [
     {
-      "id": "work.relational-fact-export",
+      "id": "work.relational-fact-schema",
       "kind": "work_item",
-      "name": "Implement relational fact export",
-      "summary": "Project canonical entities and relations into immutable relational facts with bounded reachability and evidence queries.",
+      "name": "Define relational fact export",
+      "summary": "Project canonical dependencies, effects, ownership, obligations, evidence, and source correspondence into immutable relational facts with bounded queries.",
       "status": "in_progress",
-      "tags": ["facts", "projection", "query", "evidence"],
+      "tags": ["analysis", "tooling", "facts", "projection", "query", "evidence"],
       "attributes": {
         "feature_id": "0053-relational-fact-export",
         "feature_loop": "managed",

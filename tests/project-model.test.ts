@@ -74,8 +74,16 @@ describe("project model Effect v4 slice", () => {
     expect(ready.has("work.kernel-reference-interpreter")).toBeFalse();
     expect(ready.has("work.lean-evidence-adapter")).toBeTrue();
     expect(ready.has("work.stm-runtime")).toBeFalse();
-    expect(ready.has("work.inventory-stm")).toBeTrue();
     expect(ready.has("work.stm-model-check")).toBeTrue();
+    expect(ready.has("work.relational-fact-schema")).toBeTrue();
+    expect(project.entities.get("work.stm-model-check")?.status).toBe("in_progress");
+    expect(project.entities.get("work.stm-model-check")?.source).toEndWith(
+      "/model/work/features/0052-stm-schedule-explorer.json",
+    );
+    expect(project.entities.get("work.relational-fact-schema")?.status).toBe("in_progress");
+    expect(project.entities.get("work.relational-fact-schema")?.source).toEndWith(
+      "/model/work/features/0053-relational-fact-export.json",
+    );
     const path = criticalPath(project);
     expect(path.length).toBeGreaterThan(0);
     expect(["work.stm-model-check", "work.inventory-stm"]).toContain(path[path.length - 1]!);

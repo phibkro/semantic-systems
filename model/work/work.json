@@ -313,32 +313,6 @@
           "human_review": true
         }
       }
-    },
-    {
-      "id": "work.stm-model-check",
-      "kind": "work_item",
-      "name": "Model-check STM interleavings",
-      "summary": "Explore bounded commit, abort, retry, and wake-up schedules.",
-      "status": "planned",
-      "tags": ["stm", "validation"],
-      "attributes": {
-        "phase": "validation",
-        "effort": 8,
-        "acceptance": [
-          "At least two transactions and TVars are modeled",
-          "Counterexamples are reproducible",
-          "Bounds and fairness assumptions are explicit"
-        ],
-        "delegation": {
-          "specification_completeness": 5,
-          "context_locality": 5,
-          "testability": 5,
-          "reversibility": 5,
-          "integration_independence": 5,
-          "blast_radius": 2,
-          "human_review": true
-        }
-      }
     }
   ],
   "relations": [

@@ -1,12 +1,12 @@
 {
   "entities": [
     {
-      "id": "work.stm-schedule-explorer",
+      "id": "work.stm-model-check",
       "kind": "work_item",
-      "name": "Explore bounded STM schedules",
-      "summary": "Enumerate deterministic bounded STM schedules, classify closed properties, and replay canonical counterexamples.",
+      "name": "Model-check STM interleavings",
+      "summary": "Enumerate deterministic bounded commit, abort, retry, and wake-up schedules, classify closed properties, and replay canonical counterexamples.",
       "status": "in_progress",
-      "tags": ["stm", "model-checking", "validation", "determinism"],
+      "tags": ["stm", "validation", "model-checking", "determinism"],
       "attributes": {
         "feature_id": "0052-stm-schedule-explorer",
         "feature_loop": "managed",
