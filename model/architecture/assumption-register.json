@@ -1,0 +1,68 @@
+{
+  "entities": [
+    {
+      "id": "artifact.project-model.opaque-primitive-register",
+      "kind": "artifact",
+      "name": "Project-model opaque primitive register",
+      "summary": "Canonical register of runtime adapters, generators, external tools, and manually asserted relation classes whose behavior is outside recorded graph semantics.",
+      "status": "current",
+      "tags": ["project-model", "assumptions", "opaque-primitive"],
+      "attributes": {
+        "canonical": true,
+        "format": "semantic.opaque-primitive-register",
+        "version": 1,
+        "implementation": "src/project-model/assumption-query.ts",
+        "opaque_primitives": [
+          {
+            "id": "runtime.adapter.bun",
+            "class": "runtime_adapter",
+            "source": "src/project-model/main-bun.ts"
+          },
+          {
+            "id": "runtime.adapter.node",
+            "class": "runtime_adapter",
+            "source": "src/project-model/main-node.ts"
+          },
+          {
+            "id": "component.project-model",
+            "class": "project_model_generator",
+            "source": "src/project-model/views.ts"
+          },
+          {
+            "id": "tool.bun",
+            "class": "external_tool",
+            "source": "package.json"
+          },
+          {
+            "id": "tool.node",
+            "class": "external_tool",
+            "source": "package.json"
+          },
+          {
+            "id": "tool.typescript",
+            "class": "external_tool",
+            "source": "package.json"
+          },
+          {
+            "id": "tool.effect-v4",
+            "class": "external_tool",
+            "source": "package.json"
+          },
+          {
+            "id": "tool.oxfmt",
+            "class": "external_tool",
+            "source": "package.json"
+          },
+          {
+            "id": "tool.oxlint",
+            "class": "external_tool",
+            "source": "package.json"
+          }
+        ],
+        "manually_asserted_relation_classes": ["assumes", "supports", "discharges"],
+        "negative_fixture": "src/project-model/assumption-fixtures.ts#negativeOpaqueAdapterFixture"
+      }
+    }
+  ],
+  "relations": []
+}

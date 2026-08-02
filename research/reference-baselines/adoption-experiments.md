@@ -60,6 +60,9 @@ scripts/experiments/0002-generator-determinism.ts` ran six fresh runtime
 - Assumptions: canonical relations are complete enough to be worth
   walking; the negative fixture exists precisely because they are not
   complete.
+- Runnable Bun command: `nix develop --command bun scripts/experiments/0002-assumption-query.ts`.
+- Runnable Node command: `nix develop --command node scripts/experiments/0002-assumption-query.ts`.
+- Fixture linkage: the canonical register is `model/architecture/assumption-register.json`; positive and permanent negative fixtures are `src/project-model/assumption-fixtures.ts#positiveAssumptionFixture` and `src/project-model/assumption-fixtures.ts#negativeOpaqueAdapterFixture`.
 
 ### RX3 — ambient-effect inventory and capability wall (from cached E2)
 
