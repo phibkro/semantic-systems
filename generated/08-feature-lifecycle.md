@@ -40,6 +40,15 @@
 - Plan: [execution ledger](../plans/active/0007-reuse-first-engineering.md)
 - Acceptance: [runnable program](../scripts/accept/0007-reuse-first-engineering.ts)
 
+### `0057-control-room-agent-observation-correlation` — Implement agent observation correlation
+
+- Status: `in_progress`
+- Feature loop: `managed`
+- Model: [canonical record](../model/work/features/0057-control-room-agent-observation-correlation.json)
+- Design: [design contract](../design-specs/0057-control-room-agent-observation-correlation.md)
+- Plan: [execution ledger](../plans/active/0057-control-room-agent-observation-correlation.md)
+- Acceptance: [runnable program](../scripts/accept/0057-control-room-agent-observation-correlation.ts)
+
 ## Completed
 
 ### `0001-inventory-resolution-tracer` — Complete inventory evidence-resolution tracer

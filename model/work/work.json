@@ -313,35 +313,6 @@
           "human_review": true
         }
       }
-    },
-    {
-      "id": "work.control-room-agent-observation-correlation",
-      "kind": "work_item",
-      "name": "Design agent observation correlation",
-      "summary": "Correlate bounded Langfuse or ClickStack observations with canonical PBK project and work identities without granting telemetry authority.",
-      "status": "planned",
-      "tags": ["control-room", "observability", "agents", "design"],
-      "attributes": {
-        "phase": "design",
-        "effort": 8,
-        "design_spec": "design-specs/0057-control-room-agent-observation-correlation.md",
-        "acceptance": [
-          "A source-verified storage and read-adapter comparison is recorded",
-          "The normalized observation and correlation boundary is frozen before implementation",
-          "The first tracer bullet uses bounded offline Langfuse and ClickStack captures",
-          "Telemetry cannot mutate canonical work, receipts, priorities, or evidence acceptance",
-          "Completeness, retention, causality, and cross-vendor identity limits remain explicit"
-        ],
-        "delegation": {
-          "specification_completeness": 4,
-          "context_locality": 4,
-          "testability": 5,
-          "reversibility": 5,
-          "integration_independence": 4,
-          "blast_radius": 3,
-          "human_review": true
-        }
-      }
     }
   ],
   "relations": [

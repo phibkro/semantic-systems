@@ -1,6 +1,6 @@
 # Design spec 0057: Control Room agent observation correlation
 
-Status: draft
+Status: frozen
 
 Date: 2026-08-02
 
@@ -57,19 +57,24 @@ Canonical portfolio and project records remain authoritative for project, work, 
 
 ### Semantic inputs
 
-`ObservationCaptureInput` contains:
+`ObservationCaptureInput` is a closed object with:
 
+- `format`: `semantic.agent-observation-capture/v1`;
 - `vendor`: `langfuse` or `clickstack`;
-- exact capture bytes and SHA-256 digest;
+- `vendor_project_id`: the source project or dataset identity;
+- `capture_bytes`: one UTF-8 JSON, JSONL, or NDJSON capture;
+- `source_digest`: `sha256:` plus the SHA-256 of `capture_bytes`;
 - `captured_at`;
-- a closed time interval;
-- a row limit;
+- `interval`: an inclusive start and exclusive end, no longer than 24 hours;
+- `row_limit`: an integer from 1 through 1,000;
 - `complete` and `truncated` assertions; and
-- one canonical portfolio snapshot.
+- `portfolio`: one strict `pbk.portfolio-public/v1` snapshot.
 
-The Langfuse adapter accepts one captured v2 Observations API response or one `observations_v2` JSONL export. Rows must share one non-null `traceId`. A complete API capture has no remaining cursor and has a root observation.
+The analyzer rejects an unknown field, a digest mismatch, invalid UTF-8 JSON text, a row outside the interval, more rows than `row_limit`, or input larger than 8 MiB.
 
-The ClickStack adapter accepts NDJSON from one explicit bounded `SELECT` over `otel_traces`. The query must alias trace, span, parent, time, duration, name, service, status, span attributes, and resource attributes. Rows must share one `TraceId` and sort by timestamp and span identity.
+The Langfuse adapter accepts one captured v2 Observations API response or one `observations_v2` JSONL export. The capture must include the `core`, `basic`, and `metadata` field groups. Rows must share one non-null `traceId` and one `projectId` equal to `vendor_project_id`. A complete API capture has no remaining `meta.cursor` and has exactly one physical root.
+
+The ClickStack adapter accepts NDJSON from one explicit bounded `SELECT` over `otel_traces`. Each row must use the aliases `TraceId`, `SpanId`, `ParentSpanId`, `Timestamp`, `Duration`, `SpanName`, `ServiceName`, `StatusCode`, `SpanAttributes`, and `ResourceAttributes`. Rows must share one `TraceId`. Stable report order is timestamp, then span identity; input row order has no meaning.
 
 Semantic correlation uses only explicit attributes:
 
@@ -85,7 +90,7 @@ The interpreter never derives these values from trace names, service names, prom
 
 `AgentObservationReport` contains:
 
-- one immutable normalized trace tree;
+- one immutable normalized trace tree or explicitly incomplete forest;
 - exact vendor trace and span identities;
 - source bounds, digest, and capture state;
 - explicit semantic bindings;
@@ -93,19 +98,19 @@ The interpreter never derives these values from trace names, service names, prom
 - typed diagnostics; and
 - unsupported claims.
 
-Correlation states are `matched`, `unbound`, `unknown_project`, `unknown_work`, `revision_mismatch`, and `invalid_reference`.
+Correlation states are `matched`, `unbound`, `observed_only`, `unknown_project`, `unknown_work`, `revision_mismatch`, and `invalid_reference`. Project and work matches use the portfolio snapshot. Revision matches the selected portfolio project's exact head. Evidence references match portfolio artifact identities. The current portfolio model has no canonical attempt registry, so an explicit attempt identity is preserved as `observed_only`; it is never reported as `matched`.
 
 The report is a derived artifact. A future Control Room panel is a projection of this report. Neither is canonical state.
 
 ### Effect protocols and uncertainty
 
-The first slice performs no network request. File reads are explicit effects. Decoding and correlation are pure after the bytes enter the module.
+The first slice performs no network request. File reads remain caller-owned effects. The analyzer requires only Effect's `Crypto` capability to verify the source digest. Decoding and correlation are pure after the bytes and digest enter the module.
 
 A later live adapter can request a bounded vendor read. It must return `accepted`, `unavailable`, `invalid`, `incomplete`, or `cancelled`. It must not retry without an explicit bounded policy.
 
 Deduplication uses vendor identity, vendor project identity, trace identity, span identity, and capture digest. The system never assumes that Langfuse and ClickStack identities name the same execution.
 
-A declared complete capture is rejected when it has a remaining cursor, missing root, row overflow, conflicting trace identity, or truncation marker. An explicitly incomplete capture remains inspectable and cannot support a completeness claim.
+A declared complete capture is rejected when it has a remaining cursor, missing or multiple physical roots, an orphan or cycle, row overflow, conflicting trace or vendor-project identity, or a truncation marker. An explicitly incomplete capture remains inspectable as a deterministic forest, carries typed diagnostics, and cannot support a completeness claim.
 
 ### Components and orthogonal structures
 
@@ -161,12 +166,14 @@ The feature does not prove or establish:
 ## Deep-module contract
 
 ```ts
-analyzeAgentObservationCapture(input: unknown): Effect<AgentObservationReport, AgentObservationError>
+analyzeAgentObservationCapture(
+  input: unknown,
+): Effect<AgentObservationArtifact, AgentObservationError, Crypto>
 ```
 
-The interface accepts one runtime-decoded value. It hides vendor decoding, normalization, stable ordering, tree validation, PBK correlation, completeness checks, and report rendering.
+The interface accepts one unknown value. It hides strict envelope and vendor decoding, normalization, digest verification, stable ordering, forest validation, PBK correlation, completeness checks, and canonical rendering.
 
-The report preserves vendor-native identities and explicit semantic bindings. Adding a vendor requires a new internal adapter. It cannot add correlation semantics.
+`AgentObservationArtifact` contains the immutable structured report and its canonical JSON bytes. The report preserves vendor-native identities and explicit semantic bindings. Adding a vendor requires a new internal adapter. It cannot add correlation semantics.
 
 ## Oracle-first counterexamples
 
@@ -205,6 +212,10 @@ A future `just accept 0057-control-room-agent-observation-correlation` must:
 | ClickStack trace rows expose trace, span, parent, service, attributes, duration, and status | [ClickStack trace schema](https://clickhouse.com/docs/clickstack/ingesting-data/schemas#L70-L109) |
 | ClickStack retention is table-level and deployment-specific | [ClickStack TTL](https://clickhouse.com/docs/clickstack/managing/ttl#L24-L26) |
 | OTel trace and span IDs have fixed byte and hex forms | [OpenTelemetry SpanContext](https://opentelemetry.io/docs/specs/otel/trace/api/#spancontext) |
+
+## Freeze record
+
+The operator approved this contract on 2026-08-02. The freeze adds the exact capture envelope, the `Crypto` requirement, complete-capture tree rules, and `observed_only` attempt semantics. These clarifications prevent the implementation from inventing attempt authority or trusting a caller-supplied digest.
 
 ## Kill or redesign criteria
 

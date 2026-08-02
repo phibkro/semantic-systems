@@ -1,0 +1,35 @@
+{
+  "entities": [
+    {
+      "id": "work.control-room-agent-observation-correlation",
+      "kind": "work_item",
+      "name": "Implement agent observation correlation",
+      "summary": "Correlate bounded Langfuse or ClickStack observations with canonical PBK project and work identities without granting telemetry authority.",
+      "status": "in_progress",
+      "tags": ["control-room", "observability", "agents"],
+      "attributes": {
+        "feature_id": "0057-control-room-agent-observation-correlation",
+        "feature_loop": "managed",
+        "phase": "implementation",
+        "effort": 8,
+        "acceptance": [
+          "One bounded Langfuse and one bounded ClickStack capture produce deterministic correlation artifacts",
+          "Complete captures reject false completeness while incomplete captures remain inspectable",
+          "Only explicit PBK attributes can correlate project, work, revision, attempt, or evidence identities",
+          "Telemetry cannot mutate canonical work, receipts, priorities, or evidence acceptance",
+          "Source digests, bounds, capture state, diagnostics, and unsupported claims remain visible"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 4,
+          "testability": 5,
+          "reversibility": 5,
+          "integration_independence": 4,
+          "blast_radius": 3,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": []
+}
