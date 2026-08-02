@@ -3,9 +3,11 @@ import { canonicalJson } from "../tracer/canonical.ts";
 import type { JsonObject } from "../tracer/json.ts";
 import type { PublicPortfolioSnapshot } from "../portfolio-model/public-export.ts";
 import {
+  AgentObservationBounds,
   ClickStackSpanSchema,
   LangfuseCaptureSchema,
   LangfuseObservationSchema,
+  ObservationTimestampPattern,
   ObservationCaptureInputSchema,
   SemanticAttributeKeys,
   type ClickStackSpan,
@@ -95,6 +97,7 @@ interface NormalizedObservation {
   readonly parentObservationId: string | null;
   readonly type: string;
   readonly startTime: string;
+  readonly startOrder: string;
   readonly endTime: string;
   readonly durationNs: string | null;
   readonly serviceName: string | null;
@@ -104,8 +107,6 @@ interface NormalizedObservation {
   readonly metadata: Readonly<Record<string, string | ReadonlyArray<string>>>;
 }
 
-const MAXIMUM_CAPTURE_BYTES = 8 * 1024 * 1024;
-const MAXIMUM_INTERVAL_MILLISECONDS = 24 * 60 * 60 * 1000;
 const UNSUPPORTED_CLAIMS = Object.freeze([
   "capture completeness beyond declared and checked bounds",
   "causal truth from parent observation links",
@@ -169,10 +170,80 @@ const verifyDigest = (
     }
   });
 
-const parseTimestamp = (value: string, path: string): number => {
-  const parsed = Date.parse(value);
-  if (!Number.isFinite(parsed)) throw failure("time.invalid", path, `invalid timestamp ${value}`);
-  return parsed;
+const parseTimestamp = (value: string, path: string): bigint => {
+  const match = ObservationTimestampPattern.exec(value);
+  if (match === null) throw failure("time.invalid", path, `invalid timestamp ${value}`);
+  const [, year, month, day, hour, minute, second, fraction = ""] = match;
+  const date = new Date(0);
+  date.setUTCFullYear(Number(year), Number(month) - 1, Number(day));
+  date.setUTCHours(Number(hour), Number(minute), Number(second), 0);
+  if (
+    date.getUTCFullYear() !== Number(year) ||
+    date.getUTCMonth() !== Number(month) - 1 ||
+    date.getUTCDate() !== Number(day) ||
+    date.getUTCHours() !== Number(hour) ||
+    date.getUTCMinutes() !== Number(minute) ||
+    date.getUTCSeconds() !== Number(second)
+  ) {
+    throw failure("time.invalid", path, `invalid calendar timestamp ${value}`);
+  }
+  return BigInt(date.getTime()) * 1_000_000n + BigInt(fraction.padEnd(9, "0").slice(0, 9) || "0");
+};
+
+const timestampOrder = (value: string): string => {
+  const dot = value.indexOf(".", 19);
+  const fraction = dot === -1 ? "" : value.slice(dot + 1, -1);
+  return `${value.slice(0, 19)}.${fraction.padEnd(9, "0")}Z`;
+};
+
+const validateJsonStructure = (source: string): void => {
+  let depth = 0;
+  let structuralTokens = 0;
+  let inString = false;
+  let escaped = false;
+  for (let index = 0; index < source.length; index += 1) {
+    const character = source[index]!;
+    if (inString) {
+      if (character === "\n" || character === "\r") {
+        inString = false;
+        escaped = false;
+        depth = 0;
+        continue;
+      }
+      if (escaped) {
+        escaped = false;
+      } else if (character === "\\") {
+        escaped = true;
+      } else if (character === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (character === "{" || character === "[" || character === "," || character === ":") {
+      structuralTokens += 1;
+      if (structuralTokens > AgentObservationBounds.maximum_json_structural_tokens) {
+        throw failure(
+          "bounds.json-structural-tokens-exceeded",
+          "/capture_bytes",
+          `JSON structural tokens exceed ${AgentObservationBounds.maximum_json_structural_tokens}`,
+        );
+      }
+    }
+    if (character === '"') {
+      inString = true;
+    } else if (character === "{" || character === "[") {
+      depth += 1;
+      if (depth > AgentObservationBounds.maximum_json_nesting_depth) {
+        throw failure(
+          "bounds.json-depth-exceeded",
+          "/capture_bytes",
+          `JSON nesting exceeds ${AgentObservationBounds.maximum_json_nesting_depth}`,
+        );
+      }
+    } else if (character === "}" || character === "]") {
+      depth = Math.max(0, depth - 1);
+    }
+  }
 };
 
 const validateEnvelopeBounds = (
@@ -180,21 +251,40 @@ const validateEnvelopeBounds = (
 ): Effect.Effect<void, AgentObservationError> =>
   Effect.try({
     try: () => {
-      const byteLength = new TextEncoder().encode(input.capture_bytes).byteLength;
-      if (byteLength > MAXIMUM_CAPTURE_BYTES) {
+      if (input.capture_bytes.length > AgentObservationBounds.maximum_capture_bytes) {
         throw failure(
           "bounds.capture-too-large",
           "/capture_bytes",
-          `capture is ${byteLength} bytes; maximum is ${MAXIMUM_CAPTURE_BYTES}`,
+          `capture exceeds ${AgentObservationBounds.maximum_capture_bytes} UTF-16 code units`,
         );
       }
+      validateJsonStructure(input.capture_bytes);
+      const encoded = new TextEncoder().encode(input.capture_bytes);
+      if (new TextDecoder().decode(encoded) !== input.capture_bytes) {
+        throw failure(
+          "capture.invalid-utf8",
+          "/capture_bytes",
+          "capture_bytes contains an unpaired Unicode surrogate",
+        );
+      }
+      if (encoded.byteLength > AgentObservationBounds.maximum_capture_bytes) {
+        throw failure(
+          "bounds.capture-too-large",
+          "/capture_bytes",
+          `capture is ${encoded.byteLength} bytes; maximum is ${AgentObservationBounds.maximum_capture_bytes}`,
+        );
+      }
+      parseTimestamp(input.captured_at, "/captured_at");
       const start = parseTimestamp(input.interval.start, "/interval/start");
       const end = parseTimestamp(input.interval.end, "/interval/end");
-      if (end <= start || end - start > MAXIMUM_INTERVAL_MILLISECONDS) {
+      if (
+        end <= start ||
+        end - start > BigInt(AgentObservationBounds.maximum_interval_milliseconds) * 1_000_000n
+      ) {
         throw failure(
           "bounds.interval-invalid",
           "/interval",
-          "interval must be positive and no longer than 24 hours",
+          `interval must be positive and no longer than ${AgentObservationBounds.maximum_interval_milliseconds} milliseconds`,
         );
       }
     },
@@ -204,31 +294,137 @@ const validateEnvelopeBounds = (
         : failure("input.invalid", "/", "cannot validate capture bounds", cause),
   });
 
+const boundedCaptureLines = (
+  input: ObservationCaptureInput,
+): Effect.Effect<ReadonlyArray<string>, AgentObservationError> =>
+  Effect.try({
+    try: () => {
+      const lines: string[] = [];
+      let start = 0;
+      while (start < input.capture_bytes.length) {
+        const newline = input.capture_bytes.indexOf("\n", start);
+        const end = newline === -1 ? input.capture_bytes.length : newline;
+        const line = input.capture_bytes.slice(start, end).trim();
+        if (line.length > 0) {
+          lines.push(line);
+          if (lines.length > input.row_limit) {
+            throw failure(
+              "bounds.rows-exceeded",
+              "/capture_bytes",
+              `capture has more than row_limit ${input.row_limit}`,
+            );
+          }
+        }
+        if (newline === -1) break;
+        start = newline + 1;
+      }
+      return lines;
+    },
+    catch: (cause) =>
+      cause instanceof AgentObservationError
+        ? cause
+        : failure("capture.invalid-lines", "/capture_bytes", "cannot scan capture lines", cause),
+  });
+
+const assertOwnPropertyLimit = (value: unknown, maximum: number, path: string): void => {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return;
+  const object = value as Readonly<Record<string, unknown>>;
+  let count = 0;
+  for (const key in object) {
+    if (!Object.prototype.hasOwnProperty.call(object, key)) continue;
+    count += 1;
+    if (count > maximum) {
+      throw failure(
+        "bounds.attribute-count-exceeded",
+        path,
+        `${path} contains more than ${maximum} properties`,
+      );
+    }
+  }
+};
+
+const preflightLangfuseRow = (value: unknown, path: string): void => {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return;
+  const row = value as Readonly<Record<string, unknown>>;
+  assertOwnPropertyLimit(
+    row["metadata"],
+    AgentObservationBounds.maximum_attributes_per_observation,
+    `${path}/metadata`,
+  );
+};
+
+const preflightLangfuseApi = (value: unknown, input: ObservationCaptureInput): void => {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return;
+  const data = (value as Readonly<Record<string, unknown>>)["data"];
+  if (!Array.isArray(data)) return;
+  if (data.length > input.row_limit) {
+    throw failure(
+      "bounds.rows-exceeded",
+      "/capture_bytes/data",
+      `capture has ${data.length} rows; row_limit is ${input.row_limit}`,
+    );
+  }
+  for (const [index, row] of data.entries()) {
+    preflightLangfuseRow(row, `/capture_bytes/data/${index}`);
+  }
+};
+
+const preflightClickStackRow = (value: unknown, path: string): void => {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return;
+  const row = value as Readonly<Record<string, unknown>>;
+  assertOwnPropertyLimit(
+    row["SpanAttributes"],
+    AgentObservationBounds.maximum_attributes_per_observation,
+    `${path}/SpanAttributes`,
+  );
+  assertOwnPropertyLimit(
+    row["ResourceAttributes"],
+    AgentObservationBounds.maximum_resource_attributes_per_observation,
+    `${path}/ResourceAttributes`,
+  );
+};
+
+const preflight = <A>(
+  value: A,
+  inspect: () => void,
+  path: string,
+): Effect.Effect<A, AgentObservationError> =>
+  Effect.try({
+    try: () => {
+      inspect();
+      return value;
+    },
+    catch: (cause) =>
+      cause instanceof AgentObservationError
+        ? cause
+        : failure("capture.preflight-failed", path, "cannot preflight capture shape", cause),
+  });
+
 const validateMetadataValue = (value: unknown, depth: number, path: string): void => {
-  if (depth > 8) {
+  if (depth > AgentObservationBounds.maximum_metadata_depth) {
     throw failure(
       "bounds.metadata-depth-exceeded",
       path,
-      "Langfuse metadata nesting exceeds 8 levels",
+      `Langfuse metadata nesting exceeds ${AgentObservationBounds.maximum_metadata_depth} levels`,
     );
   }
   if (typeof value === "string") {
-    if (value.length > 4096) {
+    if (value.length > AgentObservationBounds.maximum_metadata_string_length) {
       throw failure(
         "bounds.metadata-string-too-long",
         path,
-        "Langfuse metadata string exceeds 4096 characters",
+        `Langfuse metadata string exceeds ${AgentObservationBounds.maximum_metadata_string_length} characters`,
       );
     }
     return;
   }
   if (value === null || typeof value === "boolean" || typeof value === "number") return;
   if (Array.isArray(value)) {
-    if (value.length > 64) {
+    if (value.length > AgentObservationBounds.maximum_metadata_collection_entries) {
       throw failure(
         "bounds.metadata-array-too-large",
         path,
-        "Langfuse metadata array exceeds 64 values",
+        `Langfuse metadata array exceeds ${AgentObservationBounds.maximum_metadata_collection_entries} values`,
       );
     }
     for (const [index, item] of value.entries()) {
@@ -237,23 +433,29 @@ const validateMetadataValue = (value: unknown, depth: number, path: string): voi
     return;
   }
   if (typeof value === "object") {
-    const entries = Object.entries(value);
-    if (entries.length > 64) {
-      throw failure(
-        "bounds.metadata-object-too-large",
-        path,
-        "Langfuse metadata object exceeds 64 fields",
-      );
-    }
-    for (const [key, item] of entries) {
-      if (key.length === 0 || key.length > 256) {
+    let count = 0;
+    for (const key in value) {
+      if (!Object.prototype.hasOwnProperty.call(value, key)) continue;
+      count += 1;
+      if (count > AgentObservationBounds.maximum_metadata_collection_entries) {
+        throw failure(
+          "bounds.metadata-object-too-large",
+          path,
+          `Langfuse metadata object exceeds ${AgentObservationBounds.maximum_metadata_collection_entries} fields`,
+        );
+      }
+      if (key.length === 0 || key.length > AgentObservationBounds.maximum_metadata_key_length) {
         throw failure(
           "bounds.metadata-key-invalid",
           `${path}/${key}`,
-          "Langfuse metadata key must contain 1 through 256 characters",
+          `Langfuse metadata key must contain 1 through ${AgentObservationBounds.maximum_metadata_key_length} characters`,
         );
       }
-      validateMetadataValue(item, depth + 1, `${path}/${key}`);
+      validateMetadataValue(
+        (value as Readonly<Record<string, unknown>>)[key],
+        depth + 1,
+        `${path}/${key}`,
+      );
     }
     return;
   }
@@ -276,23 +478,32 @@ const normalizeLangfuse = (
         if (key === SemanticAttributeKeys.evidence) {
           if (
             !Array.isArray(value) ||
-            value.length > 64 ||
-            value.some((item) => typeof item !== "string" || item.length === 0 || item.length > 512)
+            value.length > AgentObservationBounds.maximum_evidence_references ||
+            value.some(
+              (item) =>
+                typeof item !== "string" ||
+                item.length === 0 ||
+                item.length > AgentObservationBounds.maximum_semantic_attribute_length,
+            )
           ) {
             throw failure(
               "capture.invalid-semantic-attribute",
               `${path}/metadata/${key}`,
-              `${key} must be an array of at most 64 non-empty strings`,
+              `${key} must be an array of at most ${AgentObservationBounds.maximum_evidence_references} non-empty strings`,
             );
           }
           metadata[key] = value;
-        } else if (typeof value === "string" && value.length > 0 && value.length <= 512) {
+        } else if (
+          typeof value === "string" &&
+          value.length > 0 &&
+          value.length <= AgentObservationBounds.maximum_semantic_attribute_length
+        ) {
           metadata[key] = value;
         } else {
           throw failure(
             "capture.invalid-semantic-attribute",
             `${path}/metadata/${key}`,
-            `${key} must be a non-empty string of at most 512 characters`,
+            `${key} must be a non-empty string of at most ${AgentObservationBounds.maximum_semantic_attribute_length} characters`,
           );
         }
       }
@@ -303,6 +514,7 @@ const normalizeLangfuse = (
         parentObservationId: row.parentObservationId,
         type: row.type,
         startTime: row.startTime,
+        startOrder: timestampOrder(row.startTime),
         endTime: row.endTime,
         durationNs: null,
         serviceName: null,
@@ -318,7 +530,89 @@ const normalizeLangfuse = (
         : failure("capture.invalid-langfuse", path, "cannot normalize Langfuse metadata", cause),
   });
 
+const decodeLangfuseRow = (
+  value: unknown,
+  path: string,
+): Effect.Effect<NormalizedObservation, AgentObservationError> =>
+  preflight(value, () => preflightLangfuseRow(value, path), path).pipe(
+    Effect.flatMap((preflighted) =>
+      Schema.decodeUnknownEffect(LangfuseObservationSchema, {
+        onExcessProperty: "error",
+      })(preflighted),
+    ),
+    Effect.mapError((cause) =>
+      cause instanceof AgentObservationError
+        ? cause
+        : failure(
+            "capture.invalid-langfuse",
+            path,
+            `invalid Langfuse observations_v2 row: ${cause.message}`,
+            cause,
+          ),
+    ),
+    Effect.flatMap((row) => normalizeLangfuse(row, path)),
+  );
+
 const decodeLangfuseApi = (
+  value: unknown,
+  input: ObservationCaptureInput,
+): Effect.Effect<
+  {
+    readonly rows: ReadonlyArray<NormalizedObservation>;
+    readonly cursor: string | null;
+  },
+  AgentObservationError
+> =>
+  preflight(value, () => preflightLangfuseApi(value, input), "/capture_bytes").pipe(
+    Effect.flatMap((preflighted) =>
+      Schema.decodeUnknownEffect(LangfuseCaptureSchema, { onExcessProperty: "error" })(preflighted),
+    ),
+    Effect.mapError((cause) =>
+      cause instanceof AgentObservationError
+        ? cause
+        : failure(
+            "capture.invalid-langfuse",
+            "/capture_bytes",
+            `invalid Langfuse v2 capture: ${cause.message}`,
+            cause,
+          ),
+    ),
+    Effect.flatMap((capture) =>
+      Effect.forEach(capture.data, (row, index) =>
+        normalizeLangfuse(row, `/capture_bytes/data/${index}`),
+      ).pipe(Effect.map((rows) => ({ rows, cursor: capture.meta.cursor ?? null }))),
+    ),
+  );
+
+const decodeLangfuseJsonl = (
+  input: ObservationCaptureInput,
+): Effect.Effect<
+  {
+    readonly rows: ReadonlyArray<NormalizedObservation>;
+    readonly cursor: null;
+  },
+  AgentObservationError
+> =>
+  boundedCaptureLines(input).pipe(
+    Effect.flatMap((lines) =>
+      Effect.forEach(lines, (line, index) =>
+        Schema.decodeUnknownEffect(Schema.UnknownFromJsonString)(line).pipe(
+          Effect.mapError((cause) =>
+            failure(
+              "capture.invalid-json",
+              `/capture_bytes/${index + 1}`,
+              `invalid Langfuse JSONL: ${cause.message}`,
+              cause,
+            ),
+          ),
+          Effect.flatMap((value) => decodeLangfuseRow(value, `/capture_bytes/${index + 1}`)),
+        ),
+      ),
+    ),
+    Effect.map((rows) => ({ rows, cursor: null })),
+  );
+
+const decodeLangfuse = (
   input: ObservationCaptureInput,
 ): Effect.Effect<
   {
@@ -337,91 +631,60 @@ const decodeLangfuseApi = (
       ),
     ),
     Effect.flatMap((value) =>
-      Schema.decodeUnknownEffect(LangfuseCaptureSchema, { onExcessProperty: "error" })(value).pipe(
-        Effect.mapError((cause) =>
-          failure(
-            "capture.invalid-langfuse",
-            "/capture_bytes",
-            `invalid Langfuse v2 capture: ${cause.message}`,
-            cause,
+      typeof value === "object" &&
+      value !== null &&
+      !Array.isArray(value) &&
+      Object.prototype.hasOwnProperty.call(value, "data")
+        ? decodeLangfuseApi(value, input)
+        : decodeLangfuseRow(value, "/capture_bytes/1").pipe(
+            Effect.map((row) => ({ rows: [row], cursor: null })),
           ),
-        ),
-      ),
     ),
-    Effect.flatMap((capture) =>
-      Effect.forEach(capture.data, (row, index) =>
-        normalizeLangfuse(row, `/capture_bytes/data/${index}`),
-      ).pipe(Effect.map((rows) => ({ rows, cursor: capture.meta.cursor ?? null }))),
-    ),
-  );
-
-const decodeLangfuseJsonl = (
-  input: ObservationCaptureInput,
-): Effect.Effect<
-  {
-    readonly rows: ReadonlyArray<NormalizedObservation>;
-    readonly cursor: null;
-  },
-  AgentObservationError
-> => {
-  const lines = input.capture_bytes
-    .split(/\r?\n/u)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-  return Effect.forEach(lines, (line, index) =>
-    Schema.decodeUnknownEffect(Schema.UnknownFromJsonString)(line).pipe(
-      Effect.mapError((cause) =>
-        failure(
-          "capture.invalid-json",
-          `/capture_bytes/${index + 1}`,
-          `invalid Langfuse JSONL: ${cause.message}`,
-          cause,
-        ),
-      ),
-      Effect.flatMap((value) =>
-        Schema.decodeUnknownEffect(LangfuseObservationSchema, {
-          onExcessProperty: "error",
-        })(value).pipe(
-          Effect.mapError((cause) =>
-            failure(
-              "capture.invalid-langfuse",
-              `/capture_bytes/${index + 1}`,
-              `invalid Langfuse observations_v2 row: ${cause.message}`,
-              cause,
-            ),
-          ),
-        ),
-      ),
-      Effect.flatMap((row) => normalizeLangfuse(row, `/capture_bytes/${index + 1}`)),
-    ),
-  ).pipe(Effect.map((rows) => ({ rows, cursor: null })));
-};
-
-const decodeLangfuse = (
-  input: ObservationCaptureInput,
-): Effect.Effect<
-  {
-    readonly rows: ReadonlyArray<NormalizedObservation>;
-    readonly cursor: string | null;
-  },
-  AgentObservationError
-> =>
-  decodeLangfuseApi(input).pipe(
     Effect.catchIf(
       (error) => error.code === "capture.invalid-json",
       () => decodeLangfuseJsonl(input),
     ),
   );
 
-const parseEvidenceReferences = (value: string): string | ReadonlyArray<string> => {
-  try {
-    const parsed = Schema.decodeUnknownSync(Schema.UnknownFromJsonString)(value);
-    return Schema.decodeUnknownSync(
-      Schema.Array(Schema.String).pipe(Schema.check(Schema.isMaxLength(64))),
-    )(parsed);
-  } catch {
-    return value;
+const isValidEvidenceReference = (reference: unknown): reference is string =>
+  typeof reference === "string" &&
+  reference.length > 0 &&
+  reference.length <= AgentObservationBounds.maximum_semantic_attribute_length;
+
+const parseEvidenceReferences = (value: string, path: string): ReadonlyArray<string> => {
+  if (!value.trimStart().startsWith("[")) {
+    if (!isValidEvidenceReference(value)) {
+      throw failure(
+        "capture.invalid-semantic-attribute",
+        path,
+        `evidence reference must contain 1 through ${AgentObservationBounds.maximum_semantic_attribute_length} characters`,
+      );
+    }
+    return [value];
   }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value) as unknown;
+  } catch (cause) {
+    throw failure(
+      "capture.invalid-semantic-attribute",
+      path,
+      "evidence references must be a JSON array or one non-empty string",
+      cause,
+    );
+  }
+  if (
+    !Array.isArray(parsed) ||
+    parsed.length > AgentObservationBounds.maximum_evidence_references ||
+    parsed.some((reference) => !isValidEvidenceReference(reference))
+  ) {
+    throw failure(
+      "capture.invalid-semantic-attribute",
+      path,
+      `evidence references must contain at most ${AgentObservationBounds.maximum_evidence_references} bounded strings`,
+    );
+  }
+  return [...new Set(parsed as ReadonlyArray<string>)].sort();
 };
 
 const normalizeClickStack = (
@@ -444,9 +707,32 @@ const normalizeClickStack = (
         }
         const value = spanValue ?? resourceValue;
         if (value !== undefined) {
-          metadata[key] =
-            key === SemanticAttributeKeys.evidence ? parseEvidenceReferences(value) : value;
+          const valuePath = `${path}/${
+            spanValue === undefined ? "ResourceAttributes" : "SpanAttributes"
+          }/${key}`;
+          if (key === SemanticAttributeKeys.evidence) {
+            metadata[key] = parseEvidenceReferences(value, valuePath);
+          } else if (
+            value.length === 0 ||
+            value.length > AgentObservationBounds.maximum_semantic_attribute_length
+          ) {
+            throw failure(
+              "capture.invalid-semantic-attribute",
+              valuePath,
+              `${key} must be a non-empty string of at most ${AgentObservationBounds.maximum_semantic_attribute_length} characters`,
+            );
+          } else {
+            metadata[key] = value;
+          }
         }
+      }
+      const durationNs = String(row.Duration);
+      if (BigInt(durationNs) > BigInt(AgentObservationBounds.maximum_duration_nanoseconds)) {
+        throw failure(
+          "bounds.duration-too-large",
+          `${path}/Duration`,
+          `duration exceeds ${AgentObservationBounds.maximum_duration_nanoseconds} nanoseconds`,
+        );
       }
       return {
         id: row.SpanId,
@@ -455,8 +741,9 @@ const normalizeClickStack = (
         parentObservationId: row.ParentSpanId === "" ? null : row.ParentSpanId,
         type: "SPAN",
         startTime: row.Timestamp,
+        startOrder: timestampOrder(row.Timestamp),
         endTime: row.Timestamp,
-        durationNs: String(row.Duration),
+        durationNs,
         serviceName: row.ServiceName,
         name: row.SpanName,
         level: row.StatusCode,
@@ -478,70 +765,81 @@ const decodeClickStack = (
     readonly cursor: null;
   },
   AgentObservationError
-> => {
-  const lines = input.capture_bytes
-    .split(/\r?\n/u)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-  return Effect.forEach(lines, (line, index) =>
-    Schema.decodeUnknownEffect(Schema.UnknownFromJsonString)(line).pipe(
-      Effect.mapError((cause) =>
-        failure(
-          "capture.invalid-json",
-          `/capture_bytes/${index + 1}`,
-          `invalid ClickStack NDJSON: ${cause.message}`,
-          cause,
-        ),
-      ),
-      Effect.flatMap((value) =>
-        Schema.decodeUnknownEffect(ClickStackSpanSchema, { onExcessProperty: "error" })(value).pipe(
+> =>
+  boundedCaptureLines(input).pipe(
+    Effect.flatMap((lines) =>
+      Effect.forEach(lines, (line, index) =>
+        Schema.decodeUnknownEffect(Schema.UnknownFromJsonString)(line).pipe(
           Effect.mapError((cause) =>
             failure(
-              "capture.invalid-clickstack",
+              "capture.invalid-json",
               `/capture_bytes/${index + 1}`,
-              `invalid ClickStack span: ${cause.message}`,
+              `invalid ClickStack NDJSON: ${cause.message}`,
               cause,
             ),
           ),
+          Effect.flatMap((value) =>
+            preflight(
+              value,
+              () => preflightClickStackRow(value, `/capture_bytes/${index + 1}`),
+              `/capture_bytes/${index + 1}`,
+            ),
+          ),
+          Effect.flatMap((preflighted) =>
+            Schema.decodeUnknownEffect(ClickStackSpanSchema, {
+              onExcessProperty: "error",
+            })(preflighted).pipe(
+              Effect.mapError((cause) =>
+                failure(
+                  "capture.invalid-clickstack",
+                  `/capture_bytes/${index + 1}`,
+                  `invalid ClickStack span: ${cause.message}`,
+                  cause,
+                ),
+              ),
+            ),
+          ),
+          Effect.flatMap((row) =>
+            normalizeClickStack(row, input.vendor_project_id, `/capture_bytes/${index + 1}`),
+          ),
         ),
       ),
-      Effect.flatMap((row) =>
-        normalizeClickStack(row, input.vendor_project_id, `/capture_bytes/${index + 1}`),
-      ),
     ),
-  ).pipe(Effect.map((rows) => ({ rows, cursor: null })));
-};
+    Effect.map((rows) => ({ rows, cursor: null })),
+  );
 
 const attributeString = (row: NormalizedObservation, key: string): string | null => {
   const value = row.metadata[key];
   return typeof value === "string" && value.length > 0 ? value : null;
 };
 
+const indexPortfolio = (portfolio: PublicPortfolioSnapshot) => ({
+  projects: new Map(portfolio.document.projects.map((project) => [project.id, project])),
+  work: new Map(portfolio.document.work.map((item) => [item.id, item])),
+  artifacts: new Set(portfolio.document.artifacts.map(({ id }) => id)),
+});
+type PortfolioIndex = ReturnType<typeof indexPortfolio>;
+
 const correlationFor = (
   row: NormalizedObservation,
-  portfolio: PublicPortfolioSnapshot,
+  portfolio: PortfolioIndex,
 ): ObservationCorrelation => {
   const projectValue = attributeString(row, SemanticAttributeKeys.project);
   const workValue = attributeString(row, SemanticAttributeKeys.work);
   const attemptValue = attributeString(row, SemanticAttributeKeys.attempt);
   const revisionValue = attributeString(row, SemanticAttributeKeys.revision);
   const evidenceValue = row.metadata[SemanticAttributeKeys.evidence];
-  const projects = new Map(portfolio.document.projects.map((project) => [project.id, project]));
-  const work = new Map(portfolio.document.work.map((item) => [item.id, item]));
-  const artifacts = new Set(portfolio.document.artifacts.map(({ id }) => id));
-  const project = projectValue === null ? undefined : projects.get(projectValue);
-  const workItem = workValue === null ? undefined : work.get(workValue);
+  const project = projectValue === null ? undefined : portfolio.projects.get(projectValue);
+  const workItem = workValue === null ? undefined : portfolio.work.get(workValue);
   const evidence = Array.isArray(evidenceValue)
     ? [...evidenceValue].sort().map(
         (value) =>
           ({
             value,
-            state: artifacts.has(value) ? "matched" : "invalid_reference",
+            state: portfolio.artifacts.has(value) ? "matched" : "invalid_reference",
           }) satisfies CorrelationReference,
       )
-    : typeof evidenceValue === "string"
-      ? [{ value: evidenceValue, state: "invalid_reference" } satisfies CorrelationReference]
-      : [];
+    : [];
   return {
     project:
       projectValue === null
@@ -577,9 +875,9 @@ const correlationFor = (
 };
 
 const compareRows = (left: NormalizedObservation, right: NormalizedObservation): number =>
-  left.startTime < right.startTime
+  left.startOrder < right.startOrder
     ? -1
-    : left.startTime > right.startTime
+    : left.startOrder > right.startOrder
       ? 1
       : left.id < right.id
         ? -1
@@ -633,6 +931,14 @@ const validateRows = (
           );
         }
         const startedAt = parseTimestamp(row.startTime, `/capture_bytes/data/${index}/startTime`);
+        const endedAt = parseTimestamp(row.endTime, `/capture_bytes/data/${index}/endTime`);
+        if (row.durationNs === null && endedAt < startedAt) {
+          throw failure(
+            "time.invalid-range",
+            `/capture_bytes/data/${index}/endTime`,
+            `observation ${row.id} ends before it starts`,
+          );
+        }
         if (startedAt < intervalStart || startedAt >= intervalEnd) {
           throw failure(
             "bounds.row-outside-interval",
@@ -641,11 +947,11 @@ const validateRows = (
           );
         }
       }
-      if (traceIds.size !== 1) {
+      if (traceIds.size > AgentObservationBounds.maximum_traces) {
         throw failure(
           "capture.trace-mismatch",
           "/capture_bytes/data",
-          "all observations must share one traceId",
+          `observations exceed the ${AgentObservationBounds.maximum_traces}-trace bound`,
         );
       }
       const roots = rows.filter(({ parentObservationId }) => parentObservationId === null);
@@ -715,6 +1021,7 @@ const buildTree = (
   roots: ReadonlyArray<NormalizedObservation>,
   portfolio: PublicPortfolioSnapshot,
 ): ReadonlyArray<AgentObservationNode> => {
+  const portfolioIndex = indexPortfolio(portfolio);
   const children = new Map<string, Array<NormalizedObservation>>();
   for (const row of rows) {
     if (row.parentObservationId === null) continue;
@@ -725,7 +1032,14 @@ const buildTree = (
   for (const siblings of children.values()) siblings.sort(compareRows);
   const visiting = new Set<string>();
   const visited = new Set<string>();
-  const build = (row: NormalizedObservation): AgentObservationNode => {
+  const build = (row: NormalizedObservation, depth: number): AgentObservationNode => {
+    if (depth > AgentObservationBounds.maximum_trace_depth) {
+      throw failure(
+        "bounds.trace-depth-exceeded",
+        "/capture_bytes/data",
+        `trace depth exceeds ${AgentObservationBounds.maximum_trace_depth}`,
+      );
+    }
     if (visiting.has(row.id)) {
       throw failure("trace.cycle", "/capture_bytes/data", `trace contains a cycle at ${row.id}`);
     }
@@ -740,16 +1054,16 @@ const buildTree = (
       duration_ns: row.durationNs,
       service_name: row.serviceName,
       status: { level: row.level, message: row.statusMessage },
-      correlation: correlationFor(row, portfolio),
-      children: (children.get(row.id) ?? []).map(build),
+      correlation: correlationFor(row, portfolioIndex),
+      children: (children.get(row.id) ?? []).map((child) => build(child, depth + 1)),
     };
     visiting.delete(row.id);
     visited.add(row.id);
     return node;
   };
-  const built = [...roots].sort(compareRows).map(build);
+  const built = [...roots].sort(compareRows).map((root) => build(root, 1));
   for (const row of rows) {
-    if (!visited.has(row.id)) build(row);
+    if (!visited.has(row.id)) build(row, 1);
   }
   return built;
 };

@@ -1,13 +1,15 @@
 import { useMachine } from "@xstate/react";
 import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import type { AgentObservationReport } from "../../../src/agent-observation/index.ts";
+import AgentObservations from "./AgentObservations.tsx";
 import { controlRoomMachine, type ControlRoomScope } from "./control-room-machine.ts";
 import type { DataState, PublicEntity, PublicSnapshot, SnapshotState } from "./model.ts";
 import Portfolio from "./Portfolio.tsx";
 import type { PortfolioState } from "./portfolio-snapshot.ts";
 import { useSnapshot } from "./use-snapshot.ts";
 
-type View = "pulse" | "systems" | "semantics" | "evidence" | "work";
+type View = "pulse" | "systems" | "semantics" | "evidence" | "work" | "agents";
 
 const VIEWS: ReadonlyArray<{ readonly id: View; readonly label: string; readonly glyph: string }> =
   [
@@ -16,9 +18,10 @@ const VIEWS: ReadonlyArray<{ readonly id: View; readonly label: string; readonly
     { id: "semantics", label: "Semantics", glyph: "◇" },
     { id: "evidence", label: "Evidence", glyph: "✓" },
     { id: "work", label: "Work", glyph: "↗" },
+    { id: "agents", label: "Agents", glyph: "◎" },
   ];
 
-const VIEW_KINDS: Record<Exclude<View, "pulse">, ReadonlySet<string>> = {
+const VIEW_KINDS: Record<Exclude<View, "pulse" | "agents">, ReadonlySet<string>> = {
   systems: new Set([
     "artifact",
     "component",
@@ -221,7 +224,7 @@ const EntityView = ({
   status,
   onSelect,
 }: {
-  readonly view: Exclude<View, "pulse">;
+  readonly view: Exclude<View, "pulse" | "agents">;
   readonly snapshot: PublicSnapshot;
   readonly query: string;
   readonly status: string;
@@ -396,9 +399,11 @@ const StatusBanner = ({
 
 const SemanticRoom = ({
   provided,
+  observations,
   scopeControls,
 }: {
   readonly provided?: SnapshotState;
+  readonly observations: AgentObservationReport | null;
   readonly scopeControls: ReactNode;
 }) => {
   const live = useSnapshot();
@@ -408,7 +413,7 @@ const SemanticRoom = ({
   const [status, setStatus] = useState("");
   const [selected, setSelected] = useState<PublicEntity | null>(null);
   const statuses =
-    result.snapshot === null || view === "pulse"
+    result.snapshot === null || view === "pulse" || view === "agents"
       ? []
       : [
           ...new Set(
@@ -432,7 +437,9 @@ const SemanticRoom = ({
         <p>Read-only views over a digest-valid, provenance-linked public projection.</p>
       </header>
       <main>
-        {result.snapshot === null ? (
+        {view === "agents" ? (
+          <AgentObservations report={observations} />
+        ) : result.snapshot === null ? (
           <section className="panel unavailable">
             <span aria-hidden="true">◇</span>
             <h2>{STATE_COPY[result.state].label}</h2>
@@ -544,10 +551,12 @@ const ScopeSwitch = ({
 export default function App({
   provided,
   providedPortfolio,
+  providedObservations,
   initialScope,
 }: {
   readonly provided?: SnapshotState;
   readonly providedPortfolio?: PortfolioState;
+  readonly providedObservations?: AgentObservationReport;
   readonly initialScope?: ControlRoomScope;
 }) {
   const [shell, send] = useMachine(controlRoomMachine, {
@@ -570,6 +579,10 @@ export default function App({
       />
     </div>
   ) : (
-    <SemanticRoom {...(provided === undefined ? {} : { provided })} scopeControls={controls} />
+    <SemanticRoom
+      {...(provided === undefined ? {} : { provided })}
+      observations={providedObservations ?? null}
+      scopeControls={controls}
+    />
   );
 }

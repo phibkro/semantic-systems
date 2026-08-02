@@ -2,6 +2,7 @@ import { BunCrypto } from "@effect/platform-bun";
 import { Crypto, Effect } from "effect";
 import { describe, expect, test } from "bun:test";
 import { analyzeAgentObservationCapture } from "../src/agent-observation/index.ts";
+import { AgentObservationBounds } from "../src/agent-observation/schema.ts";
 
 const head = "a".repeat(40);
 
@@ -233,6 +234,23 @@ describe("agent observation correlation", () => {
     const langfuse = await analyze(await langfuseInput());
     expect(root.correlation).toEqual(langfuse.report.trace.roots[0]!.correlation);
     expect(root.observation_id).not.toBe(langfuse.report.trace.roots[0]!.observation_id);
+
+    const [clickRoot, clickChild] = clickstackRows();
+    const bareReference = await analyze(
+      await clickstackInput([
+        {
+          ...clickRoot,
+          SpanAttributes: {
+            ...clickRoot.SpanAttributes,
+            "semantic.evidence.refs": "artifact.observation",
+          },
+        },
+        clickChild,
+      ]),
+    );
+    expect(bareReference.report.trace.roots[0]!.correlation.evidence).toEqual([
+      { value: "artifact.observation", state: "matched" },
+    ]);
   });
 
   test("keeps an explicitly incomplete Langfuse forest inspectable", async () => {
@@ -268,11 +286,10 @@ describe("agent observation correlation", () => {
     ]);
   });
 
-  test("accepts one bounded Langfuse observations_v2 JSONL export", async () => {
-    const capture_bytes = `${langfuseRows()
-      .map((row) => JSON.stringify(row))
-      .join("\n")}\n`;
-    const base = await langfuseInput();
+  test("accepts a single-row Langfuse observations_v2 JSONL export", async () => {
+    const rows = [langfuseRows()[0]!];
+    const capture_bytes = `${JSON.stringify(rows[0])}\n`;
+    const base = await langfuseInput(rows);
     const artifact = await analyze({
       ...base,
       capture_bytes,
@@ -282,8 +299,32 @@ describe("agent observation correlation", () => {
     });
 
     expect(artifact.report.source.vendor).toBe("langfuse");
-    expect(artifact.report.source.observed_rows).toBe(2);
+    expect(artifact.report.source.observed_rows).toBe(1);
     expect(artifact.report.capture_state).toBe("complete");
+  });
+
+  test("orders mixed-precision timestamps chronologically before span identity", async () => {
+    const [root, child] = langfuseRows();
+    const rows = [
+      root,
+      {
+        ...child,
+        id: "observation-earlier",
+        startTime: "2026-08-02T10:00:00Z",
+        endTime: "2026-08-02T10:00:00.100Z",
+      },
+      {
+        ...child,
+        id: "observation-later",
+        startTime: "2026-08-02T10:00:00.500Z",
+        endTime: "2026-08-02T10:00:00.900Z",
+      },
+    ];
+    const artifact = await analyze(await langfuseInput(rows));
+
+    expect(
+      artifact.report.trace.roots[0]!.children.map(({ observation_id }) => observation_id),
+    ).toEqual(["observation-earlier", "observation-later"]);
   });
 
   test("rejects Langfuse metadata beyond the frozen nesting bound", async () => {
@@ -334,6 +375,157 @@ describe("agent observation correlation", () => {
     await expect(analyze({ ...(await langfuseInput()), unexpected: true })).rejects.toMatchObject({
       code: "input.invalid",
     });
+  });
+
+  test("rejects invalid UTF-8 text custody and impossible calendar timestamps", async () => {
+    const invalidUnicode = "\ud800";
+    await expect(
+      analyze({
+        ...(await langfuseInput()),
+        capture_bytes: invalidUnicode,
+        source_digest: await Effect.runPromise(
+          digest(invalidUnicode).pipe(Effect.provide(BunCrypto.layer)),
+        ),
+      }),
+    ).rejects.toMatchObject({ code: "capture.invalid-utf8" });
+
+    await expect(
+      analyze({
+        ...(await langfuseInput()),
+        captured_at: "2026-02-31T10:05:00.000Z",
+      }),
+    ).rejects.toMatchObject({ code: "time.invalid" });
+
+    const [root, child] = langfuseRows();
+    await expect(
+      analyze(await langfuseInput([{ ...root, startTime: "2026-02-31T10:00:00.000Z" }, child])),
+    ).rejects.toMatchObject({ code: "time.invalid" });
+  });
+
+  test("rejects unsafe scalar bounds, excessive JSON nesting, and over-deep traces", async () => {
+    const [clickRoot] = clickstackRows();
+    await expect(
+      analyze(await clickstackInput([{ ...clickRoot, Duration: Number.MAX_SAFE_INTEGER + 1 }])),
+    ).rejects.toMatchObject({ code: "capture.invalid-clickstack" });
+    await expect(
+      analyze(await clickstackInput([{ ...clickRoot, SpanId: "0000000000000000" }])),
+    ).rejects.toMatchObject({ code: "capture.invalid-clickstack" });
+    await expect(
+      analyze(await clickstackInput([{ ...clickRoot, Duration: "18446744073709551616" }])),
+    ).rejects.toMatchObject({ code: "bounds.duration-too-large" });
+
+    const nestedBytes = `${"[".repeat(17)}0${"]".repeat(17)}`;
+    await expect(
+      analyze({
+        ...(await langfuseInput()),
+        capture_bytes: nestedBytes,
+        source_digest: await Effect.runPromise(
+          digest(nestedBytes).pipe(Effect.provide(BunCrypto.layer)),
+        ),
+      }),
+    ).rejects.toMatchObject({ code: "bounds.json-depth-exceeded" });
+
+    const broadBytes = `[${"0,".repeat(AgentObservationBounds.maximum_json_structural_tokens)}0]`;
+    await expect(
+      analyze({
+        ...(await langfuseInput()),
+        capture_bytes: broadBytes,
+        source_digest: await Effect.runPromise(
+          digest(broadBytes).pipe(Effect.provide(BunCrypto.layer)),
+        ),
+      }),
+    ).rejects.toMatchObject({ code: "bounds.json-structural-tokens-exceeded" });
+
+    const root = langfuseRows()[0]!;
+    const observationId = (index: number) => index.toString(16).padStart(32, "0");
+    const deepRows = Array.from({ length: 129 }, (_, index) => ({
+      ...root,
+      id: observationId(index + 1),
+      parentObservationId: index === 0 ? null : observationId(index),
+      isRootObservation: index === 0,
+    }));
+    await expect(
+      analyze({ ...(await langfuseInput(deepRows)), row_limit: deepRows.length }),
+    ).rejects.toMatchObject({ code: "bounds.trace-depth-exceeded" });
+  });
+
+  test("fails fast on NDJSON row and Langfuse attribute counts", async () => {
+    const [clickRoot] = clickstackRows();
+    const excessRows = Array.from({ length: 11 }, (_, index) => ({
+      ...clickRoot,
+      SpanId: (index + 1).toString(16).padStart(16, "0"),
+    }));
+    await expect(analyze(await clickstackInput(excessRows))).rejects.toMatchObject({
+      code: "bounds.rows-exceeded",
+    });
+
+    const root = langfuseRows()[0]!;
+    const excessMetadata = Object.fromEntries(
+      Array.from({ length: 65 }, (_, index) => [`attribute-${index}`, index]),
+    );
+    await expect(
+      analyze(await langfuseInput([{ ...root, metadata: excessMetadata }])),
+    ).rejects.toMatchObject({ code: "bounds.attribute-count-exceeded" });
+  });
+
+  test("compares capture intervals at the timestamp schema's nanosecond precision", async () => {
+    const root = langfuseRows()[0]!;
+    await expect(
+      analyze({
+        ...(await langfuseInput([
+          {
+            ...root,
+            startTime: "2026-08-02T10:00:00.000000000Z",
+            endTime: "2026-08-02T10:00:00.100000000Z",
+          },
+        ])),
+        interval: {
+          start: "2026-08-02T10:00:00.000000001Z",
+          end: "2026-08-02T11:00:00.000000000Z",
+        },
+      }),
+    ).rejects.toMatchObject({ code: "bounds.row-outside-interval" });
+  });
+
+  test("rejects missing roots declared complete and invalid ClickStack semantic values", async () => {
+    const orphanRows = [{ ...langfuseRows()[1]!, parentObservationId: "missing-parent" }];
+    await expect(analyze(await langfuseInput(orphanRows))).rejects.toMatchObject({
+      code: "capture.false-completeness",
+    });
+
+    const [clickRoot, clickChild] = clickstackRows();
+    await expect(
+      analyze(
+        await clickstackInput([
+          {
+            ...clickRoot,
+            SpanAttributes: { ...clickRoot.SpanAttributes, "pbk.project.id": "" },
+          },
+          clickChild,
+        ]),
+      ),
+    ).rejects.toMatchObject({ code: "capture.invalid-semantic-attribute" });
+
+    const excessiveEvidence = JSON.stringify(
+      Array.from(
+        { length: 65 },
+        (_, index) => `artifact.observation.${index.toString().padStart(2, "0")}`,
+      ),
+    );
+    await expect(
+      analyze(
+        await clickstackInput([
+          {
+            ...clickRoot,
+            SpanAttributes: {
+              ...clickRoot.SpanAttributes,
+              "semantic.evidence.refs": excessiveEvidence,
+            },
+          },
+          clickChild,
+        ]),
+      ),
+    ).rejects.toMatchObject({ code: "capture.invalid-semantic-attribute" });
   });
 
   test("reports unknown semantic references without inventing authority", async () => {

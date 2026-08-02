@@ -1,3 +1,4 @@
+import type { AgentObservationReport } from "../../../../src/agent-observation/index.ts";
 import { SNAPSHOT_SCHEMA, type PublicSnapshot } from "../model.ts";
 
 const COMMIT = "0123456789abcdef0123456789abcdef01234567";
@@ -116,5 +117,53 @@ export const fixtureSnapshot: PublicSnapshot = {
       summary: "Bounded support.",
       source_url: source(),
     },
+  ],
+};
+
+const matched = (value: string) => ({ value, state: "matched" as const });
+
+export const fixtureObservationReport: AgentObservationReport = {
+  format: "semantic.agent-observation-report/v1",
+  source: {
+    vendor: "langfuse",
+    vendor_project_id: "langfuse-project",
+    trace_id: "trace-langfuse",
+    source_digest: `sha256:${"b".repeat(64)}`,
+    captured_at: "2026-08-02T10:05:00.000Z",
+    interval: {
+      start: "2026-08-02T10:00:00.000Z",
+      end: "2026-08-02T11:00:00.000Z",
+    },
+    row_limit: 10,
+    observed_rows: 1,
+  },
+  capture_state: "complete",
+  trace: {
+    roots: [
+      {
+        observation_id: "observation-root",
+        parent_observation_id: null,
+        name: "bounded-model-call",
+        kind: "SPAN",
+        started_at: "2026-08-02T10:00:00.000Z",
+        ended_at: "2026-08-02T10:00:01.000Z",
+        duration_ns: null,
+        service_name: null,
+        status: { level: "DEFAULT", message: "" },
+        correlation: {
+          project: matched("pbk.semantic"),
+          work: matched("work.observation"),
+          attempt: { value: "attempt.42", state: "observed_only" },
+          revision: matched(COMMIT),
+          evidence: [{ value: "evidence.example", state: "matched" }],
+        },
+        children: [],
+      },
+    ],
+  },
+  diagnostics: [],
+  unsupported_claims: [
+    "semantic correctness of an agent action",
+    "work readiness, completion, or acceptance",
   ],
 };

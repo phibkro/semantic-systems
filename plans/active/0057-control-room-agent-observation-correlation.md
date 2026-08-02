@@ -20,8 +20,10 @@ Deliver one executable, bounded, vendor-neutral tracer bullet. It decodes one of
 - `src/agent-observation/**`
 - `tests/agent-observation.test.ts`
 - `examples/agent-observation/**`
-- `apps/control-room/src/agent-observation-projection.ts`
-- `apps/control-room/src/agent-observation-projection.test.ts`
+- `apps/control-room/src/AgentObservations.tsx`
+- `apps/control-room/src/App.tsx`
+- `apps/control-room/src/App.vitest.tsx`
+- `apps/control-room/src/test/fixture.ts`
 - `scripts/accept/0057-control-room-agent-observation-correlation.ts`
 
 `AGENTS.md` and all unrelated dirty work are forbidden.

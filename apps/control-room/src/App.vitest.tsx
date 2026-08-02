@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, test } from "vitest";
 import App from "./App.tsx";
-import { fixtureSnapshot } from "./test/fixture.ts";
+import { fixtureObservationReport, fixtureSnapshot } from "./test/fixture.ts";
 
 const provided = {
   state: "current" as const,
@@ -11,9 +11,9 @@ const provided = {
 };
 
 describe("phone-first Control Room", () => {
-  test("exposes five views, exact provenance, unsupported claims, and completed work", () => {
+  test("exposes six views, exact provenance, unsupported claims, and completed work", () => {
     render(<App provided={provided} />);
-    for (const view of ["Pulse", "Systems", "Semantics", "Evidence", "Work"]) {
+    for (const view of ["Pulse", "Systems", "Semantics", "Evidence", "Work", "Agents"]) {
       expect(screen.getByRole("button", { name: view })).toBeVisible();
     }
     expect(screen.getByText(fixtureSnapshot.metadata.commit)).toBeVisible();
@@ -59,5 +59,37 @@ describe("phone-first Control Room", () => {
     expect(screen.getByText("<script>window.pwned=true</script>")).toBeVisible();
     expect(container.querySelector("script")).toBeNull();
     expect(container.querySelector('img[src="x"]')).toBeNull();
+  });
+
+  test("projects agent observations without a write or status-transition control", async () => {
+    const user = userEvent.setup();
+    render(<App provided={provided} providedObservations={fixtureObservationReport} />);
+    await user.click(screen.getByRole("button", { name: "Agents" }));
+
+    const observations = screen.getByRole("region", { name: "Agent observations" });
+    expect(within(observations).getByText("bounded-model-call")).toBeVisible();
+    expect(within(observations).getByText("attempt.42")).toBeVisible();
+    expect(within(observations).getByText("semantic correctness of an agent action")).toBeVisible();
+    expect(within(observations).getByText("langfuse-project")).toBeVisible();
+    expect(within(observations).getByText(/2026-08-02T10:00:00.000Z/)).toBeVisible();
+    expect(within(observations).getByText(/2026-08-02T11:00:00.000Z/)).toBeVisible();
+    expect(within(observations).queryByRole("button")).toBeNull();
+    expect(within(observations).queryByRole("link")).toBeNull();
+    expect(within(observations).queryByRole("form")).toBeNull();
+  });
+
+  test("keeps an independently supplied observation report visible without a semantic snapshot", async () => {
+    const user = userEvent.setup();
+    render(
+      <App
+        provided={{ state: "invalid", snapshot: null, pending: null }}
+        providedObservations={fixtureObservationReport}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Agents" }));
+
+    expect(screen.getByRole("region", { name: "Agent observations" })).toBeVisible();
+    expect(screen.getByText("bounded-model-call")).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Unavailable" })).toBeNull();
   });
 });
