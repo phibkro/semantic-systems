@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from semantic_tracer.evidence import produce_all_evidence
 from semantic_tracer.execution import ExecutionResult, execute_scenario
 from semantic_tracer.explanation import ExplanationNode
 from semantic_tracer.jsonutil import require_key, require_str
@@ -13,7 +14,7 @@ from semantic_tracer.loader import load_inventory
 from semantic_tracer.operations import resolve_transition
 from semantic_tracer.realization import normalize_realization, operation_binding
 from semantic_tracer.resolver import Resolution, resolve
-from semantic_tracer.theory import Theory, normalize_theory
+from semantic_tracer.theory import Theory, normalize_theory, required_obligation_id
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,7 +62,10 @@ def run_demo(root: Path, policy: str = "development") -> DemoResult:
     realizations = [
         normalize_realization(document, theory, theory_id) for document in fixture.realizations
     ]
-    resolution = resolve(theory, theory_id, realizations, fixture.evidence_suites, fixture.policy)
+    evidence_outcomes = produce_all_evidence(
+        theory, theory_id, required_obligation_id(theory), realizations, fixture.evidence_suites
+    )
+    resolution = resolve(theory, theory_id, realizations, evidence_outcomes, fixture.policy)
 
     execution: ExecutionResult | None = None
     if resolution.status == "selected":

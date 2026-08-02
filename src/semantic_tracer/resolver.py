@@ -1,8 +1,13 @@
 """Resolve inventory realization candidates under a named evidence policy.
 
-Zero eligible candidates rejects; more than one eligible candidate rejects as
-ambiguous rather than selecting silently by lexical or load order (design
-spec 0001).
+Consumes precomputed evidence packets (design spec 0003); it never executes
+a realization, an operation, or a conformance recipe itself. Zero eligible
+candidates rejects; more than one eligible candidate rejects as ambiguous
+rather than selecting silently by lexical or load order (design spec 0001).
+
+Must not import the conformance runner (`evidence.py`), the operation
+registry (`operations.py`), domain semantics (`domain.py`), or the execution
+module (`execution.py`).
 """
 
 from __future__ import annotations
@@ -10,27 +15,27 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from semantic_tracer.evidence import EvidenceResult, run_conformance
+from semantic_tracer.canonical import content_identity
 from semantic_tracer.explanation import ExplanationNode
 from semantic_tracer.jsonutil import DocumentError, require_key, require_object, require_str
-from semantic_tracer.operations import resolve_replay, resolve_transition
-from semantic_tracer.realization import Realization, operation_binding
-from semantic_tracer.theory import Theory
+from semantic_tracer.packets import EvidenceResultPacket, ProducerDiagnostic, ProducerOutcome
+from semantic_tracer.realization import Realization
+from semantic_tracer.reasons import (
+    REASON_AMBIGUOUS,
+    REASON_ASSUMPTIONS_NOT_ALLOWED,
+    REASON_CATEGORY_NOT_ACCEPTED,
+    REASON_CONFORMANCE_FAILED,
+    REASON_MISSING_EVIDENCE,
+    REASON_NO_ELIGIBLE,
+    REASON_OBLIGATION_NOT_GOVERNED,
+    REASON_OBLIGATION_SET_UNSUPPORTED,
+    REASON_THEORY_MISMATCH,
+)
+from semantic_tracer.theory import Theory, required_obligation_id
 from semantic_tracer.types import JsonObject
 
-REASON_MISSING_EVIDENCE = "missing_evidence"
-REASON_CATEGORY_NOT_ACCEPTED = "evidence_category_not_accepted"
-REASON_ASSUMPTIONS_NOT_ALLOWED = "assumptions_not_allowed"
-REASON_CONFORMANCE_FAILED = "conformance_failed"
-REASON_OBLIGATION_NOT_GOVERNED = "obligation_not_governed"
-REASON_AMBIGUOUS = "ambiguous_candidates"
-REASON_NO_ELIGIBLE = "no_eligible_candidates"
-REASON_THEORY_MISMATCH = "theory_mismatch"
-REASON_EVIDENCE_AMBIGUOUS = "ambiguous_evidence"
-REASON_EVIDENCE_OBLIGATION_MISMATCH = "evidence_obligation_mismatch"
-REASON_OBLIGATION_SET_UNSUPPORTED = "required_obligation_set_unsupported"
-REASON_EVIDENCE_STALE = "stale_evidence_recipe"
-REASON_OPERATION_UNBOUND = "unbound_operation"
+CLAIM_ARTIFACT_KIND = "resolution_claim"
+CLAIM_SCHEMA_VERSION = 1
 
 CHANGE_OPTIONS = {
     REASON_MISSING_EVIDENCE: "Add one matching conformance suite for the required obligation.",
@@ -39,13 +44,13 @@ CHANGE_OPTIONS = {
     REASON_CONFORMANCE_FAILED: "Fix the realization or explicitly revise the frozen contract.",
     REASON_OBLIGATION_NOT_GOVERNED: "Add an explicit policy rule for the theory obligation.",
     REASON_THEORY_MISMATCH: "Target the exact authored theory identifier.",
-    REASON_EVIDENCE_AMBIGUOUS: "Retain exactly one suite for the theory and obligation.",
-    REASON_EVIDENCE_OBLIGATION_MISMATCH: "Bind the suite to the obligation declared by the theory.",
+    "ambiguous_evidence": "Retain exactly one evidence result for the theory and obligation.",
+    "evidence_obligation_mismatch": "Bind the suite to the obligation declared by the theory.",
     REASON_OBLIGATION_SET_UNSUPPORTED: (
         "Use the single-obligation v0 contract or extend the resolver."
     ),
-    REASON_EVIDENCE_STALE: "Re-author the suite against the exact normalized theory identity.",
-    REASON_OPERATION_UNBOUND: "Bind every required operation to an available execution adapter.",
+    "stale_evidence_recipe": "Re-author the suite against the exact normalized theory identity.",
+    "unbound_operation": "Bind every required operation to an available execution adapter.",
 }
 
 
@@ -54,7 +59,8 @@ class Candidate:
     realization: Realization
     eligible: bool
     reason_codes: tuple[str, ...]
-    evidence: EvidenceResult | None
+    evidence: EvidenceResultPacket | None
+    diagnostic: ProducerDiagnostic | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -64,6 +70,9 @@ class Candidate:
             "eligible": self.eligible,
             "reason_codes": list(self.reason_codes),
             "evidence": self.evidence.to_dict() if self.evidence is not None else None,
+            "producer_diagnostic": self.diagnostic.to_dict()
+            if self.diagnostic is not None
+            else None,
             "counterexamples": (
                 list(self.evidence.counterexamples) if self.evidence is not None else []
             ),
@@ -86,6 +95,18 @@ class Candidate:
                 },
             )
             children = (evidence_node,)
+        elif self.diagnostic is not None:
+            children = (
+                ExplanationNode(
+                    rule="evaluate_conformance_evidence",
+                    outcome="no_result",
+                    subject=self.realization.identity,
+                    details={
+                        "reason_code": self.diagnostic.reason_code,
+                        "detail": self.diagnostic.detail,
+                    },
+                ),
+            )
         return ExplanationNode(
             rule="evaluate_realization_candidate",
             outcome="eligible" if self.eligible else "rejected",
@@ -120,23 +141,11 @@ class Resolution:
         }
 
 
-def _required_obligation(theory: Theory) -> str | None:
-    raw = theory.payload.get("obligations")
-    if not isinstance(raw, list) or len(raw) != 1 or not isinstance(raw[0], dict):
-        return None
-    value = raw[0].get("id")
-    return value if isinstance(value, str) else None
-
-
-def _theory_suites(theory_id: str, suites: list[JsonObject]) -> list[JsonObject]:
-    return [suite for suite in suites if suite.get("theory") == theory_id]
-
-
-def _evaluate_candidate(  # noqa: PLR0911
+def _evaluate_candidate(
     theory: Theory,
-    theory_id: str,
     realization: Realization,
-    suites: list[JsonObject],
+    required_obligation: str | None,
+    outcome: ProducerOutcome | None,
     policy: JsonObject,
 ) -> Candidate:
     if not realization.targets_theory:
@@ -147,7 +156,6 @@ def _evaluate_candidate(  # noqa: PLR0911
             evidence=None,
         )
 
-    required_obligation = _required_obligation(theory)
     if required_obligation is None:
         return Candidate(
             realization=realization,
@@ -156,50 +164,21 @@ def _evaluate_candidate(  # noqa: PLR0911
             evidence=None,
         )
 
-    matching = _theory_suites(theory_id, suites)
-    if not matching:
-        return Candidate(
-            realization=realization,
-            eligible=False,
-            reason_codes=(REASON_MISSING_EVIDENCE,),
-            evidence=None,
+    if not isinstance(outcome, EvidenceResultPacket):
+        diagnostic = (
+            outcome
+            if isinstance(outcome, ProducerDiagnostic)
+            else ProducerDiagnostic(REASON_MISSING_EVIDENCE)
         )
-    if len(matching) > 1:
         return Candidate(
             realization=realization,
             eligible=False,
-            reason_codes=(REASON_EVIDENCE_AMBIGUOUS,),
+            reason_codes=(diagnostic.reason_code,),
             evidence=None,
+            diagnostic=diagnostic,
         )
 
-    suite = matching[0]
-    if suite.get("theory_identity") != theory.identity:
-        return Candidate(
-            realization=realization,
-            eligible=False,
-            reason_codes=(REASON_EVIDENCE_STALE,),
-            evidence=None,
-        )
-    if suite.get("obligation") != required_obligation:
-        return Candidate(
-            realization=realization,
-            eligible=False,
-            reason_codes=(REASON_EVIDENCE_OBLIGATION_MISMATCH,),
-            evidence=None,
-        )
-
-    try:
-        transition = resolve_transition(operation_binding(realization.document, "transition"))
-        replay_fn = resolve_replay(operation_binding(realization.document, "replay"))
-    except DocumentError:
-        return Candidate(
-            realization=realization,
-            eligible=False,
-            reason_codes=(REASON_OPERATION_UNBOUND,),
-            evidence=None,
-        )
-    evidence = run_conformance(theory, realization, suite, transition, replay_fn)
-
+    evidence = outcome
     reasons: list[str] = []
     requirements = require_object(
         require_key(policy, "requirements", "policy"), "policy.requirements"
@@ -237,15 +216,22 @@ def resolve(
     theory: Theory,
     theory_id: str,
     realizations: list[Realization],
-    suites: list[JsonObject],
+    evidence_outcomes: dict[str, ProducerOutcome],
     policy: JsonObject,
 ) -> Resolution:
     ambiguity = require_str(require_key(policy, "ambiguity", "policy"), "policy.ambiguity")
     if ambiguity != "reject":
         raise DocumentError(f"unsupported ambiguity policy {ambiguity!r}")
 
+    required_obligation = required_obligation_id(theory)
     candidates = tuple(
-        _evaluate_candidate(theory, theory_id, realization, suites, policy)
+        _evaluate_candidate(
+            theory,
+            realization,
+            required_obligation,
+            evidence_outcomes.get(realization.realization_id),
+            policy,
+        )
         for realization in realizations
     )
     eligible = [candidate for candidate in candidates if candidate.eligible]
@@ -271,3 +257,54 @@ def resolve(
         reason_codes=(REASON_AMBIGUOUS,),
         candidates=candidates,
     )
+
+
+def build_resolution_claim(
+    theory: Theory,
+    theory_id: str,
+    policy: JsonObject,
+    resolution: Resolution,
+    selected_assumptions: tuple[str, ...],
+) -> JsonObject:
+    """Serialize `resolution` as a `resolution_claim_v1` document."""
+    policy_id = require_str(require_key(policy, "id", "policy"), "policy.id")
+
+    selected: JsonObject | None = None
+    if resolution.status == "selected":
+        selected_candidate = next(
+            candidate
+            for candidate in resolution.candidates
+            if candidate.realization.realization_id == resolution.selected_realization
+        )
+        selected = {
+            "id": selected_candidate.realization.realization_id,
+            "identity": selected_candidate.realization.identity,
+        }
+
+    return {
+        "artifact_kind": CLAIM_ARTIFACT_KIND,
+        "schema_version": CLAIM_SCHEMA_VERSION,
+        "theory": {"id": theory_id, "identity": theory.identity},
+        "required_obligation": required_obligation_id(theory),
+        "policy": {"id": policy_id, "content_identity": content_identity(policy)},
+        "candidates": [
+            {
+                "realization_id": candidate.realization.realization_id,
+                "realization_identity": candidate.realization.identity,
+                "targets_theory": candidate.realization.targets_theory,
+                "realization_assumptions": list(candidate.realization.assumptions),
+                "evidence": candidate.evidence.to_dict()
+                if candidate.evidence is not None
+                else None,
+                "producer_diagnostic": (
+                    candidate.diagnostic.to_dict() if candidate.diagnostic is not None else None
+                ),
+                "eligible": candidate.eligible,
+                "reason_codes": list(candidate.reason_codes),
+            }
+            for candidate in resolution.candidates
+        ],
+        "status": resolution.status,
+        "selected": selected,
+        "selected_assumptions": list(selected_assumptions),
+    }

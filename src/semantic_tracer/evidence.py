@@ -1,15 +1,19 @@
-"""Conformance evidence: execute a suite recipe against one exact realization.
+"""Evidence production boundary (design spec 0003).
 
-A conformance-suite recipe is not itself evidence (design spec 0001). Running
-it here against the theory and realization identities in scope produces an
-evidence result bound to those exact identities, so staleness cannot occur:
-the subject is always the identity just computed.
+Conformance execution occurs before resolution. Given an exact theory,
+realization, recipe, and execution adapter, production returns either one
+`evidence_result_v1` packet or a typed producer diagnostic and no result. An
+unbound adapter is a producer diagnostic, not an evidence result.
+
+A conformance-suite recipe is not itself evidence (design spec 0001).
+Running it here against the theory and realization identities in scope
+produces an evidence result bound to those exact identities, so staleness
+cannot occur: the subject is always the identity just computed.
+
+The production resolver (`resolver.py`) must not import this module.
 """
 
 from __future__ import annotations
-
-from dataclasses import dataclass
-from typing import Any
 
 from semantic_tracer.domain import ReplayFn, TransitionFn, parse_state, run_steps
 from semantic_tracer.jsonutil import (
@@ -20,61 +24,26 @@ from semantic_tracer.jsonutil import (
     require_str,
     require_str_list,
 )
-from semantic_tracer.realization import Realization
+from semantic_tracer.operations import resolve_replay, resolve_transition
+from semantic_tracer.packets import (
+    CaseResult,
+    EvidenceResultPacket,
+    ProducerDiagnostic,
+    ProducerOutcome,
+)
+from semantic_tracer.realization import Realization, operation_binding
+from semantic_tracer.reasons import (
+    REASON_EVIDENCE_AMBIGUOUS,
+    REASON_EVIDENCE_OBLIGATION_MISMATCH,
+    REASON_EVIDENCE_STALE,
+    REASON_MISSING_EVIDENCE,
+    REASON_OBLIGATION_SET_UNSUPPORTED,
+    REASON_OPERATION_UNBOUND,
+)
 from semantic_tracer.theory import Theory
 from semantic_tracer.types import JsonObject, JsonValue
 
 EVIDENCE_CATEGORY = "example_test"
-
-
-@dataclass(frozen=True, slots=True)
-class CaseResult:
-    case_id: str
-    passed: bool
-    detail: JsonObject | None
-
-    def to_dict(self) -> dict[str, Any]:
-        return {"case_id": self.case_id, "passed": self.passed, "detail": self.detail}
-
-
-@dataclass(frozen=True, slots=True)
-class EvidenceResult:
-    category: str
-    obligation: str
-    producer: JsonObject
-    theory_identity: str
-    realization_identity: str
-    assumptions: tuple[str, ...]
-    case_results: tuple[CaseResult, ...]
-
-    @property
-    def total_cases(self) -> int:
-        return len(self.case_results)
-
-    @property
-    def passed_cases(self) -> int:
-        return sum(1 for case in self.case_results if case.passed)
-
-    @property
-    def passed(self) -> bool:
-        return self.total_cases > 0 and self.passed_cases == self.total_cases
-
-    @property
-    def counterexamples(self) -> tuple[dict[str, Any], ...]:
-        return tuple(case.to_dict() for case in self.case_results if not case.passed)
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "category": self.category,
-            "obligation": self.obligation,
-            "producer": dict(self.producer),
-            "theory_identity": self.theory_identity,
-            "realization_identity": self.realization_identity,
-            "assumptions": list(self.assumptions),
-            "passed": self.passed,
-            "total_cases": self.total_cases,
-            "passed_cases": self.passed_cases,
-        }
 
 
 def _invariant_violations(state_dict: JsonObject) -> list[str]:
@@ -143,7 +112,7 @@ def run_conformance(
     suite: JsonObject,
     transition: TransitionFn,
     replay_fn: ReplayFn,
-) -> EvidenceResult:
+) -> EvidenceResultPacket:
     declared_category = require_str(
         require_key(suite, "category", "conformance_suite"), "suite.category"
     )
@@ -162,7 +131,7 @@ def run_conformance(
 
     case_results = tuple(_run_case(case, transition, replay_fn) for case in cases)
 
-    return EvidenceResult(
+    return EvidenceResultPacket(
         category=EVIDENCE_CATEGORY,
         obligation=obligation,
         producer=producer,
@@ -171,3 +140,64 @@ def run_conformance(
         assumptions=assumptions,
         case_results=case_results,
     )
+
+
+def produce_realization_evidence(
+    theory: Theory,
+    theory_id: str,
+    required_obligation: str | None,
+    realization: Realization,
+    suites: list[JsonObject],
+) -> ProducerOutcome:
+    """Produce one `evidence_result_v1` packet, or a diagnostic, for `realization`.
+
+    Matches the one conformance-suite recipe declared for `theory_id`,
+    verifies it targets the exact normalized theory identity and the
+    theory's required obligation, resolves the realization's operation
+    bindings, and executes it. Every failure mode short of a diagnosed,
+    typed reason raises rather than silently producing partial evidence.
+    """
+    if required_obligation is None:
+        return ProducerDiagnostic(REASON_OBLIGATION_SET_UNSUPPORTED)
+
+    matching = [suite for suite in suites if suite.get("theory") == theory_id]
+    suite = matching[0] if len(matching) == 1 else None
+    diagnosis = (
+        (not matching, REASON_MISSING_EVIDENCE),
+        (len(matching) > 1, REASON_EVIDENCE_AMBIGUOUS),
+        (
+            suite is not None and suite.get("theory_identity") != theory.identity,
+            REASON_EVIDENCE_STALE,
+        ),
+        (
+            suite is not None and suite.get("obligation") != required_obligation,
+            REASON_EVIDENCE_OBLIGATION_MISMATCH,
+        ),
+    )
+    reason = next((code for failed, code in diagnosis if failed), None)
+    if reason is not None or suite is None:
+        return ProducerDiagnostic(reason or REASON_MISSING_EVIDENCE)
+
+    try:
+        transition = resolve_transition(operation_binding(realization.document, "transition"))
+        replay_fn = resolve_replay(operation_binding(realization.document, "replay"))
+    except DocumentError:
+        return ProducerDiagnostic(REASON_OPERATION_UNBOUND)
+
+    return run_conformance(theory, realization, suite, transition, replay_fn)
+
+
+def produce_all_evidence(
+    theory: Theory,
+    theory_id: str,
+    required_obligation: str | None,
+    realizations: list[Realization],
+    suites: list[JsonObject],
+) -> dict[str, ProducerOutcome]:
+    """Produce one outcome per authored realization, keyed by realization ID."""
+    return {
+        realization.realization_id: produce_realization_evidence(
+            theory, theory_id, required_obligation, realization, suites
+        )
+        for realization in realizations
+    }
