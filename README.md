@@ -26,9 +26,8 @@ Markdown and Mermaid diagrams are generated projections of that graph.
   5. work dependencies and critical path;
   6. delegation frontier;
   7. runtime interaction view.
-- Bun, Effect v4, strict TypeScript, Oxfmt, and Oxlint configuration.
-- Transitional Ruff, Pyright, and pytest configuration only for the
-  reference-custody slice that remains to be migrated.
+- Bun, Effect v4, strict TypeScript, Oxfmt, and Oxlint configuration across
+  the project model, tracer, actor, reference custody, tests, and checks.
 
 ## Commands
 
@@ -53,8 +52,16 @@ bun run semproj -- generate
 bun test tests/project-model.test.ts
 ```
 
-Reference custody still uses Python during its behavior-preserving migration
-slice; it is not a runtime fallback for the project model or inventory tracer.
+Run the Effect v4 reference-custody CLI:
+
+```bash
+bun run semrefs -- catalog-check
+bun run semrefs -- status --all --lock-only --json
+```
+
+The checked-in reference lock retains its historical generator identity;
+current commands do not rewrite locked source facts merely to rename the
+implementation.
 
 Run every available check:
 

@@ -34,13 +34,12 @@ advisory and bypassable.
 | Loop | Command | Latency | Covers |
 |---|---|---|---|
 | Fast | `just fast` | seconds | format, lint, typecheck, model validate/generate, commit-policy conformance |
-| Integration | `just check` | minutes | frozen install + fast loop + full `bun test` + transitional custody `pyright`/`pytest` |
+| Integration | `just check` | minutes | frozen install + fast loop + the complete `bun test` corpus |
 | Feature | `just accept <id>-<slug>` | tracer-sized | the exact Bun acceptance program for one frozen design spec |
 
-`nix flake check` runs the parts of the fast/integration loop that are
-hermetic (Python static checks, tests, and the network-free commit-policy
-conformance script) as real sandboxed derivations, not merely a devShell
-evaluation.
+`nix flake check` runs the hermetic repository-source invariants and the
+network-free commit-policy conformance script as real sandboxed derivations,
+not merely a devShell evaluation.
 
 Every commit message and pull-request title follows Conventional Commits,
 checked against `commitlint.config.ts`. Allowed types are the standard
@@ -78,13 +77,10 @@ integration agent verifies those external gates against the committed artifact.
 ## Quality gates
 
 ```bash
-ruff check .
-ruff format --check .
-pyright
-pytest
 bun test
-semproj validate
-semproj generate --check
+bun run semproj -- validate
+bun run semproj -- generate --check
+bun run semrefs -- catalog-check
 bun run format:check
 bun run lint
 bun run typecheck

@@ -57,9 +57,8 @@ just accept <id>-<slug>
 ```
 
 A missing required tool fails these gates; it is never downgraded to a
-warning. During migration 0010, `nix flake check` re-runs the remaining
-reference-custody Python checks and commit-policy conformance as real sandboxed
-derivations. Commit
+warning. `nix flake check` re-runs the repository-source invariants and
+commit-policy conformance as real sandboxed derivations. Commit
 messages and pull-request titles follow the Conventional Commits policy in
 `commitlint.config.ts`; see `CONTRIBUTING.md` for the full loop and commit
 provenance. Targeted commands are documented in `CONTRIBUTING.md`. Report

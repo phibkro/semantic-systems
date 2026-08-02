@@ -14,6 +14,8 @@
     "semantic-tracer:node": "node src/tracer/main-node.ts",
     "semantic-actor": "bun src/actor/main-bun.ts",
     "semantic-actor:node": "node src/actor/main-node.ts",
+    "semrefs": "bun src/references/main-bun.ts",
+    "semrefs:node": "node src/references/main-node.ts",
     "test": "bun test",
     "test:project-model": "bun test tests/project-model.test.ts",
     "fast": "bun scripts/check-fast.ts",

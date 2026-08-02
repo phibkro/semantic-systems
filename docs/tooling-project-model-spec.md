@@ -274,7 +274,7 @@ cache, subject to explicitly recorded external assumptions.
 ### Current
 
 - JSON source documents;
-- typed Python validator;
+- strict TypeScript/Effect v4 validator under Bun and Node live layers;
 - Mermaid projections;
 - simple work scheduler.
 

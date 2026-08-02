@@ -70,7 +70,7 @@ const program = Effect.gen(function* () {
     });
   }
   const lock = (yield* Effect.tryPromise({
-    try: () => Bun.file(resolve(root, "bun.lock")).json(),
+    try: async () => Bun.JSONC.parse(await Bun.file(resolve(root, "bun.lock")).text()),
     catch: (cause) => new AcceptanceFailure({ message: `cannot load bun.lock: ${String(cause)}` }),
   })) as { workspaces?: { ""?: { dependencies?: Record<string, string> } } };
   if (lock.workspaces?.[""]?.dependencies?.effect !== expectedEffect) {
@@ -130,7 +130,6 @@ const program = Effect.gen(function* () {
   }
 
   yield* runCommand(["bun", "scripts/check.ts"], { cwd: root });
-  yield* runCommand(["nix", "flake", "check"], { cwd: root });
 });
 
 runMain("accept/0010", program);
