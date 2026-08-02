@@ -103,22 +103,6 @@ const selectedRelations = (
     )
     .sort((left, right) => left.id.localeCompare(right.id));
 };
-const cyclic = (identities: ReadonlyArray<string>, edges: ReadonlyArray<WorkRelation>): boolean => {
-  const outgoing = new Map(identities.map((id) => [id, new Array<string>()]));
-  for (const edge of edges) outgoing.get(edge.source_id)?.push(edge.target_id);
-  const active = new Set<string>();
-  const settled = new Set<string>();
-  const visit = (id: string): boolean => {
-    if (active.has(id)) return true;
-    if (settled.has(id)) return false;
-    active.add(id);
-    if ((outgoing.get(id) ?? []).some(visit)) return true;
-    active.delete(id);
-    settled.add(id);
-    return false;
-  };
-  return identities.some(visit);
-};
 
 const dependencyDepths = (
   identities: ReadonlyArray<string>,
@@ -206,11 +190,6 @@ export const projectWork = (
   const presentation = view.presentation;
   return Effect.gen(function* () {
     if (presentation === "dag") {
-      if (cyclic(selection.identities, edges)) {
-        return yield* new PortfolioProjectionFailure({
-          message: `view ${view.id} selects a cyclic relation family`,
-        });
-      }
       const selectedIndex = yield* buildStableDirectedGraphIndex(items, edges).pipe(
         Effect.mapError((failure) => graphFailure(view, failure)),
       );
