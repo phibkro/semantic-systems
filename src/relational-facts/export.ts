@@ -117,7 +117,15 @@ const deepFreeze = <Value>(value: Value, seen = new WeakSet<object>()): Value =>
 };
 
 const validAbsoluteRoot = (root: string): boolean =>
-  root.length > 0 && root.startsWith("/") && !root.includes("\\") && !root.includes("//");
+  root === "/" ||
+  (root.startsWith("/") &&
+    !root.endsWith("/") &&
+    !root.includes("\\") &&
+    !root.includes("//") &&
+    root
+      .slice(1)
+      .split("/")
+      .every((segment) => segment !== "." && segment !== ".."));
 
 const sourceKey = (root: string, source: string): string => {
   if (!validAbsoluteRoot(root)) {

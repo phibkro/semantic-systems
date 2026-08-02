@@ -245,6 +245,16 @@ describe("relational fact export", () => {
       throw new Error("expected export failure");
     expect(exportFailure.code).toBe("export.source-custody");
 
+    const unnormalizedRoot = exportRelationalFacts({
+      ...graph(),
+      root: "/workspace/semantic/../semantic",
+    });
+    expect(unnormalizedRoot).toBeInstanceOf(RelationalExportError);
+    if (!(unnormalizedRoot instanceof RelationalExportError)) {
+      throw new Error("expected project-root export failure");
+    }
+    expect(unnormalizedRoot.code).toBe("export.project-root");
+
     const bundle = bundleOf();
     const unknownRoot = queryReachability(bundle, {
       roots: ["missing"],
