@@ -820,7 +820,7 @@ describe("autonomous development control loop", () => {
 
   test("detects stale generated views through the Bun project model", async () => {
     const root = await temporaryRoot("semantic-generated-drift-");
-    for (const directory of ["model", "generated", "design-specs", "plans", "research"]) {
+    for (const directory of ["model", "generated", "design-specs", "plans", "research", "tests"]) {
       await cp(join(ROOT, directory), join(root, directory), { recursive: true });
     }
     await mkdir(join(root, "scripts"), { recursive: true });
