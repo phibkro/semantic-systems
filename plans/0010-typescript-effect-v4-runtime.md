@@ -13,10 +13,10 @@ Owner: main integration agent
 - Operator amendment: Bun remains the default runtime and package manager;
   Node is a supported alternative supplied through official Effect platform
   live layers.
-- Oxlint now denies correctness, suspicious, and performance categories plus
+- Oxlint denies correctness, suspicious, and performance categories plus
   selected TypeScript, Unicorn, Import, and Promise rules. Effect-aware
-  `@effect/tsgo` diagnostics and the local architecture plugin remain
-  dependency-gated.
+  `@effect/tsgo` diagnostics and the four local architecture rule families run
+  in the fast and integration gates.
 - Repository-owned Python packaging, source, tests, and toolchain wiring are
   removed after accepted differential observations were captured as immutable
   TypeScript goldens. Reference custody now runs under Bun and Node:
