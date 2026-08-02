@@ -4,7 +4,7 @@ import { Data, Effect } from "effect";
 import { BunFileSystem, BunPath } from "@effect/platform-bun";
 import { runCommand, runMain } from "../lib/command.ts";
 import { loadProject } from "../../src/project-model/loader.ts";
-import type { ProjectGraph } from "../../src/project-model/types.ts";
+import type { JsonValue, ProjectGraph } from "../../src/project-model/types.ts";
 import {
   encodeRelationalFacts,
   exportRelationalFacts,
@@ -13,18 +13,20 @@ import {
   RelationalExportError,
   RelationalQueryError,
 } from "../../src/relational-facts/index.ts";
+import { stringifyCanonicalJson } from "../../src/references/canonical-json.ts";
 
 class AcceptanceFailure extends Data.TaggedError("AcceptanceFailure")<{
   readonly message: string;
 }> {}
 
 const root = resolve(import.meta.dirname, "../..");
+const nodeExecutable = process.env.SEMANTIC_NODE_BIN ?? "node";
 const requiredArtifacts = [
   "design-specs/0053-relational-fact-export.md",
   "plans/active/0053-relational-fact-export.md",
   "model/work/features/0053-relational-fact-export.json",
   "tests/relational-facts.test.ts",
-  "examples/relational-facts/fixture.json",
+  "examples/relational-facts/model/fixture.json",
   "examples/relational-facts/fixture.bundle.json.golden",
   "examples/relational-facts/fixture.query-summary.json.golden",
   "src/relational-facts/types.ts",
@@ -42,6 +44,18 @@ const ensure = (condition: boolean, message: string): Effect.Effect<void, Accept
 
 const bytesEqual = (left: Uint8Array, right: Uint8Array): boolean =>
   left.length === right.length && left.every((byte, index) => byte === right[index]);
+
+const readArtifactBytes = (path: string): Effect.Effect<Uint8Array, AcceptanceFailure> =>
+  Effect.tryPromise({
+    try: async () => new Uint8Array(await Bun.file(resolve(root, path)).arrayBuffer()),
+    catch: (cause) =>
+      new AcceptanceFailure({ message: `cannot read artifact ${path}: ${String(cause)}` }),
+  });
+
+const canonicalBytes = (value: JsonValue): Uint8Array =>
+  new TextEncoder().encode(`${stringifyCanonicalJson(value)}\n`);
+
+const unique = <Value>(values: Iterable<Value>): ReadonlyArray<Value> => [...new Set(values)];
 
 const capture = (command: ReadonlyArray<string>): Effect.Effect<string, AcceptanceFailure> =>
   Effect.try({
@@ -83,6 +97,70 @@ const relativeSource = (project: ProjectGraph, source: string): string => {
 
 const program = Effect.gen(function* () {
   yield* required;
+  const fixtureProject = yield* loadProject(resolve(root, "examples/relational-facts"));
+  const fixtureBundle = exportRelationalFacts(fixtureProject);
+  yield* ensure(!(fixtureBundle instanceof RelationalExportError), "fixture export failed");
+  if (fixtureBundle instanceof RelationalExportError) return yield* fixtureBundle;
+  const fixtureBundleGolden = yield* readArtifactBytes(
+    "examples/relational-facts/fixture.bundle.json.golden",
+  );
+  yield* ensure(
+    bytesEqual(encodeRelationalFacts(fixtureBundle), fixtureBundleGolden),
+    "fixture bundle differs from canonical golden bytes",
+  );
+  const fixtureIncoming = queryReachability(fixtureBundle, {
+    roots: ["obligation.inventory.conformance"],
+    direction: "incoming",
+    relationKinds: ["supports", "invalidates"],
+    maximumDepth: 16,
+    maximumRows: 100,
+  });
+  yield* ensure(
+    !(fixtureIncoming instanceof RelationalQueryError),
+    "fixture incoming query failed",
+  );
+  if (fixtureIncoming instanceof RelationalQueryError) return yield* fixtureIncoming;
+  const fixtureEvidence = queryEvidence(fixtureBundle, "obligation.inventory.conformance");
+  yield* ensure(
+    !(fixtureEvidence instanceof RelationalQueryError),
+    "fixture evidence query failed",
+  );
+  if (fixtureEvidence instanceof RelationalQueryError) return yield* fixtureEvidence;
+  const fixtureSummary: JsonValue = {
+    evidence: {
+      target: fixtureEvidence.target.entity_id,
+      direct: fixtureEvidence.evidence.map(({ entity, relation }) => ({
+        relation_ordinal: relation.relation_ordinal,
+        kind: relation.kind,
+        entity_id: entity.entity_id,
+      })),
+      assumptions: unique(
+        fixtureEvidence.evidence.flatMap(({ assumptions }) =>
+          assumptions.map(({ entity }) => entity.entity_id),
+        ),
+      ),
+      assumption_relation_ordinals: unique(
+        fixtureEvidence.evidence.flatMap(({ assumption_relations }) =>
+          assumption_relations.map(({ relation_ordinal }) => relation_ordinal),
+        ),
+      ),
+    },
+    incoming: {
+      roots: fixtureIncoming.query.roots,
+      direction: fixtureIncoming.query.direction,
+      relation_kinds: fixtureIncoming.query.relationKinds,
+      nodes: fixtureIncoming.nodes.map(({ entity_id }) => entity_id),
+      relation_ordinals: fixtureIncoming.relations.map(({ relation_ordinal }) => relation_ordinal),
+      truncated: fixtureIncoming.truncated,
+    },
+  };
+  const fixtureSummaryGolden = yield* readArtifactBytes(
+    "examples/relational-facts/fixture.query-summary.json.golden",
+  );
+  yield* ensure(
+    bytesEqual(canonicalBytes(fixtureSummary), fixtureSummaryGolden),
+    "fixture query summary differs from canonical golden bytes",
+  );
   const project = yield* loadProject(root);
   const bundle = exportRelationalFacts(project);
   yield* ensure(!(bundle instanceof RelationalExportError), "canonical project export failed");
@@ -181,6 +259,10 @@ const program = Effect.gen(function* () {
     "model-check dependency is missing from incoming reachability",
   );
   yield* ensure(
+    !incomingIds.has("work.stm-laws"),
+    "incoming reachability crossed an authored outgoing relation",
+  );
+  yield* ensure(
     incoming.relations.every((relation) => relation.kind === "blocks"),
     "incoming query mixed relation directions or kinds",
   );
@@ -277,7 +359,7 @@ const program = Effect.gen(function* () {
   );
 
   const bunReport = yield* capture(["bun", "src/relational-facts/main-bun.ts", root]);
-  const nodeReport = yield* capture(["node", "src/relational-facts/main-node.ts", root]);
+  const nodeReport = yield* capture([nodeExecutable, "src/relational-facts/main-node.ts", root]);
   yield* ensure(bunReport === nodeReport, "Bun and genuine Node reports differ byte-for-byte");
   yield* Effect.try({
     try: () => JSON.parse(bunReport),

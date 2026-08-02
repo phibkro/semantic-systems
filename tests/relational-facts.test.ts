@@ -67,6 +67,7 @@ const graph = (reverseEntities = false): ProjectGraph => {
     makeEntity({ id: "work.stm-runtime", kind: "work_item", source: source("work/0050.json") }),
     makeEntity({ id: "work.inventory-stm", kind: "work_item", source: source("work/0050.json") }),
     makeEntity({ id: "work.stm-model-check", kind: "work_item", source: source("work/0050.json") }),
+    makeEntity({ id: "work.stm-laws", kind: "work_item", source: source("work/0050.json") }),
   ];
   const ordered = reverseEntities ? [...entities].reverse() : entities;
   return {
@@ -81,6 +82,12 @@ const graph = (reverseEntities = false): ProjectGraph => {
       makeRelation({
         sourceId: "work.stm-model-check",
         targetId: "work.stm-runtime",
+        kind: "blocks",
+        source: source("work/0050.json"),
+      }),
+      makeRelation({
+        sourceId: "work.stm-runtime",
+        targetId: "work.stm-laws",
         kind: "blocks",
         source: source("work/0050.json"),
       }),
@@ -131,13 +138,13 @@ describe("relational fact export", () => {
     const original = project.entities.get("obligation.inventory.conformance")!;
     const bundle = bundleOf(project);
 
-    expect(bundle.entities).toHaveLength(7);
-    expect(bundle.relations).toHaveLength(7);
+    expect(bundle.entities).toHaveLength(8);
+    expect(bundle.relations).toHaveLength(8);
     expect(bundle.tags).toHaveLength(2);
     expect(bundle.attributes).toHaveLength(2);
     expect(bundle.source_documents).toHaveLength(3);
     expect(bundle.relations.map((relation) => relation.relation_ordinal)).toEqual([
-      0, 1, 2, 3, 4, 5, 6,
+      0, 1, 2, 3, 4, 5, 6, 7,
     ]);
     expect(bundle.relations.filter((relation) => relation.kind === "supports")).toHaveLength(2);
     expect(bundle.entities.every((entity) => !entity.source_key.startsWith("/"))).toBe(true);
