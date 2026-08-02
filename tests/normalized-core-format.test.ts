@@ -172,7 +172,7 @@ const acceptedProgram = (
   return result.program;
 };
 
-describe("semantic.normalized-core version 1", () => {
+describe("semantic.normalized-core version 2", () => {
   test("emits the frozen handled-program bytes and independently rechecks them", async () => {
     const result = await emitted();
     const expected = await Bun.file(
@@ -187,10 +187,10 @@ describe("semantic.normalized-core version 1", () => {
     if (decoded.status !== "decoded") throw new Error("fixture must strictly decode");
     expect(encodeNormalizedCore(decoded.value)).toEqual(result.bytes);
     expect(result.artifact.semantic_identity).toBe(
-      "sha256:154ff23841b0efd87075d176b3d807c67e9d2449880e5bce1c4d69421de99b78",
+      "sha256:28d006f1667125ffc395608fd88e9037c400789c91fd2b1856af8be9021ef9e6",
     );
     expect(result.artifact.artifact_identity).toBe(
-      "sha256:86a6357e12434de54ed7f917ebd091f606f2074bfd8da3130668e251fd5e1eb1",
+      "sha256:8d87f82ef3454687498de933f0b0e271b1ea9293da1c1eebf4f5e310638aa014",
     );
     const validation = await run(validateNormalizedCoreBytes(result.bytes));
     expect(validation).toMatchObject({
@@ -413,7 +413,7 @@ describe("semantic.normalized-core version 1", () => {
     }
     for (const field of ["format", "version"] as const) {
       const unknown = cloneArtifact(original) as unknown as Record<string, unknown>;
-      unknown[field] = field === "format" ? "unknown" : 2;
+      unknown[field] = field === "format" ? "unknown" : 3;
       expect(await run(decodeNormalizedCore(unknown))).toMatchObject({ status: "rejected" });
     }
     for (const field of ["signature", "assumptions"] as const) {

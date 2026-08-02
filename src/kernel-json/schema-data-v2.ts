@@ -1,16 +1,23 @@
 /**
- * Generated verbatim from spec/kernel-json/kernel-json-v1.schema.json.
- * A test proves this embedded literal byte-equal to the checked-in file:
- * the portable module has no filesystem authority, so the frozen schema
+ * Generated verbatim from spec/kernel-json/kernel-json-v2.schema.json.
+ * A test proves this embedded literal byte-equal to the checked-in file.
+ * The portable module has no filesystem authority, so the frozen schema
  * artifact ships as inert TypeScript data instead of a runtime file read.
  */
 export const kernelJsonSchemaData = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
-  $id: "https://semantic.phibkro.org/spec/kernel-json/kernel-json-v1.schema.json",
-  title: "Semantic agent-facing kernel JSON v1",
+  $id: "https://semantic.phibkro.org/spec/kernel-json/kernel-json-v2.schema.json",
+  title: "Semantic agent-facing kernel JSON v2",
   description:
     "Complete structural contract for the two frozen agent-facing documents of design spec 0020: the raw recursive semantic.kernel-json KernelDocument and the semantic.kernel-check KernelCheckObservation. The $id is a project-controlled stable identifier; it does not make remote availability or remote validation an authority. Schema validity is a structural courtesy pre-check only. This schema CANNOT enforce: de Bruijn scope validity of distance or resumption_distance; agreement between operation terms, handler clauses, and the declared signature; typing, effect rows, usage discipline, or handler completeness; sorted array order and duplicate-free rows; total node and depth bounds; strict UTF-8, duplicate-key rejection, or the negative-zero distinction; occurrence-path resolvability; premise-link well-foundedness (strictly increasing, in-range indexes); agreement between the inferred summary and judgment 0; the conditional presence of signature_origins exactly for computation.operation (one entry) and handler.deep (every declaration under the handled label, complete and in canonical order), each entry's /signature/N range, or agreement between a binder entry's origin_kind and its binder_origin target; label- and type-table discipline (sorted unique labels, child type indexes strictly below parents, maximal structural sharing, the frozen first-encounter traversal order, index range validity); diagnostic-fact kind rules and nesting depth (fact record keys are a deliberate open vocabulary, but every key, scalar, array, and record is bounded); or that an observation was produced by the authoritative checker. The strict decoder and the accepted 0018 checker remain the sole authorities for those judgments.",
-  oneOf: [{ $ref: "#/$defs/kernel_document" }, { $ref: "#/$defs/kernel_check_observation" }],
+  oneOf: [
+    {
+      $ref: "#/$defs/kernel_document",
+    },
+    {
+      $ref: "#/$defs/kernel_check_observation",
+    },
+  ],
   $defs: {
     grade: {
       description:
@@ -41,7 +48,9 @@ export const kernelJsonSchemaData = {
       description:
         "Finite effect row: labels sorted by Unicode code-point order with no duplicates. The decoder rejects unsorted or duplicated rows; this schema can express only uniqueness.",
       type: "array",
-      items: { $ref: "#/$defs/kernel_name" },
+      items: {
+        $ref: "#/$defs/kernel_name",
+      },
       uniqueItems: true,
       maxItems: 256,
     },
@@ -52,21 +61,33 @@ export const kernelJsonSchemaData = {
         {
           type: "object",
           description: "Unit value type.",
-          properties: { tag: { const: "unit" } },
+          properties: {
+            tag: {
+              const: "unit",
+            },
+          },
           required: ["tag"],
           additionalProperties: false,
         },
         {
           type: "object",
           description: "Boolean value type.",
-          properties: { tag: { const: "bool" } },
+          properties: {
+            tag: {
+              const: "bool",
+            },
+          },
           required: ["tag"],
           additionalProperties: false,
         },
         {
           type: "object",
           description: "Safe-integer value type.",
-          properties: { tag: { const: "int" } },
+          properties: {
+            tag: {
+              const: "int",
+            },
+          },
           required: ["tag"],
           additionalProperties: false,
         },
@@ -74,9 +95,15 @@ export const kernelJsonSchemaData = {
           type: "object",
           description: "Pair of two value types.",
           properties: {
-            tag: { const: "pair" },
-            first: { $ref: "#/$defs/value_type" },
-            second: { $ref: "#/$defs/value_type" },
+            tag: {
+              const: "pair",
+            },
+            first: {
+              $ref: "#/$defs/value_type",
+            },
+            second: {
+              $ref: "#/$defs/value_type",
+            },
           },
           required: ["tag", "first", "second"],
           additionalProperties: false,
@@ -86,11 +113,34 @@ export const kernelJsonSchemaData = {
           description:
             "Thunk type U(effects, computation): forcing it runs the computation with the recorded latent effect row.",
           properties: {
-            tag: { const: "thunk" },
-            effects: { $ref: "#/$defs/effect_row" },
-            computation: { $ref: "#/$defs/computation_type" },
+            tag: {
+              const: "thunk",
+            },
+            effects: {
+              $ref: "#/$defs/effect_row",
+            },
+            computation: {
+              $ref: "#/$defs/computation_type",
+            },
           },
           required: ["tag", "effects", "computation"],
+          additionalProperties: false,
+        },
+        {
+          type: "object",
+          description: "Binary sum of two value types.",
+          properties: {
+            tag: {
+              const: "sum",
+            },
+            left: {
+              $ref: "#/$defs/value_type",
+            },
+            right: {
+              $ref: "#/$defs/value_type",
+            },
+          },
+          required: ["tag", "left", "right"],
           additionalProperties: false,
         },
       ],
@@ -104,9 +154,15 @@ export const kernelJsonSchemaData = {
           description:
             "Returner type F[grade] value: the computation returns one value whose consumer demand is the grade.",
           properties: {
-            tag: { const: "return" },
-            grade: { $ref: "#/$defs/grade" },
-            value: { $ref: "#/$defs/value_type" },
+            tag: {
+              const: "return",
+            },
+            grade: {
+              $ref: "#/$defs/grade",
+            },
+            value: {
+              $ref: "#/$defs/value_type",
+            },
           },
           required: ["tag", "grade", "value"],
           additionalProperties: false,
@@ -116,11 +172,21 @@ export const kernelJsonSchemaData = {
           description:
             "Function type parameter ->[grade] (effects, result): applying it produces the result computation with the recorded latent effect row; the argument has the recorded usage grade.",
           properties: {
-            tag: { const: "function" },
-            parameter: { $ref: "#/$defs/value_type" },
-            grade: { $ref: "#/$defs/grade" },
-            effects: { $ref: "#/$defs/effect_row" },
-            result: { $ref: "#/$defs/computation_type" },
+            tag: {
+              const: "function",
+            },
+            parameter: {
+              $ref: "#/$defs/value_type",
+            },
+            grade: {
+              $ref: "#/$defs/grade",
+            },
+            effects: {
+              $ref: "#/$defs/effect_row",
+            },
+            result: {
+              $ref: "#/$defs/computation_type",
+            },
           },
           required: ["tag", "parameter", "grade", "effects", "result"],
           additionalProperties: false,
@@ -136,8 +202,12 @@ export const kernelJsonSchemaData = {
           description:
             "Reference to the ordinary value binder introduced `distance` value-binder positions outward. Scope validity is a checker judgment, not a schema judgment.",
           properties: {
-            tag: { const: "bound-value" },
-            distance: { $ref: "#/$defs/nonnegative_safe_integer" },
+            tag: {
+              const: "bound-value",
+            },
+            distance: {
+              $ref: "#/$defs/nonnegative_safe_integer",
+            },
           },
           required: ["tag", "distance"],
           additionalProperties: false,
@@ -145,7 +215,11 @@ export const kernelJsonSchemaData = {
         {
           type: "object",
           description: "Unit value.",
-          properties: { tag: { const: "unit" } },
+          properties: {
+            tag: {
+              const: "unit",
+            },
+          },
           required: ["tag"],
           additionalProperties: false,
         },
@@ -153,8 +227,12 @@ export const kernelJsonSchemaData = {
           type: "object",
           description: "Boolean value.",
           properties: {
-            tag: { const: "bool" },
-            value: { type: "boolean" },
+            tag: {
+              const: "bool",
+            },
+            value: {
+              type: "boolean",
+            },
           },
           required: ["tag", "value"],
           additionalProperties: false,
@@ -163,8 +241,12 @@ export const kernelJsonSchemaData = {
           type: "object",
           description: "Safe-integer value; -0 is preserved as distinct from 0.",
           properties: {
-            tag: { const: "int" },
-            value: { $ref: "#/$defs/safe_integer" },
+            tag: {
+              const: "int",
+            },
+            value: {
+              $ref: "#/$defs/safe_integer",
+            },
           },
           required: ["tag", "value"],
           additionalProperties: false,
@@ -173,19 +255,63 @@ export const kernelJsonSchemaData = {
           type: "object",
           description: "Pair of two values.",
           properties: {
-            tag: { const: "pair" },
-            first: { $ref: "#/$defs/value_term" },
-            second: { $ref: "#/$defs/value_term" },
+            tag: {
+              const: "pair",
+            },
+            first: {
+              $ref: "#/$defs/value_term",
+            },
+            second: {
+              $ref: "#/$defs/value_term",
+            },
           },
           required: ["tag", "first", "second"],
           additionalProperties: false,
         },
         {
           type: "object",
+          description: "Left injection into a binary sum; right_type records the absent branch.",
+          properties: {
+            tag: {
+              const: "inject-left",
+            },
+            value: {
+              $ref: "#/$defs/value_term",
+            },
+            right_type: {
+              $ref: "#/$defs/value_type",
+            },
+          },
+          required: ["tag", "value", "right_type"],
+          additionalProperties: false,
+        },
+        {
+          type: "object",
+          description: "Right injection into a binary sum; left_type records the absent branch.",
+          properties: {
+            tag: {
+              const: "inject-right",
+            },
+            left_type: {
+              $ref: "#/$defs/value_type",
+            },
+            value: {
+              $ref: "#/$defs/value_term",
+            },
+          },
+          required: ["tag", "left_type", "value"],
+          additionalProperties: false,
+        },
+        {
+          type: "object",
           description: "Suspended computation. Forcing the thunk runs the body.",
           properties: {
-            tag: { const: "thunk" },
-            body: { $ref: "#/$defs/computation_term" },
+            tag: {
+              const: "thunk",
+            },
+            body: {
+              $ref: "#/$defs/computation_term",
+            },
           },
           required: ["tag", "body"],
           additionalProperties: false,
@@ -195,8 +321,12 @@ export const kernelJsonSchemaData = {
           description:
             "Raw 0018 spelling of a resumption reference in value position. The checker rejects every occurrence (resumption.escape or a scope diagnostic): a resumption cannot enter a pair, thunk, return value, operation argument, or result.",
           properties: {
-            tag: { const: "resumption" },
-            distance: { $ref: "#/$defs/nonnegative_safe_integer" },
+            tag: {
+              const: "resumption",
+            },
+            distance: {
+              $ref: "#/$defs/nonnegative_safe_integer",
+            },
           },
           required: ["tag", "distance"],
           additionalProperties: false,
@@ -212,9 +342,15 @@ export const kernelJsonSchemaData = {
           description:
             "Return a value with consumer-demand grade; type F[grade] A with the empty effect row.",
           properties: {
-            tag: { const: "return" },
-            grade: { $ref: "#/$defs/grade" },
-            value: { $ref: "#/$defs/value_term" },
+            tag: {
+              const: "return",
+            },
+            grade: {
+              $ref: "#/$defs/grade",
+            },
+            value: {
+              $ref: "#/$defs/value_term",
+            },
           },
           required: ["tag", "grade", "value"],
           additionalProperties: false,
@@ -224,9 +360,15 @@ export const kernelJsonSchemaData = {
           description:
             "Sequence two computations. The body binds the bound computation's returned value at value distance 0; its usage limit is q1 * atLeastOnce(q2).",
           properties: {
-            tag: { const: "let" },
-            bound: { $ref: "#/$defs/computation_term" },
-            body: { $ref: "#/$defs/computation_term" },
+            tag: {
+              const: "let",
+            },
+            bound: {
+              $ref: "#/$defs/computation_term",
+            },
+            body: {
+              $ref: "#/$defs/computation_term",
+            },
           },
           required: ["tag", "bound", "body"],
           additionalProperties: false,
@@ -235,10 +377,34 @@ export const kernelJsonSchemaData = {
           type: "object",
           description: "Force a thunk value, exposing its latent effect row.",
           properties: {
-            tag: { const: "force" },
-            value: { $ref: "#/$defs/value_term" },
+            tag: {
+              const: "force",
+            },
+            value: {
+              $ref: "#/$defs/value_term",
+            },
           },
           required: ["tag", "value"],
+          additionalProperties: false,
+        },
+        {
+          type: "object",
+          description: "Case on a sum value; each branch binds its payload at value distance zero.",
+          properties: {
+            tag: {
+              const: "case",
+            },
+            value: {
+              $ref: "#/$defs/value_term",
+            },
+            left_branch: {
+              $ref: "#/$defs/computation_term",
+            },
+            right_branch: {
+              $ref: "#/$defs/computation_term",
+            },
+          },
+          required: ["tag", "value", "left_branch", "right_branch"],
           additionalProperties: false,
         },
         {
@@ -246,10 +412,18 @@ export const kernelJsonSchemaData = {
           description:
             "Computation-level function. The body binds the argument at value distance 0 with the declared parameter type and usage grade.",
           properties: {
-            tag: { const: "lambda" },
-            parameter_type: { $ref: "#/$defs/value_type" },
-            grade: { $ref: "#/$defs/grade" },
-            body: { $ref: "#/$defs/computation_term" },
+            tag: {
+              const: "lambda",
+            },
+            parameter_type: {
+              $ref: "#/$defs/value_type",
+            },
+            grade: {
+              $ref: "#/$defs/grade",
+            },
+            body: {
+              $ref: "#/$defs/computation_term",
+            },
           },
           required: ["tag", "parameter_type", "grade", "body"],
           additionalProperties: false,
@@ -258,9 +432,15 @@ export const kernelJsonSchemaData = {
           type: "object",
           description: "Apply a function computation to an argument value.",
           properties: {
-            tag: { const: "apply" },
-            computation: { $ref: "#/$defs/computation_term" },
-            argument: { $ref: "#/$defs/value_term" },
+            tag: {
+              const: "apply",
+            },
+            computation: {
+              $ref: "#/$defs/computation_term",
+            },
+            argument: {
+              $ref: "#/$defs/value_term",
+            },
           },
           required: ["tag", "computation", "argument"],
           additionalProperties: false,
@@ -270,11 +450,21 @@ export const kernelJsonSchemaData = {
           description:
             "Perform one declared operation. Agreement with the declared signature is a checker judgment; the row contributed is exactly {label}.",
           properties: {
-            tag: { const: "operation" },
-            grade: { $ref: "#/$defs/grade" },
-            label: { $ref: "#/$defs/kernel_name" },
-            operation: { $ref: "#/$defs/kernel_name" },
-            argument: { $ref: "#/$defs/value_term" },
+            tag: {
+              const: "operation",
+            },
+            grade: {
+              $ref: "#/$defs/grade",
+            },
+            label: {
+              $ref: "#/$defs/kernel_name",
+            },
+            operation: {
+              $ref: "#/$defs/kernel_name",
+            },
+            argument: {
+              $ref: "#/$defs/value_term",
+            },
           },
           required: ["tag", "grade", "label", "operation", "argument"],
           additionalProperties: false,
@@ -284,15 +474,25 @@ export const kernelJsonSchemaData = {
           description:
             "Deep handler for one label. Clauses are sorted by operation name with no duplicates (decoder-enforced); exact agreement with the signature's operations under the label is a checker judgment.",
           properties: {
-            tag: { const: "handle" },
-            label: { $ref: "#/$defs/kernel_name" },
-            computation: { $ref: "#/$defs/computation_term" },
-            return_clause: { $ref: "#/$defs/return_clause" },
+            tag: {
+              const: "handle",
+            },
+            label: {
+              $ref: "#/$defs/kernel_name",
+            },
+            computation: {
+              $ref: "#/$defs/computation_term",
+            },
+            return_clause: {
+              $ref: "#/$defs/return_clause",
+            },
             operation_clauses: {
               type: "array",
               description:
                 "One clause per declared operation under the handled label, sorted by operation name.",
-              items: { $ref: "#/$defs/operation_clause" },
+              items: {
+                $ref: "#/$defs/operation_clause",
+              },
               maxItems: 256,
             },
           },
@@ -304,9 +504,15 @@ export const kernelJsonSchemaData = {
           description:
             "Consume the one-shot resumption binder introduced `resumption_distance` operation-clause bodies outward, supplying a value of the declared operation result type.",
           properties: {
-            tag: { const: "resume" },
-            resumption_distance: { $ref: "#/$defs/nonnegative_safe_integer" },
-            value: { $ref: "#/$defs/value_term" },
+            tag: {
+              const: "resume",
+            },
+            resumption_distance: {
+              $ref: "#/$defs/nonnegative_safe_integer",
+            },
+            value: {
+              $ref: "#/$defs/value_term",
+            },
           },
           required: ["tag", "resumption_distance", "value"],
           additionalProperties: false,
@@ -318,7 +524,9 @@ export const kernelJsonSchemaData = {
       description:
         "Handler return clause. The body binds the handled result value at value distance 0.",
       properties: {
-        body: { $ref: "#/$defs/computation_term" },
+        body: {
+          $ref: "#/$defs/computation_term",
+        },
       },
       required: ["body"],
       additionalProperties: false,
@@ -328,8 +536,12 @@ export const kernelJsonSchemaData = {
       description:
         "Handler operation clause. The body binds the operation argument at value distance 0 and one one-shot resumption binder at resumption distance 0.",
       properties: {
-        operation: { $ref: "#/$defs/kernel_name" },
-        body: { $ref: "#/$defs/computation_term" },
+        operation: {
+          $ref: "#/$defs/kernel_name",
+        },
+        body: {
+          $ref: "#/$defs/computation_term",
+        },
       },
       required: ["operation", "body"],
       additionalProperties: false,
@@ -339,10 +551,18 @@ export const kernelJsonSchemaData = {
       description:
         "One declared operation: (label, operation) maps to one argument type and one result type. The signature array is sorted by (label, operation) with no duplicate pairs (decoder-enforced).",
       properties: {
-        label: { $ref: "#/$defs/kernel_name" },
-        operation: { $ref: "#/$defs/kernel_name" },
-        argument_type: { $ref: "#/$defs/value_type" },
-        result_type: { $ref: "#/$defs/value_type" },
+        label: {
+          $ref: "#/$defs/kernel_name",
+        },
+        operation: {
+          $ref: "#/$defs/kernel_name",
+        },
+        argument_type: {
+          $ref: "#/$defs/value_type",
+        },
+        result_type: {
+          $ref: "#/$defs/value_type",
+        },
       },
       required: ["label", "operation", "argument_type", "result_type"],
       additionalProperties: false,
@@ -352,16 +572,26 @@ export const kernelJsonSchemaData = {
       description:
         "Raw agent-facing kernel document: one declared operation signature and one program term. It carries no inferred fact and no identity, hash, node reference, cache, store, or bundle detail of any kind.",
       properties: {
-        format: { const: "semantic.kernel-json" },
-        version: { const: 1 },
-        kernel: { const: "semantic.kernel-calculus/0018/v1" },
+        format: {
+          const: "semantic.kernel-json",
+        },
+        version: {
+          const: 1,
+        },
+        kernel: {
+          const: "semantic.kernel-calculus/0018/v2",
+        },
         signature: {
           type: "array",
           description: "Declared operation signature, sorted by (label, operation).",
-          items: { $ref: "#/$defs/signature_operation" },
+          items: {
+            $ref: "#/$defs/signature_operation",
+          },
           maxItems: 256,
         },
-        program: { $ref: "#/$defs/computation_term" },
+        program: {
+          $ref: "#/$defs/computation_term",
+        },
       },
       required: ["format", "version", "kernel", "signature", "program"],
       additionalProperties: false,
@@ -384,7 +614,11 @@ export const kernelJsonSchemaData = {
       description:
         "Every distinct effect label the observation mentions, sorted by Unicode code-point order with no duplicates (decoder-enforced). All effect rows in the observation are arrays of indexes into this table. Capacity 1,048,576 is the observation-envelope maximumLabels, derived from the 1 MiB raw input byte bound (each distinct label is nonempty and spelled at least once in the input); the tight lemma bounds real tables at 349,525 because each first spelling is a quoted string of at least three disjoint input bytes.",
       type: "array",
-      items: { type: "string", minLength: 1, maxLength: 256 },
+      items: {
+        type: "string",
+        minLength: 1,
+        maxLength: 256,
+      },
       uniqueItems: true,
       maxItems: 1048576,
     },
@@ -392,7 +626,9 @@ export const kernelJsonSchemaData = {
       description:
         "Effect row as label indexes, sorted by the referenced labels' code-point order (decoder-enforced).",
       type: "array",
-      items: { $ref: "#/$defs/label_index" },
+      items: {
+        $ref: "#/$defs/label_index",
+      },
       uniqueItems: true,
       maxItems: 256,
     },
@@ -403,21 +639,33 @@ export const kernelJsonSchemaData = {
         {
           type: "object",
           description: "Unit value type.",
-          properties: { tag: { const: "unit" } },
+          properties: {
+            tag: {
+              const: "unit",
+            },
+          },
           required: ["tag"],
           additionalProperties: false,
         },
         {
           type: "object",
           description: "Boolean value type.",
-          properties: { tag: { const: "bool" } },
+          properties: {
+            tag: {
+              const: "bool",
+            },
+          },
           required: ["tag"],
           additionalProperties: false,
         },
         {
           type: "object",
           description: "Safe-integer value type.",
-          properties: { tag: { const: "int" } },
+          properties: {
+            tag: {
+              const: "int",
+            },
+          },
           required: ["tag"],
           additionalProperties: false,
         },
@@ -425,11 +673,34 @@ export const kernelJsonSchemaData = {
           type: "object",
           description: "Pair of two value types, by table index.",
           properties: {
-            tag: { const: "pair" },
-            first: { $ref: "#/$defs/type_index" },
-            second: { $ref: "#/$defs/type_index" },
+            tag: {
+              const: "pair",
+            },
+            first: {
+              $ref: "#/$defs/type_index",
+            },
+            second: {
+              $ref: "#/$defs/type_index",
+            },
           },
           required: ["tag", "first", "second"],
+          additionalProperties: false,
+        },
+        {
+          type: "object",
+          description: "Binary sum of two value types, by table index.",
+          properties: {
+            tag: {
+              const: "sum",
+            },
+            left: {
+              $ref: "#/$defs/type_index",
+            },
+            right: {
+              $ref: "#/$defs/type_index",
+            },
+          },
+          required: ["tag", "left", "right"],
           additionalProperties: false,
         },
         {
@@ -437,9 +708,15 @@ export const kernelJsonSchemaData = {
           description:
             "Thunk type U(effects, computation), rows as label indexes, child by table index.",
           properties: {
-            tag: { const: "thunk" },
-            effects: { $ref: "#/$defs/label_index_row" },
-            computation: { $ref: "#/$defs/type_index" },
+            tag: {
+              const: "thunk",
+            },
+            effects: {
+              $ref: "#/$defs/label_index_row",
+            },
+            computation: {
+              $ref: "#/$defs/type_index",
+            },
           },
           required: ["tag", "effects", "computation"],
           additionalProperties: false,
@@ -448,9 +725,15 @@ export const kernelJsonSchemaData = {
           type: "object",
           description: "Returner type F[grade] value, child by table index.",
           properties: {
-            tag: { const: "return" },
-            grade: { $ref: "#/$defs/grade" },
-            value: { $ref: "#/$defs/type_index" },
+            tag: {
+              const: "return",
+            },
+            grade: {
+              $ref: "#/$defs/grade",
+            },
+            value: {
+              $ref: "#/$defs/type_index",
+            },
           },
           required: ["tag", "grade", "value"],
           additionalProperties: false,
@@ -460,11 +743,21 @@ export const kernelJsonSchemaData = {
           description:
             "Function type parameter ->[grade] (effects, result), rows as label indexes, children by table index.",
           properties: {
-            tag: { const: "function" },
-            parameter: { $ref: "#/$defs/type_index" },
-            grade: { $ref: "#/$defs/grade" },
-            effects: { $ref: "#/$defs/label_index_row" },
-            result: { $ref: "#/$defs/type_index" },
+            tag: {
+              const: "function",
+            },
+            parameter: {
+              $ref: "#/$defs/type_index",
+            },
+            grade: {
+              $ref: "#/$defs/grade",
+            },
+            effects: {
+              $ref: "#/$defs/label_index_row",
+            },
+            result: {
+              $ref: "#/$defs/type_index",
+            },
           },
           required: ["tag", "parameter", "grade", "effects", "result"],
           additionalProperties: false,
@@ -474,12 +767,14 @@ export const kernelJsonSchemaData = {
     type_table: {
       description: "The observation's maximally shared type table.",
       type: "array",
-      items: { $ref: "#/$defs/type_node" },
+      items: {
+        $ref: "#/$defs/type_node",
+      },
       maxItems: 16384,
     },
     occurrence_path: {
       description:
-        "Strict RFC 6901 JSON Pointer subset into the checked KernelDocument, rooted at /program or /signature. Every version 1 field token comes from a closed ASCII vocabulary containing no ~ and no /, so RFC 6901 escape sequences (~0, ~1, or any ~) are forbidden entirely, as are leading zeroes, signs, and '-'. Revision-scoped: meaningful only against the exact document supplied to the check call that produced the observation. Resolvability is decoder- and checker-territory; the pattern is structural only.",
+        "Strict RFC 6901 JSON Pointer subset into the checked KernelDocument, rooted at /program or /signature. Every version 2 field token comes from a closed ASCII vocabulary containing no ~ and no /, so RFC 6901 escape sequences (~0, ~1, or any ~) are forbidden entirely, as are leading zeroes, signs, and '-'. Revision-scoped: meaningful only against the exact document supplied to the check call that produced the observation. Resolvability is decoder- and checker-territory; the pattern is structural only.",
       type: "string",
       pattern: "^/(program|signature)(/(0|[1-9][0-9]*|[a-z][a-z0-9_]*))*$",
       maxLength: 4096,
@@ -488,7 +783,9 @@ export const kernelJsonSchemaData = {
       description:
         "Inferred usage grades aligned index-for-index with a binder context: index i records the use of the binder at de Bruijn distance i.",
       type: "array",
-      items: { $ref: "#/$defs/grade" },
+      items: {
+        $ref: "#/$defs/grade",
+      },
       maxItems: 256,
     },
     value_binder_entry: {
@@ -496,7 +793,9 @@ export const kernelJsonSchemaData = {
       description:
         "One ordinary value binder in scope, at the de Bruijn distance equal to its context index (innermost first).",
       properties: {
-        binder_origin: { $ref: "#/$defs/occurrence_path" },
+        binder_origin: {
+          $ref: "#/$defs/occurrence_path",
+        },
         origin_kind: {
           description: "Which binder-introducing position created this binder.",
           enum: [
@@ -504,6 +803,8 @@ export const kernelJsonSchemaData = {
             "let-result",
             "return-clause-result",
             "operation-clause-argument",
+            "case-left-payload",
+            "case-right-payload",
           ],
         },
         value_type: {
@@ -524,10 +825,18 @@ export const kernelJsonSchemaData = {
       description:
         'One one-shot resumption binder in scope, at the resumption de Bruijn distance equal to its context index (innermost first). Always has usage limit "1".',
       properties: {
-        binder_origin: { $ref: "#/$defs/occurrence_path" },
-        origin_kind: { const: "operation-clause-resumption" },
-        label: { $ref: "#/$defs/kernel_name" },
-        operation: { $ref: "#/$defs/kernel_name" },
+        binder_origin: {
+          $ref: "#/$defs/occurrence_path",
+        },
+        origin_kind: {
+          const: "operation-clause-resumption",
+        },
+        label: {
+          $ref: "#/$defs/kernel_name",
+        },
+        operation: {
+          $ref: "#/$defs/kernel_name",
+        },
         result_type: {
           $ref: "#/$defs/type_index",
           description:
@@ -543,7 +852,9 @@ export const kernelJsonSchemaData = {
           description:
             "Effect row produced by resuming under the same deep handler, as label indexes.",
         },
-        usage_limit: { const: "1" },
+        usage_limit: {
+          const: "1",
+        },
       },
       required: [
         "binder_origin",
@@ -574,13 +885,18 @@ export const kernelJsonSchemaData = {
         "computation.operation",
         "computation.resume",
         "handler.deep",
+        "value.inject-left",
+        "value.inject-right",
+        "computation.case",
       ],
     },
     premise_links: {
       description:
         "Indexes of the judgment's immediate subderivations in the judgments table, in 0018 derivation order. Every premise index is strictly greater than the judgment's own index (preorder table), which this schema cannot verify.",
       type: "array",
-      items: { $ref: "#/$defs/nonnegative_safe_integer" },
+      items: {
+        $ref: "#/$defs/nonnegative_safe_integer",
+      },
       maxItems: 4096,
     },
     value_judgment: {
@@ -588,26 +904,42 @@ export const kernelJsonSchemaData = {
       description:
         "One accepted value-term occurrence: its exact contexts, inferred value type, and aligned usage vectors.",
       properties: {
-        tag: { const: "value-judgment" },
-        occurrence_path: { $ref: "#/$defs/occurrence_path" },
-        rule: { $ref: "#/$defs/judgment_rule" },
+        tag: {
+          const: "value-judgment",
+        },
+        occurrence_path: {
+          $ref: "#/$defs/occurrence_path",
+        },
+        rule: {
+          $ref: "#/$defs/judgment_rule",
+        },
         value_context: {
           type: "array",
-          items: { $ref: "#/$defs/value_binder_entry" },
+          items: {
+            $ref: "#/$defs/value_binder_entry",
+          },
           maxItems: 256,
         },
         resumption_context: {
           type: "array",
-          items: { $ref: "#/$defs/resumption_binder_entry" },
+          items: {
+            $ref: "#/$defs/resumption_binder_entry",
+          },
           maxItems: 256,
         },
         value_type: {
           $ref: "#/$defs/type_index",
           description: "Inferred value type, by shared-table index.",
         },
-        usage: { $ref: "#/$defs/usage_vector" },
-        resumption_usage: { $ref: "#/$defs/usage_vector" },
-        premises: { $ref: "#/$defs/premise_links" },
+        usage: {
+          $ref: "#/$defs/usage_vector",
+        },
+        resumption_usage: {
+          $ref: "#/$defs/usage_vector",
+        },
+        premises: {
+          $ref: "#/$defs/premise_links",
+        },
       },
       required: [
         "tag",
@@ -627,31 +959,51 @@ export const kernelJsonSchemaData = {
       description:
         "One accepted computation-term occurrence: its exact contexts, inferred computation type, effect row, and aligned usage vectors. signature_origins is present exactly when the rule is computation.operation (exactly one entry: the performed declaration) or handler.deep (every declaration under the handled label, complete and in canonical signature order) and lists the consulted /signature/N declarations.",
       properties: {
-        tag: { const: "computation-judgment" },
-        occurrence_path: { $ref: "#/$defs/occurrence_path" },
-        rule: { $ref: "#/$defs/judgment_rule" },
+        tag: {
+          const: "computation-judgment",
+        },
+        occurrence_path: {
+          $ref: "#/$defs/occurrence_path",
+        },
+        rule: {
+          $ref: "#/$defs/judgment_rule",
+        },
         value_context: {
           type: "array",
-          items: { $ref: "#/$defs/value_binder_entry" },
+          items: {
+            $ref: "#/$defs/value_binder_entry",
+          },
           maxItems: 256,
         },
         resumption_context: {
           type: "array",
-          items: { $ref: "#/$defs/resumption_binder_entry" },
+          items: {
+            $ref: "#/$defs/resumption_binder_entry",
+          },
           maxItems: 256,
         },
         computation_type: {
           $ref: "#/$defs/type_index",
           description: "Inferred computation type, by shared-table index.",
         },
-        effects: { $ref: "#/$defs/label_index_row" },
-        usage: { $ref: "#/$defs/usage_vector" },
-        resumption_usage: { $ref: "#/$defs/usage_vector" },
-        premises: { $ref: "#/$defs/premise_links" },
+        effects: {
+          $ref: "#/$defs/label_index_row",
+        },
+        usage: {
+          $ref: "#/$defs/usage_vector",
+        },
+        resumption_usage: {
+          $ref: "#/$defs/usage_vector",
+        },
+        premises: {
+          $ref: "#/$defs/premise_links",
+        },
         signature_origins: {
           type: "array",
           description: "Complete ordered list of consulted /signature/N declarations.",
-          items: { $ref: "#/$defs/occurrence_path" },
+          items: {
+            $ref: "#/$defs/occurrence_path",
+          },
           minItems: 1,
           maxItems: 256,
         },
@@ -679,15 +1031,19 @@ export const kernelJsonSchemaData = {
           $ref: "#/$defs/type_index",
           description: "Root inferred computation type, by shared-table index.",
         },
-        effects: { $ref: "#/$defs/label_index_row" },
-        usage: { $ref: "#/$defs/usage_vector" },
+        effects: {
+          $ref: "#/$defs/label_index_row",
+        },
+        usage: {
+          $ref: "#/$defs/usage_vector",
+        },
       },
       required: ["type", "effects", "usage"],
       additionalProperties: false,
     },
     diagnostic_code: {
       description:
-        "Closed version 1 diagnostic-code vocabulary: exactly the codes reachable from the 0018 check function at the pinned head. Surfacing any new checker code requires an explicit interface version decision.",
+        "Closed version 2 diagnostic-code vocabulary: exactly the codes reachable from the 0018 check function at the pinned head. Surfacing any new checker code requires an explicit interface version decision.",
       enum: [
         "checker.invalid-input",
         "handler.clauses-inexact",
@@ -710,11 +1066,13 @@ export const kernelJsonSchemaData = {
         "usage.affine-duplicated",
         "usage.exceeds-grade",
         "value.integer-out-of-range",
+        "type.expected-sum",
+        "type.case-branch-mismatch",
       ],
     },
     diagnostic_rule: {
       description:
-        "Closed version 1 diagnostic-rule vocabulary: exactly the rule names the 0018 check function attaches to rejection diagnostics at the pinned head. Surfacing any new checker rule requires an explicit interface version decision.",
+        "Closed version 2 diagnostic-rule vocabulary: exactly the rule names the 0018 check function attaches to rejection diagnostics at the pinned head. Surfacing any new checker rule requires an explicit interface version decision.",
       enum: [
         "checker.boundary",
         "computation.apply",
@@ -732,25 +1090,41 @@ export const kernelJsonSchemaData = {
         "value.int",
         "value.resumption-forbidden",
         "value.variable",
+        "computation.case",
       ],
     },
     diagnostic_fact: {
       description:
         'Recursive bounded inert diagnostic fact: null, boolean, safe integer, bounded string, bounded array of facts, or bounded record of facts. Frozen kind rules (decoder-enforced) keep every fact provably bounded: type-valued facts are {"type_index": n} records into the shared type table (never inline or rendered types), row-valued facts are {"label_indexes": [...]} records, names are 0018 strings of at most 256 code units, grades and shape literals are fixed strings, and non-safe numerics are rendered decimal/exponent strings of at most 32 bytes. Record keys are a deliberate open vocabulary mirroring the checker\'s per-rule fact records, but every key, scalar, array, and record is bounded; kind agreement and nesting depth are decoder-enforced because JSON Schema cannot express them.',
       oneOf: [
-        { type: "null" },
-        { type: "boolean" },
-        { $ref: "#/$defs/safe_integer" },
-        { type: "string", maxLength: 4096 },
+        {
+          type: "null",
+        },
+        {
+          type: "boolean",
+        },
+        {
+          $ref: "#/$defs/safe_integer",
+        },
+        {
+          type: "string",
+          maxLength: 4096,
+        },
         {
           type: "array",
-          items: { $ref: "#/$defs/diagnostic_fact" },
+          items: {
+            $ref: "#/$defs/diagnostic_fact",
+          },
           maxItems: 256,
         },
         {
           type: "object",
-          propertyNames: { maxLength: 4096 },
-          additionalProperties: { $ref: "#/$defs/diagnostic_fact" },
+          propertyNames: {
+            maxLength: 4096,
+          },
+          additionalProperties: {
+            $ref: "#/$defs/diagnostic_fact",
+          },
           maxProperties: 256,
         },
       ],
@@ -760,9 +1134,15 @@ export const kernelJsonSchemaData = {
       description:
         "Stable typed rejection diagnostic surfaced verbatim from the 0018 checker. Bind to code and occurrence_path; message is presentation text.",
       properties: {
-        code: { $ref: "#/$defs/diagnostic_code" },
-        rule: { $ref: "#/$defs/diagnostic_rule" },
-        occurrence_path: { $ref: "#/$defs/occurrence_path" },
+        code: {
+          $ref: "#/$defs/diagnostic_code",
+        },
+        rule: {
+          $ref: "#/$defs/diagnostic_rule",
+        },
+        occurrence_path: {
+          $ref: "#/$defs/occurrence_path",
+        },
         message: {
           type: "string",
           minLength: 1,
@@ -785,14 +1165,29 @@ export const kernelJsonSchemaData = {
       description:
         "Accepted observation: shared label and type tables, the root inferred summary, and the derivation-preorder judgments table, one judgment per checked term occurrence with explicit binder contexts and premise links. All types and effect rows are table indexes; inline inferred types are unrepresentable because they are exponential in the worst case.",
       properties: {
-        tag: { const: "accepted" },
-        labels: { $ref: "#/$defs/label_table" },
-        types: { $ref: "#/$defs/type_table" },
-        inferred: { $ref: "#/$defs/inferred_summary" },
+        tag: {
+          const: "accepted",
+        },
+        labels: {
+          $ref: "#/$defs/label_table",
+        },
+        types: {
+          $ref: "#/$defs/type_table",
+        },
+        inferred: {
+          $ref: "#/$defs/inferred_summary",
+        },
         judgments: {
           type: "array",
           items: {
-            oneOf: [{ $ref: "#/$defs/value_judgment" }, { $ref: "#/$defs/computation_judgment" }],
+            oneOf: [
+              {
+                $ref: "#/$defs/value_judgment",
+              },
+              {
+                $ref: "#/$defs/computation_judgment",
+              },
+            ],
           },
           minItems: 1,
           maxItems: 16384,
@@ -806,12 +1201,20 @@ export const kernelJsonSchemaData = {
       description:
         "Rejected observation: shared label and type tables plus stable typed diagnostics whose type facts reference the tables. A rejection is a successful observation of the check, not a transport failure, and is always representable within the observation bounds.",
       properties: {
-        tag: { const: "rejected" },
-        labels: { $ref: "#/$defs/label_table" },
-        types: { $ref: "#/$defs/type_table" },
+        tag: {
+          const: "rejected",
+        },
+        labels: {
+          $ref: "#/$defs/label_table",
+        },
+        types: {
+          $ref: "#/$defs/type_table",
+        },
         diagnostics: {
           type: "array",
-          items: { $ref: "#/$defs/check_diagnostic" },
+          items: {
+            $ref: "#/$defs/check_diagnostic",
+          },
           minItems: 1,
           maxItems: 1024,
         },
@@ -824,11 +1227,24 @@ export const kernelJsonSchemaData = {
       description:
         "Checked view of one KernelDocument revision, produced through the accepted 0018 checker. Decoding this shape warrants representation validity only, never checker provenance. It embeds no document identity: occurrence paths bind it to the exact document supplied to the producing check call.",
       properties: {
-        format: { const: "semantic.kernel-check" },
-        version: { const: 1 },
-        kernel: { const: "semantic.kernel-calculus/0018/v1" },
+        format: {
+          const: "semantic.kernel-check",
+        },
+        version: {
+          const: 1,
+        },
+        kernel: {
+          const: "semantic.kernel-calculus/0018/v2",
+        },
         observation: {
-          oneOf: [{ $ref: "#/$defs/check_accepted" }, { $ref: "#/$defs/check_rejected" }],
+          oneOf: [
+            {
+              $ref: "#/$defs/check_accepted",
+            },
+            {
+              $ref: "#/$defs/check_rejected",
+            },
+          ],
         },
       },
       required: ["format", "version", "kernel", "observation"],

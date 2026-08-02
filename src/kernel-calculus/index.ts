@@ -6,6 +6,7 @@ export {
   apply,
   bool,
   boolType,
+  caseTerm,
   cloneComputationTerm,
   cloneType,
   cloneValueTerm,
@@ -18,6 +19,8 @@ export {
   force,
   functionType,
   handle,
+  injectLeft,
+  injectRight,
   int,
   intType,
   lambda,
@@ -32,6 +35,7 @@ export {
   returnClause,
   returnTerm,
   returnType,
+  sumType,
   thunk,
   thunkType,
   unit,
@@ -47,6 +51,8 @@ export {
   gradeLessThanOrEqual,
   grades,
   isGrade,
+  joinGrades,
+  joinUsage,
   multiplyGrades,
   scaleUsage,
   zeroUsage,
@@ -61,14 +67,6 @@ export {
   unionEffectRows,
 } from "./effect-row.ts";
 export {
-  check,
-  checkEffectAssertion,
-  computationTypesEqual,
-  isCheckResult,
-  isCheckedProgram,
-  valueTypesEqual,
-} from "./checker.ts";
-export {
   computationResultType,
   defaultEvaluationBounds,
   evaluate,
@@ -78,8 +76,11 @@ export {
   isRuntimeResult,
   isRuntimeThunk,
   isRuntimeValue,
+  observeInternalResumptionOneShotForTest,
   resume,
   runtimeBool,
+  runtimeInjectLeft,
+  runtimeInjectRight,
   runtimeInt,
   runtimePair,
   runtimeUnit,
@@ -134,6 +135,8 @@ export type {
   StructuredFact,
   ValueBinderOriginKind,
 } from "./checker.ts";
+export { check, checkEffectAssertion } from "./checker.ts";
+export { valueTypesEqual } from "./checker.ts";
 export type { EffectRow } from "./effect-row.ts";
 export type { Grade, Usage } from "./grade.ts";
 export type {

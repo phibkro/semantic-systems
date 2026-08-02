@@ -34,10 +34,24 @@ const requireArtifacts = Effect.forEach(requiredArtifacts, (relativePath) =>
     }
   }),
 );
+const requireV2Boundary = Effect.gen(function* () {
+  const source = yield* Effect.promise(() =>
+    Bun.file(resolve(root, "src/normalized-core/schema.ts")).text(),
+  );
+  if (
+    !source.includes("version: 2") ||
+    !source.includes("semantic.kernel-calculus/0018/v2") ||
+    !source.includes('tag: "sum"')
+  ) {
+    return yield* new AcceptanceFailure({
+      message: "active normalized-core boundary must expose the v2 kernel and sum grammar",
+    });
+  }
+});
 
 const program = Effect.gen(function* () {
+  yield* requireV2Boundary;
   yield* requireArtifacts;
-
   for (const command of [
     [
       "bun",

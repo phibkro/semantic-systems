@@ -8,8 +8,8 @@ import {
 
 const pureProgram = {
   format: "semantic.kernel-json",
-  version: 1,
-  kernel: "semantic.kernel-calculus/0018/v1",
+  version: 2,
+  kernel: "semantic.kernel-calculus/0018/v2",
   signature: [],
   program: { tag: "return", grade: "1", value: { tag: "int", value: 1 } },
 };
@@ -42,8 +42,8 @@ describe("kernel-json custody", () => {
     // through, never treated as pre-checked authority.
     const forged = {
       format: "semantic.kernel-json",
-      version: 1,
-      kernel: "semantic.kernel-calculus/0018/v1",
+      version: 2,
+      kernel: "semantic.kernel-calculus/0018/v2",
       signature: [],
       program: { tag: "return", grade: "1", value: { tag: "int", value: 1 } },
     } as const;

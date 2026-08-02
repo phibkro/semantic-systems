@@ -1,6 +1,6 @@
 {
   "format": "semantic.kernel-json",
-  "kernel": "semantic.kernel-calculus/0018/v1",
+  "kernel": "semantic.kernel-calculus/0018/v2",
   "program": {
     "computation": {
       "argument": { "tag": "unit" },
@@ -45,5 +45,5 @@
       "result_type": { "tag": "int" }
     }
   ],
-  "version": 1
+  "version": 2
 }

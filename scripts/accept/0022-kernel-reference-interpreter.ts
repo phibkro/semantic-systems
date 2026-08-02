@@ -38,8 +38,23 @@ const requireFile = (relativePath: string, kind: string) =>
       });
     }
   });
+const requireV2Boundary = Effect.gen(function* () {
+  const source = yield* Effect.promise(() =>
+    Bun.file(resolve(root, "src/kernel-interpreter/schema.ts")).text(),
+  );
+  if (
+    !source.includes("version: 2") ||
+    !source.includes("semantic.kernel-calculus/0018/v2") ||
+    !source.includes('kind: Schema.Literal("inject-right")')
+  ) {
+    return yield* new AcceptanceFailure({
+      message: "active reference interpreter boundary must expose v2 sum observations",
+    });
+  }
+});
 
 const program = Effect.gen(function* () {
+  yield* requireV2Boundary;
   for (const artifact of contractArtifacts) yield* requireFile(artifact, "contract");
   yield* runCommand(["bun", "run", "semproj", "--", "validate"], { cwd: root });
   yield* runCommand(["bun", "run", "semproj", "--", "generate", "--check"], { cwd: root });

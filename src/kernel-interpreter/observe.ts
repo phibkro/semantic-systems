@@ -43,8 +43,8 @@ const freeze = <Value>(value: Value): Value => {
 const envelope = (observation: KernelRunObservation["observation"]): KernelRunObservation =>
   freeze({
     format: "semantic.kernel-run",
-    version: 1,
-    kernel: "semantic.kernel-calculus/0018/v1",
+    version: 2,
+    kernel: "semantic.kernel-calculus/0018/v2",
     observation,
   });
 
@@ -59,6 +59,12 @@ const observableValueType = (type: ValueType): ObservableValueType => {
         kind: "pair",
         first: observableValueType(type.first),
         second: observableValueType(type.second),
+      };
+    case "sum":
+      return {
+        kind: "sum",
+        left: observableValueType(type.left),
+        right: observableValueType(type.right),
       };
     case "thunk":
       return {
@@ -103,13 +109,16 @@ const observableRuntimeValue = (value: RuntimeValue): ObservableRuntimeValue => 
         first: observableRuntimeValue(value.first),
         second: observableRuntimeValue(value.second),
       };
+    case "inject-left":
+    case "inject-right":
+      return { kind: value.kind, value: observableRuntimeValue(value.value) };
   }
 };
 
 /**
  * Bound narrowing is total over any supplied `unknown` shape: a malformed,
  * missing, wrong-typed, or hostile-accessor bound never raises a host error
- * and never resolves wider than its exact version 1 default. Every field is
+ * and never resolves wider than its exact version 2 default. Every field is
  * read from the caller's object exactly once, into `field(...)`'s return
  * value, and every subsequent check and use operates on that one snapshot —
  * never on a second live read of the same property — so a bound backed by a

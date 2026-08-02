@@ -3,11 +3,11 @@ import { canonicalBytes, trustedUint8ArrayCopy, type CanonicalJsonValue } from "
 import type { Identity } from "./schema.ts";
 
 export const identityDomains = Object.freeze({
-  operation: "semantic.normalized-core/operation/v1",
-  assumption: "semantic.normalized-core/assumption/v1",
-  sourceUnit: "semantic.normalized-core/source-unit/v1",
-  semantic: "semantic.normalized-core/semantic/v1",
-  artifact: "semantic.normalized-core/artifact/v1",
+  operation: "semantic.normalized-core/operation/v2",
+  assumption: "semantic.normalized-core/assumption/v2",
+  sourceUnit: "semantic.normalized-core/source-unit/v2",
+  semantic: "semantic.normalized-core/semantic/v2",
+  artifact: "semantic.normalized-core/artifact/v2",
 } as const);
 
 export class NormalizedCoreDigestFailure extends Data.TaggedError("NormalizedCoreDigestFailure")<{

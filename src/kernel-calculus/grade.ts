@@ -27,6 +27,8 @@ export const gradeLessThanOrEqual = (left: Grade, right: Grade): boolean =>
   order[left] <= order[right];
 
 export const addGrades = (left: Grade, right: Grade): Grade => addition[left][right];
+export const joinGrades = (left: Grade, right: Grade): Grade =>
+  left === "omega" || right === "omega" ? "omega" : left === "1" || right === "1" ? "1" : "0";
 
 export const multiplyGrades = (left: Grade, right: Grade): Grade => multiplication[left][right];
 
@@ -45,6 +47,12 @@ export const addUsage = (left: Usage, right: Usage): Usage => {
     throw new RangeError("usage vectors must have the same length");
   }
   return Object.freeze(left.map((grade, index) => addGrades(grade, right[index]!)));
+};
+export const joinUsage = (left: Usage, right: Usage): Usage => {
+  if (left.length !== right.length) {
+    throw new RangeError("usage vectors must have the same length");
+  }
+  return Object.freeze(left.map((grade, index) => joinGrades(grade, right[index]!)));
 };
 
 export const scaleUsage = (grade: Grade, usage: Usage): Usage =>

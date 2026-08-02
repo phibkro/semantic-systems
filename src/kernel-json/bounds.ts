@@ -110,7 +110,7 @@ const validateExactBounds = <Bounds extends Record<string, number>>(
     return boundsDiagnostic(
       "bounds.exact-record",
       path,
-      "bounds must contain every version 1 field and no others",
+      "bounds must contain every version 2 field and no others",
     );
   }
   const values: Record<string, number> = {};

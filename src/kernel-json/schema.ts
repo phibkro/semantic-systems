@@ -1,4 +1,4 @@
-import { kernelJsonSchemaData } from "./schema-data.ts";
+import { kernelJsonSchemaData } from "./schema-data-v2.ts";
 
 const deepFreeze = <Value>(value: Value): Value => {
   if (typeof value !== "object" || value === null || Object.isFrozen(value)) return value;
@@ -14,6 +14,6 @@ const frozenSchema = deepFreeze(
  * Returns the frozen `semantic.kernel-json` / `semantic.kernel-check` JSON
  * Schema Draft 2020-12 artifact as inert data. The module has no filesystem
  * authority; the artifact is embedded verbatim and a test proves it
- * byte-equal to the checked-in `spec/kernel-json/kernel-json-v1.schema.json`.
+ * byte-equal to the checked-in file `spec/kernel-json/kernel-json-v2.schema.json`.
  */
 export const kernelJsonSchema = (): Readonly<Record<string, unknown>> => frozenSchema;

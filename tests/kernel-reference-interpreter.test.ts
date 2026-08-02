@@ -22,15 +22,20 @@ type PrimitiveNode =
 
 type ValueNode =
   | PrimitiveNode
-  | { readonly tag: "pair"; readonly first: ValueNode; readonly second: ValueNode };
+  | { readonly tag: "pair"; readonly first: ValueNode; readonly second: ValueNode }
+  | {
+      readonly tag: "inject-right";
+      readonly left_type: { readonly tag: "unit" };
+      readonly value: ValueNode;
+    };
 
 const encoder = new TextEncoder();
 const bytes = (value: unknown): Uint8Array => encoder.encode(JSON.stringify(value));
 
 const document = (program: unknown, signature: ReadonlyArray<unknown> = []) => ({
   format: "semantic.kernel-json",
-  version: 1,
-  kernel: "semantic.kernel-calculus/0018/v1",
+  version: 2,
+  kernel: "semantic.kernel-calculus/0018/v2",
   signature,
   program,
 });
@@ -41,15 +46,20 @@ const primitiveArbitrary: fc.Arbitrary<PrimitiveNode> = fc.oneof(
   fc.integer({ min: -1_000_000, max: 1_000_000 }).map((value) => ({ tag: "int" as const, value })),
 );
 
-const valueArbitrary: fc.Arbitrary<ValueNode> = fc
-  .array(primitiveArbitrary, { maxLength: 12 })
-  .map((leaves) => {
+const valueArbitrary: fc.Arbitrary<ValueNode> = fc.oneof(
+  fc.array(primitiveArbitrary, { maxLength: 12 }).map((leaves) => {
     let value: ValueNode = leaves.at(-1) ?? { tag: "unit" };
     for (let index = leaves.length - 2; index >= 0; index -= 1) {
       value = { tag: "pair", first: leaves[index]!, second: value };
     }
     return value;
-  });
+  }),
+  primitiveArbitrary.map((value) => ({
+    tag: "inject-right" as const,
+    left_type: { tag: "unit" as const },
+    value,
+  })),
+);
 
 const typeOfValueNode = (node: ValueNode): unknown => {
   switch (node.tag) {
@@ -64,6 +74,12 @@ const typeOfValueNode = (node: ValueNode): unknown => {
         tag: "pair",
         first: typeOfValueNode(node.first),
         second: typeOfValueNode(node.second),
+      };
+    case "inject-right":
+      return {
+        tag: "sum",
+        left: node.left_type,
+        right: typeOfValueNode(node.value),
       };
   }
 };
@@ -81,6 +97,8 @@ const mismatchedTypeOfValueNode = (node: ValueNode): unknown => {
       return { tag: "int" };
     case "pair":
       return { tag: "unit" };
+    case "inject-right":
+      return { tag: "int" };
   }
 };
 
@@ -114,6 +132,14 @@ const pureProgramFromValue = (value: ValueNode): fc.Arbitrary<Record<string, unk
           body: { tag: "return", grade: "1", value: { tag: "bound-value", distance: 0 } },
         },
         argument: value,
+      }),
+    ),
+    fc.constant(
+      document({
+        tag: "case",
+        value: { tag: "inject-right", left_type: { tag: "unit" }, value: { tag: "unit" } },
+        left_branch: { tag: "return", grade: "1", value: { tag: "int", value: 0 } },
+        right_branch: { tag: "return", grade: "1", value: { tag: "int", value: 1 } },
       }),
     ),
   );
@@ -493,8 +519,8 @@ describe("kernel reference interpreter generated evidence", () => {
 describe("kernel run observation schema", () => {
   const internalRejection: KernelRunObservation = {
     format: "semantic.kernel-run",
-    version: 1,
-    kernel: "semantic.kernel-calculus/0018/v1",
+    version: 2,
+    kernel: "semantic.kernel-calculus/0018/v2",
     observation: {
       tag: "runtime-rejected",
       diagnostic: {
@@ -531,8 +557,8 @@ describe("kernel run observation schema", () => {
     expect(
       isKernelRunObservation({
         format: "semantic.kernel-run",
-        version: 1,
-        kernel: "semantic.kernel-calculus/0018/v1",
+        version: 2,
+        kernel: "semantic.kernel-calculus/0018/v2",
         observation: { tag: "check-rejected", check: acceptedCheck },
       }),
     ).toBe(false);
@@ -662,8 +688,8 @@ describe("toPortableFact: strict inert canonical JSON boundary (post-merge revie
     // the value.
     const negativeZeroBytes = canonicalKernelRunObservationJson({
       format: "semantic.kernel-run",
-      version: 1,
-      kernel: "semantic.kernel-calculus/0018/v1",
+      version: 2,
+      kernel: "semantic.kernel-calculus/0018/v2",
       observation: {
         tag: "runtime-rejected",
         diagnostic: {
@@ -676,8 +702,8 @@ describe("toPortableFact: strict inert canonical JSON boundary (post-merge revie
     } as never);
     const positiveZeroBytes = canonicalKernelRunObservationJson({
       format: "semantic.kernel-run",
-      version: 1,
-      kernel: "semantic.kernel-calculus/0018/v1",
+      version: 2,
+      kernel: "semantic.kernel-calculus/0018/v2",
       observation: {
         tag: "runtime-rejected",
         diagnostic: {
@@ -712,8 +738,8 @@ describe("toPortableFact: strict inert canonical JSON boundary (post-merge revie
     expect(
       canonicalKernelRunObservationJson({
         format: "semantic.kernel-run",
-        version: 1,
-        kernel: "semantic.kernel-calculus/0018/v1",
+        version: 2,
+        kernel: "semantic.kernel-calculus/0018/v2",
         observation: {
           tag: "runtime-rejected",
           diagnostic: {
@@ -812,8 +838,8 @@ describe("the public schema boundary rejects the same hostile facts as toPortabl
   const observationWithFact = (fact: unknown) =>
     ({
       format: "semantic.kernel-run",
-      version: 1,
-      kernel: "semantic.kernel-calculus/0018/v1",
+      version: 2,
+      kernel: "semantic.kernel-calculus/0018/v2",
       observation: {
         tag: "runtime-rejected",
         diagnostic: {
@@ -877,8 +903,8 @@ describe("the public schema boundary rejects the same hostile facts as toPortabl
     const shared = { nested: null };
     const observation = {
       format: "semantic.kernel-run",
-      version: 1,
-      kernel: "semantic.kernel-calculus/0018/v1",
+      version: 2,
+      kernel: "semantic.kernel-calculus/0018/v2",
       observation: {
         tag: "runtime-rejected",
         diagnostic: {
@@ -948,8 +974,8 @@ describe("the public schema boundary rejects the same hostile facts as toPortabl
   test("an observation entirely omitting expected/actual remains valid: absence is not an invalid present value", () => {
     const observation = {
       format: "semantic.kernel-run",
-      version: 1,
-      kernel: "semantic.kernel-calculus/0018/v1",
+      version: 2,
+      kernel: "semantic.kernel-calculus/0018/v2",
       observation: {
         tag: "runtime-rejected",
         diagnostic: { code: "interpreter.example", occurrence_path: "/program", message: "m" },
@@ -1089,8 +1115,8 @@ describe("both public encoders validate and encode the same one snapshot (post-m
 
   const observationWithHostileFact = {
     format: "semantic.kernel-run",
-    version: 1,
-    kernel: "semantic.kernel-calculus/0018/v1",
+    version: 2,
+    kernel: "semantic.kernel-calculus/0018/v2",
     observation: {
       tag: "runtime-rejected",
       diagnostic: {

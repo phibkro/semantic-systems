@@ -71,6 +71,12 @@ const reshapeValueType = (type: KernelValueType): unknown => {
         first: reshapeValueType(type.first),
         second: reshapeValueType(type.second),
       };
+    case "sum":
+      return {
+        kind: "sum",
+        left: reshapeValueType(type.left),
+        right: reshapeValueType(type.right),
+      };
     case "thunk":
       return {
         kind: "thunk",
@@ -113,6 +119,18 @@ const reshapeValueTerm = (term: KernelValueTerm): unknown => {
         first: reshapeValueTerm(term.first),
         second: reshapeValueTerm(term.second),
       };
+    case "inject-left":
+      return {
+        kind: "inject-left",
+        value: reshapeValueTerm(term.value),
+        rightType: reshapeValueType(term.right_type),
+      };
+    case "inject-right":
+      return {
+        kind: "inject-right",
+        leftType: reshapeValueType(term.left_type),
+        value: reshapeValueTerm(term.value),
+      };
     case "thunk":
       return { kind: "thunk", body: reshapeComputationTerm(term.body) };
   }
@@ -130,6 +148,13 @@ const reshapeComputationTerm = (term: KernelComputationTerm): unknown => {
       };
     case "force":
       return { kind: "force", value: reshapeValueTerm(term.value) };
+    case "case":
+      return {
+        kind: "case",
+        value: reshapeValueTerm(term.value),
+        leftBranch: reshapeComputationTerm(term.left_branch),
+        rightBranch: reshapeComputationTerm(term.right_branch),
+      };
     case "lambda":
       return {
         kind: "lambda",
@@ -222,9 +247,11 @@ export const projectKernelProgram = (document: KernelDocument): ProjectionResult
 // ---------------------------------------------------------------------------
 
 const CHECKER_PATH_FIELD_MAP: Readonly<Record<string, string>> = {
+  leftBranch: "left_branch",
   operationClauses: "operation_clauses",
   parameterType: "parameter_type",
   returnClause: "return_clause",
+  rightBranch: "right_branch",
 };
 
 const PATH_SEGMENT_PATTERN = /^([a-zA-Z]+)(\[(\d+)\])?$/;
@@ -297,6 +324,9 @@ class Interner {
       case "pair":
         node = { tag: "pair", first: this.type(type.first), second: this.type(type.second) };
         break;
+      case "sum":
+        node = { tag: "sum", left: this.type(type.left), right: this.type(type.right) };
+        break;
       case "thunk":
         node = {
           tag: "thunk",
@@ -345,6 +375,10 @@ const collectTypeLabels = (type: KernelType, labels: Set<string>): void => {
     case "pair":
       collectTypeLabels(type.first, labels);
       collectTypeLabels(type.second, labels);
+      return;
+    case "sum":
+      collectTypeLabels(type.left, labels);
+      collectTypeLabels(type.right, labels);
       return;
     case "thunk":
       for (const label of type.effects) labels.add(label);
@@ -487,18 +521,11 @@ const translateDiagnostic = (
 const emptyObservation = (diagnostic: CheckDiagnostic): KernelCheckObservation =>
   freeze({
     format: "semantic.kernel-check",
-    version: 1,
-    kernel: "semantic.kernel-calculus/0018/v1",
+    version: 2,
+    kernel: "semantic.kernel-calculus/0018/v2",
     observation: { tag: "rejected", labels: [], types: [], diagnostics: [diagnostic] },
   });
 
-/**
- * Composes projection with the existing 0018 `check`, translating the
- * judgment table recorded by the checker's judgment-recording seam into the
- * frozen agent-facing observation. Never re-derives a context, type, usage,
- * premise, or origin fact: every judgment field is a direct translation of
- * what the authoritative checker already recorded.
- */
 export const checkKernelDocument = (document: KernelDocument): KernelCheckObservation => {
   const projected = projectKernelProgram(document);
   if (projected.status === "rejected") {
@@ -525,8 +552,8 @@ export const checkKernelDocument = (document: KernelDocument): KernelCheckObserv
     const translated = translateDiagnostic(diagnostic, interner);
     return freeze({
       format: "semantic.kernel-check",
-      version: 1,
-      kernel: "semantic.kernel-calculus/0018/v1",
+      version: 2,
+      kernel: "semantic.kernel-calculus/0018/v2",
       observation: {
         tag: "rejected",
         labels: sortedLabels,
@@ -559,11 +586,10 @@ export const checkKernelDocument = (document: KernelDocument): KernelCheckObserv
   if (root.tag !== "computation-judgment") {
     throw new Error("kernel-json: judgment 0 must be the root program computation judgment");
   }
-
   return freeze({
     format: "semantic.kernel-check",
-    version: 1,
-    kernel: "semantic.kernel-calculus/0018/v1",
+    version: 2,
+    kernel: "semantic.kernel-calculus/0018/v2",
     observation: {
       tag: "accepted",
       labels: sortedLabels,

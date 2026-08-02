@@ -7,6 +7,7 @@ export type ValueType =
   | { readonly kind: "bool" }
   | { readonly kind: "int" }
   | { readonly kind: "pair"; readonly first: ValueType; readonly second: ValueType }
+  | { readonly kind: "sum"; readonly left: ValueType; readonly right: ValueType }
   | { readonly kind: "thunk"; readonly effects: EffectRow; readonly computation: ComputationType };
 
 export type ComputationType =
@@ -27,6 +28,8 @@ export type ValueTerm =
   | { readonly kind: "bool"; readonly value: boolean }
   | { readonly kind: "int"; readonly value: number }
   | { readonly kind: "pair"; readonly first: ValueTerm; readonly second: ValueTerm }
+  | { readonly kind: "inject-left"; readonly value: ValueTerm; readonly rightType: ValueType }
+  | { readonly kind: "inject-right"; readonly leftType: ValueType; readonly value: ValueTerm }
   | { readonly kind: "thunk"; readonly body: ComputationTerm }
   | { readonly kind: "resumption"; readonly index: number };
 
@@ -43,6 +46,12 @@ export type ComputationTerm =
   | { readonly kind: "return"; readonly grade: Grade; readonly value: ValueTerm }
   | { readonly kind: "let"; readonly bound: ComputationTerm; readonly body: ComputationTerm }
   | { readonly kind: "force"; readonly value: ValueTerm }
+  | {
+      readonly kind: "case";
+      readonly value: ValueTerm;
+      readonly leftBranch: ComputationTerm;
+      readonly rightBranch: ComputationTerm;
+    }
   | {
       readonly kind: "lambda";
       readonly parameterType: ValueType;
@@ -135,6 +144,12 @@ const cloneValueType = (type: ValueType): ValueType => {
         first: cloneValueType(type.first),
         second: cloneValueType(type.second),
       });
+    case "sum":
+      return freeze({
+        kind: "sum",
+        left: cloneValueType(type.left),
+        right: cloneValueType(type.right),
+      });
     case "thunk":
       return freeze({
         kind: "thunk",
@@ -181,6 +196,18 @@ export const cloneValueTerm = (term: ValueTerm): ValueTerm => {
         first: cloneValueTerm(term.first),
         second: cloneValueTerm(term.second),
       });
+    case "inject-left":
+      return freeze({
+        kind: "inject-left",
+        value: cloneValueTerm(term.value),
+        rightType: cloneValueType(term.rightType),
+      });
+    case "inject-right":
+      return freeze({
+        kind: "inject-right",
+        leftType: cloneValueType(term.leftType),
+        value: cloneValueTerm(term.value),
+      });
     case "thunk":
       return freeze({ kind: "thunk", body: cloneComputationTerm(term.body) });
   }
@@ -198,6 +225,13 @@ export const cloneComputationTerm = (term: ComputationTerm): ComputationTerm => 
       });
     case "force":
       return freeze({ kind: "force", value: cloneValueTerm(term.value) });
+    case "case":
+      return freeze({
+        kind: "case",
+        value: cloneValueTerm(term.value),
+        leftBranch: cloneComputationTerm(term.leftBranch),
+        rightBranch: cloneComputationTerm(term.rightBranch),
+      });
     case "lambda":
       return freeze({
         kind: "lambda",
@@ -248,6 +282,8 @@ export const boolType = (): ValueType => freeze({ kind: "bool" });
 export const intType = (): ValueType => freeze({ kind: "int" });
 export const pairType = (first: ValueType, second: ValueType): ValueType =>
   freeze({ kind: "pair", first: cloneValueType(first), second: cloneValueType(second) });
+export const sumType = (left: ValueType, right: ValueType): ValueType =>
+  freeze({ kind: "sum", left: cloneValueType(left), right: cloneValueType(right) });
 export const thunkType = (effects: EffectRow, computation: ComputationType): ValueType =>
   freeze({
     kind: "thunk",
@@ -276,6 +312,18 @@ export const bool = (value: boolean): ValueTerm => freeze({ kind: "bool", value 
 export const int = (value: number): ValueTerm => freeze({ kind: "int", value });
 export const pair = (first: ValueTerm, second: ValueTerm): ValueTerm =>
   freeze({ kind: "pair", first: cloneValueTerm(first), second: cloneValueTerm(second) });
+export const injectLeft = (value: ValueTerm, rightType: ValueType): ValueTerm =>
+  freeze({
+    kind: "inject-left",
+    value: cloneValueTerm(value),
+    rightType: cloneValueType(rightType),
+  });
+export const injectRight = (leftType: ValueType, value: ValueTerm): ValueTerm =>
+  freeze({
+    kind: "inject-right",
+    leftType: cloneValueType(leftType),
+    value: cloneValueTerm(value),
+  });
 export const thunk = (body: ComputationTerm): ValueTerm =>
   freeze({ kind: "thunk", body: cloneComputationTerm(body) });
 export const resumption = (index = 0): ValueTerm => freeze({ kind: "resumption", index });
@@ -289,6 +337,17 @@ export const letTerm = (bound: ComputationTerm, body: ComputationTerm): Computat
   });
 export const force = (value: ValueTerm): ComputationTerm =>
   freeze({ kind: "force", value: cloneValueTerm(value) });
+export const caseTerm = (
+  value: ValueTerm,
+  leftBranch: ComputationTerm,
+  rightBranch: ComputationTerm,
+): ComputationTerm =>
+  freeze({
+    kind: "case",
+    value: cloneValueTerm(value),
+    leftBranch: cloneComputationTerm(leftBranch),
+    rightBranch: cloneComputationTerm(rightBranch),
+  });
 export const lambda = (
   parameterType: ValueType,
   grade: Grade,
@@ -478,6 +537,12 @@ class Decoder {
           this.valueType(fields["first"], `${path}.first`, depth + 1),
           this.valueType(fields["second"], `${path}.second`, depth + 1),
         );
+      case "sum":
+        this.exact(fields, ["kind", "left", "right"], path);
+        return sumType(
+          this.valueType(fields["left"], `${path}.left`, depth + 1),
+          this.valueType(fields["right"], `${path}.right`, depth + 1),
+        );
       case "thunk":
         this.exact(fields, ["kind", "effects", "computation"], path);
         return thunkType(
@@ -552,6 +617,18 @@ class Decoder {
           this.valueTerm(fields["first"], `${path}.first`, depth + 1),
           this.valueTerm(fields["second"], `${path}.second`, depth + 1),
         );
+      case "inject-left":
+        this.exact(fields, ["kind", "value", "rightType"], path);
+        return injectLeft(
+          this.valueTerm(fields["value"], `${path}.value`, depth + 1),
+          this.valueType(fields["rightType"], `${path}.rightType`, depth + 1),
+        );
+      case "inject-right":
+        this.exact(fields, ["kind", "leftType", "value"], path);
+        return injectRight(
+          this.valueType(fields["leftType"], `${path}.leftType`, depth + 1),
+          this.valueTerm(fields["value"], `${path}.value`, depth + 1),
+        );
       case "thunk":
         this.exact(fields, ["kind", "body"], path);
         return thunk(this.computationTerm(fields["body"], `${path}.body`, depth + 1));
@@ -578,6 +655,13 @@ class Decoder {
       case "force":
         this.exact(fields, ["kind", "value"], path);
         return force(this.valueTerm(fields["value"], `${path}.value`, depth + 1));
+      case "case":
+        this.exact(fields, ["kind", "value", "leftBranch", "rightBranch"], path);
+        return caseTerm(
+          this.valueTerm(fields["value"], `${path}.value`, depth + 1),
+          this.computationTerm(fields["leftBranch"], `${path}.leftBranch`, depth + 1),
+          this.computationTerm(fields["rightBranch"], `${path}.rightBranch`, depth + 1),
+        );
       case "lambda":
         this.exact(fields, ["kind", "parameterType", "grade", "body"], path);
         return lambda(

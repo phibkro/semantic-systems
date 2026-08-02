@@ -18,8 +18,8 @@ import {
 
 const typeMismatchDocument = {
   format: "semantic.kernel-json",
-  version: 1,
-  kernel: "semantic.kernel-calculus/0018/v1",
+  version: 2,
+  kernel: "semantic.kernel-calculus/0018/v2",
   signature: [],
   program: {
     tag: "apply",
@@ -45,8 +45,8 @@ const rejectedObservation = (
   tables: { readonly labels?: unknown; readonly types?: unknown } = {},
 ) => ({
   format: "semantic.kernel-check",
-  version: 1,
-  kernel: "semantic.kernel-calculus/0018/v1",
+  version: 2,
+  kernel: "semantic.kernel-calculus/0018/v2",
   observation: {
     tag: "rejected",
     labels: tables.labels ?? [],

@@ -199,7 +199,7 @@ describe("minimal kernel calculus machine", () => {
     expect(first).toMatchObject({
       status: "exhausted",
       reason: "fuel",
-      machineSnapshot: { format: "kernel-machine-v1" },
+      machineSnapshot: { format: "kernel-machine-v2" },
       trace: [],
     });
     expect(Object.isFrozen(first)).toBeTrue();

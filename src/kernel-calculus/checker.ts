@@ -22,6 +22,8 @@ import {
   atLeastOnce,
   basisUsage,
   gradeLessThanOrEqual,
+  joinGrades,
+  joinUsage,
   multiplyGrades,
   scaleUsage,
   zeroUsage,
@@ -92,12 +94,13 @@ export interface Derivation {
   readonly premises: ReadonlyArray<Derivation>;
 }
 
-/** Origin kind for one ordinary value binder, recorded by the seam. */
 export type ValueBinderOriginKind =
   | "lambda-parameter"
   | "let-result"
   | "return-clause-result"
-  | "operation-clause-argument";
+  | "operation-clause-argument"
+  | "case-left-payload"
+  | "case-right-payload";
 
 class UsageLimitCell {
   value: Grade | undefined = undefined;
@@ -338,6 +341,12 @@ export const valueTypesEqual = (left: ValueType, right: ValueType): boolean => {
         valueTypesEqual(left.first, right.first) &&
         valueTypesEqual(left.second, right.second)
       );
+    case "sum":
+      return (
+        right.kind === "sum" &&
+        valueTypesEqual(left.left, right.left) &&
+        valueTypesEqual(left.right, right.right)
+      );
     case "thunk":
       return (
         right.kind === "thunk" &&
@@ -377,6 +386,8 @@ const showValueType = (type: ValueType): string => {
       return "Int";
     case "pair":
       return `(${showValueType(type.first)} * ${showValueType(type.second)})`;
+    case "sum":
+      return `(${showValueType(type.left)} + ${showValueType(type.right)})`;
     case "thunk":
       return `U({${type.effects.join(",")}}, ${showComputationType(type.computation)})`;
   }
@@ -621,6 +632,36 @@ class AlgorithmicChecker {
           premiseIndexes: [first.judgmentIndex, second.judgmentIndex],
         };
       }
+      case "inject-left": {
+        const value = this.value(term.value, context, resumptions, `${path}.value`);
+        const type: ValueType = frozen({
+          kind: "sum",
+          left: value.type,
+          right: term.rightType,
+        });
+        return {
+          type,
+          usage: value.usage,
+          resumptionUsage: value.resumptionUsage,
+          derivation: derive("value.inject-left", path, showValueType(type), [value.derivation]),
+          premiseIndexes: [value.judgmentIndex],
+        };
+      }
+      case "inject-right": {
+        const value = this.value(term.value, context, resumptions, `${path}.value`);
+        const type: ValueType = frozen({
+          kind: "sum",
+          left: term.leftType,
+          right: value.type,
+        });
+        return {
+          type,
+          usage: value.usage,
+          resumptionUsage: value.resumptionUsage,
+          derivation: derive("value.inject-right", path, showValueType(type), [value.derivation]),
+          premiseIndexes: [value.judgmentIndex],
+        };
+      }
       case "thunk": {
         const body = this.computation(term.body, context, resumptions, `${path}.body`);
         const type: ValueType = frozen({
@@ -673,7 +714,6 @@ class AlgorithmicChecker {
     };
     return { ...checked, judgmentIndex: index };
   }
-
   private computationUnchecked(
     term: ComputationTerm,
     context: ReadonlyArray<ContextEntry>,
@@ -683,9 +723,17 @@ class AlgorithmicChecker {
     if (
       typeof term !== "object" ||
       term === null ||
-      !["return", "let", "force", "lambda", "apply", "operation", "handle", "resume"].includes(
-        (term as { readonly kind?: unknown }).kind as string,
-      )
+      ![
+        "return",
+        "let",
+        "force",
+        "case",
+        "lambda",
+        "apply",
+        "operation",
+        "handle",
+        "resume",
+      ].includes((term as { readonly kind?: unknown }).kind as string)
     ) {
       return fail(
         "term.expected-computation",
@@ -823,6 +871,89 @@ class AlgorithmicChecker {
             [value.derivation],
           ),
           premiseIndexes: [value.judgmentIndex],
+        };
+      }
+      case "case": {
+        const value = this.value(term.value, context, resumptions, `${path}.value`);
+        if (value.type.kind !== "sum") {
+          return fail(
+            "type.expected-sum",
+            "computation.case",
+            `${path}.value`,
+            "case requires a sum scrutinee",
+            {
+              expected: "A + B",
+              actual: showValueType(value.type),
+              structuredActual: typeFact(value.type),
+            },
+          );
+        }
+        const leftLimit = new UsageLimitCell();
+        const rightLimit = new UsageLimitCell();
+        const left = this.computation(
+          term.leftBranch,
+          [
+            {
+              type: value.type.left,
+              binderOrigin: `${path}.leftBranch`,
+              originKind: "case-left-payload",
+              usageLimit: leftLimit,
+            },
+            ...context,
+          ],
+          resumptions,
+          `${path}.leftBranch`,
+        );
+        const right = this.computation(
+          term.rightBranch,
+          [
+            {
+              type: value.type.right,
+              binderOrigin: `${path}.rightBranch`,
+              originKind: "case-right-payload",
+              usageLimit: rightLimit,
+            },
+            ...context,
+          ],
+          resumptions,
+          `${path}.rightBranch`,
+        );
+        if (!computationTypesEqual(left.type, right.type)) {
+          return fail(
+            "type.case-branch-mismatch",
+            "computation.case",
+            `${path}.rightBranch`,
+            "case branches must have exactly equal computation types",
+            {
+              expected: showComputationType(left.type),
+              actual: showComputationType(right.type),
+              structuredExpected: typeFact(left.type),
+              structuredActual: typeFact(right.type),
+            },
+          );
+        }
+        const payloadUse = joinGrades(left.usage[0]!, right.usage[0]!);
+        leftLimit.value = payloadUse;
+        rightLimit.value = payloadUse;
+        const effects = unionEffectRows(left.effects, right.effects);
+        return {
+          type: left.type,
+          effects,
+          usage: addUsage(
+            scaleUsage(payloadUse, value.usage),
+            joinUsage(left.usage.slice(1), right.usage.slice(1)),
+          ),
+          resumptionUsage: addUsage(
+            scaleUsage(payloadUse, value.resumptionUsage),
+            joinUsage(left.resumptionUsage, right.resumptionUsage),
+          ),
+          derivation: derive(
+            "computation.case",
+            path,
+            `${showComputationType(left.type)} ; {${effects.join(",")}}`,
+            [value.derivation, left.derivation, right.derivation],
+          ),
+          premiseIndexes: [value.judgmentIndex, left.judgmentIndex, right.judgmentIndex],
         };
       }
       case "lambda": {

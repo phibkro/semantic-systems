@@ -1,5 +1,5 @@
 /**
- * Portable entry point for the frozen semantic.normalized-core version 1 artifact.
+ * Portable entry point for the frozen semantic.normalized-core version 2 artifact.
  *
  * The module emits inert, immutable data from privately custodied 0018 programs.
  * Digest authority remains an explicit Effect Crypto requirement.

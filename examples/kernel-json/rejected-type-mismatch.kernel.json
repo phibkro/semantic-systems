@@ -1,6 +1,6 @@
 {
   "format": "semantic.kernel-json",
-  "kernel": "semantic.kernel-calculus/0018/v1",
+  "kernel": "semantic.kernel-calculus/0018/v2",
   "program": {
     "argument": {
       "first": {
@@ -31,5 +31,5 @@
     "tag": "apply"
   },
   "signature": [],
-  "version": 1
+  "version": 2
 }

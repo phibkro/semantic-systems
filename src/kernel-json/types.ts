@@ -5,6 +5,11 @@ export type KernelValueType =
   | { readonly tag: "unit" | "bool" | "int" }
   | { readonly tag: "pair"; readonly first: KernelValueType; readonly second: KernelValueType }
   | {
+      readonly tag: "sum";
+      readonly left: KernelValueType;
+      readonly right: KernelValueType;
+    }
+  | {
       readonly tag: "thunk";
       readonly effects: ReadonlyArray<string>;
       readonly computation: KernelComputationType;
@@ -27,6 +32,16 @@ export type KernelValueTerm =
   | { readonly tag: "bool"; readonly value: boolean }
   | { readonly tag: "int"; readonly value: number }
   | { readonly tag: "pair"; readonly first: KernelValueTerm; readonly second: KernelValueTerm }
+  | {
+      readonly tag: "inject-left";
+      readonly value: KernelValueTerm;
+      readonly right_type: KernelValueType;
+    }
+  | {
+      readonly tag: "inject-right";
+      readonly left_type: KernelValueType;
+      readonly value: KernelValueTerm;
+    }
   | { readonly tag: "thunk"; readonly body: KernelComputationTerm };
 
 export type KernelComputationTerm =
@@ -37,6 +52,12 @@ export type KernelComputationTerm =
       readonly body: KernelComputationTerm;
     }
   | { readonly tag: "force"; readonly value: KernelValueTerm }
+  | {
+      readonly tag: "case";
+      readonly value: KernelValueTerm;
+      readonly left_branch: KernelComputationTerm;
+      readonly right_branch: KernelComputationTerm;
+    }
   | {
       readonly tag: "lambda";
       readonly parameter_type: KernelValueType;
@@ -86,8 +107,8 @@ export interface KernelSignatureOperation {
 
 export interface KernelDocument {
   readonly format: "semantic.kernel-json";
-  readonly version: 1;
-  readonly kernel: "semantic.kernel-calculus/0018/v1";
+  readonly version: 2;
+  readonly kernel: "semantic.kernel-calculus/0018/v2";
   readonly signature: ReadonlyArray<KernelSignatureOperation>;
   readonly program: KernelComputationTerm;
 }
@@ -99,6 +120,7 @@ export type TypeIndex = number;
 export type KernelTypeNode =
   | { readonly tag: "unit" | "bool" | "int" }
   | { readonly tag: "pair"; readonly first: TypeIndex; readonly second: TypeIndex }
+  | { readonly tag: "sum"; readonly left: TypeIndex; readonly right: TypeIndex }
   | {
       readonly tag: "thunk";
       readonly effects: ReadonlyArray<LabelIndex>;
@@ -119,7 +141,9 @@ export type BinderOriginKind =
   | "lambda-parameter"
   | "let-result"
   | "return-clause-result"
-  | "operation-clause-argument";
+  | "operation-clause-argument"
+  | "case-left-payload"
+  | "case-right-payload";
 
 export interface ValueBinderEntry {
   readonly binder_origin: OccurrencePath;
@@ -207,8 +231,8 @@ export interface CheckRejected {
 
 export interface KernelCheckObservation {
   readonly format: "semantic.kernel-check";
-  readonly version: 1;
-  readonly kernel: "semantic.kernel-calculus/0018/v1";
+  readonly version: 2;
+  readonly kernel: "semantic.kernel-calculus/0018/v2";
   readonly observation: CheckAccepted | CheckRejected;
 }
 
@@ -221,6 +245,8 @@ export const typeChildIndexes = (node: KernelTypeNode): ReadonlyArray<TypeIndex>
       return [];
     case "pair":
       return [node.first, node.second];
+    case "sum":
+      return [node.left, node.right];
     case "thunk":
       return [node.computation];
     case "return":
@@ -243,6 +269,8 @@ export const typeStructuralKey = (node: KernelTypeNode, keys: ReadonlyArray<stri
       return node.tag;
     case "pair":
       return `pair(${keys[node.first]},${keys[node.second]})`;
+    case "sum":
+      return `sum(${keys[node.left]},${keys[node.right]})`;
     case "thunk":
       return `thunk([${node.effects.join(",")}],${keys[node.computation]})`;
     case "return":

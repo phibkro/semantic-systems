@@ -1,0 +1,32 @@
+{
+  "format": "semantic.kernel-json",
+  "version": 2,
+  "kernel": "semantic.kernel-calculus/0018/v2",
+  "signature": [],
+  "program": {
+    "tag": "let",
+    "bound": {
+      "tag": "return",
+      "grade": "1",
+      "value": {
+        "tag": "inject-right",
+        "left_type": { "tag": "unit" },
+        "value": { "tag": "int", "value": 7 }
+      }
+    },
+    "body": {
+      "tag": "case",
+      "value": { "tag": "bound-value", "distance": 0 },
+      "left_branch": {
+        "tag": "return",
+        "grade": "1",
+        "value": { "tag": "int", "value": 0 }
+      },
+      "right_branch": {
+        "tag": "return",
+        "grade": "1",
+        "value": { "tag": "bound-value", "distance": 0 }
+      }
+    }
+  }
+}

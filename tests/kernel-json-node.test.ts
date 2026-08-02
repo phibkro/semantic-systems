@@ -37,7 +37,7 @@ test("genuine Node reproduces the frozen golden kernel-json observations", async
 
   const fileSchema = JSON.parse(
     await readFile(
-      new URL("../spec/kernel-json/kernel-json-v1.schema.json", import.meta.url),
+      new URL("../spec/kernel-json/kernel-json-v2.schema.json", import.meta.url),
       "utf8",
     ),
   ) as unknown;

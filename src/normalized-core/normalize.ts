@@ -3,11 +3,14 @@ import {
   apply,
   bool,
   boolType,
+  caseTerm,
   check,
   effectRowsEqual,
   force,
   functionType,
   handle,
+  injectLeft,
+  injectRight,
   int,
   intType,
   lambda,
@@ -21,6 +24,7 @@ import {
   returnClause,
   returnTerm,
   returnType,
+  sumType,
   thunk,
   thunkType,
   unit,
@@ -75,8 +79,8 @@ import {
 } from "./schema.ts";
 
 const FORMAT = "semantic.normalized-core" as const;
-const VERSION = 1 as const;
-const KERNEL = "semantic.kernel-calculus/0018/v1" as const;
+const VERSION = 2 as const;
+const KERNEL = "semantic.kernel-calculus/0018/v2" as const;
 
 const asCanonical = (value: unknown): CanonicalJsonValue => value as CanonicalJsonValue;
 
@@ -299,16 +303,28 @@ const parseValueType = (value: unknown, path: string): NormalizedValueType => {
   const base = taggedRecord(value, path);
   switch (base["tag"]) {
     case "unit":
+      record(value, ["tag"], path);
+      return freezeDeep({ tag: "unit" });
     case "bool":
+      record(value, ["tag"], path);
+      return freezeDeep({ tag: "bool" });
     case "int":
       record(value, ["tag"], path);
-      return freezeDeep({ tag: base["tag"] });
+      return freezeDeep({ tag: "int" });
     case "pair": {
       const fields = record(value, ["tag", "first", "second"], path);
       return freezeDeep({
         tag: "pair",
         first: parseValueType(fields["first"], `${path}/first`),
         second: parseValueType(fields["second"], `${path}/second`),
+      });
+    }
+    case "sum": {
+      const fields = record(value, ["tag", "left", "right"], path);
+      return freezeDeep({
+        tag: "sum",
+        left: parseValueType(fields["left"], `${path}/left`),
+        right: parseValueType(fields["right"], `${path}/right`),
       });
     }
     case "thunk": {
@@ -385,6 +401,22 @@ const parseValueTerm = (value: unknown, path: string): NormalizedValueTerm => {
         second: parseValueTerm(fields["second"], `${path}/second`),
       });
     }
+    case "inject-left": {
+      const fields = record(value, ["tag", "value", "right_type"], path);
+      return freezeDeep({
+        tag: "inject-left",
+        value: parseValueTerm(fields["value"], `${path}/value`),
+        right_type: parseValueType(fields["right_type"], `${path}/right_type`),
+      });
+    }
+    case "inject-right": {
+      const fields = record(value, ["tag", "left_type", "value"], path);
+      return freezeDeep({
+        tag: "inject-right",
+        left_type: parseValueType(fields["left_type"], `${path}/left_type`),
+        value: parseValueTerm(fields["value"], `${path}/value`),
+      });
+    }
     case "thunk": {
       const fields = record(value, ["tag", "body"], path);
       return freezeDeep({
@@ -419,6 +451,15 @@ const parseComputationTerm = (value: unknown, path: string): NormalizedComputati
     case "force": {
       const fields = record(value, ["tag", "value"], path);
       return freezeDeep({ tag: "force", value: parseValueTerm(fields["value"], `${path}/value`) });
+    }
+    case "case": {
+      const fields = record(value, ["tag", "value", "left_branch", "right_branch"], path);
+      return freezeDeep({
+        tag: "case",
+        value: parseValueTerm(fields["value"], `${path}/value`),
+        left_branch: parseComputationTerm(fields["left_branch"], `${path}/left_branch`),
+        right_branch: parseComputationTerm(fields["right_branch"], `${path}/right_branch`),
+      });
     }
     case "lambda": {
       const fields = record(value, ["tag", "parameter_type", "grade", "body"], path);
@@ -612,6 +653,12 @@ const projectValueType = (type: ValueType): NormalizedValueType => {
         first: projectValueType(type.first),
         second: projectValueType(type.second),
       });
+    case "sum":
+      return freezeDeep({
+        tag: "sum",
+        left: projectValueType(type.left),
+        right: projectValueType(type.right),
+      });
     case "thunk":
       return freezeDeep({
         tag: "thunk",
@@ -656,6 +703,18 @@ const projectValueTerm = (term: ValueTerm): NormalizedValueTerm => {
         first: projectValueTerm(term.first),
         second: projectValueTerm(term.second),
       });
+    case "inject-left":
+      return freezeDeep({
+        tag: "inject-left",
+        value: projectValueTerm(term.value),
+        right_type: projectValueType(term.rightType),
+      });
+    case "inject-right":
+      return freezeDeep({
+        tag: "inject-right",
+        left_type: projectValueType(term.leftType),
+        value: projectValueTerm(term.value),
+      });
     case "thunk":
       return freezeDeep({ tag: "thunk", body: projectComputationTerm(term.body) });
     case "resumption":
@@ -683,6 +742,13 @@ const projectComputationTerm = (term: ComputationTerm): NormalizedComputationTer
       });
     case "force":
       return freezeDeep({ tag: "force", value: projectValueTerm(term.value) });
+    case "case":
+      return freezeDeep({
+        tag: "case",
+        value: projectValueTerm(term.value),
+        left_branch: projectComputationTerm(term.leftBranch),
+        right_branch: projectComputationTerm(term.rightBranch),
+      });
     case "lambda":
       return freezeDeep({
         tag: "lambda",
@@ -1206,7 +1272,7 @@ const parseArtifact = (input: unknown, bounds: NormalizedCoreBounds): Normalized
   }
   const obligations = array(root["obligations"], "$/obligations");
   if (obligations.length !== 0) {
-    return fail("schema.obligations", "$/obligations", "version 1 obligations must be empty");
+    return fail("schema.obligations", "$/obligations", "version 2 obligations must be empty");
   }
   const summaryFields = record(root["summary"], ["type", "effects", "usage"], "$/summary");
   const sourceFields = record(root["source"], ["units", "correspondence"], "$/source");
@@ -1494,6 +1560,8 @@ const restoreValueType = (type: NormalizedValueType): ValueType => {
       return intType();
     case "pair":
       return pairType(restoreValueType(type.first), restoreValueType(type.second));
+    case "sum":
+      return sumType(restoreValueType(type.left), restoreValueType(type.right));
     case "thunk":
       return thunkType(type.effects, restoreComputationType(type.computation));
   }
@@ -1525,6 +1593,10 @@ const restoreValueTerm = (term: NormalizedValueTerm): ValueTerm => {
       return int(term.value);
     case "pair":
       return pair(restoreValueTerm(term.first), restoreValueTerm(term.second));
+    case "inject-left":
+      return injectLeft(restoreValueTerm(term.value), restoreValueType(term.right_type));
+    case "inject-right":
+      return injectRight(restoreValueType(term.left_type), restoreValueTerm(term.value));
     case "thunk":
       return thunk(restoreComputationTerm(term.body));
   }
@@ -1538,6 +1610,12 @@ const restoreComputationTerm = (term: NormalizedComputationTerm): ComputationTer
       return letTerm(restoreComputationTerm(term.bound), restoreComputationTerm(term.body));
     case "force":
       return force(restoreValueTerm(term.value));
+    case "case":
+      return caseTerm(
+        restoreValueTerm(term.value),
+        restoreComputationTerm(term.left_branch),
+        restoreComputationTerm(term.right_branch),
+      );
     case "lambda":
       return lambda(
         restoreValueType(term.parameter_type),

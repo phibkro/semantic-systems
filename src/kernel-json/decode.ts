@@ -279,6 +279,13 @@ class RawDecoder extends Decoder {
           first: this.valueType(fields["first"], `${path}/first`, depth + 1),
           second: this.valueType(fields["second"], `${path}/second`, depth + 1),
         });
+      case "sum":
+        this.exact(fields, ["tag", "left", "right"], path);
+        return freeze({
+          tag: "sum",
+          left: this.valueType(fields["left"], `${path}/left`, depth + 1),
+          right: this.valueType(fields["right"], `${path}/right`, depth + 1),
+        });
       case "thunk":
         this.exact(fields, ["tag", "effects", "computation"], path);
         return freeze({
@@ -355,6 +362,20 @@ class RawDecoder extends Decoder {
           first: this.valueTerm(fields["first"], `${path}/first`, depth + 1),
           second: this.valueTerm(fields["second"], `${path}/second`, depth + 1),
         });
+      case "inject-left":
+        this.exact(fields, ["tag", "value", "right_type"], path);
+        return freeze({
+          tag: "inject-left",
+          value: this.valueTerm(fields["value"], `${path}/value`, depth + 1),
+          right_type: this.valueType(fields["right_type"], `${path}/right_type`, depth + 1),
+        });
+      case "inject-right":
+        this.exact(fields, ["tag", "left_type", "value"], path);
+        return freeze({
+          tag: "inject-right",
+          left_type: this.valueType(fields["left_type"], `${path}/left_type`, depth + 1),
+          value: this.valueTerm(fields["value"], `${path}/value`, depth + 1),
+        });
       case "thunk":
         this.exact(fields, ["tag", "body"], path);
         return freeze({
@@ -388,6 +409,22 @@ class RawDecoder extends Decoder {
         return freeze({
           tag: "force",
           value: this.valueTerm(fields["value"], `${path}/value`, depth + 1),
+        });
+      case "case":
+        this.exact(fields, ["tag", "value", "left_branch", "right_branch"], path);
+        return freeze({
+          tag: "case",
+          value: this.valueTerm(fields["value"], `${path}/value`, depth + 1),
+          left_branch: this.computationTerm(
+            fields["left_branch"],
+            `${path}/left_branch`,
+            depth + 1,
+          ),
+          right_branch: this.computationTerm(
+            fields["right_branch"],
+            `${path}/right_branch`,
+            depth + 1,
+          ),
         });
       case "lambda":
         this.exact(fields, ["tag", "parameter_type", "grade", "body"], path);
@@ -543,23 +580,22 @@ class RawDecoder extends Decoder {
     }
     return freeze(operations);
   }
-
   document(value: unknown): KernelDocument {
     const fields = this.record(value, "$", 0);
     if (fields["format"] !== "semantic.kernel-json") {
       this.fail("decode.unknown-format", "$/format", "unknown or missing format marker");
     }
-    if (fields["version"] !== 1) {
+    if (fields["version"] !== 2) {
       this.fail("decode.unknown-version", "$/version", "unknown or missing version marker");
     }
-    if (fields["kernel"] !== "semantic.kernel-calculus/0018/v1") {
+    if (fields["kernel"] !== "semantic.kernel-calculus/0018/v2") {
       this.fail("decode.unknown-kernel", "$/kernel", "unknown or missing kernel marker");
     }
     this.exact(fields, ["format", "version", "kernel", "signature", "program"], "$");
     return freeze({
       format: "semantic.kernel-json",
-      version: 1,
-      kernel: "semantic.kernel-calculus/0018/v1",
+      version: 2,
+      kernel: "semantic.kernel-calculus/0018/v2",
       signature: this.signature(fields["signature"], "$/signature", 1),
       program: this.computationTerm(fields["program"], "$/program", 1),
     });
@@ -576,10 +612,13 @@ const JUDGMENT_RULES: ReadonlySet<string> = new Set([
   "value.bool",
   "value.int",
   "value.pair",
+  "value.inject-left",
+  "value.inject-right",
   "value.thunk",
   "computation.return",
   "computation.let",
   "computation.force",
+  "computation.case",
   "computation.lambda",
   "computation.apply",
   "computation.operation",
@@ -600,6 +639,8 @@ const DIAGNOSTIC_CODES: ReadonlySet<string> = new Set([
   "term.expected-computation",
   "type.argument-mismatch",
   "type.expected-function",
+  "type.case-branch-mismatch",
+  "type.expected-sum",
   "type.expected-return",
   "type.expected-thunk",
   "type.handler-clause-mismatch",
@@ -618,6 +659,7 @@ const DIAGNOSTIC_RULES: ReadonlySet<string> = new Set([
   "computation.force",
   "computation.lambda",
   "computation.let",
+  "computation.case",
   "computation.operation",
   "computation.resume",
   "handler.input",
@@ -635,6 +677,8 @@ const ORIGIN_KINDS: ReadonlySet<string> = new Set([
   "let-result",
   "return-clause-result",
   "operation-clause-argument",
+  "case-left-payload",
+  "case-right-payload",
 ]);
 
 class ObservationDecoder extends Decoder {
@@ -716,6 +760,13 @@ class ObservationDecoder extends Decoder {
           tag: "pair",
           first: this.nonnegativeInteger(fields["first"], `${path}/first`, depth + 1),
           second: this.nonnegativeInteger(fields["second"], `${path}/second`, depth + 1),
+        });
+      case "sum":
+        this.exact(fields, ["tag", "left", "right"], path);
+        return freeze({
+          tag: "sum",
+          left: this.nonnegativeInteger(fields["left"], `${path}/left`, depth + 1),
+          right: this.nonnegativeInteger(fields["right"], `${path}/right`, depth + 1),
         });
       case "thunk":
         this.exact(fields, ["tag", "effects", "computation"], path);
@@ -1204,10 +1255,10 @@ class ObservationDecoder extends Decoder {
     if (fields["format"] !== "semantic.kernel-check") {
       this.fail("decode.unknown-format", "$/format", "unknown or missing format marker");
     }
-    if (fields["version"] !== 1) {
+    if (fields["version"] !== 2) {
       this.fail("decode.unknown-version", "$/version", "unknown or missing version marker");
     }
-    if (fields["kernel"] !== "semantic.kernel-calculus/0018/v1") {
+    if (fields["kernel"] !== "semantic.kernel-calculus/0018/v2") {
       this.fail("decode.unknown-kernel", "$/kernel", "unknown or missing kernel marker");
     }
     this.exact(fields, ["format", "version", "kernel", "observation"], "$");
@@ -1315,8 +1366,8 @@ class ObservationDecoder extends Decoder {
     this.verifyTraversalOrder("$/observation/types");
     return freeze({
       format: "semantic.kernel-check",
-      version: 1,
-      kernel: "semantic.kernel-calculus/0018/v1",
+      version: 2,
+      kernel: "semantic.kernel-calculus/0018/v2",
       observation: result,
     });
   }

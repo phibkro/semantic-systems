@@ -26,6 +26,7 @@ import {
   type ComputationTerm,
   type ValueType,
 } from "../src/kernel-calculus/index.ts";
+import { checkKernelDocument, decodeKernelDocumentValue } from "../src/kernel-json/index.ts";
 
 const RAW_MAXIMUM_BYTES = 1_048_576;
 const RAW_MAXIMUM_NODES = 524_288;
@@ -117,10 +118,10 @@ describe("0020 label-bound counterexample", () => {
 
     const documentJson = JSON.stringify({
       format: "semantic.kernel-json",
-      kernel: "semantic.kernel-calculus/0018/v1",
+      kernel: "semantic.kernel-calculus/0018/v2",
       program: full.term,
       signature: [],
-      version: 1,
+      version: 2,
     });
     expect(utf8Bytes(documentJson)).toBe(605_672);
     expect(utf8Bytes(documentJson)).toBeLessThanOrEqual(RAW_MAXIMUM_BYTES);
@@ -186,6 +187,50 @@ describe("0020 bound derivations", () => {
     expect(3 * KERNEL_0018_MAXIMUM_NODES).toBe(12_288);
     expect(3 * KERNEL_0018_MAXIMUM_NODES).toBeLessThanOrEqual(MAXIMUM_TYPE_NODES);
   });
+  test("version 2 derivation explicitly accounts for a sum node and both case branch contexts", () => {
+    const decoded = decodeKernelDocumentValue({
+      format: "semantic.kernel-json",
+      version: 2,
+      kernel: "semantic.kernel-calculus/0018/v2",
+      signature: [],
+      program: {
+        tag: "case",
+        value: { tag: "inject-right", left_type: { tag: "unit" }, value: { tag: "int", value: 7 } },
+        left_branch: { tag: "return", grade: "1", value: { tag: "int", value: 0 } },
+        right_branch: { tag: "return", grade: "1", value: { tag: "bound-value", distance: 0 } },
+      },
+    });
+    expect(decoded.status).toBe("decoded");
+    if (decoded.status !== "decoded") return;
+    const observation = checkKernelDocument(decoded.value);
+    expect(observation.observation.tag).toBe("accepted");
+    if (observation.observation.tag !== "accepted") return;
+    const widestSumNodes = observation.observation.types.filter((entry) => entry.tag === "sum");
+    expect(widestSumNodes).toHaveLength(1);
+    const widestSumNode = widestSumNodes[0]!;
+    expect(widestSumNode.left).toBeLessThan(observation.observation.types.length);
+    expect(widestSumNode.right).toBeLessThan(observation.observation.types.length);
+    const branchContextEntries = observation.observation.judgments
+      .filter(
+        (judgment) =>
+          judgment.tag === "computation-judgment" &&
+          (judgment.occurrence_path === "/program/left_branch" ||
+            judgment.occurrence_path === "/program/right_branch"),
+      )
+      .flatMap((judgment) =>
+        judgment.value_context.filter(
+          (entry) =>
+            entry.origin_kind === "case-left-payload" || entry.origin_kind === "case-right-payload",
+        ),
+      );
+    expect(branchContextEntries).toHaveLength(2);
+    expect(branchContextEntries.map((entry) => entry.origin_kind).sort()).toEqual([
+      "case-left-payload",
+      "case-right-payload",
+    ]);
+    const v2AdditionalObservationOccurrences = widestSumNodes.length + branchContextEntries.length;
+    expect(v2AdditionalObservationOccurrences).toBe(3);
+  });
 
   test("maximumObservationNodes dominates the rejected-observation worst case", () => {
     const labelTable = 1 + TIGHT_LABEL_LEMMA;
@@ -238,7 +283,7 @@ describe("0020 bound derivations", () => {
 
   test("schema constants align with the frozen envelope bounds", async () => {
     const schema = (await Bun.file(
-      new URL("../spec/kernel-json/kernel-json-v1.schema.json", import.meta.url),
+      new URL("../spec/kernel-json/kernel-json-v2.schema.json", import.meta.url),
     ).json()) as {
       $defs: Record<string, { maxItems?: number; maximum?: number }>;
     };

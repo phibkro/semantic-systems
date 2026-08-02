@@ -1,0 +1,220 @@
+{
+  "format": "semantic.kernel-check",
+  "kernel": "semantic.kernel-calculus/0018/v2",
+  "observation": {
+    "inferred": {
+      "effects": [],
+      "type": 1,
+      "usage": []
+    },
+    "judgments": [
+      {
+        "computation_type": 1,
+        "effects": [],
+        "occurrence_path": "/program",
+        "premises": [1, 4],
+        "resumption_context": [],
+        "resumption_usage": [],
+        "rule": "computation.let",
+        "tag": "computation-judgment",
+        "usage": [],
+        "value_context": []
+      },
+      {
+        "computation_type": 4,
+        "effects": [],
+        "occurrence_path": "/program/bound",
+        "premises": [2],
+        "resumption_context": [],
+        "resumption_usage": [],
+        "rule": "computation.return",
+        "tag": "computation-judgment",
+        "usage": [],
+        "value_context": []
+      },
+      {
+        "occurrence_path": "/program/bound/value",
+        "premises": [3],
+        "resumption_context": [],
+        "resumption_usage": [],
+        "rule": "value.inject-right",
+        "tag": "value-judgment",
+        "usage": [],
+        "value_context": [],
+        "value_type": 3
+      },
+      {
+        "occurrence_path": "/program/bound/value/value",
+        "premises": [],
+        "resumption_context": [],
+        "resumption_usage": [],
+        "rule": "value.int",
+        "tag": "value-judgment",
+        "usage": [],
+        "value_context": [],
+        "value_type": 0
+      },
+      {
+        "computation_type": 1,
+        "effects": [],
+        "occurrence_path": "/program/body",
+        "premises": [5, 6, 8],
+        "resumption_context": [],
+        "resumption_usage": [],
+        "rule": "computation.case",
+        "tag": "computation-judgment",
+        "usage": ["1"],
+        "value_context": [
+          {
+            "binder_origin": "/program",
+            "origin_kind": "let-result",
+            "usage_limit": "1",
+            "value_type": 3
+          }
+        ]
+      },
+      {
+        "occurrence_path": "/program/body/value",
+        "premises": [],
+        "resumption_context": [],
+        "resumption_usage": [],
+        "rule": "value.variable",
+        "tag": "value-judgment",
+        "usage": ["1"],
+        "value_context": [
+          {
+            "binder_origin": "/program",
+            "origin_kind": "let-result",
+            "usage_limit": "1",
+            "value_type": 3
+          }
+        ],
+        "value_type": 3
+      },
+      {
+        "computation_type": 1,
+        "effects": [],
+        "occurrence_path": "/program/body/left_branch",
+        "premises": [7],
+        "resumption_context": [],
+        "resumption_usage": [],
+        "rule": "computation.return",
+        "tag": "computation-judgment",
+        "usage": ["0", "0"],
+        "value_context": [
+          {
+            "binder_origin": "/program/body/left_branch",
+            "origin_kind": "case-left-payload",
+            "usage_limit": "1",
+            "value_type": 2
+          },
+          {
+            "binder_origin": "/program",
+            "origin_kind": "let-result",
+            "usage_limit": "1",
+            "value_type": 3
+          }
+        ]
+      },
+      {
+        "occurrence_path": "/program/body/left_branch/value",
+        "premises": [],
+        "resumption_context": [],
+        "resumption_usage": [],
+        "rule": "value.int",
+        "tag": "value-judgment",
+        "usage": ["0", "0"],
+        "value_context": [
+          {
+            "binder_origin": "/program/body/left_branch",
+            "origin_kind": "case-left-payload",
+            "usage_limit": "1",
+            "value_type": 2
+          },
+          {
+            "binder_origin": "/program",
+            "origin_kind": "let-result",
+            "usage_limit": "1",
+            "value_type": 3
+          }
+        ],
+        "value_type": 0
+      },
+      {
+        "computation_type": 1,
+        "effects": [],
+        "occurrence_path": "/program/body/right_branch",
+        "premises": [9],
+        "resumption_context": [],
+        "resumption_usage": [],
+        "rule": "computation.return",
+        "tag": "computation-judgment",
+        "usage": ["1", "0"],
+        "value_context": [
+          {
+            "binder_origin": "/program/body/right_branch",
+            "origin_kind": "case-right-payload",
+            "usage_limit": "1",
+            "value_type": 0
+          },
+          {
+            "binder_origin": "/program",
+            "origin_kind": "let-result",
+            "usage_limit": "1",
+            "value_type": 3
+          }
+        ]
+      },
+      {
+        "occurrence_path": "/program/body/right_branch/value",
+        "premises": [],
+        "resumption_context": [],
+        "resumption_usage": [],
+        "rule": "value.variable",
+        "tag": "value-judgment",
+        "usage": ["1", "0"],
+        "value_context": [
+          {
+            "binder_origin": "/program/body/right_branch",
+            "origin_kind": "case-right-payload",
+            "usage_limit": "1",
+            "value_type": 0
+          },
+          {
+            "binder_origin": "/program",
+            "origin_kind": "let-result",
+            "usage_limit": "1",
+            "value_type": 3
+          }
+        ],
+        "value_type": 0
+      }
+    ],
+    "labels": [],
+    "tag": "accepted",
+    "types": [
+      {
+        "tag": "int"
+      },
+      {
+        "grade": "1",
+        "tag": "return",
+        "value": 0
+      },
+      {
+        "tag": "unit"
+      },
+      {
+        "left": 2,
+        "right": 0,
+        "tag": "sum"
+      },
+      {
+        "grade": "1",
+        "tag": "return",
+        "value": 3
+      }
+    ]
+  },
+  "version": 2
+}

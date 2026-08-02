@@ -31,7 +31,7 @@ const observationGoldens = [
 describe("kernel-json schema artifact", () => {
   test("kernelJsonSchema is byte-equal to the checked-in schema file", async () => {
     const fileSchema = await Bun.file(
-      new URL("../spec/kernel-json/kernel-json-v1.schema.json", import.meta.url),
+      new URL("../spec/kernel-json/kernel-json-v2.schema.json", import.meta.url),
     ).json();
     expect(JSON.stringify(kernelJsonSchema())).toBe(JSON.stringify(fileSchema));
   });
@@ -116,8 +116,8 @@ describe("kernel-json document decode/encode", () => {
   test("rejects an unknown tag in a tagged union", () => {
     const decoded = decodeKernelDocumentValue({
       format: "semantic.kernel-json",
-      version: 1,
-      kernel: "semantic.kernel-calculus/0018/v1",
+      version: 2,
+      kernel: "semantic.kernel-calculus/0018/v2",
       signature: [],
       program: { tag: "not-a-real-tag" },
     });
@@ -129,8 +129,8 @@ describe("kernel-json document decode/encode", () => {
   test("rejects an unsorted effect row", () => {
     const decoded = decodeKernelDocumentValue({
       format: "semantic.kernel-json",
-      version: 1,
-      kernel: "semantic.kernel-calculus/0018/v1",
+      version: 2,
+      kernel: "semantic.kernel-calculus/0018/v2",
       signature: [],
       program: {
         tag: "return",
@@ -142,8 +142,8 @@ describe("kernel-json document decode/encode", () => {
     // type-level effect row sort instead, via a signature declaration.
     const decoded2 = decodeKernelDocumentValue({
       format: "semantic.kernel-json",
-      version: 1,
-      kernel: "semantic.kernel-calculus/0018/v1",
+      version: 2,
+      kernel: "semantic.kernel-calculus/0018/v2",
       signature: [
         {
           label: "a",
@@ -167,8 +167,8 @@ describe("kernel-json document decode/encode", () => {
   test("rejects an unsafe integer, a fraction, and a leading zero via raw JSON grammar", () => {
     const base = {
       format: "semantic.kernel-json",
-      version: 1,
-      kernel: "semantic.kernel-calculus/0018/v1",
+      version: 2,
+      kernel: "semantic.kernel-calculus/0018/v2",
       signature: [],
     };
     const fraction = decodeKernelDocumentBytes(
@@ -180,7 +180,7 @@ describe("kernel-json document decode/encode", () => {
 
     const leadingZero = decodeKernelDocumentBytes(
       new TextEncoder().encode(
-        `{"format":"semantic.kernel-json","version":1,"kernel":"semantic.kernel-calculus/0018/v1","signature":[],"program":{"tag":"return","grade":"1","value":{"tag":"int","value":01}}}`,
+        `{"format":"semantic.kernel-json","version":2,"kernel":"semantic.kernel-calculus/0018/v2","signature":[],"program":{"tag":"return","grade":"1","value":{"tag":"int","value":01}}}`,
       ),
     );
     expect(leadingZero.status).toBe("rejected");
@@ -199,8 +199,8 @@ describe("kernel-json document decode/encode", () => {
   test("preserves -0 as distinct from 0 for int values across decode and canonical encode", () => {
     const document = {
       format: "semantic.kernel-json",
-      version: 1,
-      kernel: "semantic.kernel-calculus/0018/v1",
+      version: 2,
+      kernel: "semantic.kernel-calculus/0018/v2",
       signature: [],
       program: { tag: "return", grade: "1", value: { tag: "int", value: -0 } },
     };
@@ -217,7 +217,7 @@ describe("kernel-json document decode/encode", () => {
 
     const duplicateKey = decodeKernelDocumentBytes(
       new TextEncoder().encode(
-        '{"format":"semantic.kernel-json","format":"semantic.kernel-json","version":1,"kernel":"semantic.kernel-calculus/0018/v1","signature":[],"program":{"tag":"unit"}}',
+        '{"format":"semantic.kernel-json","format":"semantic.kernel-json","version":2,"kernel":"semantic.kernel-calculus/0018/v2","signature":[],"program":{"tag":"unit"}}',
       ),
     );
     expect(duplicateKey.status).toBe("rejected");
@@ -228,8 +228,8 @@ describe("kernel-json document decode/encode", () => {
   test("rejects a cyclic object and a repeated alias at the object boundary", () => {
     const cyclic: Record<string, unknown> = {
       format: "semantic.kernel-json",
-      version: 1,
-      kernel: "semantic.kernel-calculus/0018/v1",
+      version: 2,
+      kernel: "semantic.kernel-calculus/0018/v2",
       signature: [],
     };
     cyclic["program"] = cyclic;
@@ -241,8 +241,8 @@ describe("kernel-json document decode/encode", () => {
     const shared = { tag: "unit" } as const;
     const alias = decodeKernelDocumentValue({
       format: "semantic.kernel-json",
-      version: 1,
-      kernel: "semantic.kernel-calculus/0018/v1",
+      version: 2,
+      kernel: "semantic.kernel-calculus/0018/v2",
       signature: [],
       program: { tag: "let", bound: { tag: "return", grade: "1", value: shared }, body: shared },
     });
@@ -252,8 +252,8 @@ describe("kernel-json document decode/encode", () => {
   test("rejects an accessor property, a symbol key, and a sparse array", () => {
     const withAccessor: Record<string, unknown> = {
       format: "semantic.kernel-json",
-      version: 1,
-      kernel: "semantic.kernel-calculus/0018/v1",
+      version: 2,
+      kernel: "semantic.kernel-calculus/0018/v2",
       signature: [],
     };
     Object.defineProperty(withAccessor, "program", {
@@ -264,8 +264,8 @@ describe("kernel-json document decode/encode", () => {
 
     const symbolKeyed: Record<PropertyKey, unknown> = {
       format: "semantic.kernel-json",
-      version: 1,
-      kernel: "semantic.kernel-calculus/0018/v1",
+      version: 2,
+      kernel: "semantic.kernel-calculus/0018/v2",
       signature: [],
       program: { tag: "unit" },
     };
@@ -281,8 +281,8 @@ describe("kernel-json document decode/encode", () => {
     };
     const sparseResult = decodeKernelDocumentValue({
       format: "semantic.kernel-json",
-      version: 1,
-      kernel: "semantic.kernel-calculus/0018/v1",
+      version: 2,
+      kernel: "semantic.kernel-calculus/0018/v2",
       signature: sparse,
       program: { tag: "unit" },
     });
@@ -292,8 +292,8 @@ describe("kernel-json document decode/encode", () => {
   test("accepts a structurally representable resumption value that the checker will always reject", () => {
     const decoded = decodeKernelDocumentValue({
       format: "semantic.kernel-json",
-      version: 1,
-      kernel: "semantic.kernel-calculus/0018/v1",
+      version: 2,
+      kernel: "semantic.kernel-calculus/0018/v2",
       signature: [],
       program: {
         tag: "return",
@@ -320,7 +320,7 @@ describe("kernel-json observation decode/encode", () => {
     });
   }
 
-  test("rejects a diagnostic code outside the closed version 1 enum", async () => {
+  test("rejects a diagnostic code outside the closed version 2 enum", async () => {
     const json = (await readGoldenJson("rejected-double-resume.rejected.kernel-check.json")) as {
       observation: { diagnostics: Array<Record<string, unknown>> };
     };

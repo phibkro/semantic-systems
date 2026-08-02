@@ -18,6 +18,11 @@ export type NormalizedValueType =
       readonly second: NormalizedValueType;
     }
   | {
+      readonly tag: "sum";
+      readonly left: NormalizedValueType;
+      readonly right: NormalizedValueType;
+    }
+  | {
       readonly tag: "thunk";
       readonly effects: ReadonlyArray<string>;
       readonly computation: NormalizedComputationType;
@@ -43,6 +48,16 @@ export type NormalizedValueTerm =
       readonly first: NormalizedValueTerm;
       readonly second: NormalizedValueTerm;
     }
+  | {
+      readonly tag: "inject-left";
+      readonly value: NormalizedValueTerm;
+      readonly right_type: NormalizedValueType;
+    }
+  | {
+      readonly tag: "inject-right";
+      readonly left_type: NormalizedValueType;
+      readonly value: NormalizedValueTerm;
+    }
   | { readonly tag: "thunk"; readonly body: NormalizedComputationTerm };
 
 export type NormalizedComputationTerm =
@@ -53,6 +68,12 @@ export type NormalizedComputationTerm =
       readonly body: NormalizedComputationTerm;
     }
   | { readonly tag: "force"; readonly value: NormalizedValueTerm }
+  | {
+      readonly tag: "case";
+      readonly value: NormalizedValueTerm;
+      readonly left_branch: NormalizedComputationTerm;
+      readonly right_branch: NormalizedComputationTerm;
+    }
   | {
       readonly tag: "lambda";
       readonly parameter_type: NormalizedValueType;
@@ -118,8 +139,8 @@ export interface SourceCorrespondence {
 
 export interface NormalizedCoreArtifact {
   readonly format: "semantic.normalized-core";
-  readonly version: 1;
-  readonly kernel: "semantic.kernel-calculus/0018/v1";
+  readonly version: 2;
+  readonly kernel: "semantic.kernel-calculus/0018/v2";
   readonly semantic_identity: Identity;
   readonly artifact_identity: Identity;
   readonly signature: ReadonlyArray<NormalizedOperation>;
@@ -272,7 +293,7 @@ export const decodeBounds = (input: unknown): DecodeResult<NormalizedCoreBounds>
         diagnostic(
           "bounds.exact-record",
           "$.bounds",
-          "bounds must contain every version 1 field and no others",
+          "bounds must contain every version 2 field and no others",
         ),
       );
     }

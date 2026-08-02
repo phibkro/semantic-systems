@@ -1,0 +1,12 @@
+{
+  "format": "semantic.kernel-run",
+  "version": 2,
+  "kernel": "semantic.kernel-calculus/0018/v2",
+  "observation": {
+    "tag": "returned",
+    "value": {
+      "kind": "int",
+      "value": 7
+    }
+  }
+}

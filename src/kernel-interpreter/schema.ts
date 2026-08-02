@@ -17,6 +17,11 @@ export type ObservableValueType =
       readonly second: ObservableValueType;
     }
   | {
+      readonly kind: "sum";
+      readonly left: ObservableValueType;
+      readonly right: ObservableValueType;
+    }
+  | {
       readonly kind: "thunk";
       readonly effects: ReadonlyArray<string>;
       readonly computation: ObservableComputationType;
@@ -44,7 +49,9 @@ export type ObservableRuntimeValue =
       readonly kind: "pair";
       readonly first: ObservableRuntimeValue;
       readonly second: ObservableRuntimeValue;
-    };
+    }
+  | { readonly kind: "inject-left"; readonly value: ObservableRuntimeValue }
+  | { readonly kind: "inject-right"; readonly value: ObservableRuntimeValue };
 
 export type ObservableRuntimeResult = ObservableRuntimeValue | { readonly kind: "function" };
 
@@ -80,8 +87,8 @@ export type KernelRunResult =
 
 export interface KernelRunObservation {
   readonly format: "semantic.kernel-run";
-  readonly version: 1;
-  readonly kernel: "semantic.kernel-calculus/0018/v1";
+  readonly version: 2;
+  readonly kernel: "semantic.kernel-calculus/0018/v2";
   readonly observation: KernelRunResult;
 }
 
@@ -95,6 +102,11 @@ const ObservableValueTypeSchema: Schema.Codec<ObservableValueType> = Schema.susp
       kind: Schema.Literal("pair"),
       first: ObservableValueTypeSchema,
       second: ObservableValueTypeSchema,
+    }),
+    Schema.Struct({
+      kind: Schema.Literal("sum"),
+      left: ObservableValueTypeSchema,
+      right: ObservableValueTypeSchema,
     }),
     Schema.Struct({
       kind: Schema.Literal("thunk"),
@@ -125,6 +137,14 @@ const ObservableComputationTypeSchema: Schema.Codec<ObservableComputationType> =
 const ObservableRuntimeValueSchema: Schema.Codec<ObservableRuntimeValue> = Schema.suspend(() =>
   Schema.Union([
     Schema.Struct({ kind: Schema.Literals(["unit", "thunk"]) }),
+    Schema.Struct({
+      kind: Schema.Literal("inject-left"),
+      value: ObservableRuntimeValueSchema,
+    }),
+    Schema.Struct({
+      kind: Schema.Literal("inject-right"),
+      value: ObservableRuntimeValueSchema,
+    }),
     Schema.Struct({ kind: Schema.Literal("bool"), value: Schema.Boolean }),
     Schema.Struct({ kind: Schema.Literal("int"), value: IntegerSchema }),
     Schema.Struct({
@@ -172,8 +192,8 @@ const RuntimeDiagnosticSchema = Schema.Struct({
 
 const KernelRunObservationShapeSchema = Schema.Struct({
   format: Schema.Literal("semantic.kernel-run"),
-  version: Schema.Literal(1),
-  kernel: Schema.Literal("semantic.kernel-calculus/0018/v1"),
+  version: Schema.Literal(2),
+  kernel: Schema.Literal("semantic.kernel-calculus/0018/v2"),
   observation: Schema.Union([
     Schema.Struct({
       tag: Schema.Literal("representation-rejected"),

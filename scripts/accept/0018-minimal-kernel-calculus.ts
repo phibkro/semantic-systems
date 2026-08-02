@@ -37,10 +37,24 @@ const requireArtifacts = Effect.forEach(requiredArtifacts, (relativePath) =>
     }
   }),
 );
+const requireV2Boundary = Effect.gen(function* () {
+  const source = yield* Effect.promise(() =>
+    Bun.file(resolve(root, "src/kernel-calculus/machine.ts")).text(),
+  );
+  if (
+    !source.includes('format: "kernel-machine-v2"') ||
+    !source.includes('"computation.case-left"') ||
+    !source.includes('"computation.case-right"')
+  ) {
+    return yield* new AcceptanceFailure({
+      message: "active kernel calculus boundary must expose the v2 machine and case rules",
+    });
+  }
+});
 
 const program = Effect.gen(function* () {
+  yield* requireV2Boundary;
   yield* requireArtifacts;
-
   for (const command of [
     [
       "bun",

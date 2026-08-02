@@ -33,6 +33,11 @@ export const ValueTypeSchema: Schema.Codec<ValueType> = Schema.suspend(() =>
       second: ValueTypeSchema,
     }),
     Schema.Struct({
+      kind: Schema.Literal("sum"),
+      left: ValueTypeSchema,
+      right: ValueTypeSchema,
+    }),
+    Schema.Struct({
       kind: Schema.Literal("thunk"),
       effects: EffectRowSchema,
       computation: ComputationTypeSchema,
@@ -182,7 +187,9 @@ type NormalizedRuntimeValue =
       readonly kind: "pair";
       readonly first: NormalizedRuntimeValue;
       readonly second: NormalizedRuntimeValue;
-    };
+    }
+  | { readonly kind: "inject-left"; readonly value: NormalizedRuntimeValue }
+  | { readonly kind: "inject-right"; readonly value: NormalizedRuntimeValue };
 
 const NormalizedRuntimeValueShapeSchema: Schema.Codec<NormalizedRuntimeValue> = Schema.suspend(() =>
   Schema.Union([
@@ -197,6 +204,14 @@ const NormalizedRuntimeValueShapeSchema: Schema.Codec<NormalizedRuntimeValue> = 
       first: NormalizedRuntimeValueShapeSchema,
       second: NormalizedRuntimeValueShapeSchema,
     }),
+    Schema.Struct({
+      kind: Schema.Literal("inject-left"),
+      value: NormalizedRuntimeValueShapeSchema,
+    }),
+    Schema.Struct({
+      kind: Schema.Literal("inject-right"),
+      value: NormalizedRuntimeValueShapeSchema,
+    }),
   ]),
 );
 
@@ -206,7 +221,7 @@ const NormalizedRuntimeResultShapeSchema = Schema.Union([
 ]);
 
 const NormalizedMachineSnapshotShapeSchema = Schema.Struct({
-  format: Schema.Literal("kernel-machine-v1"),
+  format: Schema.Literal("kernel-machine-v2"),
   state: Schema.String,
 });
 
@@ -276,6 +291,12 @@ const normalizeValueType = (type: ValueType): JsonObject => {
         first: normalizeValueType(type.first),
         second: normalizeValueType(type.second),
       };
+    case "sum":
+      return {
+        kind: "sum",
+        left: normalizeValueType(type.left),
+        right: normalizeValueType(type.right),
+      };
     case "thunk":
       return {
         kind: "thunk",
@@ -334,6 +355,12 @@ const normalizeRuntimeValue = (value: RuntimeValue | { readonly kind: "function"
         kind: "pair",
         first: normalizeRuntimeValue(value.first),
         second: normalizeRuntimeValue(value.second),
+      };
+    case "inject-left":
+    case "inject-right":
+      return {
+        kind: value.kind,
+        value: normalizeRuntimeValue(value.value),
       };
   }
 };

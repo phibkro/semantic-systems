@@ -1,6 +1,6 @@
 {
   "format": "semantic.kernel-check",
-  "kernel": "semantic.kernel-calculus/0018/v1",
+  "kernel": "semantic.kernel-calculus/0018/v2",
   "observation": {
     "inferred": {
       "effects": [],
@@ -144,7 +144,19 @@
     ],
     "labels": ["fresh"],
     "tag": "accepted",
-    "types": [{ "tag": "int" }, { "grade": "1", "tag": "return", "value": 0 }, { "tag": "unit" }]
+    "types": [
+      {
+        "tag": "int"
+      },
+      {
+        "grade": "1",
+        "tag": "return",
+        "value": 0
+      },
+      {
+        "tag": "unit"
+      }
+    ]
   },
-  "version": 1
+  "version": 2
 }

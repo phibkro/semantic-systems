@@ -29,6 +29,8 @@ export type RuntimeValue =
   | { readonly kind: "bool"; readonly value: boolean }
   | { readonly kind: "int"; readonly value: number }
   | { readonly kind: "pair"; readonly first: RuntimeValue; readonly second: RuntimeValue }
+  | { readonly kind: "inject-left"; readonly value: RuntimeValue }
+  | { readonly kind: "inject-right"; readonly value: RuntimeValue }
   | RuntimeThunk;
 
 export interface RuntimeThunk {
@@ -58,6 +60,7 @@ interface FunctionInternals {
 }
 
 const thunkCustody = new WeakSet<object>();
+const sumValueCustody = new WeakSet<object>();
 const thunkInternals = new WeakMap<object, ThunkInternals>();
 const functionCustody = new WeakSet<object>();
 const functionInternals = new WeakMap<object, FunctionInternals>();
@@ -203,7 +206,7 @@ export interface MachineTraceEntry {
 }
 
 export interface MachineSnapshot {
-  readonly format: "kernel-machine-v1";
+  readonly format: "kernel-machine-v2";
   readonly state: string;
 }
 
@@ -266,7 +269,16 @@ export const runtimeBool = (value: boolean): RuntimeValue => freeze({ kind: "boo
 export const runtimeInt = (value: number): RuntimeValue => freeze({ kind: "int", value });
 export const runtimePair = (first: RuntimeValue, second: RuntimeValue): RuntimeValue =>
   freeze({ kind: "pair", first, second });
-
+export const runtimeInjectLeft = (value: RuntimeValue): RuntimeValue => {
+  const result: RuntimeValue = freeze({ kind: "inject-left" as const, value });
+  sumValueCustody.add(result);
+  return result;
+};
+export const runtimeInjectRight = (value: RuntimeValue): RuntimeValue => {
+  const result: RuntimeValue = freeze({ kind: "inject-right" as const, value });
+  sumValueCustody.add(result);
+  return result;
+};
 const runtimeDiagnostic = (
   code: string,
   rule: string,
@@ -323,6 +335,14 @@ const evaluateValue = (
       const second = evaluateValue(term.second, environment, valueTypes);
       return first === undefined || second === undefined ? undefined : runtimePair(first, second);
     }
+    case "inject-left": {
+      const value = evaluateValue(term.value, environment, valueTypes);
+      return value === undefined ? undefined : runtimeInjectLeft(value);
+    }
+    case "inject-right": {
+      const value = evaluateValue(term.value, environment, valueTypes);
+      return value === undefined ? undefined : runtimeInjectRight(value);
+    }
     case "thunk": {
       const type = valueTypes.get(term);
       return type?.kind === "thunk"
@@ -348,6 +368,12 @@ const runtimeValueHasType = (value: RuntimeValue, type: ValueType): boolean => {
         runtimeValueHasType(value.first, type.first) &&
         runtimeValueHasType(value.second, type.second)
       );
+    case "sum":
+      return (
+        sumValueCustody.has(value) &&
+        ((value.kind === "inject-left" && runtimeValueHasType(value.value, type.left)) ||
+          (value.kind === "inject-right" && runtimeValueHasType(value.value, type.right)))
+      );
     case "thunk":
       if (value.kind !== "thunk" || !thunkCustody.has(value)) return false;
       const internals = thunkInternals.get(value);
@@ -367,6 +393,16 @@ const snapshotRuntimeValue = (value: RuntimeValue): RuntimeValue | undefined => 
       const first = snapshotRuntimeValue(value.first);
       const second = snapshotRuntimeValue(value.second);
       return first === undefined || second === undefined ? undefined : runtimePair(first, second);
+    }
+    case "inject-left": {
+      if (!sumValueCustody.has(value)) return undefined;
+      const inner = snapshotRuntimeValue(value.value);
+      return inner === undefined ? undefined : runtimeInjectLeft(inner);
+    }
+    case "inject-right": {
+      if (!sumValueCustody.has(value)) return undefined;
+      const inner = snapshotRuntimeValue(value.value);
+      return inner === undefined ? undefined : runtimeInjectRight(inner);
     }
     case "thunk":
       return thunkCustody.has(value) ? value : undefined;
@@ -410,6 +446,9 @@ const machineSnapshot = (machine: Machine): MachineSnapshot => {
           first: snapshotValue(value.first),
           second: snapshotValue(value.second),
         };
+      case "inject-left":
+      case "inject-right":
+        return { kind: value.kind, value: snapshotValue(value.value) };
       case "thunk":
         return { kind: "thunk", ...reference("thunk", value) };
     }
@@ -530,7 +569,7 @@ const machineSnapshot = (machine: Machine): MachineSnapshot => {
     heap,
     nextResumptionIdentity: machine.nextIdentity,
   });
-  const snapshot: MachineSnapshot = { format: "kernel-machine-v1", state };
+  const snapshot: MachineSnapshot = { format: "kernel-machine-v2", state };
   machineSnapshotCustody.add(snapshot);
   return freeze(snapshot);
 };
@@ -777,6 +816,85 @@ const transition = (machine: Machine): Transition => {
             rule: "computation.force",
             path: control.path,
           };
+    }
+    case "case": {
+      const value = evaluateValue(term.value, control.environment, machine.valueTypes);
+      if (value === undefined) {
+        return {
+          terminal: rejected(
+            "runtime.invalid-value",
+            "machine.case",
+            control.path,
+            "case scrutinee could not be evaluated",
+            [],
+          ),
+          rule: "runtime.reject",
+          path: control.path,
+        };
+      }
+      if (
+        (value.kind === "inject-left" || value.kind === "inject-right") &&
+        !sumValueCustody.has(value)
+      ) {
+        return {
+          terminal: rejected(
+            "runtime.expected-sum",
+            "machine.case",
+            control.path,
+            "case received an invalid sum runtime value",
+            [],
+          ),
+          rule: "runtime.reject",
+          path: control.path,
+        };
+      }
+      if (value.kind === "inject-left") {
+        return {
+          machine: {
+            ...machine,
+            control: {
+              kind: "term",
+              term: term.leftBranch,
+              environment: {
+                values: [value.value, ...control.environment.values],
+                resumptions: control.environment.resumptions,
+              },
+              path: `${control.path}.leftBranch`,
+            },
+          },
+          rule: "computation.case-left",
+          path: control.path,
+        };
+      }
+      if (value.kind === "inject-right") {
+        return {
+          machine: {
+            ...machine,
+            control: {
+              kind: "term",
+              term: term.rightBranch,
+              environment: {
+                values: [value.value, ...control.environment.values],
+                resumptions: control.environment.resumptions,
+              },
+              path: `${control.path}.rightBranch`,
+            },
+          },
+          rule: "computation.case-right",
+          path: control.path,
+        };
+      }
+      return {
+        terminal: rejected(
+          "runtime.expected-sum",
+          "machine.case",
+          control.path,
+          "case received a non-sum runtime value",
+          [],
+        ),
+        rule: "runtime.reject",
+        path: control.path,
+      };
     }
     case "lambda":
       return {
@@ -1246,6 +1364,16 @@ const isRuntimeValueWithinBounds = (
       inspection.active.delete(value);
       return valid;
     }
+    case "inject-left":
+    case "inject-right": {
+      if (!sumValueCustody.has(value)) return false;
+      const fields = exactDataFields(value, ["kind", "value"]);
+      if (fields === undefined) return false;
+      inspection.active.add(value);
+      const valid = isRuntimeValueWithinBounds(fields["value"]!.value, inspection, depth + 1);
+      inspection.active.delete(value);
+      return valid;
+    }
     case "thunk":
       return exactDataFields(value, ["kind"]) !== undefined && thunkCustody.has(value);
     default:
@@ -1280,7 +1408,7 @@ export const isMachineSnapshot = (value: unknown): value is MachineSnapshot => {
     typeof value === "object" &&
     value !== null &&
     machineSnapshotCustody.has(value) &&
-    (value as { readonly format?: unknown }).format === "kernel-machine-v1" &&
+    (value as { readonly format?: unknown }).format === "kernel-machine-v2" &&
     typeof (value as { readonly state?: unknown }).state === "string"
   );
 };

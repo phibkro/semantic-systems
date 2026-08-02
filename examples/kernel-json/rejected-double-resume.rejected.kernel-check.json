@@ -1,6 +1,6 @@
 {
   "format": "semantic.kernel-check",
-  "kernel": "semantic.kernel-calculus/0018/v1",
+  "kernel": "semantic.kernel-calculus/0018/v2",
   "observation": {
     "diagnostics": [
       {
@@ -16,5 +16,5 @@
     "tag": "rejected",
     "types": []
   },
-  "version": 1
+  "version": 2
 }

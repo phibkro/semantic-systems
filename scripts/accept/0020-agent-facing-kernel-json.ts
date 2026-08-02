@@ -10,8 +10,8 @@ class AcceptanceFailure extends Data.TaggedError("AcceptanceFailure")<{
 const root = resolve(import.meta.dirname, "../..");
 const nodeExecutable = process.env.SEMANTIC_NODE_BIN ?? "node";
 
-const schemaArtifact = "spec/kernel-json/kernel-json-v1.schema.json";
-const schemaIdentifier = "https://semantic.phibkro.org/spec/kernel-json/kernel-json-v1.schema.json";
+const schemaArtifact = "spec/kernel-json/kernel-json-v2.schema.json";
+const schemaIdentifier = "https://semantic.phibkro.org/spec/kernel-json/kernel-json-v2.schema.json";
 
 const goldenExamples = [
   ["examples/kernel-json/pure-program.kernel.json", "semantic.kernel-json"],
@@ -94,9 +94,9 @@ const requireContractArtifacts = Effect.gen(function* () {
   }
   for (const [relativePath, format] of goldenExamples) {
     const example = yield* requireJsonDocument(relativePath);
-    if (example["format"] !== format || example["version"] !== 1) {
+    if (example["format"] !== format || example["version"] !== 2) {
       return yield* new AcceptanceFailure({
-        message: `golden example ${relativePath} must declare format ${format} version 1`,
+        message: `golden example ${relativePath} must declare format ${format} version 2`,
       });
     }
   }

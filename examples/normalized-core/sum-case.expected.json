@@ -1,0 +1,86 @@
+{
+  "assumptions": [
+    {
+      "assumption_identity": "sha256:fc789a5a613ba36f6273b0b6da93fc7b8c06a39ed6a7afd0f00c1f3d5a2bfefc",
+      "kind": "declared",
+      "statement": "SHA-256 is collision resistant"
+    }
+  ],
+  "format": "semantic.normalized-core",
+  "kernel": "semantic.kernel-calculus/0018/v2",
+  "obligations": [],
+  "signature": [],
+  "summary": {
+    "effects": [],
+    "type": {
+      "tag": "return",
+      "grade": "1",
+      "value": {
+        "tag": "int"
+      }
+    },
+    "usage": []
+  },
+  "term": {
+    "tag": "let",
+    "bound": {
+      "tag": "return",
+      "grade": "1",
+      "value": {
+        "tag": "inject-right",
+        "left_type": {
+          "tag": "unit"
+        },
+        "value": {
+          "tag": "int",
+          "value": 7
+        }
+      }
+    },
+    "body": {
+      "tag": "case",
+      "value": {
+        "tag": "bound-value",
+        "distance": 0
+      },
+      "left_branch": {
+        "tag": "return",
+        "grade": "1",
+        "value": {
+          "tag": "int",
+          "value": 0
+        }
+      },
+      "right_branch": {
+        "tag": "return",
+        "grade": "1",
+        "value": {
+          "tag": "bound-value",
+          "distance": 0
+        }
+      }
+    }
+  },
+  "version": 2,
+  "semantic_identity": "sha256:3308f275310a2e691851c7c4aa1109724e16c2c29aa79622c91869a0cb1e0ddf",
+  "source": {
+    "units": [
+      {
+        "source_identity": "sha256:3d979a56f1426b5668168aa03678a58696c505f7afde85aad49b4f6b0ecba14f",
+        "byte_length": 1,
+        "content_identity": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "uri": "memory:sum-case"
+      }
+    ],
+    "correspondence": [
+      {
+        "node_path": "/term",
+        "source_identity": "sha256:3d979a56f1426b5668168aa03678a58696c505f7afde85aad49b4f6b0ecba14f",
+        "role": "expression",
+        "start_byte": 0,
+        "end_byte": 1
+      }
+    ]
+  },
+  "artifact_identity": "sha256:a3813b3c24fe866072fc3e206f7ca95f734b502436c37e7893971a92a37e73b5"
+}

@@ -1,6 +1,6 @@
 {
   "format": "semantic.kernel-json",
-  "kernel": "semantic.kernel-calculus/0018/v1",
+  "kernel": "semantic.kernel-calculus/0018/v2",
   "program": {
     "body": {
       "grade": "1",
@@ -11,5 +11,5 @@
     "tag": "let"
   },
   "signature": [],
-  "version": 1
+  "version": 2
 }

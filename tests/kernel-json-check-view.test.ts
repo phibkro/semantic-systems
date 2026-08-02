@@ -68,8 +68,8 @@ describe("checkKernelDocument reproduces the frozen golden observations", () => 
   test("a schema-valid document rejected for signature disagreement", () => {
     const decoded = decodeKernelDocumentValue({
       format: "semantic.kernel-json",
-      version: 1,
-      kernel: "semantic.kernel-calculus/0018/v1",
+      version: 2,
+      kernel: "semantic.kernel-calculus/0018/v2",
       signature: [],
       program: {
         tag: "operation",
@@ -90,8 +90,8 @@ describe("checkKernelDocument reproduces the frozen golden observations", () => 
   test("an out-of-range distance is rejected by the checker, not the schema", () => {
     const decoded = decodeKernelDocumentValue({
       format: "semantic.kernel-json",
-      version: 1,
-      kernel: "semantic.kernel-calculus/0018/v1",
+      version: 2,
+      kernel: "semantic.kernel-calculus/0018/v2",
       signature: [],
       program: { tag: "return", grade: "1", value: { tag: "bound-value", distance: 0 } },
     });
@@ -106,8 +106,8 @@ describe("checkKernelDocument reproduces the frozen golden observations", () => 
   test("a resumption value structurally accepted is semantically rejected", () => {
     const decoded = decodeKernelDocumentValue({
       format: "semantic.kernel-json",
-      version: 1,
-      kernel: "semantic.kernel-calculus/0018/v1",
+      version: 2,
+      kernel: "semantic.kernel-calculus/0018/v2",
       signature: [],
       program: { tag: "return", grade: "1", value: { tag: "resumption", distance: 0 } },
     });
