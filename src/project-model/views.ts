@@ -1,6 +1,10 @@
 import { Data, Effect, FileSystem, Path } from "effect";
 import { assessWork, criticalPath } from "./schedule.ts";
 import { renderFeatureLifecycle } from "./work-lifecycle.ts";
+import {
+  PROJECT_DOCUMENT_SCHEMA_PATH,
+  projectDocumentJsonSchemaText,
+} from "./project-json-schema.ts";
 import { byKind, incoming, type Entity, type ProjectGraph, type Relation } from "./types.ts";
 
 export class ViewWriteError extends Data.TaggedError("ViewWriteError")<{
@@ -171,7 +175,7 @@ const index = (project: ProjectGraph): string => {
   );
   return document(
     "Generated project views",
-    `${rows.join("\n")}\n\n- [System map](01-system-map.md)\n- [Theory-realization map](02-theory-realization.md)\n- [Concern matrix](03-concern-matrix.md)\n- [Evidence map](04-evidence-map.md)\n- [Work dependencies](05-work-dependencies.md)\n- [Delegation frontier](06-delegation-frontier.md)\n- [Runtime view](07-runtime-view.md)\n- [Feature lifecycle](08-feature-lifecycle.md)`,
+    `${rows.join("\n")}\n\n- [System map](01-system-map.md)\n- [Theory-realization map](02-theory-realization.md)\n- [Concern matrix](03-concern-matrix.md)\n- [Evidence map](04-evidence-map.md)\n- [Work dependencies](05-work-dependencies.md)\n- [Delegation frontier](06-delegation-frontier.md)\n- [Runtime view](07-runtime-view.md)\n- [Feature lifecycle](08-feature-lifecycle.md)\n- [Project document JSON Schema](schema/project-document.schema.json)`,
   );
 };
 
@@ -186,6 +190,7 @@ export const generateViews = (project: ProjectGraph): ReadonlyMap<string, string
     ["06-delegation-frontier.md", delegationFrontier(project)],
     ["07-runtime-view.md", runtimeView(project)],
     ["08-feature-lifecycle.md", renderFeatureLifecycle(project)],
+    [PROJECT_DOCUMENT_SCHEMA_PATH.replace("generated/", ""), projectDocumentJsonSchemaText()],
   ]);
 
 export const writeViews = (
@@ -210,6 +215,17 @@ export const writeViews = (
     const changed: Array<string> = [];
     for (const [name, content] of [...views].sort(([left], [right]) => compareText(left, right))) {
       const destination = path.join(output, name);
+      if (!check) {
+        yield* fs.makeDirectory(path.dirname(destination), { recursive: true }).pipe(
+          Effect.mapError(
+            (cause) =>
+              new ViewWriteError({
+                message: `cannot create generated view directory: ${destination}`,
+                cause,
+              }),
+          ),
+        );
+      }
       const exists = yield* fs.exists(destination).pipe(
         Effect.mapError(
           (cause) =>

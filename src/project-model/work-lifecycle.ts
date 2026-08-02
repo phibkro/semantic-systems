@@ -107,6 +107,9 @@ export const FeatureMetadataSchema = Schema.Struct({
   feature_loop: Schema.optionalKey(FeatureLoopSchema),
   completion: Schema.optionalKey(CompletionSchema),
   replacement: Schema.optionalKey(ReplacementSchema),
+}).annotate({
+  identifier: "FeatureMetadata",
+  description: "Lifecycle-owned attributes for a managed feature work item.",
 });
 export type FeatureMetadata = typeof FeatureMetadataSchema.Type;
 

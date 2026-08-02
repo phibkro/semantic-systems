@@ -26,7 +26,7 @@
 | responsibility | 2 |
 | runtime | 8 |
 | theory | 12 |
-| work_item | 43 |
+| work_item | 44 |
 
 - [System map](01-system-map.md)
 - [Theory-realization map](02-theory-realization.md)
@@ -36,3 +36,4 @@
 - [Delegation frontier](06-delegation-frontier.md)
 - [Runtime view](07-runtime-view.md)
 - [Feature lifecycle](08-feature-lifecycle.md)
+- [Project document JSON Schema](schema/project-document.schema.json)

@@ -2,7 +2,7 @@
 
 <!-- Generated. Edit model sources, not this file. -->
 
-Ready parallel work items: **15**.
+Ready parallel work items: **16**.
 
 | Work item | Phase | Status | Ready | Score | Recommendation | Blockers |
 |---|---|---|---:|---:|---|---|
@@ -36,6 +36,7 @@ Ready parallel work items: **15**.
 | Implement package and evidence resolver | implementation | in_progress | no | 72 | delegate with review | Define normalized theory identity |
 | Reconcile PBK Control Room acceptance lineage | validation | complete | no | 83 | delegate with review |  |
 | Build PBK Technologies portfolio Control Room | validation | complete | no | 72 | delegate with review |  |
+| Generate schema-backed project JSON tooling | implementation | in_progress | yes | 87 | delegate directly |  |
 | Research reference baselines for deep research | research | in_progress | yes | 86 | delegate with review |  |
 | Establish reference-source custody | validation | complete | no | 87 | delegate with review |  |
 | Define relational fact export | implementation | in_progress | yes | 84 | delegate with review |  |

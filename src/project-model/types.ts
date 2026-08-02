@@ -5,7 +5,7 @@ export type JsonValue =
   | { readonly [key: string]: JsonValue };
 export type Attributes = Readonly<Record<string, JsonValue>>;
 
-export const ENTITY_KINDS = new Set([
+export const ENTITY_KIND_VALUES = [
   "agent",
   "artifact",
   "assumption",
@@ -34,9 +34,12 @@ export const ENTITY_KINDS = new Set([
   "theory",
   "type",
   "work_item",
-]);
+] as const;
 
-export const RELATION_KINDS = new Set([
+export type EntityKind = (typeof ENTITY_KIND_VALUES)[number];
+export const ENTITY_KINDS: ReadonlySet<string> = new Set(ENTITY_KIND_VALUES);
+
+export const RELATION_KIND_VALUES = [
   "accountable_for",
   "assigned_to",
   "assumes",
@@ -66,7 +69,10 @@ export const RELATION_KINDS = new Set([
   "supports",
   "validates",
   "writes",
-]);
+] as const;
+
+export type RelationKind = (typeof RELATION_KIND_VALUES)[number];
+export const RELATION_KINDS: ReadonlySet<string> = new Set(RELATION_KIND_VALUES);
 
 export interface Entity {
   readonly id: string;

@@ -1,0 +1,35 @@
+{
+  "entities": [
+    {
+      "id": "work.project-json-language-tooling",
+      "kind": "work_item",
+      "name": "Generate schema-backed project JSON tooling",
+      "summary": "Project Effect v4 input schemas to deterministic Draft 2020-12 JSON Schema and bind the maintained JSON language service for canonical model editing.",
+      "status": "in_progress",
+      "tags": ["work", "project-model", "json-schema", "lsp"],
+      "attributes": {
+        "feature_id": "0056-project-json-language-tooling",
+        "feature_loop": "managed",
+        "phase": "implementation",
+        "effort": 8,
+        "acceptance": [
+          "Effect v4 input schemas remain the sole authored structural source",
+          "Generated Draft 2020-12 schema exposes exact kinds and lifecycle metadata",
+          "The maintained JSON language service rejects known-bad model shapes",
+          "Repository LSP configuration targets canonical model JSON only",
+          "Semantic graph validation remains separate and executable"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 5,
+          "testability": 5,
+          "reversibility": 5,
+          "integration_independence": 4,
+          "blast_radius": 3,
+          "human_review": false
+        }
+      }
+    }
+  ],
+  "relations": []
+}

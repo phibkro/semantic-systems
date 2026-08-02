@@ -53,7 +53,9 @@
     "oxfmt": "0.61.0",
     "oxlint": "1.76.0",
     "parse5": "8.0.1",
-    "typescript": "7.0.2"
+    "typescript": "7.0.2",
+    "vscode-json-languageservice": "5.7.2",
+    "vscode-languageserver-textdocument": "1.0.12"
   },
   "optionalDependencies": {
     "@effect/tsgo-linux-x64": "0.24.3",

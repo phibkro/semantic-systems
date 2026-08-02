@@ -67,6 +67,15 @@
 - Plan: [execution ledger](../plans/active/0055-lifecycle-plan-layout.md)
 - Acceptance: [runnable program](../scripts/accept/0055-lifecycle-plan-layout.ts)
 
+### `0056-project-json-language-tooling` — Generate schema-backed project JSON tooling
+
+- Status: `in_progress`
+- Feature loop: `managed`
+- Model: [canonical record](../model/work/features/0056-project-json-language-tooling.json)
+- Design: [design contract](../design-specs/0056-project-json-language-tooling.md)
+- Plan: [execution ledger](../plans/active/0056-project-json-language-tooling.md)
+- Acceptance: [runnable program](../scripts/accept/0056-project-json-language-tooling.ts)
+
 ## Completed
 
 ### `0001-inventory-resolution-tracer` — Complete inventory evidence-resolution tracer

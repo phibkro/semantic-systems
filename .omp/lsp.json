@@ -1,0 +1,26 @@
+{
+  "servers": {
+    "vscode-json-language-server": {
+      "settings": {
+        "json": {
+          "validate": {
+            "enable": true
+          },
+          "schemas": [
+            {
+              "fileMatch": [
+                "model/architecture/**/*.json",
+                "model/evidence/**/*.json",
+                "model/execution/**/*.json",
+                "model/runtime/**/*.json",
+                "model/semantic/**/*.json",
+                "model/work/**/*.json"
+              ],
+              "url": "file:///srv/share/projects/semantic/generated/schema/project-document.schema.json"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

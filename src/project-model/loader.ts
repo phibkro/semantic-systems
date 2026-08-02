@@ -1,5 +1,12 @@
 import { Data, Effect, FileSystem, Path, Schema } from "effect";
-import type { Attributes, Entity, ProjectGraph, Relation } from "./types.ts";
+import {
+  ENTITY_KIND_VALUES,
+  RELATION_KIND_VALUES,
+  type Attributes,
+  type Entity,
+  type ProjectGraph,
+  type Relation,
+} from "./types.ts";
 
 export class ProjectLoadError extends Data.TaggedError("ProjectLoadError")<{
   readonly message: string;
@@ -8,27 +15,36 @@ export class ProjectLoadError extends Data.TaggedError("ProjectLoadError")<{
 
 const AttributesSchema = Schema.Record(Schema.String, Schema.Unknown);
 
-const EntityInputSchema = Schema.Struct({
+export const EntityInputSchema = Schema.Struct({
   id: Schema.String,
-  kind: Schema.String,
+  kind: Schema.Literals(ENTITY_KIND_VALUES),
   name: Schema.String,
   summary: Schema.optionalKey(Schema.String),
   status: Schema.optionalKey(Schema.NullOr(Schema.String)),
   tags: Schema.optionalKey(Schema.Array(Schema.String)),
   attributes: Schema.optionalKey(AttributesSchema),
+}).annotate({
+  identifier: "ProjectEntityInput",
+  description: "One canonical project entity authored in a model document.",
 });
 
-const RelationInputSchema = Schema.Struct({
+export const RelationInputSchema = Schema.Struct({
   source: Schema.String,
   target: Schema.String,
-  kind: Schema.String,
+  kind: Schema.Literals(RELATION_KIND_VALUES),
   summary: Schema.optionalKey(Schema.String),
   attributes: Schema.optionalKey(AttributesSchema),
+}).annotate({
+  identifier: "ProjectRelationInput",
+  description: "One canonical project relation authored in a model document.",
 });
 
-const DocumentSchema = Schema.Struct({
+export const ProjectDocumentInputSchema = Schema.Struct({
   entities: Schema.optionalKey(Schema.Array(EntityInputSchema)),
   relations: Schema.optionalKey(Schema.Array(RelationInputSchema)),
+}).annotate({
+  identifier: "ProjectDocumentInput",
+  description: "A canonical Semantic Systems project-model source document.",
 });
 
 type EntityInput = typeof EntityInputSchema.Type;
@@ -82,7 +98,9 @@ const readDocument = (source: string) =>
           }),
       ),
     );
-    return yield* Schema.decodeUnknownEffect(DocumentSchema)(input).pipe(
+    return yield* Schema.decodeUnknownEffect(ProjectDocumentInputSchema, {
+      onExcessProperty: "error",
+    })(input).pipe(
       Effect.mapError(
         (cause) =>
           new ProjectLoadError({

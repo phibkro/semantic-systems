@@ -49,15 +49,18 @@ describe("project model Effect v4 slice", () => {
     expect(validateProject(project).filter((issue) => issue.severity === "error")).toEqual([]);
   });
 
-  test("renders all nine accepted views byte-for-byte", async () => {
+  test("renders all ten accepted views byte-for-byte", async () => {
     const views = generateViews(await runBun(loadProject(ROOT)));
-    expect(views.size).toBe(9);
+    expect(views.size).toBe(10);
     for (const [name, content] of views) {
       expect(content).toBe(await Bun.file(join(ROOT, "generated", name)).text());
     }
     expect(views.get("02-theory-realization.md")).toContain("Inventory STM realization");
     expect(views.get("07-runtime-view.md")).toContain("```mermaid");
     expect(views.get("08-feature-lifecycle.md")).toContain("# Feature lifecycle");
+    expect(views.get("schema/project-document.schema.json")).toContain(
+      '"$schema": "https://json-schema.org/draft/2020-12/schema"',
+    );
   });
 
   test("preserves the ready frontier and weighted critical path", async () => {
@@ -118,6 +121,16 @@ describe("project model Effect v4 slice", () => {
 
   test("rejects invalid document shapes", async () => {
     const root = await temporaryProject({ entities: {}, relations: [] });
+    const exit = await runBunExit(loadProject(root));
+    expect(Exit.isFailure(exit)).toBeTrue();
+    if (Exit.isFailure(exit)) expect(String(exit.cause)).toContain("invalid model document");
+  });
+
+  test("rejects fields outside the canonical document shape", async () => {
+    const root = await temporaryProject({
+      entities: [{ id: "component.extra", kind: "component", name: "Extra", unexpected: true }],
+      relations: [],
+    });
     const exit = await runBunExit(loadProject(root));
     expect(Exit.isFailure(exit)).toBeTrue();
     if (Exit.isFailure(exit)) expect(String(exit.cause)).toContain("invalid model document");
