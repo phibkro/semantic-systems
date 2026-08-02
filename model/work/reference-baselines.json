@@ -163,8 +163,8 @@
       "attributes": {}
     },
     {
-      "source": "work.rx1-generator-determinism",
-      "target": "work.rx2-assumption-query",
+      "source": "work.rx2-assumption-query",
+      "target": "work.rx1-generator-determinism",
       "kind": "blocks",
       "summary": "RX2 and later experiments rest on the determinism precondition RX1 probes.",
       "attributes": {}

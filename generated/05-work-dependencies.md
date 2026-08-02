@@ -65,7 +65,7 @@ flowchart LR
     decision_reference_method_adoption -->|informs| work_reference_baselines_deep_research
     decision_reference_method_adoption -->|informs| work_rx1_generator_determinism
     decision_reference_method_adoption -->|informs| work_rx2_assumption_query
-    work_rx1_generator_determinism -->|blocks| work_rx2_assumption_query
+    work_rx2_assumption_query -->|blocks| work_rx1_generator_determinism
     work_core_checker -->|blocks| work_kernel_spec
     work_kernel_spec -->|requires| decision_one_shot
     work_theory_identity -->|requires| decision_theory_identity
