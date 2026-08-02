@@ -5,13 +5,57 @@
       "kind": "work_item",
       "name": "Implement agent observation correlation",
       "summary": "Correlate bounded Langfuse or ClickStack observations with canonical PBK project and work identities without granting telemetry authority.",
-      "status": "in_progress",
+      "status": "complete",
       "tags": ["control-room", "observability", "agents"],
       "attributes": {
         "feature_id": "0057-control-room-agent-observation-correlation",
         "feature_loop": "managed",
-        "phase": "implementation",
+        "phase": "validation",
         "effort": 8,
+        "completion": {
+          "outcome": "positive",
+          "implementation_head": "5076a9ac85d16a0cbdd92fd3a4dca90a1ab7a3e9",
+          "integration_head": "5076a9ac85d16a0cbdd92fd3a4dca90a1ab7a3e9",
+          "evidence": [
+            {
+              "role": "feature_acceptance",
+              "category": "runtime_check",
+              "method": "runtime_validation",
+              "source": {
+                "kind": "repository_artifact",
+                "path": "plans/completed/0057-control-room-agent-observation-correlation.md"
+              },
+              "claim": "feature_acceptance: runtime_validation"
+            },
+            {
+              "role": "integration_test",
+              "category": "test",
+              "method": "test_and_static_analysis",
+              "source": {
+                "kind": "repository_artifact",
+                "path": "plans/completed/0057-control-room-agent-observation-correlation.md"
+              },
+              "claim": "integration_gate: test_and_static_analysis"
+            },
+            {
+              "role": "integration_analysis",
+              "category": "analysis",
+              "method": "test_and_static_analysis",
+              "source": {
+                "kind": "repository_artifact",
+                "path": "plans/completed/0057-control-room-agent-observation-correlation.md"
+              },
+              "claim": "integration_gate: test_and_static_analysis"
+            },
+            {
+              "role": "independent_review",
+              "category": "assertion",
+              "method": "assertion",
+              "source": { "kind": "authored_assertion" },
+              "claim": "independent_review: assertion"
+            }
+          ]
+        },
         "acceptance": [
           "One bounded Langfuse and one bounded ClickStack capture produce deterministic correlation artifacts",
           "Complete captures reject false completeness while incomplete captures remain inspectable",

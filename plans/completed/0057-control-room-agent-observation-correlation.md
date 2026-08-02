@@ -50,7 +50,7 @@ Deliver one executable, bounded, vendor-neutral tracer bullet. It decodes one of
 ## Acceptance
 
 ```bash
-nix develop -c bun scripts/accept/0057-control-room-agent-observation-correlation.ts
+just accept 0057-control-room-agent-observation-correlation
 ```
 
 The acceptance program must print both source digests, declared bounds, capture states, unsupported claims, and checks that did not run.
@@ -58,7 +58,19 @@ The acceptance program must print both source digests, declared bounds, capture 
 ## Evidence ledger
 
 - 2026-08-02: the operator approved the draft direction. The frozen contract added exact digest custody, complete-tree rules, the Effect `Crypto` requirement, and `observed_only` attempt semantics before implementation.
+- 2026-08-02: exact-head acceptance at
+  `5076a9ac85d16a0cbdd92fd3a4dca90a1ab7a3e9` passed 14 observation tests, six
+  Control Room projection tests, TypeScript checking, semantic model
+  validation, and generated-view freshness.
+- 2026-08-02: independent feature and security reviews accepted the final live
+  implementation with no Critical or Important finding. These reviews are
+  authored assertions, not runtime evidence. One Low bounded browser-availability
+  residual remains: the read-only view eagerly renders a valid maximum-size
+  report.
 
 ## Assumptions and limits
 
 Vendor exports and portfolio snapshots can lie about their origin. Digest verification establishes byte identity only. Parent links do not establish causal truth. Explicit PBK attributes do not establish caller authorization. Tests and runtime checks do not prove completeness, correctness, evidence sufficiency, or agent quality.
+
+Status: accepted at implementation head
+`5076a9ac85d16a0cbdd92fd3a4dca90a1ab7a3e9`.

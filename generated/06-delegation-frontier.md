@@ -2,7 +2,7 @@
 
 <!-- Generated. Edit model sources, not this file. -->
 
-Ready parallel work items: **12**.
+Ready parallel work items: **11**.
 
 | Work item | Phase | Status | Ready | Score | Recommendation | Blockers |
 |---|---|---|---:|---:|---|---|
@@ -11,7 +11,7 @@ Ready parallel work items: **12**.
 | Design agent-facing kernel JSON | validation | complete | no | 75 | delegate with review |  |
 | Establish the autonomous development control loop | implementation | in_progress | yes | 83 | delegate with review |  |
 | Canonicalize the project work lifecycle | implementation | superseded | no | 77 | delegate with review |  |
-| Implement agent observation correlation | implementation | in_progress | yes | 83 | delegate with review |  |
+| Implement agent observation correlation | validation | complete | no | 83 | delegate with review |  |
 | Render the PBK roadmap as an interactive skill tree | implementation | complete | no | 72 | delegate with review |  |
 | Reconstruct the Control Room on TypeScript and Effect v4 | validation | complete | no | 72 | delegate with review |  |
 | Implement core checker | implementation | planned | yes | 65 | delegate with review |  |
