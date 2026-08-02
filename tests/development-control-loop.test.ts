@@ -172,11 +172,11 @@ const featureFixture = async (featureId = "0005-fixture"): Promise<FeatureFixtur
   expect(git(repo, "init").exitCode).toBe(0);
   await Bun.write(join(repo, "README.md"), "baseline\n");
   const base = commit(repo, "docs: establish fixture");
-  for (const directory of ["design-specs", "plans", "scripts/accept"]) {
+  for (const directory of ["design-specs", "plans/active", "plans/superseded", "scripts/accept"]) {
     await mkdir(join(repo, directory), { recursive: true });
   }
   await Bun.write(join(repo, "design-specs", `${featureId}.md`), completeDesignLens());
-  await Bun.write(join(repo, "plans", `${featureId}.md`), featurePlan(featureId));
+  await Bun.write(join(repo, "plans", "active", `${featureId}.md`), featurePlan(featureId));
   await writeFeatureRecord(repo, featureId);
   const acceptance = join(repo, "scripts", "accept", `${featureId}.ts`);
   await Bun.write(acceptance, "#!/usr/bin/env bun\nconsole.log('fixture accepted');\n");
@@ -228,7 +228,7 @@ describe("autonomous development control loop", () => {
     await Bun.write(design, "# historical legacy contract\n");
     const historicalBase = commit(fixture.repo, "docs: simulate accepted legacy contract");
     await Bun.write(
-      join(fixture.repo, "plans", "0005-fixture.md"),
+      join(fixture.repo, "plans", "active", "0005-fixture.md"),
       featurePlan("0005-fixture", "continued legacy execution"),
     );
     const unchangedDesignHead = commit(fixture.repo, "plans: continue legacy feature");
@@ -241,7 +241,7 @@ describe("autonomous development control loop", () => {
 
     await Bun.write(design, "# changed contract without the required lens\n");
     await Bun.write(
-      join(fixture.repo, "plans", "0005-fixture.md"),
+      join(fixture.repo, "plans", "active", "0005-fixture.md"),
       featurePlan("0005-fixture", "changed contract execution"),
     );
     payload.pull_request.base.sha = unchangedDesignHead;
@@ -307,7 +307,7 @@ describe("autonomous development control loop", () => {
 
     await Bun.write(join(fixture.repo, "design-specs", "0006-second.md"), "# second\n");
     await Bun.write(
-      join(fixture.repo, "plans", "0006-second.md"),
+      join(fixture.repo, "plans", "active", "0006-second.md"),
       featurePlan("0006-second", "second feature"),
     );
     await writeFeatureRecord(fixture.repo, "0006-second");
@@ -368,7 +368,7 @@ describe("autonomous development control loop", () => {
       completeDesignLens("migrated carrier"),
     );
     await Bun.write(
-      join(fixture.repo, "plans", "0006-carrier.md"),
+      join(fixture.repo, "plans", "active", "0006-carrier.md"),
       featurePlan("0006-carrier", "migration carrier"),
     );
     await writeFeatureRecord(fixture.repo, "0006-carrier");
@@ -415,7 +415,7 @@ describe("autonomous development control loop", () => {
     ] as const) {
       await Bun.write(join(fixture.repo, "design-specs", `${featureId}.md`), design);
       await Bun.write(
-        join(fixture.repo, "plans", `${featureId}.md`),
+        join(fixture.repo, "plans", "active", `${featureId}.md`),
         featurePlan(featureId, "migration"),
       );
       await writeFeatureRecord(fixture.repo, featureId);
@@ -452,7 +452,7 @@ describe("autonomous development control loop", () => {
       `${completeDesignLens("cyclic carrier")}\nMigrates-Feature-IDs: 0005-fixture\n`,
     );
     await Bun.write(
-      join(fixture.repo, "plans", "0006-carrier.md"),
+      join(fixture.repo, "plans", "active", "0006-carrier.md"),
       featurePlan("0006-carrier", "cyclic migration"),
     );
     await writeFeatureRecord(fixture.repo, "0006-carrier");
@@ -487,7 +487,7 @@ describe("autonomous development control loop", () => {
       "# migrated contract without lens\n",
     );
     await Bun.write(
-      join(fixture.repo, "plans", "0006-carrier.md"),
+      join(fixture.repo, "plans", "active", "0006-carrier.md"),
       featurePlan("0006-carrier", "migration carrier"),
     );
     await writeFeatureRecord(fixture.repo, "0006-carrier");
@@ -516,7 +516,7 @@ describe("autonomous development control loop", () => {
       completeDesignLens("migrated carrier"),
     );
     await Bun.write(
-      join(fixture.repo, "plans", "0006-carrier.md"),
+      join(fixture.repo, "plans", "active", "0006-carrier.md"),
       featurePlan("0006-carrier", "migration carrier"),
     );
     await writeFeatureRecord(fixture.repo, "0006-carrier");
@@ -526,11 +526,11 @@ describe("autonomous development control loop", () => {
     const migrationHead = commit(fixture.repo, "refactor: migrate carrier");
 
     await Bun.write(
-      join(fixture.repo, "plans", "0005-fixture.md"),
+      join(fixture.repo, "plans", "active", "0005-fixture.md"),
       featurePlan("0005-fixture", "later owner change"),
     );
     await Bun.write(
-      join(fixture.repo, "plans", "0006-carrier.md"),
+      join(fixture.repo, "plans", "active", "0006-carrier.md"),
       featurePlan("0006-carrier", "later carrier change"),
     );
     const laterHead = commit(fixture.repo, "refactor: change both features later");
@@ -676,7 +676,7 @@ describe("autonomous development control loop", () => {
     const preLoopId = "0001-inventory-resolution-tracer";
     await Bun.write(join(fixture.repo, "design-specs", `${preLoopId}.md`), "# historical\n");
     await Bun.write(
-      join(fixture.repo, "plans", `${preLoopId}.md`),
+      join(fixture.repo, "plans", "active", `${preLoopId}.md`),
       featurePlan(preLoopId, "historical"),
     );
     await writeFeatureRecord(fixture.repo, preLoopId, "pre_loop");
@@ -684,7 +684,7 @@ describe("autonomous development control loop", () => {
     const supersededId = "0020-lossless-kernel-source";
     await Bun.write(join(fixture.repo, "design-specs", `${supersededId}.md`), "# superseded\n");
     await Bun.write(
-      join(fixture.repo, "plans", `${supersededId}.md`),
+      join(fixture.repo, "plans", "superseded", `${supersededId}.md`),
       featurePlan(supersededId, "source contract"),
     );
     await writeFeatureRecord(fixture.repo, supersededId);
@@ -731,7 +731,10 @@ describe("autonomous development control loop", () => {
         join(fixture.repo, "design-specs", `${featureId}.md`),
         completeDesignLens(featureId),
       );
-      await Bun.write(join(fixture.repo, "plans", `${featureId}.md`), featurePlan(featureId));
+      await Bun.write(
+        join(fixture.repo, "plans", "active", `${featureId}.md`),
+        featurePlan(featureId),
+      );
       await writeFeatureRecord(fixture.repo, featureId);
       const acceptance = join(fixture.repo, "scripts", "accept", `${featureId}.ts`);
       await Bun.write(acceptance, body);
@@ -779,7 +782,7 @@ describe("autonomous development control loop", () => {
     expect(text(bypass)).toContain("src/bypass.ts");
 
     const deleted = await featureFixture();
-    await rm(join(deleted.repo, "plans", "0005-fixture.md"));
+    await rm(join(deleted.repo, "plans", "active", "0005-fixture.md"));
     const deletedHead = commit(deleted.repo, "chore: delete feature plan");
     const deletedPlan = runFeatureTool(
       FEATURE_RUNNER,
@@ -797,7 +800,8 @@ describe("autonomous development control loop", () => {
     const renamed = await featureFixture();
     await mkdir(join(renamed.repo, "generated"));
     expect(
-      git(renamed.repo, "mv", "plans/0005-fixture.md", "generated/0005-fixture-plan.md").exitCode,
+      git(renamed.repo, "mv", "plans/active/0005-fixture.md", "generated/0005-fixture-plan.md")
+        .exitCode,
     ).toBe(0);
     const renamedHead = commit(renamed.repo, "chore: move feature plan into generated");
     const renamedPlan = runFeatureTool(

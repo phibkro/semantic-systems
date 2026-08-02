@@ -835,6 +835,20 @@ const inspectLifecycleDirectories = (
   issues: Array<FeatureDiagnostic>,
 ) =>
   Effect.gen(function* () {
+    const obsoleteDesignPath = "design-specs/superseded";
+    const obsoleteDesignDirectory = yield* fs
+      .stat(absoluteRepositoryPath(path, root, obsoleteDesignPath))
+      .pipe(Effect.exit);
+    if (Exit.isSuccess(obsoleteDesignDirectory)) {
+      issues.push(
+        issue(
+          "feature.lifecycle.path",
+          `lifecycle-dependent design-spec directory exists: ${obsoleteDesignPath}`,
+          { path: obsoleteDesignPath },
+        ),
+      );
+    }
+
     const planRoot = absoluteRepositoryPath(path, root, "plans");
     const rootPlans = yield* globRelative(fs, planRoot, "*.md", issues);
     for (const file of rootPlans) {

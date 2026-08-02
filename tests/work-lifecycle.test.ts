@@ -304,6 +304,7 @@ describe("canonical work lifecycle", () => {
       "plans/superseded/0008-orphan-plan.md",
       "# Plan 0008-orphan-plan: fixture\n",
     );
+    await mkdir(join(root, "design-specs", "superseded"), { recursive: true });
 
     const diagnostics = await runBun(
       validateFeatureRepository(project(root, [missing, wrong, rootRecord]), root),
@@ -337,6 +338,11 @@ describe("canonical work lifecycle", () => {
         (item) =>
           item.code === "feature.orphan.plan" &&
           item.path === "plans/superseded/0008-orphan-plan.md",
+      ),
+    ).toBeTrue();
+    expect(
+      diagnostics.some(
+        (item) => item.code === "feature.lifecycle.path" && item.path === "design-specs/superseded",
       ),
     ).toBeTrue();
   });
