@@ -1,10 +1,11 @@
 import { Schema } from "effect";
 import { stringifyCanonicalJson } from "../references/canonical-json.ts";
-import { ProjectDocumentInputSchema } from "./loader.ts";
+import { MODEL_DOCUMENT_GLOB, ProjectDocumentInputSchema } from "./loader.ts";
 import type { JsonValue } from "./types.ts";
 import { FeatureMetadataSchema } from "./work-lifecycle.ts";
 
 export const PROJECT_DOCUMENT_SCHEMA_PATH = "generated/schema/project-document.schema.json";
+export const PROJECT_JSON_LANGUAGE_SERVER_CONFIG_PATH = ".omp/lsp.json";
 
 const SchemaProjectionSource = Schema.Struct({
   document: ProjectDocumentInputSchema,
@@ -16,7 +17,7 @@ type MutableJsonObject = Record<string, unknown>;
 const cloneObject = (value: unknown): MutableJsonObject =>
   structuredClone(value) as MutableJsonObject;
 
-export const projectDocumentJsonSchema = (): JsonValue => {
+const buildProjectDocumentJsonSchema = (): JsonValue => {
   const document = Schema.toJsonSchemaDocument(SchemaProjectionSource, {
     generateDescriptions: true,
   });
@@ -38,7 +39,9 @@ export const projectDocumentJsonSchema = (): JsonValue => {
           required: ["kind", "attributes"],
           properties: {
             kind: { const: "work_item" },
-            attributes: { required: ["feature_id"] },
+            attributes: {
+              anyOf: [{ required: ["feature_id"] }, { required: ["feature_loop"] }],
+            },
           },
         },
       ],
@@ -64,5 +67,31 @@ export const projectDocumentJsonSchema = (): JsonValue => {
   };
 };
 
+const ProjectDocumentJsonSchema = buildProjectDocumentJsonSchema();
+
+export const projectDocumentJsonSchema = (): JsonValue =>
+  structuredClone(ProjectDocumentJsonSchema);
+
 export const projectDocumentJsonSchemaText = (): string =>
   `${stringifyCanonicalJson(projectDocumentJsonSchema(), 2)}\n`;
+
+export const projectJsonLanguageServerConfig = (): JsonValue => ({
+  servers: {
+    "vscode-json-language-server": {
+      settings: {
+        json: {
+          validate: { enable: true },
+          schemas: [
+            {
+              fileMatch: [`model/${MODEL_DOCUMENT_GLOB}`],
+              schema: projectDocumentJsonSchema(),
+            },
+          ],
+        },
+      },
+    },
+  },
+});
+
+export const projectJsonLanguageServerConfigText = (): string =>
+  `${stringifyCanonicalJson(projectJsonLanguageServerConfig(), 2)}\n`;

@@ -42,6 +42,8 @@ semantic correctness.
 ### Semantic outputs
 
 - `generated/schema/project-document.schema.json`: deterministic projection.
+- `.omp/lsp.json`: deterministic repository configuration with the schema
+  embedded for `model/**/*.json`.
 - LSP completion candidates and diagnostics: ephemeral editor observations.
 - `semproj validate`: existing semantic diagnostics, unchanged.
 
@@ -60,10 +62,11 @@ claimed as enforced.
 flowchart LR
   E[Effect v4 input schemas] --> G[semproj generator]
   G --> J[generated JSON Schema]
-  J --> L[standard JSON language service]
+  G --> C[repository LSP configuration]
+  J --> C
+  C --> L[standard JSON language service]
   M[model JSON] --> L
   M --> V[semproj semantic validator]
-```
 
 The generator preserves one structural vocabulary. The semantic validator applies
 a different, stronger graph vocabulary. Neither result upgrades the other's
@@ -91,9 +94,12 @@ and has no authority to mutate model documents.
 `projectDocumentJsonSchema(): JsonValue` returns a deterministic Draft 2020-12
 schema derived from the exported Effect v4 schemas. The projection exposes exact
 entity and relation kind enums and feature lifecycle metadata while leaving other
-attribute keys available to their owning domain validators. `semproj generate`
-owns the output path. `.omp/lsp.json` binds that output to canonical model JSON
-using the maintained JSON language server.
+attribute keys available to their owning domain validators. Default
+`semproj generate` owns both the generated schema path and `.omp/lsp.json`;
+the repository configuration embeds that schema and binds it to canonical model
+JSON using the maintained JSON language server. An explicit `--output PATH`
+writes or checks only that isolated projection directory and never mutates or
+requires repository configuration.
 
 ## Oracle-first counterexamples
 
@@ -138,3 +144,8 @@ Before: model JSON shape is checked only by commands, and a hand-authored schema
 can drift. After: Effect schemas remain canonical, a deterministic schema
 projection supplies standard language tooling, and semantic validation remains
 explicitly separate.
+
+Revision 1, 2026-08-02: `.omp/lsp.json` is now an explicit deterministic
+repository projection of the same Effect schema. The initial frozen text treated
+it only as a hand-authored binding; this revision invalidates that custody claim.
+An explicit generation output remains isolated from repository configuration.

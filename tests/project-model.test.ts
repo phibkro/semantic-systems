@@ -87,6 +87,10 @@ describe("project model Effect v4 slice", () => {
     expect(project.entities.get("work.relational-fact-schema")?.source).toEndWith(
       "/model/work/features/0053-relational-fact-export.json",
     );
+    expect(project.entities.get("work.wasm-contract-mapping")?.status).toBe("in_progress");
+    expect(project.entities.get("work.wasm-contract-mapping")?.source).toEndWith(
+      "/model/work/features/0054-semantic-contract-wit-mapping.json",
+    );
     const path = criticalPath(project);
     expect(path.length).toBeGreaterThan(0);
     expect(["work.stm-model-check", "work.inventory-stm"]).toContain(path[path.length - 1]!);
@@ -157,6 +161,17 @@ describe("project model Effect v4 slice", () => {
     expect(await runBun(runSemproj(["validate", "--check"]))).toBe(2);
     expect(await runBun(runSemproj(["report", "--output", "elsewhere"]))).toBe(2);
     expect(await runBun(runSemproj(["validate", "--root", ROOT]))).toBe(2);
+  });
+
+  test("keeps custom generation output isolated from repository configuration", async () => {
+    const root = await temporaryProject({ entities: [], relations: [] });
+    expect(
+      await runBun(runSemproj(["--root", root, "generate", "--output", join(root, "preview")])),
+    ).toBe(0);
+    expect(
+      await Bun.file(join(root, "preview", "schema/project-document.schema.json")).exists(),
+    ).toBeTrue();
+    expect(await Bun.file(join(root, ".omp", "lsp.json")).exists()).toBeFalse();
   });
 
   test("Bun and Node live layers observe the same portable project program", async () => {

@@ -1,15 +1,20 @@
 import { Console, Effect, Path, type FileSystem } from "effect";
 import { loadProject } from "./loader.ts";
+import {
+  PROJECT_JSON_LANGUAGE_SERVER_CONFIG_PATH,
+  projectJsonLanguageServerConfigText,
+} from "./project-json-schema.ts";
 import { assessWork, criticalPath } from "./schedule.ts";
 import { validateFeatureRepository, type FeatureDiagnostic } from "./work-lifecycle.ts";
 import { validateProject, type ValidationIssue } from "./validate.ts";
-import { generateViews, writeViews } from "./views.ts";
+import { generateViews, writeGeneratedFiles } from "./views.ts";
 
 interface Command {
   readonly root: string;
   readonly name: "validate" | "report" | "generate";
   readonly output: string;
   readonly check: boolean;
+  readonly outputExplicit: boolean;
 }
 
 const usage = "usage: semproj [--root PATH] {validate,report,generate} [--output PATH] [--check]";
@@ -27,23 +32,25 @@ const parseCommand = (arguments_: ReadonlyArray<string>): Command | undefined =>
   if (name !== "validate" && name !== "report" && name !== "generate") return undefined;
   if (name !== "generate") {
     return index === arguments_.length
-      ? { root, name, output: "generated", check: false }
+      ? { root, name, output: "generated", outputExplicit: false, check: false }
       : undefined;
   }
 
   let output = "generated";
   let check = false;
+  let outputExplicit = false;
   for (; index < arguments_.length; index += 1) {
     const argument = arguments_[index]!;
     if (argument === "--output" && arguments_[index + 1] !== undefined) {
       output = arguments_[++index]!;
+      outputExplicit = true;
     } else if (argument === "--check") {
       check = true;
     } else {
       return undefined;
     }
   }
-  return { root, name, output, check };
+  return { root, name, output, outputExplicit, check };
 };
 
 type ProjectIssue = ValidationIssue | FeatureDiagnostic;
@@ -111,17 +118,30 @@ export const runSemproj = (
     }
 
     const views = generateViews(project);
-    const changed = yield* writeViews(
-      pathService.join(project.root, command.output),
+    const changedViews = yield* writeGeneratedFiles(
+      pathService.resolve(project.root, command.output),
       views,
       command.check,
     );
+    const changedRepositoryFiles = command.outputExplicit
+      ? []
+      : yield* writeGeneratedFiles(
+          project.root,
+          new Map([
+            [PROJECT_JSON_LANGUAGE_SERVER_CONFIG_PATH, projectJsonLanguageServerConfigText()],
+          ]),
+          command.check,
+        );
+    const changed = [...changedViews, ...changedRepositoryFiles];
     if (command.check && changed.length > 0) {
-      yield* Console.error("generated views are stale:");
+      yield* Console.error("generated projections are stale:");
       for (const changedPath of changed) yield* Console.error(`  ${changedPath}`);
       return 1;
     }
-    yield* Console.log(`${command.check ? "checked" : "generated"} ${views.size} views`);
+    const repositoryConfigurationCount = command.outputExplicit ? 0 : 1;
+    yield* Console.log(
+      `${command.check ? "checked" : "generated"} ${views.size} views and ${repositoryConfigurationCount} repository configurations`,
+    );
     return 0;
   }).pipe(Effect.catch((error) => Console.error(error.message).pipe(Effect.as(1))));
 };

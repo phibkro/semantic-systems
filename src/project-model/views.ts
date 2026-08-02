@@ -193,7 +193,7 @@ export const generateViews = (project: ProjectGraph): ReadonlyMap<string, string
     [PROJECT_DOCUMENT_SCHEMA_PATH.replace("generated/", ""), projectDocumentJsonSchemaText()],
   ]);
 
-export const writeViews = (
+export const writeGeneratedFiles = (
   output: string,
   views: ReadonlyMap<string, string>,
   check: boolean,

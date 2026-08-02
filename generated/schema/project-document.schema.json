@@ -276,8 +276,17 @@
           "if": {
             "properties": {
               "attributes": {
-                "required": [
-                  "feature_id"
+                "anyOf": [
+                  {
+                    "required": [
+                      "feature_id"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "feature_loop"
+                    ]
+                  }
                 ]
               },
               "kind": {

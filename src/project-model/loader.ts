@@ -12,6 +12,7 @@ export class ProjectLoadError extends Data.TaggedError("ProjectLoadError")<{
   readonly message: string;
   readonly cause?: unknown;
 }> {}
+export const MODEL_DOCUMENT_GLOB = "**/*.json";
 
 const AttributesSchema = Schema.Record(Schema.String, Schema.Unknown);
 
@@ -66,7 +67,7 @@ const listModelFiles = (modelRoot: string) =>
           }),
       ),
     );
-    const sources = yield* fs.glob("**/*.json", { root: modelRoot }).pipe(
+    const sources = yield* fs.glob(MODEL_DOCUMENT_GLOB, { root: modelRoot }).pipe(
       Effect.mapError(
         (cause) =>
           new ProjectLoadError({
