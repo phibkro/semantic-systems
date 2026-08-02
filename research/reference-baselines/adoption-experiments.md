@@ -37,8 +37,6 @@ scripts/experiments/0002-generator-determinism.ts` ran six fresh runtime
   This is a machine check of this source tree, not a proof of future
   determinism or memoization correctness.
 
-## Runnable now
-
 ### RX2 — assumptions(artifact) over recorded edges (from cached E4)
 
 - Method: `sem.per-artifact-assumption-query`. Boundary: B1/B3. Rung:
@@ -64,6 +62,9 @@ scripts/experiments/0002-generator-determinism.ts` ran six fresh runtime
 - Runnable Node command: `nix develop --command node scripts/experiments/0002-assumption-query.ts`.
 - Fixture linkage: the canonical register is `model/architecture/assumption-register.json`; positive and permanent negative fixtures are `src/project-model/assumption-fixtures.ts#positiveAssumptionFixture` and `src/project-model/assumption-fixtures.ts#negativeOpaqueAdapterFixture`.
 - Each invocation emits its runtime identity and selected Effect platform layer plus a real-graph register probe; compare semantic fixture reports across the Bun and genuine Node observations.
+- Observation (2026-08-02): both runnable commands completed under Bun 1.3.13 with `@effect/platform-bun` and genuine Node v24.18.0 with `@effect/platform-node`. After removing the runtime envelope, their semantic observations were identical. The real-graph probe resolved all nine registered opaque primitives and emitted nine `known_opaque` markers. The positive fixture emitted one reachable assumption with `incomplete`; the permanent negative fixture emitted no assumptions with `recorded_complete`, preserving the tested clean-but-wrong mode. `bun test tests/project-model-assumptions.test.ts` passed 11 tests. The observed wiring interval from delegated implementation start through successful parent execution was 56 minutes, below the two-day kill threshold. These runtime checks and tests do not establish completeness beyond the recorded graph plus supplied register, external-tool correctness, or future behavior.
+
+## Runnable now
 
 ### RX3 — ambient-effect inventory and capability wall (from cached E2)
 

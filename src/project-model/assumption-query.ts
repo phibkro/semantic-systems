@@ -103,7 +103,6 @@ export interface OpaquePrimitiveRegistry {
   readonly negativeFixture: string | null;
 }
 
-
 const asRecord = (value: unknown): Readonly<Record<string, unknown>> | undefined =>
   value !== null && typeof value === "object" && !Array.isArray(value)
     ? (value as Readonly<Record<string, unknown>>)
@@ -163,8 +162,7 @@ export const decodeOpaquePrimitiveRegistry = (project: ProjectGraph): OpaquePrim
   return freezeRegistry({
     sourceArtifactId: register.id,
     primitives: primitives.sort(
-      (left, right) =>
-        compareText(left.id, right.id) || compareText(left.class, right.class),
+      (left, right) => compareText(left.id, right.id) || compareText(left.class, right.class),
     ),
     manuallyAssertedRelationClasses: manuallyAssertedRelationClasses.sort(compareText),
     negativeFixture,

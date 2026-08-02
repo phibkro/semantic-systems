@@ -8,7 +8,7 @@
 | artifact | 7 |
 | assumption | 4 |
 | claim | 6 |
-| component | 21 |
+| component | 27 |
 | decision | 7 |
 | deployment | 4 |
 | domain_machine | 1 |
@@ -24,7 +24,7 @@
 | question | 3 |
 | realization | 4 |
 | responsibility | 2 |
-| runtime | 8 |
+| runtime | 10 |
 | theory | 12 |
 | work_item | 47 |
 

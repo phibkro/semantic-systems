@@ -2,7 +2,7 @@
 
 <!-- Generated. Edit model sources, not this file. -->
 
-Ready parallel work items: **12**.
+Ready parallel work items: **11**.
 
 | Work item | Phase | Status | Ready | Score | Recommendation | Blockers |
 |---|---|---|---:|---:|---|---|
@@ -44,7 +44,7 @@ Ready parallel work items: **12**.
 | Recut the independent resolution checker | design | complete | no | 83 | delegate with review |  |
 | Apply reuse-first engineering assignments | implementation | in_progress | yes | 94 | delegate with review |  |
 | RX1: cross-runtime generator determinism | validation | complete | no | 93 | delegate directly |  |
-| RX2: assumptions(artifact) over recorded edges | implementation | planned | yes | 74 | delegate with review |  |
+| RX2: assumptions(artifact) over recorded edges | validation | complete | no | 74 | delegate with review |  |
 | Specify semantic attestation profile | design | ready | no | 87 | delegate with review | Define normalized theory identity |
 | Specify STM effect and handler laws | validation | complete | no | 49 | bounded spike |  |
 | Model-check STM interleavings | validation | complete | no | 84 | delegate with review |  |

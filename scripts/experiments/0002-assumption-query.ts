@@ -13,7 +13,6 @@ import {
 } from "../../src/project-model/assumption-fixtures.ts";
 import { loadProject } from "../../src/project-model/loader.ts";
 
-
 type RuntimeIdentity = {
   readonly selected: "bun" | "node";
   readonly version: string;

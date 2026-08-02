@@ -117,10 +117,7 @@ describe("project-model assumptions query", () => {
   });
 
   test("chooses the lexically smallest witness among equal-distance paths", () => {
-    const report = assumptionReport(
-      equalDistancePathAssumptionFixture(),
-      "artifact.rx2.tie.start",
-    );
+    const report = assumptionReport(equalDistancePathAssumptionFixture(), "artifact.rx2.tie.start");
     expect(report.assumptions[0]?.path.entityIds).toEqual([
       "artifact.rx2.tie.start",
       "artifact.rx2.tie.hop-a",
@@ -209,7 +206,11 @@ describe("project-model assumptions query", () => {
       root: "fixture",
     });
     expect(registry.sourceArtifactId).toBeNull();
-    const report = assumptionReport(positiveAssumptionFixture(), "artifact.rx2.positive.start", registry);
+    const report = assumptionReport(
+      positiveAssumptionFixture(),
+      "artifact.rx2.positive.start",
+      registry,
+    );
     expect(report.scope.opaqueRegistry).toBe("not_supplied");
   });
 });
