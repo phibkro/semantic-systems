@@ -61,3 +61,16 @@ just accept 0056-project-json-language-tooling
 - 2026-08-02: the project already had an unbound hand-authored schema whose entity
   and relation kinds had drifted to unconstrained strings. The Effect v4 decoder
   and lifecycle schema are the existing runtime sources.
+
+- 2026-08-02: direct repository LSP probing exposed a harness diagnostics gap:
+  malformed JSON returned no reported diagnostic. The gap was reported. Focused
+  tests therefore invoke the maintained JSON language service directly.
+- 2026-08-02: exact acceptance at integration head
+  `20cacef163069d473ca0bf2b1758adf906f98ca1` passed 5 JSON-tooling tests, 13
+  project-model tests, semantic validation, projection freshness, typecheck,
+  lint, and format checks.
+- 2026-08-02: independent final review accepted the corrected generated-schema
+  custody, exact model glob, semantic boundary, explicit-output isolation, and
+  acceptance coverage. Independent review is an authored assertion.
+
+Status: accepted at integration head `20cacef163069d473ca0bf2b1758adf906f98ca1`.

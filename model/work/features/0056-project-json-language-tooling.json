@@ -5,13 +5,57 @@
       "kind": "work_item",
       "name": "Generate schema-backed project JSON tooling",
       "summary": "Project Effect v4 input schemas to deterministic Draft 2020-12 JSON Schema and bind the maintained JSON language service for canonical model editing.",
-      "status": "in_progress",
+      "status": "complete",
       "tags": ["work", "project-model", "json-schema", "lsp"],
       "attributes": {
         "feature_id": "0056-project-json-language-tooling",
         "feature_loop": "managed",
-        "phase": "implementation",
+        "phase": "validation",
         "effort": 8,
+        "completion": {
+          "outcome": "positive",
+          "implementation_head": "019ef7258c345a1bc537fe50be049ada581ff68f",
+          "integration_head": "20cacef163069d473ca0bf2b1758adf906f98ca1",
+          "evidence": [
+            {
+              "role": "feature_acceptance",
+              "category": "runtime_check",
+              "method": "runtime_validation",
+              "source": {
+                "kind": "repository_artifact",
+                "path": "plans/completed/0056-project-json-language-tooling.md"
+              },
+              "claim": "feature_acceptance: runtime_validation"
+            },
+            {
+              "role": "integration_test",
+              "category": "test",
+              "method": "test_and_static_analysis",
+              "source": {
+                "kind": "repository_artifact",
+                "path": "plans/completed/0056-project-json-language-tooling.md"
+              },
+              "claim": "integration_gate: test_and_static_analysis"
+            },
+            {
+              "role": "integration_analysis",
+              "category": "analysis",
+              "method": "test_and_static_analysis",
+              "source": {
+                "kind": "repository_artifact",
+                "path": "plans/completed/0056-project-json-language-tooling.md"
+              },
+              "claim": "integration_gate: test_and_static_analysis"
+            },
+            {
+              "role": "independent_review",
+              "category": "assertion",
+              "method": "assertion",
+              "source": { "kind": "authored_assertion" },
+              "claim": "independent_review: assertion"
+            }
+          ]
+        },
         "acceptance": [
           "Effect v4 input schemas remain the sole authored structural source",
           "Generated Draft 2020-12 schema exposes exact kinds and lifecycle metadata",
