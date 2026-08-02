@@ -53,7 +53,7 @@
               "method": "differential_testing",
               "source": {
                 "kind": "repository_artifact",
-                "path": "tests/reference-custody.test.ts"
+                "path": "plans/0010-typescript-effect-v4-runtime.md"
               },
               "claim": "Bun and Node catalog-check observations are byte-identical"
             },
