@@ -56,7 +56,7 @@ type TypeAliases = ReadonlyMap<string, WitType>;
 const containsAsync = (
   type: WitType,
   typeAliases: TypeAliases,
-  visiting: Set<string> = new Set(),
+  seen: Set<string> = new Set(),
 ): boolean => {
   switch (type.kind) {
     case "stream":
@@ -64,19 +64,19 @@ const containsAsync = (
       return true;
     case "list":
     case "option":
-      return containsAsync(type.element, typeAliases, visiting);
+      return containsAsync(type.element, typeAliases, seen);
     case "result":
       return (
-        (type.ok !== null && containsAsync(type.ok, typeAliases, visiting)) ||
-        (type.err !== null && containsAsync(type.err, typeAliases, visiting))
+        (type.ok !== null && containsAsync(type.ok, typeAliases, seen)) ||
+        (type.err !== null && containsAsync(type.err, typeAliases, seen))
       );
     case "tuple":
-      return type.elements.some((element) => containsAsync(element, typeAliases, visiting));
+      return type.elements.some((element) => containsAsync(element, typeAliases, seen));
     case "named": {
       const alias = typeAliases.get(type.name);
-      if (alias === undefined || visiting.has(type.name)) return false;
-      visiting.add(type.name);
-      const result = containsAsync(alias, typeAliases, visiting);
+      if (alias === undefined || seen.has(type.name)) return false;
+      seen.add(type.name);
+      const result = containsAsync(alias, typeAliases, seen);
       return result;
     }
     default:
