@@ -122,9 +122,9 @@ const release = (handle: ChildProcessSpawner.ChildProcessHandle) =>
 /**
  * Acquire the interoperable `.references/.curator.lock` kernel lock.
  *
- * The scoped holder uses util-linux `flock` and the same advisory lock file as
- * the transitional Python implementation. It never truncates or writes the
- * file. Stable symlink/hardlink substitution is rejected before and after
+ * The scoped holder uses util-linux `flock` over the canonical advisory lock
+ * file. It never truncates or writes the file. Stable symlink/hardlink
+ * substitution is rejected before and after
  * acquisition; the frozen local threat model does not claim race-free defense
  * against a concurrently malicious filesystem actor.
  */

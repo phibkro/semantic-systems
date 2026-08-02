@@ -989,6 +989,8 @@ await Bun.write(
     ]) {
       expect(flake).toContain(`name == "${directory}"`);
     }
+    expect(flake).toContain('pkgs.lib.hasPrefix ".py" name');
+    expect(flake).toContain('pkgs.lib.hasSuffix "_cache" name');
   });
 
   test("uses Just over typed Bun entrypoints and owns no shell program", async () => {

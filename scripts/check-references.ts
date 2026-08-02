@@ -21,7 +21,7 @@ const program = Effect.gen(function* () {
     ["bun", "test", "tests/reference-custody.test.ts"],
     ["bun", "run", "typecheck"],
     ["bun", "run", "lint"],
-    ["bunx", "oxfmt", "--check", "src/references", "tests/reference-custody.test.ts"],
+    ["node_modules/.bin/oxfmt", "--check", "src/references", "tests/reference-custody.test.ts"],
     ["node", "src/references/main-node.ts", "catalog-check"],
   ] as const) {
     yield* runCommand(command, { cwd: root });

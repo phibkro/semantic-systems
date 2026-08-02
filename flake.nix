@@ -80,6 +80,8 @@
                 || name == ".research-cache"
                 || name == ".venv"
                 || name == "__pycache__"
+                || pkgs.lib.hasPrefix ".py" name
+                || pkgs.lib.hasSuffix "_cache" name
                 || name == "build"
                 || name == "dist"
                 || pkgs.lib.hasPrefix "bun-debug-" name
@@ -103,7 +105,11 @@
               export LC_ALL="C.UTF-8"
               actionlint .github/workflows/check.yml
               test ! -e pyproject.toml
-              test -z "$(find src tests scripts -type f -name '*.py' -print)"
+              for directory in src tests scripts; do
+                test -d "$directory"
+              done
+              legacy_sources="$(find src tests scripts -type f -name '*.py' -print)" || exit 1
+              test -z "$legacy_sources"
             '';
             installPhase = "mkdir -p $out && echo ok > $out/result";
           };

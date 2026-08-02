@@ -1391,6 +1391,64 @@ describe("reference custody Effect v4 slice: offline Git observation", () => {
     expect(repeated.licenses.get("LICENSE")?.sha256).toBe(expectedLicenseHash);
   });
 
+  test("locks and verifies every declared license artifact", async () => {
+    const fixture = await localSiblingFixture();
+    const apacheLicense = "Apache\n";
+    await writeFile(join(fixture.sibling, "LICENSE-APACHE"), apacheLicense);
+    runCommand(["git", "add", "-A"], fixture.sibling);
+    runCommand(
+      [
+        "git",
+        "-c",
+        "user.email=custody@example.com",
+        "-c",
+        "user.name=Custody Test",
+        "commit",
+        "--quiet",
+        "-m",
+        "add second license",
+      ],
+      fixture.sibling,
+    );
+    await mkdir(join(fixture.project, "references"));
+    await writeFile(
+      join(fixture.project, "references", "sources.toml"),
+      fixture.sourceText.replace(
+        'license_paths = ["LICENSE"]',
+        'license_paths = ["LICENSE", "LICENSE-APACHE"]',
+      ),
+    );
+
+    const lock = runTsCli(["--root", fixture.project, "lock", "demo.repo", "--offline"]);
+    expect(lock.exitCode).toBe(0);
+    const lockFile = await runBun(
+      loadLock(join(fixture.project, "references", "sources.lock.json")),
+    );
+    const entry = lockFile.sources.get("demo.repo");
+    expect([...entry!.licenses.keys()].sort()).toEqual(["LICENSE", "LICENSE-APACHE"]);
+    expect(entry?.licenses.get("LICENSE-APACHE")?.sha256).toBe(
+      createHash("sha256").update(apacheLicense).digest("hex"),
+    );
+
+    const materialize = runTsCli([
+      "--root",
+      fixture.project,
+      "materialize",
+      "demo.repo",
+      "--offline",
+    ]);
+    expect(materialize.exitCode).toBe(0);
+    const checkout = join(fixture.project, ".references", "demo.repo", "checkout");
+    runCommand(["git", "update-index", "--assume-unchanged", "LICENSE-APACHE"], checkout);
+    await writeFile(join(checkout, "LICENSE-APACHE"), "CHANGED\n");
+
+    const status = runTsCli(["--root", fixture.project, "status", "demo.repo", "--json"]);
+    expect(status.exitCode).toBe(1);
+    const [report] = JSON.parse(status.stdout);
+    expect(report.strict_ok).toBeFalse();
+    expect(report.reasons.some((reason: string) => reason.includes("LICENSE-APACHE"))).toBeTrue();
+  });
+
   test("rejects a local sibling whose configured origin is outside catalog custody", async () => {
     const fixture = await localSiblingFixture();
     runCommand(
@@ -3188,6 +3246,19 @@ describe("reference custody Effect v4 slice: CLI golden and cross-runtime observ
     );
   });
 
+  test("status requires exactly one source id or --all", async () => {
+    const root = await temporaryProject("schema = 1\n");
+    for (const selector of [[], ["demo.repo", "--all"]] as const) {
+      const args = ["--root", root, "status", ...selector];
+      const bun = runTsCli(args);
+      const node = runNodeCli(args);
+      expect(bun.exitCode).toBe(2);
+      expect(node.exitCode).toBe(bun.exitCode);
+      expect(bun.stdout).toBe("");
+      expect(node.stderr).toBe(bun.stderr);
+      expect(bun.stderr).toContain("usage: semrefs");
+    }
+  });
   test("status --all --lock-only --json is byte-identical under Bun and Node", () => {
     const bun = runTsCli(["status", "--all", "--lock-only", "--json"]);
     const node = runNodeCli(["status", "--all", "--lock-only", "--json"]);

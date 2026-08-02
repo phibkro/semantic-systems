@@ -17,12 +17,13 @@ Owner: main integration agent
   selected TypeScript, Unicorn, Import, and Promise rules. Effect-aware
   `@effect/tsgo` diagnostics and the local architecture plugin remain
   dependency-gated.
-- Remaining Python surface: the transitional reference-custody differential
-  test module plus transitional Nix/fast/integration wiring.
-  Catalog/lock parsing, atomic lock writing, the interoperable curator guard,
+- Repository-owned Python packaging, source, tests, and toolchain wiring are
+  removed after accepted differential observations were captured as immutable
+  TypeScript goldens. Reference custody now runs under Bun and Node:
+  catalog/lock parsing, atomic lock writing, the interoperable curator guard,
   transactional offline locking from local siblings or managed object caches,
   atomic offline materialization, checkout verification, and both network-free
-  status modes are now TypeScript (see item 6 below).
+  status modes.
   Project model, tracer, and governance tests are TypeScript.
 - External `.references/` checkouts are excluded from repository-source
   migration.
@@ -46,9 +47,8 @@ Other active feature worktrees and their owned files remain forbidden.
 2. Implement the project-model vertical slice with differential/golden oracles.
    **Complete.**
 3. Switch project-model active commands and gates after focused parity passes.
-   **Complete for host/active commands; the Nix derivation remains a declared
-   transitional differential oracle until dependencies are hermetically
-   packaged.**
+   **Complete: host and active commands plus Nix derivations use
+   TypeScript/Effect; no Python runtime remains.**
 4. Implement the inventory-tracer vertical slice. **Complete; the former
    Python package and test suite were removed after exact result differential
    parity and a final pinned Python oracle pass.**
@@ -76,9 +76,10 @@ Other active feature worktrees and their owned files remain forbidden.
    offline lock publication, offline atomic materialization, checkout
    verification, both network-free status modes, online remote locking, and
    exact/ref/explicit-history remote materialization now run on Effect v4 under
-   Bun and Node. The parsing/status/writer suite remains differential against
-   the Python oracle; Git security boundaries use adversarial fixtures and
-   deliberately exceed Python where review exposed shared defects. Remote
+   Bun and Node. The parsing/status/writer suite uses accepted pre-removal
+   differential goldens plus live Bun/Node parity; Git security boundaries use
+   adversarial fixtures and deliberately exceed the former implementation
+   where review exposed shared defects. Remote
    publication is interruption-atomic across cache and canonical lock.
    Annotated-tag peeling and a reserved cache-ref namespace remain localized
    fail-closed follow-ups.
@@ -91,8 +92,12 @@ Other active feature worktrees and their owned files remain forbidden.
    the pinned declarative task surface.**
 9. Remove Python packaging, source, tests, Nix dependencies, caches, legacy
    shell logic, Makefile indirection, and active command references.
+   **Complete after accepted differential observations were captured as
+   immutable TypeScript goldens.**
 10. Run exact acceptance, independent review, semantic/evidence audit, preview,
-    and integration gates.
+    and integration gates. **Final cutover acceptance and the semantic/evidence
+    audit are complete. Review corrections await exact-head confirmation, then
+    integration.**
 11. Replace direct Bun/Node capability use in semantic programs with portable
     Effect platform services; compose official Bun and Node live layers at
     entrypoints and compare equivalent bounded observations. **Complete for the
@@ -103,9 +108,13 @@ Other active feature worktrees and their owned files remain forbidden.
     ambient nondeterminism. **Complete for the project-model, inventory tracer,
     and reference-custody portable slices.**
 
-## Next delegated custody slice: remote acquisition and materialization
+## Historical delegated custody slice: remote acquisition and materialization
 
-This slice is frozen against design specs 0004 and 0010. Autonomy is A3:
+This section preserves the frozen assignment completed before the final
+Python-removal cutover. Its Python references describe the then-current
+differential boundary, not an active runtime, command, or authorization.
+
+The slice was frozen against design specs 0004 and 0010. Autonomy was A3:
 produce one committed, reviewable TypeScript custody slice in an isolated
 worktree based on the exact integration head containing this assignment. It
 may complete online `lock` and remote/history-fallback `materialize`; it is not
@@ -207,14 +216,14 @@ Deliver:
 
 - one focused Conventional Commit and exact head;
 - the red observation established before each behavior family;
-- Bun/Node and Python-differential results;
+- Bun/Node and accepted pre-removal differential/golden results;
 - atomicity, path-confinement, transport, object-closure, and negative-control
   results;
 - evaluated/reused prior art with license/provenance;
 - semantic diff and remaining trusted assumptions;
 - exact commands, checks not run, deviations, and remaining uncertainty.
 
-## First-slice gates
+## Historical first-slice gates
 
 ```bash
 bun test tests/project-model.test.ts
@@ -224,9 +233,9 @@ bun run semproj -- generate --check
 git diff --check
 ```
 
-The existing generated directory is the byte-for-byte golden oracle. Python
-remains installed only as a temporary differential oracle until the slice is
-accepted; no new Python implementation is permitted.
+The existing generated directory remains the byte-for-byte project-model
+golden oracle. Accepted pre-removal differential observations remain immutable
+reference-custody goldens; no Python runtime or implementation is active.
 
 ## Reuse and prior art record
 
@@ -270,8 +279,6 @@ accepted; no new Python implementation is permitted.
 - Reference custody has substantially more filesystem/Git race and safety
   surface than the first two slices; it is migrated after the local semantic
   core is stable.
-- The full acceptance gate remains intentionally red until the final
-  Python-removal slice.
 
 ## Log
 
@@ -719,3 +726,17 @@ accepted; no new Python implementation is permitted.
   accepted.
 - 2026-08-02: Historical leading status migrated verbatim from the pre-migration plan:
   Status: in progress
+- 2026-08-02: candidate `4ab8722` removed the repository-owned Python package,
+  tests, packaging, and toolchain dependencies after capturing the accepted
+  differential boundary as immutable TypeScript goldens. Independent review
+  reproduced all 23 catalog digests, the astral digest, canonical lock bytes,
+  catalog-check output, and 23 status reports against the removed implementation.
+  The review found no custody or security regression and required this
+  follow-up to repair stale plan claims, preserve ignored-cache filtering, and
+  make the sandboxed source invariant fail closed. The focused reference gate
+  passes 145 tests and 606 assertions with typecheck, severe lint, formatting,
+  Bun/Node catalog parity, and a network-free real CLI observation.
+  Feature acceptance passes 670 tests and 17,138 assertions plus model,
+  generated-view, typecheck, severe-lint, formatting, commit-policy, and native
+  Nix source-invariant gates. Garnix returned HTTP 502, so Nix built both
+  derivations locally and passed.
