@@ -40,15 +40,6 @@
 - Plan: [execution ledger](../plans/0007-reuse-first-engineering.md)
 - Acceptance: [runnable program](../scripts/accept/0007-reuse-first-engineering.ts)
 
-### `0010-typescript-effect-v4-runtime` — Migrate the runtime to TypeScript, Bun, and Effect v4
-
-- Status: `in_progress`
-- Feature loop: `managed`
-- Model: [canonical record](../model/work/features/0010-typescript-effect-v4-runtime.json)
-- Design: [design contract](../design-specs/0010-typescript-effect-v4-runtime.md)
-- Plan: [execution ledger](../plans/0010-typescript-effect-v4-runtime.md)
-- Acceptance: [runnable program](../scripts/accept/0010-typescript-effect-v4-runtime.ts)
-
 ### `0014-stm-effect-handler-laws` — Specify STM effect and handler laws
 
 - Status: `in_progress`
@@ -104,6 +95,15 @@
 - Design: [design contract](../design-specs/0004-reference-source-custody.md)
 - Plan: [execution ledger](../plans/0004-reference-source-custody.md)
 - Acceptance: non-runnable (`pre_loop`; no feature-loop program)
+
+### `0010-typescript-effect-v4-runtime` — Migrate the runtime to TypeScript, Bun, and Effect v4
+
+- Status: `complete`
+- Feature loop: `managed`
+- Model: [canonical record](../model/work/features/0010-typescript-effect-v4-runtime.json)
+- Design: [design contract](../design-specs/0010-typescript-effect-v4-runtime.md)
+- Plan: [execution ledger](../plans/0010-typescript-effect-v4-runtime.md)
+- Acceptance: [runnable program](../scripts/accept/0010-typescript-effect-v4-runtime.ts)
 
 ### `0012-minimal-actor-runtime` — Implement minimal actor runtime
 

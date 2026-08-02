@@ -95,13 +95,14 @@ Other active feature worktrees and their owned files remain forbidden.
    **Complete after accepted differential observations were captured as
    immutable TypeScript goldens.**
 10. Run exact acceptance, independent review, semantic/evidence audit, preview,
-    and integration gates. **Final cutover acceptance and the semantic/evidence
-    audit are complete. Review corrections await exact-head confirmation, then
-    integration.**
+    and integration gates. **Complete at integrated head `7c49b7f`: exact
+    acceptance, semantic/evidence audit, and independent review passed. This
+    runtime migration has no UI preview surface.**
 11. Replace direct Bun/Node capability use in semantic programs with portable
     Effect platform services; compose official Bun and Node live layers at
     entrypoints and compare equivalent bounded observations. **Complete for the
-    project-model and inventory-tracer slices; reference custody remains.**
+    project-model, inventory-tracer, and reference-custody slices; runtime-only
+    adapters remain at composition roots.**
 12. Install compatible exact `@effect/tsgo` and `effect-oxlint` releases,
     enable type-aware Effect diagnostics, and add tested local rules for
     portable-core imports, runtime execution boundaries, Schema decoding, and
@@ -736,7 +737,14 @@ reference-custody goldens; no Python runtime or implementation is active.
   make the sandboxed source invariant fail closed. The focused reference gate
   passes 145 tests and 606 assertions with typecheck, severe lint, formatting,
   Bun/Node catalog parity, and a network-free real CLI observation.
-  Feature acceptance passes 670 tests and 17,138 assertions plus model,
+  Feature acceptance passes 670 tests and 17,145 assertions plus model,
   generated-view, typecheck, severe-lint, formatting, commit-policy, and native
   Nix source-invariant gates. Garnix returned HTTP 502, so Nix built both
   derivations locally and passed.
+- 2026-08-02: final reviewed head `7c49b7f` integrated by fast-forward on the
+  primary `feature/typescript-effect-v4-0010` lineage. The exact-head feature
+  gate repeated all 670 tests and 17,145 assertions, model and generated-view
+  checks, static gates, and both Nix derivations. Independent review returned
+  `ACCEPTED` after the multi-license oracle was made discriminating and the
+  fail-closed source invariant was fully pinned. No UI preview applies to this
+  runtime migration. The canonical feature record now owns positive completion.

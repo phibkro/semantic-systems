@@ -2,7 +2,7 @@
 
 <!-- Generated. Edit model sources, not this file. -->
 
-Ready parallel work items: **16**.
+Ready parallel work items: **15**.
 
 | Work item | Phase | Status | Ready | Score | Recommendation | Blockers |
 |---|---|---|---:|---:|---|---|
@@ -45,5 +45,5 @@ Ready parallel work items: **16**.
 | Implement minimal STM runtime | implementation | planned | no | 68 | delegate with review | Specify STM effect and handler laws |
 | Define normalized theory identity | design | in_progress | yes | 41 | bounded spike |  |
 | Specify translation-validation seams | research | planned | yes | 45 | bounded spike |  |
-| Migrate the runtime to TypeScript, Bun, and Effect v4 | implementation | in_progress | yes | 77 | delegate with review |  |
+| Migrate the runtime to TypeScript, Bun, and Effect v4 | validation | complete | no | 77 | delegate with review |  |
 | Research semantic contracts to WIT mapping | research | planned | yes | 86 | delegate directly |  |
