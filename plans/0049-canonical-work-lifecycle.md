@@ -82,9 +82,29 @@ just check
 
 The acceptance report must include command results, counts, revisions, unrun checks, assumptions, and unsupported claims.
 
+## Completion
+
+Implementation and integration completed at
+`451361f6fa1cf10b6a13b988cb288f1439c9a4d0`. The canonical feature record now
+owns lifecycle status, stable artifact resolution, acceptance dispatch, typed
+completion evidence, and deterministic lifecycle projections.
+
+This completion changes no contract, review, question, evidence, or deployment
+state. It has no UI preview surface.
+
 ## Evidence ledger
 
 - 2026-08-02: the operator selected the canonical-model architecture. Plan frontmatter was rejected as a second lifecycle authority.
 - 2026-08-02: the first independent review found five Critical and eight Important contract defects. The contract added typed evidence, exact changed-path selection, pre-loop records, link checks, and model-aware release dispatch.
 - 2026-08-02: the second independent review found a range migration-ownership collision. The contract made unchanged declarations inert and required actual range replay.
 - 2026-08-02: focused independent rereview reported `READY`. No Critical or Important contract findings remain.
+- 2026-08-02: exact replay at
+  `01117e844d6367f722a57f308e9a3be00f433b79` passed. Direct acceptance ran
+  63 lifecycle tests/515 assertions and 145 reference-custody tests/607
+  assertions, validated 23 sources and 137 entities/190 relations with zero
+  errors and one disclosed unsupported-claim warning, and checked all nine
+  generated views. Range replay selected the canonical 0049 migration owner
+  and passed. Release replay passed 18 runnable managed features, classified
+  five pre-loop features as non-runnable, and failed none; its integration loop
+  passed 670 tests/17,145 assertions plus typecheck, Effect diagnostics, severe
+  lint, formatting, commit policy, and native Nix source-invariant checks.
