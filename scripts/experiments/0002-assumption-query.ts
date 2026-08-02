@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 import { Effect, Result } from "effect";
 import {
@@ -131,9 +132,8 @@ const main = async (): Promise<void> => {
     fail("negative fixture was not the expected clean-but-wrong recorded-complete report");
   }
 
-  const observation = {
+  const semanticObservation = {
     schema: ASSUMPTION_REPORT_SCHEMA,
-    runtime: loaded.runtime,
     register: {
       id: registry.sourceArtifactId,
       primitiveIds,
@@ -143,6 +143,17 @@ const main = async (): Promise<void> => {
     registerProbe,
     positive,
     negative,
+  };
+  const semanticDigest =
+    `sha256:${createHash("sha256").update(JSON.stringify(semanticObservation)).digest("hex")}` as const;
+  const observation = {
+    schema: semanticObservation.schema,
+    runtime: loaded.runtime,
+    semanticDigest,
+    register: semanticObservation.register,
+    registerProbe: semanticObservation.registerProbe,
+    positive: semanticObservation.positive,
+    negative: semanticObservation.negative,
   };
   process.stdout.write(`${JSON.stringify(observation)}\n`);
 };

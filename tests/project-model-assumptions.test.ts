@@ -1,5 +1,8 @@
+import * as BunFileSystem from "@effect/platform-bun/BunFileSystem";
+import * as BunPath from "@effect/platform-bun/BunPath";
+import { resolve } from "node:path";
 import { describe, expect, test } from "bun:test";
-import { Result } from "effect";
+import { Effect, Result } from "effect";
 import {
   ASSUMPTION_REPORT_SCOPE,
   AssumptionQueryError,
@@ -17,7 +20,12 @@ import {
   positiveAssumptionFixture,
   reverseEvidenceAssumptionFixture,
 } from "../src/project-model/assumption-fixtures.ts";
+import { loadProject } from "../src/project-model/loader.ts";
 import type { Entity, ProjectGraph } from "../src/project-model/types.ts";
+
+const ROOT = resolve(import.meta.dir, "..");
+const loadCanonicalProject = () =>
+  Effect.runPromise(loadProject(ROOT).pipe(Effect.provide([BunFileSystem.layer, BunPath.layer])));
 
 const registerProject = (): ProjectGraph => {
   const register: Entity = {
@@ -197,6 +205,21 @@ describe("project-model assumptions query", () => {
     ]);
     expect(registry.manuallyAssertedRelationClasses).toEqual(["assumes", "discharges", "supports"]);
     expect(registry.negativeFixture).toContain("negativeOpaqueAdapterFixture");
+  });
+
+  test("binds every canonical opaque primitive to a real entity and marker", async () => {
+    const project = await loadCanonicalProject();
+    const registry = decodeOpaquePrimitiveRegistry(project);
+    expect(registry.sourceArtifactId).toBe("artifact.project-model.opaque-primitive-register");
+    expect(registry.primitives.every((primitive) => project.entities.has(primitive.id))).toBeTrue();
+    if (registry.sourceArtifactId === null) return;
+    const report = assumptionReport(project, registry.sourceArtifactId, registry);
+    expect(
+      report.markers
+        .filter((marker) => marker.kind === "known_opaque")
+        .map((marker) => marker.entityId)
+        .sort(),
+    ).toEqual(registry.primitives.map((primitive) => primitive.id).sort());
   });
 
   test("treats a decoded missing register as not supplied", () => {
