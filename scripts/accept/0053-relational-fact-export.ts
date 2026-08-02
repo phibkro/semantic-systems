@@ -86,7 +86,7 @@ const program = Effect.gen(function* () {
   const project = yield* loadProject(root);
   const bundle = exportRelationalFacts(project);
   yield* ensure(!(bundle instanceof RelationalExportError), "canonical project export failed");
-  if (bundle instanceof RelationalExportError) return yield* Effect.fail(bundle);
+  if (bundle instanceof RelationalExportError) return yield* bundle;
 
   const expectedAttributes = [...project.entities.values()].reduce(
     (total, entity) => total + Object.keys(entity.attributes).length,
@@ -156,7 +156,7 @@ const program = Effect.gen(function* () {
   };
   const permutedBundle = exportRelationalFacts(permutedProject);
   yield* ensure(!(permutedBundle instanceof RelationalExportError), "permuted graph export failed");
-  if (permutedBundle instanceof RelationalExportError) return yield* Effect.fail(permutedBundle);
+  if (permutedBundle instanceof RelationalExportError) return yield* permutedBundle;
   yield* ensure(
     bytesEqual(firstBytes, encodeRelationalFacts(permutedBundle)),
     "canonical encoding depends on entity Map insertion order",
@@ -170,7 +170,7 @@ const program = Effect.gen(function* () {
     maximumRows: 10_000,
   });
   yield* ensure(!(incoming instanceof RelationalQueryError), "incoming dependency query failed");
-  if (incoming instanceof RelationalQueryError) return yield* Effect.fail(incoming);
+  if (incoming instanceof RelationalQueryError) return yield* incoming;
   const incomingIds = incoming.nodes.map((node) => node.entity_id);
   yield* ensure(
     incomingIds.includes("work.inventory-stm"),
@@ -187,7 +187,7 @@ const program = Effect.gen(function* () {
 
   const evidence = queryEvidence(bundle, "obligation.inventory.conformance");
   yield* ensure(!(evidence instanceof RelationalQueryError), "evidence query failed");
-  if (evidence instanceof RelationalQueryError) return yield* Effect.fail(evidence);
+  if (evidence instanceof RelationalQueryError) return yield* evidence;
   yield* ensure(evidence.evidence.length === 1, "obligation evidence multiplicity changed");
   yield* ensure(
     evidence.evidence[0]?.relation.kind === "covers",

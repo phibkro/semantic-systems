@@ -234,7 +234,8 @@ describe("relational fact export", () => {
 
   test("returns typed failures for invalid source custody and query inputs", () => {
     const outside = graph();
-    outside.entities.set(
+    const mutableEntities = outside.entities as unknown as Map<string, Entity>;
+    mutableEntities.set(
       "bad.source",
       makeEntity({ id: "bad.source", kind: "artifact", source: "/workspace/other/file.json" }),
     );
