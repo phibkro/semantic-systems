@@ -42,7 +42,7 @@ Ready parallel work items: **14**.
 | Specify semantic attestation profile | design | ready | no | 87 | delegate with review | Define normalized theory identity |
 | Specify STM effect and handler laws | validation | complete | no | 49 | bounded spike |  |
 | Model-check STM interleavings | validation | planned | no | 94 | delegate with review | Implement minimal STM runtime |
-| Implement minimal STM runtime | implementation | planned | yes | 68 | delegate with review |  |
+| Implement minimal STM runtime | implementation | in_progress | yes | 80 | delegate with review |  |
 | Define normalized theory identity | design | in_progress | yes | 41 | bounded spike |  |
 | Specify translation-validation seams | research | planned | yes | 45 | bounded spike |  |
 | Migrate the runtime to TypeScript, Bun, and Effect v4 | validation | complete | no | 77 | delegate with review |  |

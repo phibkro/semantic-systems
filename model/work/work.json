@@ -263,32 +263,6 @@
       }
     },
     {
-      "id": "work.stm-runtime",
-      "kind": "work_item",
-      "name": "Implement minimal STM runtime",
-      "summary": "Versioned TVars, logs, validation, retry, and commit.",
-      "status": "planned",
-      "tags": ["stm"],
-      "attributes": {
-        "phase": "implementation",
-        "effort": 13,
-        "acceptance": [
-          "Conflicts do not duplicate commit actions",
-          "Retry waits on observed dependencies",
-          "Tests find no partial commit"
-        ],
-        "delegation": {
-          "specification_completeness": 4,
-          "context_locality": 4,
-          "testability": 5,
-          "reversibility": 4,
-          "integration_independence": 3,
-          "blast_radius": 4,
-          "human_review": true
-        }
-      }
-    },
-    {
       "id": "work.inventory-stm",
       "kind": "work_item",
       "name": "Implement inventory STM realization",

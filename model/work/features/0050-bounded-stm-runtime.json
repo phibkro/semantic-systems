@@ -1,0 +1,34 @@
+{
+  "entities": [
+    {
+      "id": "work.stm-runtime",
+      "kind": "work_item",
+      "name": "Implement minimal STM runtime",
+      "summary": "Interpret the pure STM model with bounded contention, dependency wake-up, cancellation, and close.",
+      "status": "in_progress",
+      "tags": ["stm", "runtime", "validation"],
+      "attributes": {
+        "feature_id": "0050-bounded-stm-runtime",
+        "feature_loop": "managed",
+        "phase": "implementation",
+        "effort": 13,
+        "acceptance": [
+          "Conflicts do not duplicate commit actions",
+          "Retry waits on observed dependencies without a lost-wake window",
+          "No snapshot observes a partial commit",
+          "In-flight work, attempts, cancellation, and close obey explicit bounds"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 5,
+          "testability": 5,
+          "reversibility": 4,
+          "integration_independence": 4,
+          "blast_radius": 4,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": []
+}

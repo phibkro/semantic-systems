@@ -49,6 +49,15 @@
 - Plan: [execution ledger](../plans/0049-canonical-work-lifecycle.md)
 - Acceptance: [runnable program](../scripts/accept/0049-canonical-work-lifecycle.ts)
 
+### `0050-bounded-stm-runtime` — Implement minimal STM runtime
+
+- Status: `in_progress`
+- Feature loop: `managed`
+- Model: [canonical record](../model/work/features/0050-bounded-stm-runtime.json)
+- Design: [design contract](../design-specs/0050-bounded-stm-runtime.md)
+- Plan: [execution ledger](../plans/0050-bounded-stm-runtime.md)
+- Acceptance: [runnable program](../scripts/accept/0050-bounded-stm-runtime.ts)
+
 ## Completed
 
 ### `0001-inventory-resolution-tracer` — Complete inventory evidence-resolution tracer
