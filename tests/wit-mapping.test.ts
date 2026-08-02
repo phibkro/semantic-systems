@@ -191,13 +191,13 @@ describe("semantic.wit-mapping/v1", () => {
     const input = structuredClone(fixture) as JsonRecord;
     const inventory = inventoryInterface(input);
     const types = inventory.types as JsonRecord[];
-    for (let index = 20; index >= 0; index -= 1)
+    for (let index = 40; index >= 0; index -= 1)
       types.push({
         kind: "type",
         name: `alias${index}`,
         semantic_path: `theory.inventory/type/alias${index}`,
         type:
-          index === 20
+          index === 40
             ? "string"
             : {
                 kind: "tuple",
