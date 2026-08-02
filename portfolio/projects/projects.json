@@ -61,6 +61,20 @@
       "schema_version": "pbk.portfolio-row/v1",
       "record_type": "project",
       "value": {
+        "id": "project.pagu",
+        "name": "Pagu",
+        "summary": "Harness-neutral transparent environment runtime for materialization, bounded capacity, typed ports, and explicit operational evidence.",
+        "repository_url": "https://github.com/phibkro/pagu",
+        "head": "8284ce6205951792f330dfb19c8a32bead6fa43f",
+        "observed_at": "2026-07-31T18:22:37Z",
+        "status": "active",
+        "preview_url": null
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "project",
+      "value": {
         "id": "project.qeffect",
         "name": "QEffect",
         "summary": "Bounded resource-hazard tracer over Effect v4 programs.",

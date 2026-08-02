@@ -6,6 +6,10 @@ Date: 2026-07-31
 
 Design-Lens-Version: open-semantic-system-v1
 
+Migrates-Pre-Lens-Feature-IDs: 0002-reference-baselines-deep-research, 0003-independent-resolution-checker, 0005-autonomous-development-control-loop, 0006-control-room-pwa
+
+Migrates-Feature-IDs: 0007-reuse-first-engineering, 0010-typescript-effect-v4-runtime, 0011-effect-v4-oxlint-domains, 0012-minimal-actor-runtime, 0013-bounded-actor-trace-retention, 0014-stm-effect-handler-laws, 0015-open-semantic-system-design-lens, 0016-executable-semantic-system-kernel, 0017-control-room-reconstruction, 0018-minimal-kernel-calculus, 0019-normalized-core-format, 0020-agent-facing-kernel-json, 0020-lossless-kernel-source, 0022-kernel-reference-interpreter
+
 ## Problem
 
 PBK Technologies operates several related and independent products, but the

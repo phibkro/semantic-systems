@@ -14,7 +14,10 @@
         "definition_of_done": [
           "Students can explore, inspect, save, label, compare, and plan from explicit evidence states."
         ],
-        "attributes": { "work.discipline": "product-engineering", "work.layer": "product" }
+        "attributes": {
+          "work.discipline": "product-engineering",
+          "work.layer": "product"
+        }
       }
     },
     {
@@ -30,7 +33,10 @@
         "definition_of_done": [
           "A portfolio goal can decompose into governed project and feature executions with durable receipts."
         ],
-        "attributes": { "work.discipline": "engineering", "work.layer": "orchestration" }
+        "attributes": {
+          "work.discipline": "engineering",
+          "work.layer": "orchestration"
+        }
       }
     },
     {
@@ -50,6 +56,68 @@
           "work.discipline": "testing",
           "work.layer": "adapter",
           "work.harness": "codex"
+        }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
+        "id": "work.herdr.supervisor-wake",
+        "project_id": "project.herdr-mcp",
+        "kind": "feature",
+        "title": "Managed supervisor wake channel",
+        "summary": "Deliver warranted child idle, blocked, and terminal transitions to a resumable supervisor without per-child polling.",
+        "status": "ready",
+        "definition_of_done": [
+          "A supervisor reconnects by stable identity and receives ordered, resumable child-state notifications through a typed channel."
+        ],
+        "attributes": {
+          "work.discipline": "engineering",
+          "work.layer": "supervision",
+          "work.agent-facing": true
+        }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
+        "id": "work.herdr.fleet-resource",
+        "project_id": "project.herdr-mcp",
+        "kind": "feature",
+        "title": "Fleet resource observations and leases",
+        "summary": "Publish synchronized machine observations and atomically admit registered task identities against finite resource pools.",
+        "status": "ready",
+        "definition_of_done": [
+          "All harness adapters observe the same fresh resource facts and cannot obtain a partial resource vector or a second lease beyond a registered pool.",
+          "The interface states that lease admission does not prove execution while ordinary shell launch remains available."
+        ],
+        "attributes": {
+          "work.discipline": "engineering",
+          "work.layer": "environment",
+          "work.agent-facing": true,
+          "work.publication-state": "accepted locally at 51e02af; remote publication pending operator-authorized workflow"
+        }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
+        "id": "work.herdr.e2e-environment",
+        "project_id": "project.herdr-mcp",
+        "kind": "feature",
+        "title": "Durable E2E execution environment",
+        "summary": "Provide one durable queued browser environment that executes accepted journey requests and returns exact receipts.",
+        "status": "planned",
+        "definition_of_done": [
+          "Concurrent callers enqueue typed journeys into one bounded executor and receive durable outcome receipts without sharing mutable browser state."
+        ],
+        "attributes": {
+          "work.discipline": "testing",
+          "work.layer": "environment",
+          "work.capacity": "single-slot"
         }
       }
     },
@@ -97,6 +165,87 @@
       "schema_version": "pbk.portfolio-row/v1",
       "record_type": "work",
       "value": {
+        "id": "work.pagu.environment-runtime",
+        "project_id": "project.pagu",
+        "kind": "milestone",
+        "title": "Transparent environment runtime",
+        "summary": "Materialize harness-neutral environments whose declarations, observations, authority, reservations, and outcomes remain separately inspectable.",
+        "status": "planned",
+        "definition_of_done": [
+          "Every fleet member sees the same typed environment identity, facilities, limits, live facts, missing facts, and published limitations.",
+          "Each mutable resource has one owning serialization point and all other views are freshness-bounded projections.",
+          "Observed environment facts, task requirements, allocation policy, and granted leases remain distinct records with explicit provenance and revision custody.",
+          "A task can submit a typed scheduling manifest for resource vectors, exclusivity, phase changes, and service class without overriding fleet fairness policy.",
+          "The agent control plane follows a user-space microkernel boundary: a small authority owns identity, lifecycle, resource ledgers, and the event journal while workspace, build, browser, network, and harness adapters remain replaceable services.",
+          "NixOS and Linux remain the host substrate; systemd and cgroup-v2 task scopes provide the first enforceable resource domains, with microVM execution available as an explicit higher-boundary task class rather than the universal default.",
+          "Multiple host environments federate through versioned messages and observations as a multikernel-style system without pretending that their mutable state is shared."
+        ],
+        "attributes": {
+          "work.discipline": "engineering",
+          "work.layer": "environment",
+          "work.agent-facing": true,
+          "work.prior-art": "Barrelfish multikernel: System Knowledge Base and scheduling manifests"
+        }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
+        "id": "work.pagu.environment-federation",
+        "project_id": "project.pagu",
+        "kind": "milestone",
+        "title": "Federated environment directory and placement",
+        "summary": "Register multiple independently governed machine environments and place work through explicit observations and local lease grants without introducing shared mutable capacity.",
+        "status": "candidate",
+        "definition_of_done": [
+          "The single-host runtime is one EnvironmentPort instance identified by an opaque stable environment ID; no caller relies on an ambient global environment.",
+          "Every observation, task manifest, lease, receipt, and event carries environment identity, boot incarnation, schema version, local revision, and observation time where applicable.",
+          "An EnvironmentDirectory projects registered descriptors and freshness without becoming the authority for any environment's local resource ledger.",
+          "A placement planner compares freshness-bounded candidate observations, requests an idempotent local reservation from the selected environment, and compensates unused or failed reservations without claiming a cross-host atomic transaction.",
+          "Environment disappearance, restart, partition, and stale observation remain distinct explicit states; a hostname or transport connection is never treated as durable environment identity.",
+          "Capabilities remain issuer-scoped and non-transferable by default; supervisors can delegate only a narrowed child grant within the issuing environment unless an explicit cross-environment protocol produces a new local grant.",
+          "Control Room can project environment topology, capacity bands, placements, leases, and evidence while linking every projection to its local authority and revision."
+        ],
+        "attributes": {
+          "work.discipline": "architecture",
+          "work.layer": "environment-federation",
+          "work.agent-facing": true,
+          "work.prior-art": "Barrelfish multikernel, distributed lease protocols, and scheduler placement manifests"
+        }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
+        "id": "work.pagu.heterogeneous-placement",
+        "project_id": "project.pagu",
+        "kind": "feature",
+        "title": "Heterogeneous capability topology and placement research",
+        "summary": "Match task needs and preferences against typed compute, accelerator, storage, network, device, locality, and host-role capabilities within and across environments.",
+        "status": "candidate",
+        "definition_of_done": [
+          "An environment describes a resource topology rather than one flat capacity number: CPU classes and affinity, GPU or accelerator devices and memory, storage and data locality, network position, attached facilities, and declared host role remain separately typed.",
+          "Discovered facts, operator-declared roles, benchmark observations, and planner assumptions retain different evidence kinds and freshness; device presence alone never implies a usable runtime, driver, toolchain, or workload fit.",
+          "Capability kinds distinguish an agent execution slot, a typed service or device operation, an observation source, and artifact or data locality, so using a router or media-server facility does not require launching a general agent on that host.",
+          "Task manifests distinguish hard requirements from ranked preferences, fallbacks, affinity or anti-affinity, data locality, expected phases, and disruption tolerance.",
+          "Placement produces an explainable candidate ranking and an explicit no-fit result before requesting a local lease; media, routing, workstation, build, browser, and accelerator hosts can therefore keep different role policies.",
+          "A granted device or accelerator slice has one local owner and an issuer-scoped lease; cross-host planning never fabricates a portable GPU, storage, or network capability.",
+          "A deterministic tracer covers homogeneous cores, heterogeneous CPU cores, a GPU or AI accelerator, a storage-local media task, a network-local appliance task, capability disappearance, and an honest no-fit rejection."
+        ],
+        "attributes": {
+          "work.discipline": "research",
+          "work.layer": "placement",
+          "work.agent-facing": true,
+          "work.research-direction": "heterogeneous computing and topology-aware scheduling"
+        }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
         "id": "work.mastra.preview",
         "project_id": "project.mastra-preview",
         "kind": "feature",
@@ -126,7 +275,10 @@
         "definition_of_done": [
           "The tracer preserves unknown and assumed boundaries and enforces named semantic budgets."
         ],
-        "attributes": { "work.discipline": "testing", "work.layer": "analysis" }
+        "attributes": {
+          "work.discipline": "testing",
+          "work.layer": "analysis"
+        }
       }
     },
     {
@@ -155,8 +307,14 @@
           "work.infrastructure": "Alchemy v2",
           "work.a11y-gate": "Axe",
           "work.e2e-runner": "Playwright",
-          "work.reference-products": ["Better-T-Stack", "VoidZero Vite+"],
-          "work.generator-candidates": ["Vite+ local generators", "Nx generators"]
+          "work.reference-products": [
+            "Better-T-Stack",
+            "VoidZero Vite+"
+          ],
+          "work.generator-candidates": [
+            "Vite+ local generators",
+            "Nx generators"
+          ]
         }
       }
     },
@@ -225,6 +383,132 @@
       "schema_version": "pbk.portfolio-row/v1",
       "record_type": "work",
       "value": {
+        "id": "work.semantic.kernel-interpreter",
+        "project_id": "project.semantic",
+        "kind": "feature",
+        "title": "Kernel reference interpreter",
+        "summary": "Execute the frozen kernel interface through a small reference semantics with explicit bounded observations.",
+        "status": "accepted",
+        "definition_of_done": [
+          "Valid kernel programs evaluate deterministically and invalid programs preserve the frozen diagnostic and observation boundaries.",
+          "The public API, portable facts, proxy observations, and all acceptance gates survive independent review."
+        ],
+        "attributes": {
+          "work.discipline": "engineering",
+          "work.layer": "kernel",
+          "work.agent-facing": true
+        }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
+        "id": "work.semantic.kernel-diagnostic-fact-custody",
+        "project_id": "project.semantic",
+        "kind": "feature",
+        "title": "Kernel diagnostic-fact custody correction",
+        "summary": "Restore the frozen type and label reference semantics for rejected checker observations so every interpreter outcome crosses its own canonical boundary.",
+        "status": "accepted",
+        "definition_of_done": [
+          "Type-valued and row-valued diagnostic facts register through the existing strict table-reference decoder and reject malformed or dangling references.",
+          "Generated invalid programs and a byte-exact cross-host fixture prove that every returned rejection satisfies the public guard and canonical encoders.",
+          "Open diagnostic-fact records traverse keys in Unicode code-point order, so value and canonical-byte decoding preserve the same first-encounter table authority."
+        ],
+        "attributes": {
+          "work.discipline": "engineering",
+          "work.layer": "kernel",
+          "work.blocker-for": "work.semantic.kernel-interpreter"
+        }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
+        "id": "work.semantic.normalized-core",
+        "project_id": "project.semantic",
+        "kind": "feature",
+        "title": "Normalized core format",
+        "summary": "Normalize checked kernel programs into one deterministic semantic-value representation with content-derived identity.",
+        "status": "accepted",
+        "definition_of_done": [
+          "Equivalent accepted kernel programs produce the same canonical normalized bytes and semantic identity.",
+          "Normalization rejects programs that have not crossed the strict representation and checking boundary."
+        ],
+        "attributes": {
+          "work.discipline": "engineering",
+          "work.layer": "normalized-core",
+          "work.agent-facing": true
+        }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
+        "id": "work.semantic.artifact-store",
+        "project_id": "project.semantic",
+        "kind": "feature",
+        "title": "Semantic artifact store",
+        "summary": "Persist accepted normalized semantic values by content identity while keeping authored names and assertions separate.",
+        "status": "accepted",
+        "definition_of_done": [
+          "Only accepted normalized semantic values enter the store under their verified content identity.",
+          "Authored aliases and caller assertions remain projections and never redefine semantic identity."
+        ],
+        "attributes": {
+          "work.discipline": "engineering",
+          "work.layer": "language-build",
+          "work.agent-facing": true
+        }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
+        "id": "work.semantic.reachability-receipt",
+        "project_id": "project.semantic",
+        "kind": "feature",
+        "title": "Reachability analysis receipt",
+        "summary": "Traverse caller-declared semantic-value edges and emit deterministic receipts without claiming compiler-derived authority.",
+        "status": "accepted",
+        "definition_of_done": [
+          "A finite analysis returns deterministic reachable, unreachable, missing, and cycle observations from exact store identities.",
+          "Every receipt preserves caller-declared edge authority and binds its root, graph observation, policy, and store revision."
+        ],
+        "attributes": {
+          "work.discipline": "engineering",
+          "work.layer": "language-build",
+          "work.agent-facing": true
+        }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
+        "id": "work.semantic.optimized-compiler",
+        "project_id": "project.semantic",
+        "kind": "feature",
+        "title": "Optimized kernel compiler",
+        "summary": "Lower kernel programs to the CBPV machine after the reference interpreter fixes executable meaning.",
+        "status": "candidate",
+        "definition_of_done": [
+          "Property-generated valid and invalid programs produce equivalent observable results through the reference interpreter and optimized compiler."
+        ],
+        "attributes": {
+          "work.discipline": "engineering",
+          "work.layer": "compiler",
+          "work.agent-facing": true
+        }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
         "id": "work.semantic.pbk-control-room",
         "project_id": "project.semantic",
         "kind": "feature",
@@ -239,6 +523,28 @@
           "work.layer": "portfolio",
           "work.operator-facing": true,
           "work.public-preview": true
+        }
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "work",
+      "value": {
+        "id": "work.semantic.control-room-skill-tree",
+        "project_id": "project.semantic",
+        "kind": "feature",
+        "title": "Interactive portfolio skill tree",
+        "summary": "Render the PBK dependency roadmap as a clickable skill tree and semantic-zoom Mosaic over one immutable identity set.",
+        "status": "accepted",
+        "definition_of_done": [
+          "Phone, keyboard, and pointer users can follow exact prerequisite and unlock paths without changing or inventing portfolio truth.",
+          "Graph and Mosaic retain one selected identity and expose the existing exact work detail."
+        ],
+        "attributes": {
+          "work.discipline": "product-engineering",
+          "work.layer": "portfolio-visualization",
+          "work.operator-facing": true,
+          "work.public-preview": false
         }
       }
     },

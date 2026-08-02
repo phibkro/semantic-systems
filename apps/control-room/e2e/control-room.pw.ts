@@ -73,7 +73,9 @@ test("PBK portfolio exposes overview, board, features, roadmap, mosaic, and hist
     await expect(page.getByRole("tab", { name: new RegExp(name) })).toBeVisible();
   }
   await page.getByRole("tab", { name: /Roadmap/ }).click();
-  await expect(page.getByLabel("PBK dependency roadmap")).toContainText("Typed edges");
+  await expect(page.getByLabel("PBK dependency roadmap")).toContainText(
+    "Ordered roadmap navigation",
+  );
   await page.getByRole("tab", { name: "Mosaic" }).click();
   await expect(
     page

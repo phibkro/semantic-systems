@@ -38,7 +38,7 @@ describe("PBK portfolio Control Room", () => {
     for (const view of ["Overview", "Board", "Features", "Roadmap", "History"]) {
       expect(screen.getByRole("tab", { name: new RegExp(view) })).toBeVisible();
     }
-    expect(screen.getByText("8", { selector: "strong" })).toBeVisible();
+    expect(screen.getByText("9", { selector: "strong" })).toBeVisible();
     expect(screen.getByText("PBK Technologies", { selector: "span" })).toBeVisible();
   });
 
@@ -56,11 +56,11 @@ describe("PBK portfolio Control Room", () => {
     render(<Portfolio provided={currentPortfolio()} />);
     await user.click(screen.getByRole("tab", { name: /Roadmap/ }));
     expect(
-      screen.getAllByRole("button", { name: /Agent-facing kernel JSON/ }).length,
+      (await screen.findAllByRole("button", { name: /Agent-facing kernel JSON/ })).length,
     ).toBeGreaterThan(0);
     await user.click(screen.getByRole("tab", { name: "Mosaic" }));
     expect(
-      screen.getAllByRole("button", { name: /Agent-facing kernel JSON/ }).length,
+      (await screen.findAllByRole("button", { name: /Agent-facing kernel JSON/ })).length,
     ).toBeGreaterThan(0);
   });
 

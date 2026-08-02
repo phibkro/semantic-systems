@@ -1,0 +1,58 @@
+{
+  "entities": [
+    {
+      "id": "work.control-room-interactive-skill-tree",
+      "kind": "work_item",
+      "name": "Render the PBK roadmap as an interactive skill tree",
+      "summary": "Project one deterministic dependency model as a clickable graph, semantic-zoom Mosaic, and equivalent ordered navigation without changing portfolio truth.",
+      "status": "complete",
+      "tags": [
+        "pbk-technologies",
+        "control-room",
+        "portfolio",
+        "roadmap",
+        "visualization",
+        "frontend"
+      ],
+      "attributes": {
+        "phase": "implementation",
+        "effort": 8,
+        "design_spec": "design-specs/0031-control-room-interactive-skill-tree.md",
+        "plan": "plans/active/0031-control-room-interactive-skill-tree.md",
+        "acceptance": [
+          "Dependency depth and arrows derive only from authored requires relations",
+          "Graph and Mosaic consume one equal identity set",
+          "Project and containment hierarchy remain distinct from prerequisites",
+          "Selection and semantic zoom remain XState-owned and read-only",
+          "Every visual node and dependency has an ordered keyboard-operable path",
+          "Phone Playwright and Axe journeys pass without claiming public deployment"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 4,
+          "testability": 5,
+          "reversibility": 4,
+          "integration_independence": 3,
+          "blast_radius": 4,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source": "work.control-room-interactive-skill-tree",
+      "target": "work.pbk-portfolio-control-room",
+      "kind": "requires",
+      "summary": "The skill tree renders the accepted strict portfolio model and saved view projections.",
+      "attributes": {}
+    },
+    {
+      "source": "work.control-room-interactive-skill-tree",
+      "target": "component.explorer",
+      "kind": "implements",
+      "summary": "The explorer gains dependency-path navigation and semantic zoom over one immutable roadmap model.",
+      "attributes": {}
+    }
+  ]
+}

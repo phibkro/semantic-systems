@@ -17,6 +17,18 @@
       "schema_version": "pbk.portfolio-row/v1",
       "record_type": "artifact",
       "value": {
+        "id": "artifact.herdr.codex-session-evidence",
+        "work_id": "work.herdr.codex-session",
+        "kind": "evidence",
+        "title": "Native Codex session continuity probe",
+        "href": "https://github.com/phibkro/herdr-mcp/blob/2b5c507226a1e297ce3456fc9d287ffd58839caf/test/mcp/native-session-observation.test.ts",
+        "revision": "2b5c507226a1e297ce3456fc9d287ffd58839caf"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "artifact",
+      "value": {
         "id": "artifact.mastra.project",
         "work_id": "work.mastra.preview",
         "kind": "evidence",
@@ -35,6 +47,18 @@
         "title": "QEffect bounded tracer surface",
         "href": "https://github.com/phibkro/qeffect/blob/139439ea246a7eb025cd50faee0cbf5096185bca/README.md",
         "revision": "139439ea246a7eb025cd50faee0cbf5096185bca"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "artifact",
+      "value": {
+        "id": "artifact.pagu.environment-runtime-spec",
+        "work_id": "work.pagu.environment-runtime",
+        "kind": "design",
+        "title": "Transparent environment runtime contract",
+        "href": "https://github.com/phibkro/pagu/blob/8284ce6205951792f330dfb19c8a32bead6fa43f/docs/environment-runtime-design.md",
+        "revision": "8284ce6205951792f330dfb19c8a32bead6fa43f"
       }
     },
     {
@@ -65,12 +89,120 @@
       "schema_version": "pbk.portfolio-row/v1",
       "record_type": "artifact",
       "value": {
+        "id": "artifact.semantic.kernel-interpreter-spec",
+        "work_id": "work.semantic.kernel-interpreter",
+        "kind": "design",
+        "title": "Kernel reference interpreter contract",
+        "href": "https://github.com/phibkro/semantic-systems/blob/1a3f48926febd8408188dda579c6bce440542653/design-specs/0022-kernel-reference-interpreter.md",
+        "revision": "1a3f48926febd8408188dda579c6bce440542653"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "artifact",
+      "value": {
         "id": "artifact.semantic.pbk-spec",
         "work_id": "work.semantic.pbk-control-room",
         "kind": "design",
         "title": "PBK portfolio Control Room contract",
         "href": "https://github.com/phibkro/semantic-systems/blob/49c471195af3a877f488f14bc467d314537480f7/design-specs/0021-pbk-portfolio-control-room.md",
         "revision": "49c471195af3a877f488f14bc467d314537480f7"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "artifact",
+      "value": {
+        "id": "artifact.semantic.kernel-interpreter-acceptance",
+        "work_id": "work.semantic.kernel-interpreter",
+        "kind": "evidence",
+        "title": "Kernel reference interpreter acceptance gate",
+        "href": "https://github.com/phibkro/semantic-systems/blob/b48563fc1780e6bf76f06b5e0fa0ee6c6d4fac10/scripts/accept/0022-kernel-reference-interpreter.ts",
+        "revision": "b48563fc1780e6bf76f06b5e0fa0ee6c6d4fac10"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "artifact",
+      "value": {
+        "id": "artifact.semantic.kernel-diagnostic-fact-custody",
+        "work_id": "work.semantic.kernel-diagnostic-fact-custody",
+        "kind": "evidence",
+        "title": "Kernel diagnostic-fact custody regression suite",
+        "href": "https://github.com/phibkro/semantic-systems/blob/b48563fc1780e6bf76f06b5e0fa0ee6c6d4fac10/tests/kernel-json-diagnostic-fact-custody.test.ts",
+        "revision": "b48563fc1780e6bf76f06b5e0fa0ee6c6d4fac10"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "artifact",
+      "value": {
+        "id": "artifact.semantic.normalized-core-spec",
+        "work_id": "work.semantic.normalized-core",
+        "kind": "design",
+        "title": "Normalized core format contract",
+        "href": "https://github.com/phibkro/semantic-systems/blob/2959681e01df2acc4ea1318b8ce634b9ccf7d10c/design-specs/0019-normalized-core-format.md",
+        "revision": "2959681e01df2acc4ea1318b8ce634b9ccf7d10c"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "artifact",
+      "value": {
+        "id": "artifact.semantic.surface-language-spec",
+        "work_id": "work.semantic.surface-language",
+        "kind": "design",
+        "title": "Semantic surface language contract",
+        "href": "https://github.com/phibkro/semantic-systems/blob/0302b468cac9f9d8f55d5e68b9a0e50e5fac9ac1/design-specs/0026-semantic-surface-language.md",
+        "revision": "0302b468cac9f9d8f55d5e68b9a0e50e5fac9ac1"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "artifact",
+      "value": {
+        "id": "artifact.semantic.artifact-store-spec",
+        "work_id": "work.semantic.artifact-store",
+        "kind": "design",
+        "title": "Semantic artifact store contract",
+        "href": "https://github.com/phibkro/semantic-systems/blob/800d70b74c96a476d34b9690374683b1843343b2/design-specs/0027-semantic-artifact-store.md",
+        "revision": "800d70b74c96a476d34b9690374683b1843343b2"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "artifact",
+      "value": {
+        "id": "artifact.semantic.reachability-receipt-spec",
+        "work_id": "work.semantic.reachability-receipt",
+        "kind": "design",
+        "title": "Reachability analysis receipt contract",
+        "href": "https://github.com/phibkro/semantic-systems/blob/68417a25f47a9a3f48a8782fae7f598d38a2ccd2/design-specs/0030-reachability-analysis-receipt.md",
+        "revision": "68417a25f47a9a3f48a8782fae7f598d38a2ccd2"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "artifact",
+      "value": {
+        "id": "artifact.semantic.control-room-skill-tree-spec",
+        "work_id": "work.semantic.control-room-skill-tree",
+        "kind": "design",
+        "title": "Control Room interactive skill tree contract",
+        "href": "https://github.com/phibkro/semantic-systems/blob/264e34e3685aaccbe10525540105a1b589343e5f/design-specs/0031-control-room-interactive-skill-tree.md",
+        "revision": "264e34e3685aaccbe10525540105a1b589343e5f"
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "artifact",
+      "value": {
+        "id": "artifact.semantic.control-room-skill-tree-acceptance",
+        "work_id": "work.semantic.control-room-skill-tree",
+        "kind": "evidence",
+        "title": "Control Room interactive skill tree acceptance gate",
+        "href": "https://github.com/phibkro/semantic-systems/blob/264e34e3685aaccbe10525540105a1b589343e5f/scripts/accept/0031-control-room-interactive-skill-tree.ts",
+        "revision": "264e34e3685aaccbe10525540105a1b589343e5f"
       }
     }
   ]

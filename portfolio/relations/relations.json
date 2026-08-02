@@ -38,6 +38,72 @@
       "schema_version": "pbk.portfolio-row/v1",
       "record_type": "relation",
       "value": {
+        "id": "relation.herdr.04",
+        "source_id": "work.herdr.supervisor",
+        "target_id": "work.herdr.supervisor-wake",
+        "kind": "contains",
+        "summary": "The supervisor milestone contains managed child-state delivery."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "relation",
+      "value": {
+        "id": "relation.herdr.05",
+        "source_id": "work.herdr.supervisor-wake",
+        "target_id": "work.herdr.stable-facade",
+        "kind": "requires",
+        "summary": "Managed wake delivery builds on stable lifecycle identities and observations."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "relation",
+      "value": {
+        "id": "relation.herdr.06",
+        "source_id": "work.herdr.e2e-environment",
+        "target_id": "work.herdr.fleet-resource",
+        "kind": "requires",
+        "summary": "The durable browser executor consumes an atomic registered capacity lease."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "relation",
+      "value": {
+        "id": "relation.pagu.01",
+        "source_id": "work.pagu.environment-runtime",
+        "target_id": "work.herdr.fleet-resource",
+        "kind": "requires",
+        "summary": "Pagu projects synchronized observations and lease facts supplied by the fleet resource service."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "relation",
+      "value": {
+        "id": "relation.pagu.02",
+        "source_id": "work.pagu.environment-federation",
+        "target_id": "work.pagu.environment-runtime",
+        "kind": "requires",
+        "summary": "Federation composes independently governed EnvironmentPort instances; it does not replace or weaken their local identity, observation, and lease authority."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "relation",
+      "value": {
+        "id": "relation.pagu.03",
+        "source_id": "work.pagu.environment-federation",
+        "target_id": "work.pagu.heterogeneous-placement",
+        "kind": "contains",
+        "summary": "The federation milestone contains research into topology-aware matching across heterogeneous local devices and host roles."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "relation",
+      "value": {
         "id": "relation.semantic.01",
         "source_id": "work.semantic.language-kernel",
         "target_id": "work.semantic.kernel-json",
@@ -76,6 +142,138 @@
         "target_id": "work.semantic.control-room-0017",
         "kind": "requires",
         "summary": "Portfolio views extend the accepted phone-first Control Room custody boundary."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "relation",
+      "value": {
+        "id": "relation.semantic.05",
+        "source_id": "work.semantic.language-kernel",
+        "target_id": "work.semantic.kernel-interpreter",
+        "kind": "contains",
+        "summary": "The language-kernel milestone contains the executable reference semantics."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "relation",
+      "value": {
+        "id": "relation.semantic.06",
+        "source_id": "work.semantic.kernel-interpreter",
+        "target_id": "work.semantic.kernel-json",
+        "kind": "requires",
+        "summary": "The reference interpreter executes the frozen agent-facing kernel representation."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "relation",
+      "value": {
+        "id": "relation.semantic.07",
+        "source_id": "work.semantic.language-kernel",
+        "target_id": "work.semantic.optimized-compiler",
+        "kind": "contains",
+        "summary": "The language-kernel milestone contains the future optimized compiler."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "relation",
+      "value": {
+        "id": "relation.semantic.08",
+        "source_id": "work.semantic.optimized-compiler",
+        "target_id": "work.semantic.kernel-interpreter",
+        "kind": "requires",
+        "summary": "Compiler correctness is checked against the reference interpreter."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "relation",
+      "value": {
+        "id": "relation.semantic.09",
+        "source_id": "work.semantic.surface-language",
+        "target_id": "work.semantic.kernel-interpreter",
+        "kind": "requires",
+        "summary": "Surface-language journeys require executable kernel semantics."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "relation",
+      "value": {
+        "id": "relation.semantic.10",
+        "source_id": "work.semantic.language-kernel",
+        "target_id": "work.semantic.kernel-diagnostic-fact-custody",
+        "kind": "contains",
+        "summary": "The language-kernel milestone contains the active diagnostic-fact custody correction."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "relation",
+      "value": {
+        "id": "relation.semantic.11",
+        "source_id": "work.semantic.kernel-diagnostic-fact-custody",
+        "target_id": "work.semantic.kernel-json",
+        "kind": "requires",
+        "summary": "The correction restores a frozen kernel JSON observation rule without replacing the accepted interface."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "relation",
+      "value": {
+        "id": "relation.semantic.12",
+        "source_id": "work.semantic.kernel-interpreter",
+        "target_id": "work.semantic.kernel-diagnostic-fact-custody",
+        "kind": "requires",
+        "summary": "Interpreter acceptance waits for every rejection variant to cross the corrected canonical boundary."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "relation",
+      "value": {
+        "id": "relation.semantic.13",
+        "source_id": "work.semantic.control-room-skill-tree",
+        "target_id": "work.semantic.pbk-control-room",
+        "kind": "requires",
+        "summary": "The interactive skill tree renders the accepted PBK portfolio projections without changing their authority."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "relation",
+      "value": {
+        "id": "relation.semantic.14",
+        "source_id": "work.semantic.language-kernel",
+        "target_id": "work.semantic.normalized-core",
+        "kind": "contains",
+        "summary": "The language-kernel milestone contains the deterministic normalized semantic-value format."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "relation",
+      "value": {
+        "id": "relation.semantic.15",
+        "source_id": "work.semantic.artifact-store",
+        "target_id": "work.semantic.normalized-core",
+        "kind": "requires",
+        "summary": "The semantic store accepts values only after normalized content identity has been established."
+      }
+    },
+    {
+      "schema_version": "pbk.portfolio-row/v1",
+      "record_type": "relation",
+      "value": {
+        "id": "relation.semantic.16",
+        "source_id": "work.semantic.reachability-receipt",
+        "target_id": "work.semantic.artifact-store",
+        "kind": "requires",
+        "summary": "Reachability analysis traverses exact semantic-value identities observed through the accepted store."
       }
     },
     {
