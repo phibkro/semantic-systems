@@ -260,13 +260,12 @@ decision.stm-library`; generated readiness must derive from that source edge.
   CE07 suspension. One scenario passed an expression to the data-only
   `sequence` result. Attempts could also settle against an unrelated authentic
   store.
-- 2026-08-02: the fourth correction retains actual store observations from the
-  left branch that selects the fallback. It discards validation from blind
-  writes and reads of those staged writes. Private store ancestry now rejects
-  unrelated roots, siblings, and
-  ancestors before publication. The same ancestry binds discard, conflict
-  rerun, dependency query, and wake rights before their affine rights are
-  consumed.
+- 2026-08-02: the fourth correction retains actual store observations from
+  the left branch that selects the fallback. It discards validation from blind
+  writes and reads of those staged writes. Private store ancestry rejects
+  unrelated roots, siblings, and ancestors before publication. It also binds
+  discard, conflict, rerun, dependency query, and wake rights before their
+  affine rights are consumed.
 - 2026-08-02: the canonical CE07 path now probes the live suspension before
   the relevant wake. The alternative scenario now passes the plain string
   `"right"` to `sequence`.
@@ -302,6 +301,20 @@ decision.stm-library`; generated readiness must derive from that source edge.
 - 2026-08-02: independent read-only exact-head rereview accepted `d677bba`.
   It found no Critical or Important issue. The reviewer ran no build or test
   command. The accepted review remains static analysis and assertion evidence.
+- 2026-08-02: completion commit `2b5243a` made `work.stm-runtime` ready.
+  Its first full integration run failed one stale expectation in
+  `tests/project-model.test.ts`: the test still expected the runtime to remain
+  blocked. Commit `b51f375` changed that expectation to the canonical ready
+  state. The focused test passed one test/nine assertions.
+- 2026-08-02: final exact acceptance at `b51f375` passed 33 STM tests/276
+  assertions, 82 neighboring tests/483 assertions, and 12 semantic-lint
+  tests/30 assertions. Final `just check` passed 676 tests/17,200 assertions,
+  model validation, nine generated-view checks, typecheck, severe lint,
+  formatting, commit policy, and Effect diagnostics.
+- 2026-08-02: final read-only evidence audit accepted `b51f375`. It found no
+  Critical or Important issue. It used only read-only repository inspection
+  and ran no build, test, lint, format, or acceptance command. The accepted
+  review remains static analysis and assertion evidence.
 
 Status: complete; exact-head acceptance, full integration, and independent
-review passed at `d677bba`
+review passed at `b51f375`
