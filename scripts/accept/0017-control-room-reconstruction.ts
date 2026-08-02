@@ -55,7 +55,7 @@ const program = Effect.gen(function* () {
       "tests/public-export.test.ts",
       "apps/control-room",
       "scripts/accept/0017-control-room-reconstruction.ts",
-      "model/work/control-room-reconstruction.json",
+      "model/work/features/0017-control-room-reconstruction.json",
     ],
     ["bun", "run", "semproj", "--", "validate"],
     ["bun", "run", "semproj", "--", "generate", "--check"],

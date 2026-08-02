@@ -1,0 +1,34 @@
+{
+  "entities": [
+    {
+      "id": "work.open-semantic-system-design-lens",
+      "kind": "work_item",
+      "name": "Apply the open semantic system design lens",
+      "summary": "Make epistemic state, typed speech acts, derived artifacts, effect protocols, returned observations, bounded autonomy, and orthogonal graphs explicit during design.",
+      "status": "in_progress",
+      "tags": ["semantics", "design", "governance"],
+      "attributes": {
+        "feature_id": "0015-open-semantic-system-design-lens",
+        "feature_loop": "managed",
+        "phase": "implementation",
+        "effort": 8,
+        "acceptance": [
+          "Changed design contracts use the open-system worksheet and declare warranted state",
+          "Typed inputs, artifacts, effect requests, observations, ownership, and bounded liveness remain distinct",
+          "The design-lens gate validates required shape without claiming prose meaning",
+          "Primary prior art and operator conversation remain provenance rather than semantic authority"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 5,
+          "testability": 5,
+          "reversibility": 4,
+          "integration_independence": 4,
+          "blast_radius": 4,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": []
+}

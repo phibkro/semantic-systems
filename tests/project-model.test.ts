@@ -49,14 +49,15 @@ describe("project model Effect v4 slice", () => {
     expect(validateProject(project).filter((issue) => issue.severity === "error")).toEqual([]);
   });
 
-  test("renders all eight accepted views byte-for-byte", async () => {
+  test("renders all nine accepted views byte-for-byte", async () => {
     const views = generateViews(await runBun(loadProject(ROOT)));
-    expect(views.size).toBe(8);
+    expect(views.size).toBe(9);
     for (const [name, content] of views) {
       expect(content).toBe(await Bun.file(join(ROOT, "generated", name)).text());
     }
     expect(views.get("02-theory-realization.md")).toContain("Inventory STM realization");
     expect(views.get("07-runtime-view.md")).toContain("```mermaid");
+    expect(views.get("08-feature-lifecycle.md")).toContain("# Feature lifecycle");
   });
 
   test("preserves the ready frontier and weighted critical path", async () => {
@@ -68,7 +69,7 @@ describe("project model Effect v4 slice", () => {
     );
     expect(ready.has("work.kernel-spec")).toBeFalse();
     expect(ready.has("work.normalized-core-format")).toBeFalse();
-    expect(ready.has("work.lossless-frontend-spec")).toBeTrue();
+    expect(ready.has("work.lossless-frontend-spec")).toBeFalse();
     expect(ready.has("work.agent-facing-kernel-json")).toBeFalse();
     expect(ready.has("work.kernel-reference-interpreter")).toBeFalse();
     expect(ready.has("work.lean-evidence-adapter")).toBeTrue();

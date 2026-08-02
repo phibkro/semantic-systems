@@ -12,8 +12,8 @@ const nodeExecutable = process.env.SEMANTIC_NODE_BIN ?? "node";
 
 const contractArtifacts = [
   "design-specs/0022-kernel-reference-interpreter.md",
-  "plans/completed/0022-kernel-reference-interpreter.md",
-  "model/work/kernel-reference-interpreter.json",
+  "plans/0022-kernel-reference-interpreter.md",
+  "model/work/features/0022-kernel-reference-interpreter.json",
 ] as const;
 
 const implementationArtifacts = [
@@ -59,8 +59,8 @@ const program = Effect.gen(function* () {
       "tests/kernel-reference-interpreter-node.test.ts",
       "scripts/accept/0022-kernel-reference-interpreter.ts",
       "design-specs/0022-kernel-reference-interpreter.md",
-      "plans/completed/0022-kernel-reference-interpreter.md",
-      "model/work/kernel-reference-interpreter.json",
+      "plans/0022-kernel-reference-interpreter.md",
+      "model/work/features/0022-kernel-reference-interpreter.json",
     ],
     ["bun", "scripts/accept/0020-agent-facing-kernel-json.ts"],
     ["just", "check"],

@@ -1,0 +1,33 @@
+{
+  "entities": [
+    {
+      "id": "work.stm-laws",
+      "kind": "work_item",
+      "name": "Specify STM effect and handler laws",
+      "summary": "Define retry, rollback, commit actions, and serializability.",
+      "status": "in_progress",
+      "tags": ["stm"],
+      "attributes": {
+        "feature_id": "0014-stm-effect-handler-laws",
+        "feature_loop": "managed",
+        "phase": "research",
+        "effort": 8,
+        "acceptance": [
+          "Speculative and commit-only effects are separate",
+          "Affine capture restrictions are explicit",
+          "Executable model covers conflict and retry"
+        ],
+        "delegation": {
+          "specification_completeness": 3,
+          "context_locality": 4,
+          "testability": 4,
+          "reversibility": 3,
+          "integration_independence": 2,
+          "blast_radius": 5,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": []
+}

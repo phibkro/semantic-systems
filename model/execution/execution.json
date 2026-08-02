@@ -66,6 +66,26 @@
       "attributes": {
         "trust_profile": "research"
       }
+    },
+    {
+      "id": "deployment.control-room.public",
+      "kind": "deployment",
+      "name": "Control Room public deployment",
+      "summary": "Canonical external observation of the Control Room public URL.",
+      "status": "observed",
+      "tags": ["control-room", "public"],
+      "attributes": {
+        "feature_id": "0017-control-room-reconstruction",
+        "observation": {
+          "category": "external_observation",
+          "method": "public_url",
+          "source": {
+            "kind": "external_observation",
+            "uri": "https://semantic.phibkro.org"
+          },
+          "claim": "The Control Room public URL was recorded as deployment observation."
+        }
+      }
     }
   ],
   "relations": [

@@ -53,42 +53,6 @@
       }
     },
     {
-      "id": "work.kernel-spec",
-      "kind": "work_item",
-      "name": "Specify minimal kernel calculus",
-      "summary": "Run a finite CBPV-style calculus with usage, effects, handlers, and typed observations.",
-      "status": "complete",
-      "tags": ["kernel"],
-      "attributes": {
-        "phase": "validation",
-        "effort": 8,
-        "design_spec": "design-specs/0018-minimal-kernel-calculus.md",
-        "plan": "plans/completed/0018-minimal-kernel-calculus.md",
-        "completion": {
-          "implementation_head": "d436176d3b652b81b19ec81716dcde88dda848ca",
-          "integration_head": "f461cb38960493c044459c58374d6d1aa12bda3b",
-          "feature_acceptance": "runtime_validation",
-          "integration_gate": "test_and_static_analysis",
-          "independent_review": "assertion"
-        },
-        "acceptance": [
-          "Judgments and syntax are explicit",
-          "Affine values and one-shot handlers reject duplicate use",
-          "Checked closed terms return, suspend, exhaust, or reject with typed observations",
-          "The reference evaluator agrees with pinned overlapping oracle fixtures"
-        ],
-        "delegation": {
-          "specification_completeness": 4,
-          "context_locality": 4,
-          "testability": 4,
-          "reversibility": 3,
-          "integration_independence": 2,
-          "blast_radius": 5,
-          "human_review": true
-        }
-      }
-    },
-    {
       "id": "work.core-checker",
       "kind": "work_item",
       "name": "Implement core checker",
@@ -176,6 +140,18 @@
       "attributes": {
         "phase": "design",
         "effort": 5,
+        "completion": {
+          "outcome": "positive",
+          "evidence": [
+            {
+              "role": "status_basis",
+              "category": "assertion",
+              "method": "authored_completion_state",
+              "source": { "kind": "authored_assertion" },
+              "claim": "Complete inventory domain contract."
+            }
+          ]
+        },
         "acceptance": [
           "Every message has success and rejection behavior",
           "Invariant is representation-independent",
@@ -202,6 +178,18 @@
       "attributes": {
         "phase": "implementation",
         "effort": 5,
+        "completion": {
+          "outcome": "positive",
+          "evidence": [
+            {
+              "role": "status_basis",
+              "category": "assertion",
+              "method": "authored_completion_state",
+              "source": { "kind": "authored_assertion" },
+              "claim": "Implement deterministic update and replay."
+            }
+          ]
+        },
         "acceptance": [
           "Fixtures produce expected events",
           "Replay reconstructs identical state",
@@ -219,40 +207,6 @@
       }
     },
     {
-      "id": "work.actor-runtime",
-      "kind": "work_item",
-      "name": "Implement minimal actor runtime",
-      "summary": "Typed mailbox loop with unique actor-owned state.",
-      "status": "complete",
-      "tags": ["actors"],
-      "attributes": {
-        "phase": "validation",
-        "effort": 8,
-        "design_spec": "design-specs/0012-minimal-actor-runtime.md",
-        "plan": "plans/completed/0012-minimal-actor-runtime.md",
-        "completion": {
-          "implementation_head": "8ad9dfbd25fc54ea7e49dc192175c53b780d1503",
-          "feature_acceptance": "runtime_validation",
-          "integration_gate": "test_and_static_analysis",
-          "independent_review": "assertion"
-        },
-        "acceptance": [
-          "Simulation has deterministic mailbox ordering",
-          "Actor state cannot be directly shared",
-          "Inventory actor executes"
-        ],
-        "delegation": {
-          "specification_completeness": 4,
-          "context_locality": 4,
-          "testability": 5,
-          "reversibility": 4,
-          "integration_independence": 4,
-          "blast_radius": 3,
-          "human_review": true
-        }
-      }
-    },
-    {
       "id": "work.inventory-actor",
       "kind": "work_item",
       "name": "Implement inventory actor realization",
@@ -262,12 +216,35 @@
       "attributes": {
         "phase": "validation",
         "effort": 5,
-        "design_spec": "design-specs/0012-minimal-actor-runtime.md",
-        "plan": "plans/completed/0012-minimal-actor-runtime.md",
         "completion": {
+          "outcome": "positive",
           "implementation_head": "8ad9dfbd25fc54ea7e49dc192175c53b780d1503",
-          "equivalence_evidence": "runtime_validation",
-          "independent_review": "assertion"
+          "evidence": [
+            {
+              "role": "equivalence",
+              "category": "runtime_check",
+              "method": "runtime_validation",
+              "source": {
+                "kind": "repository_artifact",
+                "path": "plans/0012-minimal-actor-runtime.md"
+              },
+              "claim": "equivalence_evidence: runtime_validation"
+            },
+            {
+              "role": "independent_review",
+              "category": "assertion",
+              "method": "assertion",
+              "source": { "kind": "authored_assertion" },
+              "claim": "independent_review: assertion"
+            },
+            {
+              "role": "status_basis",
+              "category": "assertion",
+              "method": "authored_completion_state",
+              "source": { "kind": "authored_assertion" },
+              "claim": "canonical status records this non-feature work as complete"
+            }
+          ]
         },
         "acceptance": [
           "Actor and pure versions emit equivalent events",
@@ -282,68 +259,6 @@
           "integration_independence": 5,
           "blast_radius": 2,
           "human_review": false
-        }
-      }
-    },
-    {
-      "id": "work.actor-trace-retention",
-      "kind": "work_item",
-      "name": "Bound actor trace retention",
-      "summary": "Replace lifetime trace accumulation with a declared bounded observation window and exact eviction evidence.",
-      "status": "complete",
-      "tags": ["actors", "resources", "validation"],
-      "attributes": {
-        "phase": "implementation",
-        "effort": 5,
-        "design_spec": "design-specs/0013-bounded-actor-trace-retention.md",
-        "plan": "plans/completed/0013-bounded-actor-trace-retention.md",
-        "completion": {
-          "implementation_head": "460d2b88993116d01d3901fc4f5a73c9ab671511",
-          "feature_acceptance": "runtime_validation",
-          "integration_gate": "test_and_static_analysis",
-          "independent_review": "assertion"
-        },
-        "acceptance": [
-          "Retained actor trace entries never exceed the declared capacity",
-          "Eviction and completeness counters remain exact",
-          "Actor delivery, ownership, failure-stop, and inventory equivalence remain unchanged"
-        ],
-        "delegation": {
-          "specification_completeness": 5,
-          "context_locality": 5,
-          "testability": 5,
-          "reversibility": 4,
-          "integration_independence": 4,
-          "blast_radius": 3,
-          "human_review": true
-        }
-      }
-    },
-    {
-      "id": "work.stm-laws",
-      "kind": "work_item",
-      "name": "Specify STM effect and handler laws",
-      "summary": "Define retry, rollback, commit actions, and serializability.",
-      "status": "in_progress",
-      "tags": ["stm"],
-      "attributes": {
-        "phase": "research",
-        "effort": 8,
-        "design_spec": "design-specs/0014-stm-effect-handler-laws.md",
-        "plan": "plans/active/0014-stm-effect-handler-laws.md",
-        "acceptance": [
-          "Speculative and commit-only effects are separate",
-          "Affine capture restrictions are explicit",
-          "Executable model covers conflict and retry"
-        ],
-        "delegation": {
-          "specification_completeness": 3,
-          "context_locality": 4,
-          "testability": 4,
-          "reversibility": 3,
-          "integration_independence": 2,
-          "blast_radius": 5,
-          "human_review": true
         }
       }
     },

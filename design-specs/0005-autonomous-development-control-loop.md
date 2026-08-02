@@ -101,12 +101,13 @@ external effects, or absence of correlated defects.
 ### One unit of intent
 
 A nontrivial feature is one user-visible or semantically falsifiable journey.
-It owns one numeric ID across:
+It owns one feature ID across:
 
 ```text
-design-specs/<id>-<slug>.md
-plans/active/<id>-<slug>.md
-scripts/accept/<id>-<slug>.ts
+design-specs/<feature_id>.md
+plans/<feature_id>.md
+model/work/features/<feature_id>.json
+scripts/accept/<feature_id>.ts
 one feature branch
 one pull request
 ```
@@ -119,10 +120,12 @@ Trivial formatting, typo, generated refresh, and mechanically equivalent
 maintenance may skip the feature loop, but must still pass integration checks.
 
 A cross-cutting carrier or toolchain migration may update existing contract
-artifacts under one owning feature only when its frozen design spec contains
-one exact `Migrates-Feature-IDs:` declaration. Every declared ID must change,
-every changed secondary contract ID must be declared, and range replay runs
-the owning acceptance program rather than obsolete migrated programs.
+artifacts under one owning feature only when its frozen design declaration
+changes in that range and declares the migration. An unchanged declaration's
+prior `Migrates-Feature-IDs:` marker is historical and inert. Every changed
+design contract must be declared, every changed secondary contract ID must be
+covered, and range replay runs the owning acceptance program rather than
+obsolete migrated programs.
 Undeclared, duplicate, cyclic, ownerless, or stale migration scope fails
 closed. The declaration is scope metadata, not semantic approval.
 
@@ -393,3 +396,24 @@ that revision 3 requires. This exposes existing development-loop boundaries,
 messages, effects, bounds, and evidence limits without changing workflow
 authority. Earlier acceptance is invalidated pending real-range replay and
 renewed independent review.
+
+Revision 5, 2026-08-02: the canonical work-lifecycle migration changes range
+ownership only for declarations whose design path changes in that range.
+An unchanged declaration's prior `Migrates-Feature-IDs` marker is historical
+and inert; changed declarations still fail on duplicate ownership.
+
+Path-custody semantic diff:
+
+```text
+Before: model status + lifecycle directory + plan heading/status + caller literals
+After:  canonical model status -> checked resolution + generated projections
+```
+
+Canonical feature-source identity is now path-stable at
+`model/work/features/<feature_id>.json`; plan and design-spec identity are
+path-stable at `plans/<feature_id>.md` and `design-specs/<feature_id>.md`.
+Active, completed, and superseded are derived classifications rather than
+authored directory structure. Acceptance dispatch receives resolved canonical
+artifacts, and deployment observations remain separate from work completion
+metadata. This changes path custody and range ownership, not evidence meanings,
+feature identity, or merge authority.

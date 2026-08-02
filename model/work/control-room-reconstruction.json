@@ -1,45 +1,5 @@
 {
-  "entities": [
-    {
-      "id": "work.control-room-reconstruction",
-      "kind": "work_item",
-      "name": "Reconstruct the Control Room on TypeScript and Effect v4",
-      "summary": "Restore the accepted phone-first public projection and reviewed Alchemy description on the current canonical lineage without restoring Python or shell authorities.",
-      "status": "complete",
-      "tags": ["control-room", "pwa", "typescript", "effect", "alchemy"],
-      "attributes": {
-        "phase": "validation",
-        "effort": 13,
-        "design_spec": "design-specs/0017-control-room-reconstruction.md",
-        "plan": "plans/completed/0017-control-room-reconstruction.md",
-        "completion": {
-          "implementation_head": "3af60bc6fce579dcc1eb3a7931a180e308513243",
-          "integration_head": "26a7625ad4fdd5538efdbec3f28eaa7e0885c38a",
-          "feature_acceptance": "runtime_validation",
-          "integration_gate": "test_and_static_analysis",
-          "independent_review": "assertion",
-          "public_url": "https://semantic.phibkro.org"
-        },
-        "acceptance": [
-          "Current canonical model derives one allowlisted content-addressed public snapshot",
-          "Phone-first Pulse, Systems, Semantics, Evidence, and Work views expose provenance and freshness",
-          "Invalid, stale, offline, and out-of-order snapshots never appear current",
-          "Deployment identities and cleanup make production destruction unrepresentable",
-          "Alchemy and workflow descriptions preserve exact stages, least authority, and mutable snapshot inputs",
-          "Local acceptance performs no provider mutation"
-        ],
-        "delegation": {
-          "specification_completeness": 5,
-          "context_locality": 4,
-          "testability": 5,
-          "reversibility": 4,
-          "integration_independence": 3,
-          "blast_radius": 4,
-          "human_review": true
-        }
-      }
-    }
-  ],
+  "entities": [],
   "relations": [
     {
       "source": "work.control-room-reconstruction",

@@ -1,4 +1,4 @@
-# Plan 0049: canonical work lifecycle
+# Plan 0049-canonical-work-lifecycle: canonical work lifecycle
 
 Canonical contract: [`design-specs/0049-canonical-work-lifecycle.md`](../design-specs/0049-canonical-work-lifecycle.md)
 

@@ -67,9 +67,13 @@ requires the prospective-tree result. Repository settings must also permit only
 a Conventional-Commit-preserving merge strategy (normally squash); that
 external prerequisite is not claimed active by this checkout.
 
-A nontrivial feature owns one numeric ID shared by
-`design-specs/<id>-<slug>.md`, `plans/active/<id>-<slug>.md`,
-`scripts/accept/<id>-<slug>.ts`, one feature branch, and one pull request.
+A nontrivial feature owns one feature ID shared by
+`design-specs/<feature_id>.md`, `plans/<feature_id>.md`,
+`model/work/features/<feature_id>.json`, and
+`scripts/accept/<feature_id>.ts`, plus one feature branch and one pull request.
+The canonical work record owns status and completion evidence. To complete a
+feature, change only that record from `in_progress` to `complete`; do not move
+the plan or edit its lifecycle-neutral heading/status prose.
 Trivial formatting, typo, generated-refresh, and mechanically equivalent
 maintenance may skip the feature loop but must still pass the fast and
 integration loops.

@@ -1,26 +1,48 @@
 #!/usr/bin/env bun
 /**
- * Dispatch exact feature acceptance scripts without constructing shell input.
+ * Dispatch canonical feature acceptance without constructing shell input.
  *
- * PR mode validates the selected Feature-ID and its report. Range mode derives
- * feature IDs only from changed plan paths. Release mode runs every checked-in
- * acceptance script, including a red one, so release cannot silently skip an
- * unsupported feature.
+ * Direct, PR, range, and release modes resolve artifacts from the canonical
+ * project graph. Pre-loop and superseded features are reported as non-runnable.
+ * Release validates the complete model before it runs every runnable program.
  */
-import { readdirSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import { BunFileSystem, BunPath } from "@effect/platform-bun";
+import { Console, Data, Effect } from "effect";
 
+import { loadProject } from "../src/project-model/loader.ts";
+import {
+  FEATURE_ID_PATTERN,
+  featuresForChangedPaths,
+  isFeatureDiagnostic,
+  resolveFeature,
+  resolveFeatures,
+  validateFeatureRepository,
+  type FeatureArtifacts,
+} from "../src/project-model/work-lifecycle.ts";
 import {
   changedPathsForRange,
-  contractMigrationsFor,
-  featureIdsFromContractPaths,
+  migrationOwnershipForRange,
   nonTrivialPaths,
-  validateFeatureArtifacts,
   validatePullRequestEvent,
 } from "./check-feature-contract.ts";
+import { runMain } from "./lib/command.ts";
 
 type Mode = "direct" | "pr" | "range" | "release";
+
+class AcceptanceDispatchError extends Data.TaggedError("AcceptanceDispatchError")<{
+  readonly message: string;
+}> {}
+
+const attempt = <A>(thunk: () => A): Effect.Effect<A, AcceptanceDispatchError> =>
+  Effect.try({
+    try: thunk,
+    catch: (cause) =>
+      new AcceptanceDispatchError({
+        message: cause instanceof Error ? cause.message : String(cause),
+      }),
+  });
 
 const parseArguments = (argv: string[]): Map<string, string> => {
   const parsed = new Map<string, string>();
@@ -49,167 +71,246 @@ const runGit = (root: string, args: string[]): string => {
   return result.stdout.trim();
 };
 
-const assertCheckedOutHead = (root: string, expected?: string): string => {
-  const actual = runGit(root, ["rev-parse", "HEAD"]);
-  if (expected !== undefined && actual !== expected) {
-    throw new Error(`checked-out HEAD ${actual} does not match acceptance head ${expected}`);
-  }
-  return actual;
-};
-
-const runAcceptance = (root: string, featureId: string, script: string, head: string): void => {
-  console.log(`feature-acceptance: commit ${head}; ${featureId}; ${script}`);
-  const scriptPath = resolve(root, script);
-  if ((statSync(scriptPath).mode & 0o111) === 0) {
-    throw new Error(`acceptance script is not executable: ${script}`);
-  }
-  const result = spawnSync("bun", [scriptPath], {
-    cwd: root,
-    env: process.env,
-    stdio: "inherit",
-    shell: false,
+const assertCheckedOutHead = (
+  root: string,
+  expected?: string,
+): Effect.Effect<string, AcceptanceDispatchError> =>
+  attempt(() => {
+    const actual = runGit(root, ["rev-parse", "HEAD"]);
+    if (expected !== undefined && actual !== expected) {
+      throw new Error(`checked-out HEAD ${actual} does not match acceptance head ${expected}`);
+    }
+    return actual;
   });
-  if (result.error !== undefined) {
-    throw result.error;
-  }
-  if (result.status !== 0) {
-    process.exit(result.status ?? 1);
+
+const diagnosticMessage = (diagnostic: {
+  readonly code: string;
+  readonly message: string;
+}): string => `${diagnostic.code}: ${diagnostic.message}`;
+
+const requireValidRepository = (project: Parameters<typeof resolveFeature>[0], root: string) =>
+  validateFeatureRepository(project, root).pipe(
+    Effect.flatMap((diagnostics) =>
+      diagnostics.length === 0
+        ? Effect.void
+        : Effect.fail(
+            new AcceptanceDispatchError({
+              message: diagnostics.map(diagnosticMessage).join("; "),
+            }),
+          ),
+    ),
+  );
+
+const requireFeature = (
+  project: Parameters<typeof resolveFeature>[0],
+  featureId: string,
+): Effect.Effect<FeatureArtifacts, AcceptanceDispatchError> => {
+  const resolved = resolveFeature(project, featureId);
+  return isFeatureDiagnostic(resolved)
+    ? Effect.fail(new AcceptanceDispatchError({ message: diagnosticMessage(resolved) }))
+    : Effect.succeed(resolved);
+};
+
+type ProgramFailure = {
+  readonly featureId: string;
+  readonly script: string;
+  readonly detail: string;
+};
+
+const ACCEPTANCE_TIMEOUT_MS = 30 * 60 * 1000;
+
+const runAcceptance = (
+  root: string,
+  featureId: string,
+  script: string,
+): ProgramFailure | undefined => {
+  try {
+    const result = spawnSync("bun", [resolve(root, script)], {
+      cwd: root,
+      env: process.env,
+      stdio: "inherit",
+      shell: false,
+      timeout: ACCEPTANCE_TIMEOUT_MS,
+    });
+    if (result.error !== undefined) {
+      return { featureId, script, detail: result.error.message };
+    }
+    if (result.signal !== null) {
+      return { featureId, script, detail: `terminated by ${result.signal}` };
+    }
+    if (result.status !== 0) {
+      return {
+        featureId,
+        script,
+        detail: `exited with status ${result.status === null ? "unknown" : result.status}`,
+      };
+    }
+    return undefined;
+  } catch (cause) {
+    return {
+      featureId,
+      script,
+      detail: cause instanceof Error ? cause.message : String(cause),
+    };
   }
 };
 
-const featureIdsFromPlans = (paths: string[]): string[] => {
-  const ids = new Set<string>();
-  for (const path of paths) {
-    const match = /^plans\/(?:active|completed)\/([0-9]{4}-[a-z0-9]+(?:-[a-z0-9]+)*)\.md$/.exec(
-      path,
-    );
-    if (match?.[1] !== undefined) {
-      ids.add(match[1]);
-    }
-  }
-  return [...ids].sort();
-};
-
-const run = (mode: Mode, root: string, args: Map<string, string>): void => {
-  if (mode === "direct") {
-    const featureId = args.get("--feature");
-    if (featureId === undefined || !/^[0-9]{4}-[a-z0-9]+(?:-[a-z0-9]+)*$/.test(featureId)) {
-      throw new Error("direct mode requires one well-formed --feature <NNNN-slug>");
-    }
-    const head = assertCheckedOutHead(root);
-    const artifacts = validateFeatureArtifacts(root, featureId);
-    runAcceptance(root, featureId, artifacts.acceptanceScript, head);
-    return;
-  }
-
-  if (mode === "pr") {
-    const eventPath = args.get("--event") ?? process.env.GITHUB_EVENT_PATH;
-    if (eventPath === undefined) {
-      throw new Error("PR mode requires --event <path> or GITHUB_EVENT_PATH");
-    }
-    const selected = validatePullRequestEvent(root, resolve(eventPath));
-    const head = assertCheckedOutHead(root, selected.head);
-    if (selected.featureId === "trivial") {
-      console.log(
-        `feature-acceptance: commit ${head}; explicit trivial maintenance range; no feature acceptance represented.`,
-      );
-      return;
-    }
-    runAcceptance(root, selected.featureId, selected.acceptanceScript!, head);
-    return;
-  }
-
-  if (mode === "range") {
-    const base = args.get("--base");
-    const head = args.get("--head");
-    if (base === undefined || head === undefined) {
-      throw new Error("range mode requires --base <sha> --head <sha>");
-    }
-    const checkedOutHead = assertCheckedOutHead(root, head);
-    const changedPaths = changedPathsForRange(root, base, head, "range");
-    const featureIds = featureIdsFromPlans(changedPaths);
-    if (featureIds.length === 0) {
-      const nontrivial = nonTrivialPaths(changedPaths);
-      if (nontrivial.length > 0) {
-        throw new Error(
-          `range has no changed feature plan but contains nontrivial paths: ${nontrivial.join(", ")}`,
+const dispatchFeatures = (root: string, head: string, features: ReadonlyArray<FeatureArtifacts>) =>
+  Effect.gen(function* () {
+    const failures: ProgramFailure[] = [];
+    let runnable = 0;
+    let nonRunnable = 0;
+    for (const feature of features) {
+      if (feature.acceptance.kind === "runnable") {
+        runnable += 1;
+        yield* Console.log(
+          `feature-acceptance: commit ${head}; ${feature.featureId}; ${feature.acceptance.path}`,
         );
-      }
-      console.log(
-        `feature-acceptance: commit ${checkedOutHead}; trivial maintenance range ${base}..${head}; zero changed feature plans.`,
-      );
-      return;
-    }
-    const contractIds = featureIdsFromContractPaths(changedPaths);
-    const migrations = new Set<string>();
-    for (const featureId of featureIds) {
-      const declaredMigrations = contractMigrationsFor(root, featureId);
-      const designPath = `design-specs/${featureId}.md`;
-      if (declaredMigrations.length > 0 && !changedPaths.includes(designPath)) {
-        const reusedMigrations = declaredMigrations.filter((migration) =>
-          contractIds.includes(migration),
-        );
-        if (reusedMigrations.length > 0) {
-          throw new Error(
-            `feature ${featureId} reuses stale contract migrations without changing ${designPath}: ${reusedMigrations.join(", ")}`,
-          );
-        }
+        const failure = runAcceptance(root, feature.featureId, feature.acceptance.path);
+        if (failure !== undefined) failures.push(failure);
         continue;
       }
-      for (const migrated of declaredMigrations) {
-        if (!contractIds.includes(migrated)) {
-          throw new Error(
-            `feature ${featureId} declares unchanged contract migration ${migrated} in range`,
-          );
-        }
-        if (
-          migrations.has(migrated) ||
-          (featureIds.includes(migrated) && contractMigrationsFor(root, migrated).length > 0)
-        ) {
-          throw new Error(`contract migration ${migrated} has ambiguous range ownership`);
-        }
-        migrations.add(migrated);
-      }
-    }
-    const owners = featureIds.filter((featureId) => !migrations.has(featureId));
-    if (owners.length === 0) {
-      throw new Error("range contract migrations have no owning feature");
-    }
-    if (migrations.size > 0) {
-      console.log(
-        `feature-acceptance: commit ${checkedOutHead}; contract migrations owned by ${owners.join(", ")}: ${[...migrations].sort().join(", ")}`,
+      nonRunnable += 1;
+      const reason =
+        feature.acceptance.kind === "pre_loop"
+          ? "pre-loop feature has no feature-loop acceptance program"
+          : `superseded by ${feature.acceptance.replacement.target}`;
+      yield* Console.log(
+        `feature-acceptance: commit ${head}; ${feature.featureId}; non-runnable: ${reason}`,
       );
     }
-    for (const featureId of owners) {
-      const artifacts = validateFeatureArtifacts(root, featureId);
-      runAcceptance(root, featureId, artifacts.acceptanceScript, checkedOutHead);
+    yield* Console.log(
+      `feature-acceptance: commit ${head}; runnable=${runnable}; non-runnable=${nonRunnable}; failed=${failures.length}.`,
+    );
+    if (failures.length > 0) {
+      return yield* new AcceptanceDispatchError({
+        message: `feature acceptance failed: ${failures
+          .map((failure) => `${failure.featureId} (${failure.detail})`)
+          .join(", ")}`,
+      });
     }
-    return;
-  }
+  });
 
-  const head = assertCheckedOutHead(root);
-  const acceptDirectory = resolve(root, "scripts", "accept");
-  const scripts = readdirSync(acceptDirectory)
-    .filter((name) => /^[0-9]{4}-[a-z0-9]+(?:-[a-z0-9]+)*\.ts$/.test(name))
-    .sort();
-  if (scripts.length === 0) {
-    throw new Error("release mode found no checked-in feature acceptance scripts");
-  }
-  for (const name of scripts) {
-    const featureId = name.slice(0, -3);
-    runAcceptance(root, featureId, `scripts/accept/${name}`, head);
-  }
-};
+const loadValidProject = (root: string) =>
+  Effect.gen(function* () {
+    const project = yield* loadProject(root);
+    yield* requireValidRepository(project, root);
+    return project;
+  });
 
-try {
-  const args = parseArguments(process.argv.slice(2));
-  const mode = args.get("--mode") as Mode | undefined;
-  if (mode !== "direct" && mode !== "pr" && mode !== "range" && mode !== "release") {
-    throw new Error("--mode must be direct, pr, range, or release");
-  }
-  const root = resolve(args.get("--root") ?? resolve(import.meta.dirname, ".."));
-  run(mode, root, args);
-} catch (error) {
-  console.error(`feature-acceptance: ${error instanceof Error ? error.message : String(error)}`);
-  process.exit(1);
+const run = (mode: Mode, root: string, args: Map<string, string>) =>
+  Effect.gen(function* () {
+    if (mode === "direct") {
+      const featureId = args.get("--feature");
+      if (featureId === undefined || !FEATURE_ID_PATTERN.test(featureId)) {
+        return yield* new AcceptanceDispatchError({
+          message: "direct mode requires one well-formed --feature <NNNN-slug>",
+        });
+      }
+      const head = yield* assertCheckedOutHead(root);
+      const project = yield* loadValidProject(root);
+      const feature = yield* requireFeature(project, featureId);
+      return yield* dispatchFeatures(root, head, [feature]);
+    }
+
+    if (mode === "pr") {
+      const eventPath = args.get("--event") ?? process.env.GITHUB_EVENT_PATH;
+      if (eventPath === undefined) {
+        return yield* new AcceptanceDispatchError({
+          message: "PR mode requires --event <path> or GITHUB_EVENT_PATH",
+        });
+      }
+      const selected = yield* validatePullRequestEvent(root, resolve(eventPath));
+      const head = yield* assertCheckedOutHead(root, selected.head);
+      if (selected.featureId === "trivial") {
+        yield* Console.log(
+          `feature-acceptance: commit ${head}; explicit trivial maintenance range; no feature acceptance represented.`,
+        );
+        return;
+      }
+      if (selected.feature === undefined) {
+        return yield* new AcceptanceDispatchError({
+          message: `feature ${selected.featureId} did not resolve canonical artifacts`,
+        });
+      }
+      return yield* dispatchFeatures(root, head, [selected.feature]);
+    }
+
+    if (mode === "range") {
+      const base = args.get("--base");
+      const head = args.get("--head");
+      if (base === undefined || head === undefined) {
+        return yield* new AcceptanceDispatchError({
+          message: "range mode requires --base <sha> --head <sha>",
+        });
+      }
+      const checkedOutHead = yield* assertCheckedOutHead(root, head);
+      const changedPaths = yield* changedPathsForRange(root, base, head, "range");
+      const project = yield* loadValidProject(root);
+      const featureIds = featuresForChangedPaths(project, changedPaths);
+      if (featureIds.length === 0) {
+        const nontrivial = nonTrivialPaths(changedPaths);
+        if (nontrivial.length > 0) {
+          return yield* new AcceptanceDispatchError({
+            message: `range has no changed feature but contains nontrivial paths: ${nontrivial.join(", ")}`,
+          });
+        }
+        yield* Console.log(
+          `feature-acceptance: commit ${checkedOutHead}; trivial maintenance range ${base}..${head}; zero changed features.`,
+        );
+        return;
+      }
+      const features = yield* Effect.forEach(featureIds, (featureId) =>
+        requireFeature(project, featureId),
+      );
+      const ownership = yield* attempt(() =>
+        migrationOwnershipForRange(root, features, changedPaths),
+      );
+      const owners = features.filter(
+        (feature) => !ownership.migratedFeatureIds.has(feature.featureId),
+      );
+      if (owners.length === 0) {
+        return yield* new AcceptanceDispatchError({
+          message: "range contract migrations have no owning feature",
+        });
+      }
+      if (ownership.migratedFeatureIds.size > 0) {
+        yield* Console.log(
+          `feature-acceptance: commit ${checkedOutHead}; contract migrations owned by ${owners
+            .map((owner) => owner.featureId)
+            .join(", ")}: ${[...ownership.migratedFeatureIds].sort().join(", ")}`,
+        );
+      }
+      return yield* dispatchFeatures(root, checkedOutHead, owners);
+    }
+
+    const head = yield* assertCheckedOutHead(root);
+    const project = yield* loadValidProject(root);
+    const resolved = resolveFeatures(project);
+    const diagnostics = resolved.filter(isFeatureDiagnostic);
+    if (diagnostics.length > 0) {
+      return yield* new AcceptanceDispatchError({
+        message: diagnostics.map(diagnosticMessage).join("; "),
+      });
+    }
+    return yield* dispatchFeatures(
+      root,
+      head,
+      resolved.filter((feature): feature is FeatureArtifacts => !isFeatureDiagnostic(feature)),
+    );
+  });
+
+if (import.meta.main) {
+  const program = Effect.gen(function* () {
+    const args = yield* attempt(() => parseArguments(process.argv.slice(2)));
+    const mode = args.get("--mode") as Mode | undefined;
+    if (mode !== "direct" && mode !== "pr" && mode !== "range" && mode !== "release") {
+      return yield* new AcceptanceDispatchError({
+        message: "--mode must be direct, pr, range, or release",
+      });
+    }
+    const root = resolve(args.get("--root") ?? resolve(import.meta.dirname, ".."));
+    yield* run(mode, root, args);
+  }).pipe(Effect.provide([BunFileSystem.layer, BunPath.layer]));
+  runMain("feature-acceptance", program);
 }

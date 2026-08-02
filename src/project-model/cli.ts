@@ -1,7 +1,8 @@
 import { Console, Effect, Path, type FileSystem } from "effect";
 import { loadProject } from "./loader.ts";
 import { assessWork, criticalPath } from "./schedule.ts";
-import { validateProject } from "./validate.ts";
+import { validateFeatureRepository, type FeatureDiagnostic } from "./work-lifecycle.ts";
+import { validateProject, type ValidationIssue } from "./validate.ts";
 import { generateViews, writeViews } from "./views.ts";
 
 interface Command {
@@ -45,9 +46,13 @@ const parseCommand = (arguments_: ReadonlyArray<string>): Command | undefined =>
   return { root, name, output, check };
 };
 
-const issueText = (issue: ReturnType<typeof validateProject>[number]): string => {
-  const location = issue.entityId === undefined ? "" : ` [${issue.entityId}]`;
-  return `${issue.severity}: ${issue.code}${location}: ${issue.message}`;
+type ProjectIssue = ValidationIssue | FeatureDiagnostic;
+
+const issueText = (issue: ProjectIssue): string => {
+  const entity = issue.entityId === undefined ? "" : ` [${issue.entityId}]`;
+  const path = "path" in issue && issue.path !== undefined ? ` (${issue.path})` : "";
+  const source = "source" in issue && issue.source !== undefined ? ` (${issue.source})` : "";
+  return `${issue.severity}: ${issue.code}${entity}${path}${source}: ${issue.message}`;
 };
 
 export const runSemproj = (
@@ -61,7 +66,10 @@ export const runSemproj = (
   return Effect.gen(function* () {
     const pathService = yield* Path.Path;
     const project = yield* loadProject(command.root);
-    const issues = validateProject(project);
+    const issues: ReadonlyArray<ProjectIssue> = [
+      ...validateProject(project),
+      ...(yield* validateFeatureRepository(project, project.root)),
+    ];
     if (command.name === "validate") {
       for (const issue of issues) yield* Console.log(issueText(issue));
       const errors = issues.filter((issue) => issue.severity === "error").length;

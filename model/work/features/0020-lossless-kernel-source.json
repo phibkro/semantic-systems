@@ -1,0 +1,38 @@
+{
+  "entities": [
+    {
+      "id": "work.lossless-frontend-spec",
+      "kind": "work_item",
+      "name": "Design lossless incremental frontend",
+      "summary": "Specify immutable source trees, stable identities, recovery, query invalidation, and source-to-core provenance.",
+      "status": "superseded",
+      "tags": ["compiler", "tooling"],
+      "attributes": {
+        "feature_id": "0020-lossless-kernel-source",
+        "feature_loop": "managed",
+        "phase": "design",
+        "effort": 8,
+        "replacement": {
+          "target": "0020-agent-facing-kernel-json",
+          "reason": "The operator recut feature 0020 around recursive JSON as the stable agent-facing kernel interface; this lossless S-expression checkpoint remains preserved as historical source only."
+        },
+        "acceptance": [
+          "Formatting and malformed source remain representable",
+          "Typed views do not become the canonical source tree",
+          "Incremental query inputs and invalidation rules are explicit",
+          "Diagnostics trace through elaboration to source ranges"
+        ],
+        "delegation": {
+          "specification_completeness": 4,
+          "context_locality": 5,
+          "testability": 4,
+          "reversibility": 4,
+          "integration_independence": 4,
+          "blast_radius": 3,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": []
+}

@@ -1,48 +1,12 @@
 {
   "entities": [
     {
-      "id": "work.inventory-resolution-tracer",
-      "kind": "work_item",
-      "name": "Complete inventory evidence-resolution tracer",
-      "summary": "Cross authored contract, normalization, realization, evidence, policy, resolution, execution, explanation, and project graph.",
-      "status": "complete",
-      "tags": [
-        "inventory",
-        "tracer-bullet"
-      ],
-      "attributes": {
-        "phase": "validation",
-        "effort": 5,
-        "acceptance": [
-          "One command selects the pure realization and explains why",
-          "Broken, missing-evidence, wrong-theory, proof-only, and ambiguous cases reject",
-          "Evidence remains example-test evidence and binds exact computed identities",
-          "Selected execution matches the declared state and event oracle",
-          "Canonical model and generated views are current"
-        ],
-        "delegation": {
-          "specification_completeness": 5,
-          "context_locality": 5,
-          "testability": 5,
-          "reversibility": 5,
-          "integration_independence": 4,
-          "blast_radius": 3,
-          "human_review": true
-        },
-        "plan": "plans/completed/0001-inventory-resolution-tracer.md",
-        "design_spec": "design-specs/0001-inventory-resolution-tracer.md"
-      }
-    },
-    {
       "id": "question.theory-binder-normalization",
       "kind": "question",
       "name": "Binder equivalence in normalized theory identity",
       "summary": "Determine alpha-equivalence and capture-sensitive identity rules once normalized law terms exist.",
       "status": "open",
-      "tags": [
-        "semantics",
-        "identity"
-      ],
+      "tags": ["semantics", "identity"],
       "attributes": {
         "record": "uncertainties/0001-theory-normalization-binders.md"
       }

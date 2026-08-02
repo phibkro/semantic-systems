@@ -10,7 +10,7 @@
 | claim | 5 |
 | component | 21 |
 | decision | 6 |
-| deployment | 3 |
+| deployment | 4 |
 | domain_machine | 1 |
 | effect | 1 |
 | evidence | 6 |
@@ -26,7 +26,7 @@
 | responsibility | 2 |
 | runtime | 8 |
 | theory | 12 |
-| work_item | 33 |
+| work_item | 41 |
 
 - [System map](01-system-map.md)
 - [Theory-realization map](02-theory-realization.md)
@@ -35,3 +35,4 @@
 - [Work dependencies](05-work-dependencies.md)
 - [Delegation frontier](06-delegation-frontier.md)
 - [Runtime view](07-runtime-view.md)
+- [Feature lifecycle](08-feature-lifecycle.md)

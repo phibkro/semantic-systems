@@ -1,5 +1,6 @@
 import { Data, Effect, FileSystem, Path } from "effect";
 import { assessWork, criticalPath } from "./schedule.ts";
+import { renderFeatureLifecycle } from "./work-lifecycle.ts";
 import { byKind, incoming, type Entity, type ProjectGraph, type Relation } from "./types.ts";
 
 export class ViewWriteError extends Data.TaggedError("ViewWriteError")<{
@@ -170,7 +171,7 @@ const index = (project: ProjectGraph): string => {
   );
   return document(
     "Generated project views",
-    `${rows.join("\n")}\n\n- [System map](01-system-map.md)\n- [Theory-realization map](02-theory-realization.md)\n- [Concern matrix](03-concern-matrix.md)\n- [Evidence map](04-evidence-map.md)\n- [Work dependencies](05-work-dependencies.md)\n- [Delegation frontier](06-delegation-frontier.md)\n- [Runtime view](07-runtime-view.md)`,
+    `${rows.join("\n")}\n\n- [System map](01-system-map.md)\n- [Theory-realization map](02-theory-realization.md)\n- [Concern matrix](03-concern-matrix.md)\n- [Evidence map](04-evidence-map.md)\n- [Work dependencies](05-work-dependencies.md)\n- [Delegation frontier](06-delegation-frontier.md)\n- [Runtime view](07-runtime-view.md)\n- [Feature lifecycle](08-feature-lifecycle.md)`,
   );
 };
 
@@ -184,6 +185,7 @@ export const generateViews = (project: ProjectGraph): ReadonlyMap<string, string
     ["05-work-dependencies.md", workDependencies(project)],
     ["06-delegation-frontier.md", delegationFrontier(project)],
     ["07-runtime-view.md", runtimeView(project)],
+    ["08-feature-lifecycle.md", renderFeatureLifecycle(project)],
   ]);
 
 export const writeViews = (
@@ -194,14 +196,17 @@ export const writeViews = (
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
-    yield* fs
-      .makeDirectory(output, { recursive: true })
-      .pipe(
+    if (!check) {
+      yield* fs.makeDirectory(output, { recursive: true }).pipe(
         Effect.mapError(
           (cause) =>
-            new ViewWriteError({ message: `cannot create generated directory: ${output}`, cause }),
+            new ViewWriteError({
+              message: `cannot create generated directory: ${output}`,
+              cause,
+            }),
         ),
       );
+    }
     const changed: Array<string> = [];
     for (const [name, content] of [...views].sort(([left], [right]) => compareText(left, right))) {
       const destination = path.join(output, name);

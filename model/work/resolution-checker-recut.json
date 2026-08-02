@@ -29,6 +29,18 @@
         "conservative_review_ratio_percent": 144.2,
         "integrated_experiment_commit": "219ee7c",
         "independent_review_record_commit": "1d30fcf",
+        "completion": {
+          "outcome": "negative",
+          "evidence": [
+            {
+              "role": "status_basis",
+              "category": "assertion",
+              "method": "authored_completion_state",
+              "source": { "kind": "authored_assertion" },
+              "claim": "Completed as rejected counterevidence; the current checker frontier is stopped until an explicit design revision replaces the incompatible size/trust claim."
+            }
+          ]
+        },
         "acceptance": [
           "Complete v1 claim, report, mutation, and presentation-order corpus passes",
           "Generic checker, recipe custody, canonical binding, execution, and observation authority remain separate",

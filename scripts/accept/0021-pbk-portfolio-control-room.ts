@@ -11,8 +11,8 @@ const root = resolve(import.meta.dirname, "../..");
 
 const contractArtifacts = [
   "design-specs/0021-pbk-portfolio-control-room.md",
-  "plans/completed/0021-pbk-portfolio-control-room.md",
-  "model/work/pbk-portfolio-control-room.json",
+  "plans/0021-pbk-portfolio-control-room.md",
+  "model/work/features/0021-pbk-portfolio-control-room.json",
 ] as const;
 
 const implementationArtifacts = [
@@ -69,7 +69,7 @@ export const portfolioControlRoomAcceptance = Effect.gen(function* () {
       "tests/pbk-portfolio-model.test.ts",
       "apps/control-room",
       "scripts/accept/0021-pbk-portfolio-control-room.ts",
-      "model/work/pbk-portfolio-control-room.json",
+      "model/work/features/0021-pbk-portfolio-control-room.json",
     ],
     ["bun", "scripts/accept/0017-control-room-reconstruction.ts"],
   ] as const) {

@@ -1,0 +1,34 @@
+{
+  "entities": [
+    {
+      "id": "work.reference-baselines-deep-research",
+      "kind": "work_item",
+      "name": "Research reference baselines for deep research",
+      "summary": "Build a source-backed reference portfolio with routed research, provenance, evidence strength, enforceability, and falsifiable adoption experiments.",
+      "status": "in_progress",
+      "tags": ["research", "references", "workflow"],
+      "attributes": {
+        "feature_id": "0002-reference-baselines-deep-research",
+        "feature_loop": "pre_loop",
+        "phase": "research",
+        "effort": 8,
+        "acceptance": [
+          "Every recommended method is backed by primary sources and an explicit evidence limit",
+          "Reference cards preserve provenance, licensing, trust boundaries, and project-owned authority",
+          "The routed workflow separates mechanical retrieval, comparative reasoning, and synthesis",
+          "Adoption recommendations include a smallest falsifiable experiment"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 5,
+          "testability": 4,
+          "reversibility": 5,
+          "integration_independence": 4,
+          "blast_radius": 2,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": []
+}
