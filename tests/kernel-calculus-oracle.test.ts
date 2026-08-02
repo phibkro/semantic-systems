@@ -120,6 +120,10 @@ describe("finite calculus law and differential oracles", () => {
     });
   });
 
+  // This creates a clean detached worktree and performs an offline Lean build.
+  // Bun's five-second default is below the observed cold-build time under a
+  // concurrent acceptance run; 30 seconds keeps the evidence bounded without
+  // treating host scheduling latency as a semantic failure.
   test("the pinned Apache-2.0 overlap fixture executes the independent oracle", async () => {
     expect(langBangOracleProvenance).toMatchObject({
       source: "lang-bang",
@@ -273,5 +277,5 @@ describe("finite calculus law and differential oracles", () => {
         computation: { kind: "return", grade: "1", value: { kind: "int" } },
       },
     });
-  });
+  }, 30_000);
 });

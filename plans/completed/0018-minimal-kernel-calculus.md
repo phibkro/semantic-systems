@@ -177,3 +177,9 @@ authority, Node divergence, model drift, or an unrun required tool.
   normalized-core format 0019.
 - 2026-07-31: the completed plan moved to the durable ledger after normalized
   core 0019 integrated without changing the accepted 0018 contract.
+- 2026-08-02: an exact downstream acceptance run exposed a test-infrastructure
+  timeout, not a semantic failure: the clean offline Lean oracle build needed
+  5.89 seconds on the live host, beyond Bun's five-second default, while the
+  same pinned source, toolchain, license, offline policy, and expected
+  observation passed. The test now declares a bounded 30-second timeout for
+  that cold external build; no oracle input, output, or authority changed.
