@@ -25,7 +25,7 @@ realization.
 The current baseline is not the former WASI 0.2 surface. The mapper must support
 current WIT `async func`, `stream<T>`, and `future<T>` syntax. These are the WIT
 features documented as additions for WASI 0.3. The pinned Nix package
-`wasm-tools` 1.253.0 parses these forms. WebAssembly core 3.0 is a separate
+`wasm-tools` 1.254.0 parses these forms. WebAssembly core 3.0 is a separate
 standard layer; its official live-standard release is dated 2025-09-17.
 
 Primary syntax sources:
@@ -319,7 +319,7 @@ The exact acceptance program is
 2. emitted WIT includes an imported fresh-identifier capability, exported async
    inventory operations, a reservation resource with owned and borrowed uses,
    and native `async func`, `stream<T>`, and `future<T>`;
-3. pinned `wasm-tools` 1.253.0 parses the generated WIT and reports async
+3. pinned `wasm-tools` 1.254.0 parses the generated WIT and reports async
    freestanding or method function kinds plus native stream and future types;
 4. every declared law, effect label, usage grade, assumption, and evidence
    requirement has one explicit manifest disposition;
@@ -352,3 +352,8 @@ The project gains a checked, current-WIT structural projection and an explicit
 semantic correspondence artifact. It does not change any theory, law, effect,
 usage grade, evidence category, handler, runtime, package identity, or
 deployment policy.
+
+Revision 1, 2026-08-02: the repository's pinned nixpkgs lock provides
+`wasm-tools` 1.254.0. This invalidates and replaces the frozen 1.253.0 parser
+version only; parser evidence meaning, acceptance requirements, and the semantic
+boundary are unchanged.

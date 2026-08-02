@@ -1,0 +1,269 @@
+{
+  "format": "semantic.wit-mapping-input/v1",
+  "package": {
+    "namespace": "semantic",
+    "name": "inventory",
+    "version": "1.0.0"
+  },
+  "theory": {
+    "identity": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "source_key": "examples/inventory/contracts/inventory-v0.json",
+    "complete_contract_identity": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "laws": [
+      {
+        "id": "rejection-is-noop",
+        "statement": "Every rejected message emits one rejection event and leaves state unchanged."
+      },
+      {
+        "id": "replay-agrees-with-transition",
+        "statement": "Replaying emitted events from the initial state reconstructs the transition final state."
+      }
+    ],
+    "effect_labels": [
+      {
+        "id": "effect.fresh",
+        "statement": "Fresh reservation identifiers are unique within one execution."
+      },
+      {
+        "id": "effect.clock",
+        "statement": "The inventory clock is an external capability."
+      }
+    ],
+    "usage_grades": [
+      {
+        "id": "linear",
+        "statement": "Reservation handles are consumed at most once."
+      }
+    ],
+    "assumptions": [
+      {
+        "id": "inventory.initial-state",
+        "statement": "The initial inventory state satisfies the non-negative stock invariant."
+      }
+    ],
+    "evidence_requirements": [
+      {
+        "id": "inventory.conformance",
+        "statement": "A realization must provide an independently checked conformance trace."
+      }
+    ]
+  },
+  "interfaces": [
+    {
+      "name": "fresh-identifiers",
+      "semantic_path": "theory.inventory/effect/fresh",
+      "types": [],
+      "functions": [
+        {
+          "name": "fresh",
+          "semantic_path": "theory.inventory/operation/fresh",
+          "params": [],
+          "result": "string",
+          "effect_labels": ["effect.fresh"]
+        }
+      ]
+    },
+    {
+      "name": "inventory",
+      "semantic_path": "theory.inventory",
+      "types": [
+        {
+          "kind": "record",
+          "name": "reservation-request",
+          "semantic_path": "theory.inventory/type/reservation-request",
+          "fields": [
+            {
+              "name": "item",
+              "type": "string",
+              "semantic_path": "theory.inventory/type/reservation-request/item"
+            },
+            {
+              "name": "quantity",
+              "type": "u32",
+              "semantic_path": "theory.inventory/type/reservation-request/quantity"
+            }
+          ]
+        },
+        {
+          "kind": "record",
+          "name": "inventory-event",
+          "semantic_path": "theory.inventory/type/inventory-event",
+          "fields": [
+            {
+              "name": "reservation-id",
+              "type": "string",
+              "semantic_path": "theory.inventory/type/inventory-event/reservation-id"
+            },
+            {
+              "name": "quantity",
+              "type": "u32",
+              "semantic_path": "theory.inventory/type/inventory-event/quantity"
+            }
+          ]
+        },
+        {
+          "kind": "variant",
+          "name": "inventory-error",
+          "semantic_path": "theory.inventory/type/inventory-error",
+          "cases": [
+            {
+              "name": "invalid-quantity",
+              "semantic_path": "theory.inventory/type/inventory-error/invalid-quantity"
+            },
+            {
+              "name": "insufficient-stock",
+              "semantic_path": "theory.inventory/type/inventory-error/insufficient-stock"
+            },
+            {
+              "name": "unknown-reservation",
+              "type": "string",
+              "semantic_path": "theory.inventory/type/inventory-error/unknown-reservation"
+            }
+          ]
+        },
+        {
+          "kind": "enum",
+          "name": "reservation-state",
+          "semantic_path": "theory.inventory/type/reservation-state",
+          "cases": ["active", "released", "rejected"]
+        },
+        {
+          "kind": "flags",
+          "name": "reservation-options",
+          "semantic_path": "theory.inventory/type/reservation-options",
+          "cases": ["notify", "allow-partial"]
+        },
+        {
+          "kind": "type",
+          "name": "reservation-id",
+          "semantic_path": "theory.inventory/type/reservation-id",
+          "type": "string"
+        },
+        {
+          "kind": "resource",
+          "name": "reservation",
+          "semantic_path": "theory.inventory/resource/reservation",
+          "ownership_statement": "The reservation handle is owned by its current holder unless borrowed for one call.",
+          "drop_assumption": "Dropping an owned reservation releases its host reservation record.",
+          "usage_grade": "linear",
+          "constructor": {
+            "semantic_path": "theory.inventory/resource/reservation/constructor",
+            "params": [
+              {
+                "name": "request",
+                "type": "reservation-request",
+                "semantic_path": "theory.inventory/resource/reservation/constructor/request"
+              }
+            ],
+            "effect_labels": ["effect.fresh"]
+          },
+          "methods": [
+            {
+              "name": "release",
+              "semantic_path": "theory.inventory/resource/reservation/release",
+              "async": true,
+              "params": [],
+              "result": "reservation-state",
+              "effect_labels": []
+            },
+            {
+              "name": "snapshot",
+              "semantic_path": "theory.inventory/resource/reservation/snapshot",
+              "params": [
+                {
+                  "name": "other",
+                  "type": "borrow<reservation>",
+                  "semantic_path": "theory.inventory/resource/reservation/snapshot/other"
+                }
+              ],
+              "result": "reservation-request",
+              "effect_labels": []
+            }
+          ],
+          "statics": [
+            {
+              "name": "open",
+              "semantic_path": "theory.inventory/resource/reservation/open",
+              "async": true,
+              "params": [
+                {
+                  "name": "request",
+                  "type": "reservation-request",
+                  "semantic_path": "theory.inventory/resource/reservation/open/request"
+                }
+              ],
+              "result": "reservation",
+              "effect_labels": ["effect.fresh"]
+            }
+          ]
+        }
+      ],
+      "functions": [
+        {
+          "name": "reserve",
+          "semantic_path": "theory.inventory/operation/reserve",
+          "async": true,
+          "params": [
+            {
+              "name": "request",
+              "type": "reservation-request",
+              "semantic_path": "theory.inventory/operation/reserve/request"
+            },
+            {
+              "name": "options",
+              "type": "reservation-options",
+              "semantic_path": "theory.inventory/operation/reserve/options"
+            }
+          ],
+          "result": {
+            "kind": "result",
+            "ok": "reservation",
+            "err": "inventory-error"
+          },
+          "effect_labels": ["effect.fresh"]
+        },
+        {
+          "name": "watch",
+          "semantic_path": "theory.inventory/operation/watch",
+          "params": [],
+          "result": {
+            "kind": "tuple",
+            "elements": [
+              {
+                "kind": "stream",
+                "element": "inventory-event"
+              },
+              {
+                "kind": "future",
+                "element": {
+                  "kind": "result",
+                  "ok": null,
+                  "err": "inventory-error"
+                }
+              }
+            ]
+          },
+          "effect_labels": ["effect.clock"]
+        },
+        {
+          "name": "release",
+          "semantic_path": "theory.inventory/operation/release",
+          "params": [
+            {
+              "name": "reservation",
+              "type": "borrow<reservation>",
+              "semantic_path": "theory.inventory/operation/release/reservation"
+            }
+          ],
+          "result": "reservation-state",
+          "effect_labels": []
+        }
+      ]
+    }
+  ],
+  "world": {
+    "name": "inventory-world",
+    "imports": ["fresh-identifiers"],
+    "exports": ["inventory"]
+  }
+}

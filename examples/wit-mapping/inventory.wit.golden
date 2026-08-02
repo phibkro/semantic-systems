@@ -1,0 +1,55 @@
+package semantic:inventory@1.0.0;
+
+interface fresh-identifiers {
+  fresh: func() -> string;
+}
+
+interface inventory {
+  variant inventory-error {
+    invalid-quantity,
+    insufficient-stock,
+    unknown-reservation(string),
+  }
+
+  record inventory-event {
+    reservation-id: string,
+    quantity: u32,
+  }
+
+  resource reservation {
+    constructor(request: reservation-request);
+    release: async func() -> reservation-state;
+    snapshot: func(other: borrow<reservation>) -> reservation-request;
+    open: static async func(request: reservation-request) -> reservation;
+  }
+
+  type reservation-id = string;
+
+  flags reservation-options {
+    notify,
+    allow-partial,
+  }
+
+  record reservation-request {
+    item: string,
+    quantity: u32,
+  }
+
+  enum reservation-state {
+    active,
+    released,
+    rejected,
+  }
+
+  release: func(reservation: borrow<reservation>) -> reservation-state;
+
+  reserve: async func(request: reservation-request, options: reservation-options) -> result<reservation, inventory-error>;
+
+  watch: func() -> tuple<stream<inventory-event>, future<result<_, inventory-error>>>;
+}
+
+world inventory-world {
+  import fresh-identifiers;
+
+  export inventory;
+}

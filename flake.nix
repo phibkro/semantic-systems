@@ -37,6 +37,7 @@
               # ./node_modules/.bin/{commitlint,oxfmt,oxlint}.
               pkgs.nodejs
               pkgs.playwright-test
+              pkgs.wasm-tools
             ]
             ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
               # Kernel advisory locking shared by Bun and Node live layers.
