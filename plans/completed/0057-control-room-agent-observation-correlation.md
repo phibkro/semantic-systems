@@ -62,6 +62,10 @@ The acceptance program must print both source digests, declared bounds, capture 
   `5076a9ac85d16a0cbdd92fd3a4dca90a1ab7a3e9` passed 14 observation tests, six
   Control Room projection tests, TypeScript checking, semantic model
   validation, and generated-view freshness.
+- 2026-08-02: clean-worktree integration at
+  `67427b7ff17fdc900f7a221d9acad06bd2b1b4f6` passed the full 770-test
+  repository gate and the exact feature acceptance. The acceptance no longer
+  depends on ignored generated Control Room data.
 - 2026-08-02: independent feature and security reviews accepted the final live
   implementation with no Critical or Important finding. These reviews are
   authored assertions, not runtime evidence. One Low bounded browser-availability
@@ -72,5 +76,5 @@ The acceptance program must print both source digests, declared bounds, capture 
 
 Vendor exports and portfolio snapshots can lie about their origin. Digest verification establishes byte identity only. Parent links do not establish causal truth. Explicit PBK attributes do not establish caller authorization. Tests and runtime checks do not prove completeness, correctness, evidence sufficiency, or agent quality.
 
-Status: accepted at implementation head
-`5076a9ac85d16a0cbdd92fd3a4dca90a1ab7a3e9`.
+Status: accepted at integration head
+`67427b7ff17fdc900f7a221d9acad06bd2b1b4f6`.

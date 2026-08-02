@@ -15,7 +15,7 @@
         "completion": {
           "outcome": "positive",
           "implementation_head": "5076a9ac85d16a0cbdd92fd3a4dca90a1ab7a3e9",
-          "integration_head": "5076a9ac85d16a0cbdd92fd3a4dca90a1ab7a3e9",
+          "integration_head": "67427b7ff17fdc900f7a221d9acad06bd2b1b4f6",
           "evidence": [
             {
               "role": "feature_acceptance",
