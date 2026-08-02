@@ -16,6 +16,8 @@ import {
   replaySchedule,
   type ExplorationReport,
   type InvalidScenario,
+  type ReplayRejected,
+  type ReplayReport,
   type Scenario,
 } from "../src/stm-explorer/index.ts";
 import { canonicalJson } from "../src/tracer/canonical.ts";
@@ -24,6 +26,12 @@ import { contentionScenario } from "../examples/stm-schedule-explorer/scenario.t
 const requireScenario = (value: Scenario | InvalidScenario): Scenario => {
   if ("kind" in value) throw new Error(value.message);
   return value;
+};
+
+const assertReplayReport: (
+  value: ReplayReport | ReplayRejected,
+) => asserts value is ReplayReport = (value) => {
+  if ("kind" in value) throw new Error(value.message);
 };
 
 const retryScenario = (): Scenario => {
@@ -73,7 +81,7 @@ const wakeScenario = (unrelated: boolean): Scenario => {
   );
 };
 
-const finding = (report: ExplorationReport, name: string) => {
+const finding = (report: ExplorationReport | ReplayReport, name: string) => {
   const value = report.properties.find((entry) => entry.property === name);
   if (value === undefined) throw new Error(`missing property ${name}`);
   return value;
@@ -101,30 +109,28 @@ describe("bounded STM schedule explorer 0052", () => {
       { transaction_id: "retrying", action: "settle" },
     ]);
     if (deadlock.counterexample === null) throw new Error("counterexample missing");
-    const replay = replaySchedule(scenario, deadlock.counterexample.schedule);
-    expect("kind" in replay && replay.kind).not.toBe("replay_rejected");
-    if ("kind" in replay && replay.kind === "replay_rejected") return;
-    expect(canonicalJson(replay.terminal_projection)).toBe(
+    const replayResult = replaySchedule(scenario, deadlock.counterexample.schedule);
+    expect("kind" in replayResult && replayResult.kind).not.toBe("replay_rejected");
+    assertReplayReport(replayResult);
+    expect(canonicalJson(replayResult.terminal_projection)).toBe(
       canonicalJson(deadlock.counterexample.terminal_projection),
     );
-    expect(
-      canonicalJson(
-        replay.properties.find((entry) => entry.property === "all_transactions_terminal")!,
-      ),
-    ).toBe(canonicalJson(deadlock));
+    expect(canonicalJson(finding(replayResult, "all_transactions_terminal"))).toBe(
+      canonicalJson(deadlock),
+    );
   });
 
   test("relevant and unrelated dependency changes differ", () => {
-    const relevant = replaySchedule(wakeScenario(false), [
+    const relevantResult = replaySchedule(wakeScenario(false), [
       { transaction_id: "waiting", action: "begin" },
       { transaction_id: "waiting", action: "settle" },
       { transaction_id: "writer", action: "begin" },
       { transaction_id: "writer", action: "settle" },
       { transaction_id: "waiting", action: "wake" },
     ]);
-    expect("kind" in relevant && relevant.kind).not.toBe("replay_rejected");
-    if ("kind" in relevant && relevant.kind === "replay_rejected") return;
-    expect(relevant.trace.at(-1)?.changed_retry_dependencies).toEqual(["x"]);
+    expect("kind" in relevantResult && relevantResult.kind).not.toBe("replay_rejected");
+    assertReplayReport(relevantResult);
+    expect(relevantResult.trace.at(-1)?.changed_retry_dependencies).toEqual(["x"]);
 
     const unrelated = replaySchedule(wakeScenario(true), [
       { transaction_id: "waiting", action: "begin" },

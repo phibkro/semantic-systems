@@ -17,6 +17,7 @@ import {
   replaySchedule,
   type ExplorationReport,
   type InvalidScenario,
+  type PropertyFinding,
   type ReplayReport,
   type Scenario,
 } from "../../src/stm-explorer/index.ts";
@@ -33,8 +34,7 @@ const decoder = new TextDecoder();
 const fail = (message: string): never => {
   throw new Error(`0052 acceptance: ${message}`);
 };
-
-const assert = (condition: unknown, message: string): asserts condition => {
+const assert: (condition: unknown, message: string) => asserts condition = (condition, message) => {
   if (!condition) fail(message);
 };
 
@@ -46,7 +46,10 @@ const run = (command: ReadonlyArray<string>): string => {
   return decoder.decode(result.stdout);
 };
 
-const property = (report: ExplorationReport | ReplayReport, name: string) => {
+const property: (report: ExplorationReport | ReplayReport, name: string) => PropertyFinding = (
+  report,
+  name,
+) => {
   const result = report.properties.find((entry) => entry.property === name);
   if (result === undefined) fail(`report is missing property ${name}`);
   return result;

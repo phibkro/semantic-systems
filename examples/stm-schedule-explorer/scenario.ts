@@ -25,8 +25,8 @@ export interface ContentionFixture {
   readonly x: TVar<"schedule-example", number>;
   readonly y: TVar<"schedule-example", number>;
   readonly initialStore: Store<"schedule-example">;
-  readonly left: Txn<"schedule-example", never, null, never, never>;
-  readonly right: Txn<"schedule-example", never, null, never, never>;
+  readonly left: Txn<"schedule-example", never, JsonValue, never, never>;
+  readonly right: Txn<"schedule-example", never, JsonValue, never, never>;
 }
 
 const bounds: ExplorerBounds = Object.freeze({

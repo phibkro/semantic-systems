@@ -11,6 +11,7 @@ import {
   beginAttempt,
   changedDependencies,
   discardAttempt,
+  isSeriallyEquivalent,
   projectStore,
   rerunAttempt,
   settleAttempt,
@@ -275,17 +276,14 @@ const validBounds = (value: unknown): value is ExplorerBounds => {
     Number(value.maximumStates) <= EXPLORER_CEILINGS.maximumStates
   );
 };
-
 const normalizedEntry = (value: ScenarioTransactionInput): NamedTransaction | undefined => {
-  if (isObject(value) && typeof value.id === "string" && "transaction" in value) {
-    const transaction = value.transaction;
-    if (!isObject(transaction)) return undefined;
-    return { id: value.id, transaction: transaction as ExplorerTxn };
+  if (value === null || typeof value !== "object") return undefined;
+  if ("transaction" in value) {
+    if (typeof value.id !== "string") return undefined;
+    return { id: value.id, transaction: value.transaction };
   }
-  if (isObject(value) && typeof value.id === "string") {
-    return { id: value.id, transaction: value as ExplorerTxn };
-  }
-  return undefined;
+  if (typeof value.id !== "string") return undefined;
+  return { id: value.id, transaction: value };
 };
 
 const requireAttempt = (result: BeginResult, transactionId: string): Attempt | InvalidScenario => {
