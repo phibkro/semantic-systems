@@ -1,14 +1,14 @@
 #!/usr/bin/env bun
-import { BunCrypto } from "@effect/platform-bun";
+import { BunCrypto, BunFileSystem, BunPath } from "@effect/platform-bun";
 import { readFile, stat } from "node:fs/promises";
 import { resolve } from "node:path";
-import { Console, Crypto, Data, Effect, Schema } from "effect";
+import { Console, Crypto, Data, Effect } from "effect";
 import { analyzeAgentObservationCapture } from "../../src/agent-observation/index.ts";
 import {
   AgentObservationBounds,
   type ObservationCaptureInput,
 } from "../../src/agent-observation/schema.ts";
-import { PublicPortfolioSnapshotSchema } from "../../src/portfolio-model/public-export.ts";
+import { buildPublicPortfolioArtifact, loadPortfolio } from "../../src/portfolio-model/index.ts";
 import { stringifyCanonicalJson } from "../../src/references/canonical-json.ts";
 import { runCommand, runMain } from "../lib/command.ts";
 
@@ -19,7 +19,6 @@ class AcceptanceFailure extends Data.TaggedError("AcceptanceFailure")<{
 const root = resolve(import.meta.dirname, "../..");
 const langfusePath = resolve(root, "examples/agent-observation/langfuse.json");
 const clickstackPath = resolve(root, "examples/agent-observation/clickstack.ndjson");
-const portfolioVersionPath = resolve(root, "apps/control-room/public/data/portfolio-version.json");
 
 const ensure = (condition: boolean, message: string): Effect.Effect<void, AcceptanceFailure> =>
   condition ? Effect.void : Effect.fail(new AcceptanceFailure({ message }));
@@ -64,26 +63,25 @@ const expectCode = (
   );
 
 const program = Effect.gen(function* () {
-  const [langfuseBytes, clickstackBytes, portfolioVersionBytes] = yield* Effect.all([
+  const [langfuseBytes, clickstackBytes] = yield* Effect.all([
     readText(langfusePath, AgentObservationBounds.maximum_capture_bytes),
     readText(clickstackPath, AgentObservationBounds.maximum_capture_bytes),
-    readText(portfolioVersionPath),
   ]);
-  const portfolioVersion = (yield* parseJson(portfolioVersionBytes, "portfolio version")) as {
-    readonly snapshot?: unknown;
-  };
-  yield* ensure(typeof portfolioVersion.snapshot === "string", "portfolio version has no snapshot");
-  const portfolioBytes = yield* readText(
-    resolve(root, "apps/control-room/public/data", portfolioVersion.snapshot as string),
-  );
-  const portfolioUnknown = yield* parseJson(portfolioBytes, "portfolio snapshot");
-  const portfolio = yield* Schema.decodeUnknownEffect(PublicPortfolioSnapshotSchema, {
-    onExcessProperty: "error",
-  })(portfolioUnknown).pipe(
+  const portfolioDocument = yield* loadPortfolio(root).pipe(
     Effect.mapError(
-      (cause) => new AcceptanceFailure({ message: `invalid portfolio snapshot: ${cause.message}` }),
+      (cause) => new AcceptanceFailure({ message: `cannot load portfolio: ${cause.message}` }),
     ),
   );
+  const portfolio = (yield* buildPublicPortfolioArtifact(portfolioDocument, {
+    commit: "0".repeat(40),
+    observed_at: "2026-08-02T10:00:00Z",
+    freshness_seconds: 86_400,
+  }).pipe(
+    Effect.mapError(
+      (cause) =>
+        new AcceptanceFailure({ message: `cannot build portfolio fixture: ${cause.message}` }),
+    ),
+  )).snapshot;
 
   const makeInput = function* (
     vendor: "langfuse" | "clickstack",
@@ -250,4 +248,7 @@ const program = Effect.gen(function* () {
   );
 });
 
-runMain("accept/0057", program.pipe(Effect.provide(BunCrypto.layer)));
+runMain(
+  "accept/0057",
+  program.pipe(Effect.provide([BunFileSystem.layer, BunPath.layer, BunCrypto.layer])),
+);
