@@ -77,13 +77,13 @@ describe("project model Effect v4 slice", () => {
     expect(ready.has("work.kernel-reference-interpreter")).toBeFalse();
     expect(ready.has("work.lean-evidence-adapter")).toBeTrue();
     expect(ready.has("work.stm-runtime")).toBeFalse();
-    expect(ready.has("work.stm-model-check")).toBeTrue();
-    expect(ready.has("work.relational-fact-schema")).toBeTrue();
-    expect(project.entities.get("work.stm-model-check")?.status).toBe("in_progress");
+    expect(ready.has("work.stm-model-check")).toBeFalse();
+    expect(ready.has("work.relational-fact-schema")).toBeFalse();
+    expect(project.entities.get("work.stm-model-check")?.status).toBe("complete");
     expect(project.entities.get("work.stm-model-check")?.source).toEndWith(
       "/model/work/features/0052-stm-schedule-explorer.json",
     );
-    expect(project.entities.get("work.relational-fact-schema")?.status).toBe("in_progress");
+    expect(project.entities.get("work.relational-fact-schema")?.status).toBe("complete");
     expect(project.entities.get("work.relational-fact-schema")?.source).toEndWith(
       "/model/work/features/0053-relational-fact-export.json",
     );
