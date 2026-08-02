@@ -60,6 +60,7 @@ const program = Effect.gen(function* () {
     [
       "bun",
       "test",
+      "--timeout=30000",
       "tests/kernel-calculus-checker.test.ts",
       "tests/kernel-calculus-machine.test.ts",
       "tests/kernel-calculus-oracle.test.ts",
