@@ -22,8 +22,8 @@ and generated frontier without changing the frozen portfolio semantics.
    the inherited 0017 acceptance already owns it.
 6. Reconciled the 0021 plan, portfolio status, and generated delegation
    frontier.
-7. Recut final acceptance under 0048 so the prior 0021 migration lineage is
-   not silently reused.
+7. Reassigned acceptance ownership under 0048 so the prior 0021 migration
+   lineage is not silently reused.
 8. Corrected the independent-review counterexample where a prerequisite-to-
    dependent arrow was visibly labelled as though the target required the
    source; tuple-level regression now binds source, target, `unlocks` label,
@@ -32,26 +32,37 @@ and generated frontier without changing the frozen portfolio semantics.
 ## Acceptance
 
 ```bash
-nix develop --command bun scripts/accept/0048-pbk-control-room-acceptance-reconciliation.ts
+just accept 0048-pbk-control-room-acceptance-reconciliation
 ```
 
-The pre-recut exact product head passed 15 portfolio tests, 74 Control Room
-tests, all 9 mobile Chromium journeys, and the complete repository gate: 893
-passed, 1 explicitly configured skip, 0 failed, with 20,744 assertions. The
-0048 exact head must replay the delegated acceptance before integration.
+The exact current head `46ba730521f2d2560feeff8184e8672e0a2983ed` passed
+15 portfolio tests with 8,235 assertions, 73 Control Room unit/component
+tests, 9 mobile Chromium journeys, model validation, nine generated views,
+build/payload scans, and the inherited feature programs. Full `just check`
+passed 676 tests with 17,200 assertions. These are current-head runtime
+observations; correction/re-review remains pending.
+
+Historical pre-recut runtime evidence recorded 15 portfolio tests, 74 Control
+Room tests, 9 mobile Chromium journeys, and a complete repository gate with
+893 passed, 1 explicitly configured skip, 0 failed, and 20,744 assertions.
+Those counts are historical and are not the exact current-head result.
 
 ## Review and uncertainty
 
 Independent review first rejected the candidate because project nodes and
-milestone containment were absent. The corrected product head received
-`APPROVE`. Public deployment remains unobserved because Cloudflare rejects the
-current operator-owned Actions credential; no deployment success is claimed.
+milestone containment were absent. A read-only audit accepted the
+implementation semantics and one-gate custody and found no Critical issue.
+That reviewer conclusion is static-analysis evidence, not independent final
+acceptance; correction/re-review remains pending. Public deployment remains
+unobserved because Cloudflare rejects the current operator-owned Actions
+credential; no deployment success is claimed.
 
 ## Completion state
 
-Implementation, local product verification, independent correction review,
-and contract recut are complete. Protected exact-head checks and merge remain
-the integration boundary.
+Implementation and local runtime verification are recorded. The 0048 work
+item remains `in_progress` pending correction/re-review. This record does not
+claim independent final acceptance. Protected exact-head checks and merge
+remain the integration boundary.
 
 - 2026-08-02: Historical lifecycle heading migrated verbatim from the pre-migration plan:
   # Completed plan 0048: PBK Control Room acceptance reconciliation

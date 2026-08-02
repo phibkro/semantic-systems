@@ -32,9 +32,13 @@ limits, semantic diff, and kill criteria are frozen in design spec 0005.
   alone false-rejected the GitHub-generated squash body because a feature
   report paragraph exceeded an inherited 100-character prose limit.
 - The correction retains Conventional Commit identity in the validated title
-  while disabling the nonsemantic body-wrapping rule. Its protected repair PR,
-  successful main-push replay, plan closure, and Herdr/worktree cleanup remain
-  open.
+  while disabling the nonsemantic body-wrapping rule. Repair PR #2 passed the
+  three protected checks and squash-merged as `e00e8f9`. The separate
+  post-repair main-push replay `30485774751` passed all three required contexts
+  on the exact post-repair `main` head, including acceptance 0005 replay.
+- The operator completion notice and cleanup observations are recorded in the
+  progress log below. This closure correction remains `in_progress`, pending
+  integration and rereview.
 
 ## Implementation slices
 
@@ -242,6 +246,36 @@ completion feedback, and cleanup.
   existing acceptance programs, hooks, CI commands, contributor guidance, and
   checked provenance were migrated atomically; the semantic authority and
   evidence categories are unchanged.
+- 2026-07-29: Repair PR #2 (`fix(governance): accept squash report prose`)
+  passed `fast + integration (nix)`, `feature contract + acceptance`, and
+  `commit message + PR title policy` on its exact head and squash-merged as
+  `e00e8f9`. This is `runtime_validation` for the protected PR checks and
+  merge result.
+- 2026-07-29: The separate post-repair main-push replay `30485774751`
+  completed successfully on the exact post-repair `main` head: all three
+  required contexts passed, including a real replay of acceptance 0005 and
+  the commit-policy range check. This is `runtime_validation` for that
+  post-repair replay, not the repair-PR result.
+- 2026-07-29: The active-session operator completion notice separately named
+  both PRs, their merge and repair commits, the preview command, exact checks,
+  evidence categories, assumptions, and the next uncertainty. This is an
+  `assertion` about notice delivery, not a gate result.
+- 2026-07-29: The harvested Herdr tab was closed; scratch worktrees
+  `/tmp/semantic-development-loop-0005` and
+  `/tmp/semantic-development-loop-0005-close` were observed absent after
+  clean integrated removal, while local feature branches were retained as
+  history. This is an `assertion` about external session/host cleanup.
+- 2026-08-02: The current-history audit found closure commit `7ab468d` is
+  stranded: its parent `e00e8f9` is in the current history, but `7ab468d` is
+  not an ancestor of current head `46ba730521f2d2560feeff8184e8672e0a2983ed`.
+  This is `static_analysis` of repository history.
+- 2026-08-02: At exact current head
+  `46ba730521f2d2560feeff8184e8672e0a2983ed`, the supplied exact `0005`
+  acceptance evidence passed 28 tests/303 assertions, Actionlint, commit
+  policy, and contract checks. The supplied full `just check` at the same
+  head passed through the 0048 run with 676 tests/17,200 assertions. This is
+  `runtime_validation` supplied by the integrating lead; it does not establish
+  review, protection, push, or merge for this correction.
 
 ## Decisions and deviations
 
@@ -265,9 +299,10 @@ completion feedback, and cleanup.
 
 ## Completion state
 
-Open. Complete only after one real feature is accepted and merged through the
-new loop, operator feedback is delivered, cleanup is verified, and the first
-cybernetic evaluation is recorded.
+`in_progress`: the historical pilot evidence is harvested in this stable
+record, but this correction remains pending integration and rereview. The
+historical pilot evidence does not establish that this correction was reviewed,
+protected, pushed, or merged.
 
 - 2026-08-02: Historical lifecycle heading migrated verbatim from the pre-migration plan:
   # Active plan 0005: autonomous development control loop

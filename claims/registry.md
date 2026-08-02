@@ -141,7 +141,50 @@ Consequence if falsified: suspend autonomous merges for the affected feature
 class, preserve the failed artifact, and strengthen or recut the named sensor
 or authority boundary.
 
-Observed result: pending implementation and pilot.
+Observed result (bounded pilot evidence, 2026-07-29): pilot PR #1
+squash-merged as `9ff36d6` after its exact head passed the three protected
+checks. Its first post-merge run (`30484693324`) passed the pinned Nix
+integration loop and replayed acceptance 0005, but the commit-policy sensor
+false-rejected GitHub-generated squash prose over an inherited 100-character
+body limit; this is a recorded false rejection, not successful completion.
+
+Repair PR #2 passed `fast + integration (nix)`, `feature contract + acceptance`,
+and `commit message + PR title policy` on its exact head and squash-merged as
+`e00e8f9`. This is `runtime_validation` for the protected repair-PR checks and
+merge result. The separate post-repair main-push replay `30485774751` then
+passed all three required contexts on the exact post-repair `main` head,
+including a real acceptance-0005 replay and the commit-policy range check;
+this is separate `runtime_validation` for the post-repair replay.
+
+The active-session operator completion notice separately named both PRs, their
+merge and repair commits, the preview command, exact checks, evidence
+categories, assumptions, and next uncertainty. This is an `assertion` about
+notice delivery. The harvested Herdr tab was closed, and scratch worktrees
+`/tmp/semantic-development-loop-0005` and
+`/tmp/semantic-development-loop-0005-close` were observed absent after clean
+integrated removal; local feature branches were retained as history. This is
+an `assertion` about external session/host cleanup.
+
+No separate GitHub PR review was requested for either merged PR
+(`reviewDecision` empty, zero reviews on both); the independent process review
+used by the pilot was the main agent's own documented counterexample rounds,
+so reviewer independence is not established. The current-history audit found
+closure commit `7ab468d` stranded: parent `e00e8f9` is in current history, but
+`7ab468d` is not an ancestor of current head
+`46ba730521f2d2560feeff8184e8672e0a2983ed`. This is `static_analysis`, not
+new pilot execution.
+
+At exact current head `46ba730521f2d2560feeff8184e8672e0a2983ed`, the supplied
+exact `0005` acceptance evidence passed 28 tests/303 assertions, Actionlint,
+commit policy, and contract checks. The supplied full `just check` at the same
+head passed through the 0048 run with 676 tests/17,200 assertions. This is
+`runtime_validation` supplied by the integrating lead; it does not establish
+review, protection, push, or merge for this correction. The pilot remains one
+observation, and uncertainty 0003's three-feature comparison remains open.
+
+The feature record remains `in_progress` pending integration and rereview of
+this correction; this bounded evidence does not establish the independent-
+review success threshold.
 
 Invalidation: changes to required gates, merge authority, completion notice,
 cleanup rules, or PR-to-spec identity require the pilot checks to rerun.

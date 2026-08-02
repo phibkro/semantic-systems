@@ -12,15 +12,18 @@ Owner: primary Semantic Systems lead
   one open-system design lens: epistemic state, typed speech acts, derived
   artifacts, open effect protocols, returned observations, bounded autonomy,
   and orthogonal system graphs.
-- `docs/constitution.md`, `docs/stratified-design.md`,
-  `docs/runtime-concurrency-spec.md`, and `docs/pattern-catalog.md` already
-  contain compatible fragments, but no mandatory authoring worksheet.
+- At discovery, `docs/constitution.md`, `docs/stratified-design.md`,
+  `docs/runtime-concurrency-spec.md`, and `docs/pattern-catalog.md` contained
+  compatible fragments but no mandatory authoring worksheet; the canonical
+  template now supplies that worksheet.
 - `AGENTS.md` is the always-read surface for repository agents.
 - `scripts/check-feature-contract.ts` is the existing PR contract-shape
   authority. It already distinguishes changed feature identities and contract
   migrations, so extending that boundary is cheaper and clearer than creating
   an unrelated validator.
-- No design-spec template or repository Agent Skill currently exists.
+- The canonical template and shape gate are repository-owned surfaces. The
+  contract records a future Reef/Agent Skill portability opportunity, but no
+  installed Reef integration or Agent Skill is claimed.
 - The installed agent-browser exploration demonstrated that ambient browser
   focus is shared mutable state: another worker changed the active tab between
   two commands. The exact-tab batch succeeded. This is a concrete example of
@@ -29,7 +32,7 @@ Owner: primary Semantic Systems lead
 ## Owned paths
 
 - `design-specs/0015-open-semantic-system-design-lens.md`
-- `plans/active/0015-open-semantic-system-design-lens.md`
+- `plans/0015-open-semantic-system-design-lens.md`
 - `scripts/accept/0015-open-semantic-system-design-lens.ts`
 - `docs/open-semantic-system-design.md`
 - `design-specs/TEMPLATE.md`
@@ -56,12 +59,13 @@ state, and unrelated project-model changes.
   canonical document.
 - Record primary prior art and the operator conversation as provenance without
   treating either as project authority.
-- Defer cross-repository distribution to Reef and skill packaging rather than
-  creating another uninstalled documentation island.
+- Keep the portability opportunity in this contract's `Surfacing architecture`,
+  `Acceptance` item 9, and `Non-goals`; do not claim an installed Reef or Agent
+  Skill or create a second portability feature.
 
 ## Execution sequence
 
-1. Freeze this contract, active plan, and intentionally red acceptance.
+1. Freeze this contract, stable plan, and intentionally red acceptance.
 2. Add the canonical design-lens document, template, and concise AGENTS
    reminder.
 3. Extend the feature-contract gate for changed selected/migrated specs.
@@ -69,8 +73,9 @@ state, and unrelated project-model changes.
 5. Record the bounded 0005 gate migration and pattern-catalog vocabulary.
 6. Run exact acceptance and the full integration loop.
 7. Commission independent semantic/governance review at the exact clean head.
-8. Integrate only an accepted head, then record Reef/skill portability as a
-   separate frontier.
+8. Preserve the Reef/Agent Skill portability opportunity already recorded in
+   this contract's `Surfacing architecture`, `Acceptance` item 9, and
+   `Non-goals`; claim no installed Reef or skill and invent no new feature.
 
 ## Evidence ledger
 
@@ -374,10 +379,32 @@ state, and unrelated project-model changes.
   acceptance at 15 tests/126 expectations, production-range validation, and
   full integration at 338 Bun tests/1,776 expectations with zero Effect
   diagnostics and 68 transitional Python custody checks.
-- 2026-07-31: the accepted head was integrated into the true primary branch by
-  conflict-free no-fast-forward merge `643b6f0`; its two parents are the prior
-  primary `bb7a701` and accepted feature head `622e0f6`. Exact integration-head
-  gates and final independent custody review remain pending.
+- 2026-08-02: Runtime evidence from the release replay at
+  `01117e844d6367f722a57f308e9a3be00f433b79` covered 18 runnable managed
+  features with zero failures and a 670-test/17,145-assertion integration loop.
+- 2026-08-02: Runtime evidence from the full `nix develop -c just check` at
+  `b51f375` passed 676 tests and 17,200 assertions.
+- 2026-08-02: The exact current-head acceptance at
+  `46ba730521f2d2560feeff8184e8672e0a2983ed` passed 15 lens tests/126
+  assertions, 28 control-loop tests/303 assertions, typecheck, severe lint,
+  formatting, model validation, and nine generated views. The integrating lead
+  also supplied the full `nix develop -c just check` result at that same head:
+  it passed through the 0048 run with 676 tests and 17,200 assertions. These
+  are runtime evidence for the delivered implementation, not evidence that
+  this documentation correction was reviewed or gated.
+- 2026-08-02: Static-analysis/assertion evidence from final independent custody
+  review `8902ba7` ACCEPTED integration custody but returned `CHANGES_REQUIRED`
+  on documentation truth. No Critical defect was found.
+- 2026-08-02: The read-only audit returned `CHANGES_REQUIRED` (no Critical
+  defect). Its exact remaining correction scope is documentation-only: revise
+  this spec's frozen assumptions/evidence limits to name the
+  `mdast-util-from-markdown`/`micromark`/`parse5`/`css-tree` static
+  rendered-visibility boundary, three-valued CSS indeterminacy, conservative
+  subtree exclusions, and unsupported rendering/semantic guarantees; update
+  the existing Semantic diff; replace the stale trailing status and
+  superseded integration-pending claim; and resolve execution step 8 by
+  pointing to the contract's existing portability record. The correction
+  itself has not been reviewed or gated.
 
 ## Acceptance command
 
@@ -387,7 +414,8 @@ bun scripts/accept/0015-open-semantic-system-design-lens.ts
 
 Missing required artifacts or tools fail.
 
-- 2026-08-02: Historical leading status migrated verbatim from the pre-migration plan:
-  Status: thirteenth independent-review counterexamples corrected; exact-head
-  acceptance and full integration pass; clean-head custody and Fable re-review
-  pending
+- 2026-08-02: Status: in_progress — implementation is functionally complete,
+  integrated, and green at current primary `46ba730`, but the feature cannot
+  transition to complete until this documentation correction is integrated and
+  independently rereviewed. The read-only audit returned `CHANGES_REQUIRED`;
+  no completion, correction review, or correction gate is claimed.

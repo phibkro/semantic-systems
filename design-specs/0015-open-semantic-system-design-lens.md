@@ -1,6 +1,6 @@
 # Design spec 0015: open semantic system design lens
 
-Status: frozen for tracer implementation
+Status: frozen for tracer implementation; feature in_progress pending integration and rereview
 
 Date: 2026-07-30
 
@@ -86,18 +86,23 @@ must not redefine the vocabulary.
 
 The checker reads repository files and invokes Git through bounded child
 processes. Missing files, ambiguous markers, parser-visible structural drift,
-and command failure reject explicitly. It performs no repair, retry, network
-publication, or natural-language inference. A parser acceptance establishes
-only the recognized CommonMark structure.
+rendered-visibility indeterminacy, and command failure reject explicitly. It
+performs no repair, retry, network publication, or natural-language inference.
+The parser/rendering path establishes only recognized Markdown structure and
+static text eligibility under the bounded rendered-visibility model below; it
+does not establish browser rendering, semantic truth, or worldly consequences.
 
 ### Components and orthogonal structures
 
-Git range inventory, feature/migration selection, CommonMark parsing,
-design-lens shape validation, acceptance dispatch, and independent semantic
-review remain separate components. File bytes become syntax nodes within one
-representation layer; a shape verdict changes evidential vocabulary and never
-becomes a semantic-validity verdict. The finite validation slice terminates in
-selection or rejection and contains no message cycle.
+Git range inventory, feature/migration selection,
+`mdast-util-from-markdown` structural parsing, `micromark` rendering, `parse5`
+tree parsing and visibility traversal, `css-tree` direct-inline cascade
+evaluation, design-lens shape validation, acceptance dispatch, and independent
+semantic review remain separate components. File bytes become syntax nodes and
+then a static rendered-text observation within one representation pipeline; a
+shape verdict changes evidential vocabulary and never becomes a
+semantic-validity verdict. The finite validation slice terminates in selection
+or rejection and contains no message cycle.
 
 ### Bounded autonomy and resources
 
@@ -110,11 +115,51 @@ operational limits.
 ### Evidence, assumptions, and unsupported claims
 
 Mutation tests, real-range replay, type/lint checks, exact acceptance, and
-independent counterexample review retain their distinct evidence categories.
-The implementation assumes the pinned CommonMark parser observes the intended
-syntax and Git reports the requested exact range. Semantic correctness,
-reviewer independence, completeness of placeholder detection, and future
-parser equivalence remain unsupported.
+independent counterexample review retain distinct evidence categories. The
+frozen gate makes these implementation assumptions explicit:
+
+- Git reports the requested exact range and the checked-in bytes are the bytes
+  observed by the validator.
+- `mdast-util-from-markdown@2.0.2` supplies CommonMark/MDAST structure and
+  source positions, including the authenticated code ranges and structural
+  headings used by the shape check.
+- `micromark@4.0.2` renders each complete selected section to HTML with
+  dangerous HTML allowed; fenced and indented code ranges are blanked before
+  this render, while raw visible HTML remains eligible.
+- `parse5@8.0.1` parses that complete HTML fragment with WHATWG tree
+  construction. The gate collects text nodes from this parsed tree, not from
+  Markdown source or a repository-owned HTML-tag scanner.
+- `css-tree@3.2.1` parses only direct inline declaration lists and evaluates
+  the static cascade for `display` and `visibility`; it does not resolve
+  stylesheets, selectors, inheritance, or browser state.
+
+The direct-inline CSS observation is three-valued. `hidden` means a valid
+effective declaration yields `display:none` or `visibility:hidden|collapse`.
+`static-visible` means no effective hiding declaration remains after ordinary
+invalid declarations are ignored; it makes text eligible under this gate, not
+proof of browser visibility. `indeterminate` means the declaration list is
+unparseable or contains grammar-invalid `Function`/`Raw` syntax; its subtree
+cannot contribute acceptance prose. `var()`, `env()`, and `attr()` substitution
+therefore remains unknown rather than being approximated.
+
+The HTML traversal conservatively excludes comments and doctypes; `audio`,
+`canvas`, `datalist`, `head`, `iframe`, `math`, `meter`, `noembed`, `noframes`,
+`noscript`, `object`, `optgroup`, `option`, `progress`, `rp`, `script`,
+`select`, `style`, `svg`, `template`, `title`, and `video` subtrees; the
+`hidden` attribute; closed dialogs; and non-open popovers, with the
+`dialog[open]` exception. A closed `details` contributes only its first
+visible `summary`; supported audio/video fallback, SVG, MathML,
+option/optgroup, progress/meter, and ruby `rp` fallback are intentionally
+rejected rather than approximated.
+
+This boundary does not guarantee browser or future-parser equivalence, layout
+or paint, accessibility or replaced-widget semantics, external or inherited
+CSS, classes/selectors, dynamic DOM state, animations, media/viewport effects,
+or visual properties beyond direct inline `display`/`visibility`. The shape
+verdict also does not establish semantic correctness, architectural
+correctness, evidence sufficiency, placeholder-detection completeness,
+reviewer independence, or domain/world-state guarantees. Chromium 150 and
+Fable matrices are comparison observations, not proof of those guarantees.
 
 ## Canonical thesis
 
@@ -332,9 +377,17 @@ constitution authoritative.
 
 ## Semantic diff
 
-The correction after rejected head `077e70a` makes this owning contract itself
-conform to the worksheet it introduces and replaces repository-owned Markdown
-block recognition with an attributed CommonMark parser. It changes no domain,
-evidence-category, or merge-authority semantics. Prior acceptance evidence is
-invalidated until real selected-and-migrated range replay, exact acceptance,
-and renewed independent review pass.
+The 2026-08-02 correction records the delivered rendered-visibility evidence
+boundary in this owning contract. The gate's existing path remains
+`mdast-util-from-markdown@2.0.2` for Markdown structure, `micromark@4.0.2` for
+complete-section HTML rendering, `parse5@8.0.1` for WHATWG fragment parsing,
+and `css-tree@3.2.1` for direct-inline `display`/`visibility` cascade
+classification. Its three-valued CSS outcome treats grammar-invalid
+function/raw syntax and unparseable styles as indeterminate and excludes
+their subtrees from acceptance prose; conservative SVG/MathML,
+option/optgroup, progress/meter/rp, audio/video fallback, closed-details, and
+non-open-popover exclusions remain explicit. This documentation correction
+changes no gate behavior, domain, evidence-category, or merge-authority
+semantics, and prior acceptance evidence remains valid. The correction itself
+has not been independently reviewed or gated; feature status remains
+in_progress pending integration and rereview.
