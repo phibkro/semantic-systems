@@ -105,7 +105,7 @@ It owns one feature ID across:
 
 ```text
 design-specs/<feature_id>.md
-plans/<feature_id>.md
+plans/<active|completed|superseded>/<feature_id>.md
 model/work/features/<feature_id>.json
 scripts/accept/<feature_id>.ts
 one feature branch
@@ -409,11 +409,12 @@ Before: model status + lifecycle directory + plan heading/status + caller litera
 After:  canonical model status -> checked resolution + generated projections
 ```
 
-Canonical feature-source identity is now path-stable at
-`model/work/features/<feature_id>.json`; plan and design-spec identity are
-path-stable at `plans/<feature_id>.md` and `design-specs/<feature_id>.md`.
-Active, completed, and superseded are derived classifications rather than
-authored directory structure. Acceptance dispatch receives resolved canonical
-artifacts, and deployment observations remain separate from work completion
-metadata. This changes path custody and range ownership, not evidence meanings,
+Canonical feature-source identity is path-stable at
+`model/work/features/<feature_id>.json`, and design-spec identity is path-stable
+at `design-specs/<feature_id>.md`. The plan path is derived from canonical model
+status as `plans/<active|completed|superseded>/<feature_id>.md`; the directory
+does not independently author lifecycle state. Acceptance dispatch receives
+resolved canonical artifacts, and deployment observations remain separate from
+work completion metadata. This changes path custody and range ownership, not
+evidence meanings,
 feature identity, or merge authority.

@@ -82,33 +82,6 @@
       }
     },
     {
-      "id": "work.wasm-contract-mapping",
-      "kind": "work_item",
-      "name": "Research semantic contracts to WIT mapping",
-      "summary": "Determine which interface, resource, ownership, and capability information can cross a Wasm component boundary without losing project semantics.",
-      "status": "planned",
-      "tags": ["wasm", "interop"],
-      "attributes": {
-        "phase": "research",
-        "effort": 5,
-        "acceptance": [
-          "Representable and non-representable contract dimensions are listed",
-          "Generated interfaces retain a link to the full semantic contract",
-          "Resource and capability boundaries are explicit",
-          "No claim is made that WIT carries laws or proof evidence"
-        ],
-        "delegation": {
-          "specification_completeness": 4,
-          "context_locality": 5,
-          "testability": 4,
-          "reversibility": 5,
-          "integration_independence": 5,
-          "blast_radius": 2,
-          "human_review": false
-        }
-      }
-    },
-    {
       "id": "work.deterministic-simulator-spec",
       "kind": "work_item",
       "name": "Design deterministic concurrency simulator",

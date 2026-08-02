@@ -1,8 +1,11 @@
 #!/usr/bin/env bun
+import { BunFileSystem, BunPath } from "@effect/platform-bun";
 import { readdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { Data, Effect } from "effect";
 import { runCommand, runMain } from "../lib/command.ts";
+import { loadProject } from "../../src/project-model/loader.ts";
+import { isFeatureDiagnostic, resolveFeature } from "../../src/project-model/work-lifecycle.ts";
 
 class AcceptanceFailure extends Data.TaggedError("AcceptanceFailure")<{
   readonly message: string;
@@ -12,7 +15,6 @@ const root = resolve(import.meta.dirname, "../..");
 const lifecycleDirectories = ["active", "completed", "superseded"] as const;
 const requiredArtifacts = [
   "design-specs/0055-lifecycle-plan-layout.md",
-  "plans/active/0055-lifecycle-plan-layout.md",
   "model/work/features/0055-lifecycle-plan-layout.json",
   "src/project-model/work-lifecycle.ts",
   "src/project-model/views.ts",
@@ -29,6 +31,18 @@ const requireLayout = Effect.gen(function* () {
         message: `required lifecycle-layout artifact is missing: ${artifactPath}`,
       });
     }
+  }
+
+  const feature = resolveFeature(yield* loadProject(root), "0055-lifecycle-plan-layout");
+  if (isFeatureDiagnostic(feature)) {
+    return yield* new AcceptanceFailure({
+      message: `cannot resolve lifecycle-layout feature: ${feature.message}`,
+    });
+  }
+  if (!(yield* Effect.promise(() => Bun.file(join(root, feature.planPath)).exists()))) {
+    return yield* new AcceptanceFailure({
+      message: `required lifecycle-layout ledger is missing: ${feature.planPath}`,
+    });
   }
 
   const plansRoot = join(root, "plans");
@@ -49,18 +63,13 @@ const requireLayout = Effect.gen(function* () {
 
   for (const lifecycle of lifecycleDirectories) {
     const directory = join(plansRoot, lifecycle);
-    const entries = yield* Effect.tryPromise({
+    yield* Effect.tryPromise({
       try: () => readdir(directory, { withFileTypes: true }),
       catch: (cause) =>
         new AcceptanceFailure({
           message: `cannot inspect lifecycle plan directory plans/${lifecycle}: ${String(cause)}`,
         }),
     });
-    if (!entries.some((entry) => entry.isFile() && entry.name.endsWith(".md"))) {
-      return yield* new AcceptanceFailure({
-        message: `lifecycle plan directory has no Markdown ledgers: plans/${lifecycle}`,
-      });
-    }
   }
 });
 
@@ -79,4 +88,4 @@ const program = Effect.gen(function* () {
   }
 });
 
-runMain("accept/0055", program);
+runMain("accept/0055", program.pipe(Effect.provide([BunFileSystem.layer, BunPath.layer])));
