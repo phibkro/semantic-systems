@@ -31,21 +31,20 @@ TypeScript 7 compiler and the checked hook installer sets
 `core.hooksPath=.githooks`; local hooks improve feedback latency but remain
 advisory and bypassable.
 
-| Loop        | Command                   | Latency      | Covers                                                                                     |
-| ----------- | ------------------------- | ------------ | ------------------------------------------------------------------------------------------ |
-| Fast        | `just fast`               | seconds      | format, lint, typecheck, model validate/generate, commit-policy conformance                |
-| Integration | `just check`              | minutes      | frozen install + fast loop + full `bun run test` + transitional custody `pyright`/`pytest` |
-| Feature     | `just accept <id>-<slug>` | tracer-sized | the exact Bun acceptance program for one frozen design spec                                |
+| Loop        | Command                   | Latency      | Covers                                                                      |
+| ----------- | ------------------------- | ------------ | --------------------------------------------------------------------------- |
+| Fast        | `just fast`               | seconds      | format, lint, typecheck, model validate/generate, commit-policy conformance |
+| Integration | `just check`              | minutes      | frozen install + fast loop + the complete `bun test` corpus                 |
+| Feature     | `just accept <id>-<slug>` | tracer-sized | the exact Bun acceptance program for one frozen design spec                 |
 
 `bun run test` keeps each test bounded at 30 seconds. Several custody tests
 create clean Git repositories or perform a pinned offline build; Bun's
 five-second default can misclassify host scheduling contention as a semantic
 failure.
 
-`nix flake check` runs the parts of the fast/integration loop that are
-hermetic (Python static checks, tests, and the network-free commit-policy
-conformance script) as real sandboxed derivations, not merely a devShell
-evaluation.
+`nix flake check` runs the hermetic repository-source invariants and the
+network-free commit-policy conformance script as real sandboxed derivations,
+not merely a devShell evaluation.
 
 Every commit message and pull-request title follows Conventional Commits,
 checked against `commitlint.config.ts`. Allowed types are the standard
@@ -87,13 +86,10 @@ integration agent verifies those external gates against the committed artifact.
 ## Quality gates
 
 ```bash
-ruff check .
-ruff format --check .
-pyright
-pytest
 bun run test
 semproj validate
 semproj generate --check
+bun run semrefs -- catalog-check
 bun run format:check
 bun run lint
 bun run typecheck

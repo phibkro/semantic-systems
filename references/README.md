@@ -44,9 +44,9 @@ accepted claim.
 The reproducible local demonstration is:
 
 ```bash
-PYTHONPATH=src python -m semantic_references lock local.lang-bang --offline
-PYTHONPATH=src python -m semantic_references materialize local.lang-bang --offline
-PYTHONPATH=src python -m semantic_references status local.lang-bang --json
+bun run semrefs -- lock local.lang-bang --offline
+bun run semrefs -- materialize local.lang-bang --offline
+bun run semrefs -- status local.lang-bang --json
 ```
 
 The current lock records a local-sibling acquisition, so status deliberately

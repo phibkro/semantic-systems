@@ -984,9 +984,6 @@ await Bun.write(
       ".references",
       ".research-cache",
       ".venv",
-      ".pyright",
-      ".pytest_cache",
-      ".ruff_cache",
       "build",
       "dist",
     ]) {

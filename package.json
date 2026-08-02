@@ -13,6 +13,8 @@
     "hooks:install": "bun scripts/install-git-hooks.ts",
     "semproj": "bun src/project-model/main-bun.ts",
     "semproj:node": "node src/project-model/main-node.ts",
+    "semrefs": "bun src/references/main-bun.ts",
+    "semrefs:node": "node src/references/main-node.ts",
     "semantic-tracer": "bun src/tracer/main-bun.ts",
     "semantic-tracer:node": "node src/tracer/main-node.ts",
     "semantic-actor": "bun src/actor/main-bun.ts",

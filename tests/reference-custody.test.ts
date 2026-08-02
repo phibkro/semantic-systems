@@ -1,12 +1,9 @@
 /**
- * Differential and adversarial oracle for the reference-custody
- * catalog/lock/status-lock-only slice (design specs 0004 and 0010 item 6).
- *
- * Every "matches Python" test shells out to the still-installed
- * `semantic_references` package as a temporary oracle (per design spec
- * 0010: "the existing Python implementation is a temporary differential
- * oracle, not a permanent runtime fallback"). No test needs network or
- * mutates `references/`.
+ * Golden, cross-runtime, and adversarial oracles for reference custody
+ * (design specs 0004 and 0010 item 6). Golden values were captured from the
+ * accepted differential boundary before the transitional implementation was
+ * removed; runtime behavior is observed independently through Bun and Node.
+ * No test needs network or mutates `references/`.
  */
 import { afterEach, describe, expect, test } from "bun:test";
 import { BunChildProcessSpawner, BunCrypto, BunFileSystem, BunPath } from "@effect/platform-bun";
@@ -105,7 +102,6 @@ type TestCapabilities =
   | TomlParser;
 
 const ROOT = resolve(import.meta.dir, "..");
-const PYTHONPATH = join(ROOT, "src");
 const MAIN_BUN = join(ROOT, "src", "references", "main-bun.ts");
 const MAIN_NODE = join(ROOT, "src", "references", "main-node.ts");
 const NODE_EXECUTABLE =
@@ -149,21 +145,6 @@ interface ProcResult {
   readonly exitCode: number;
 }
 
-const runPythonCli = (args: ReadonlyArray<string>): ProcResult => {
-  const result = Bun.spawnSync({
-    cmd: ["python3", "-m", "semantic_references", ...args],
-    cwd: ROOT,
-    env: { ...process.env, PYTHONPATH },
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  return {
-    stdout: result.stdout.toString(),
-    stderr: result.stderr.toString(),
-    exitCode: result.exitCode ?? 1,
-  };
-};
-
 const runTsCli = (
   args: ReadonlyArray<string>,
   environment: Readonly<Record<string, string | undefined>> = process.env,
@@ -194,101 +175,6 @@ const runNodeCli = (args: ReadonlyArray<string>): ProcResult => {
     stderr: result.stderr.toString(),
     exitCode: result.exitCode ?? 1,
   };
-};
-
-const pythonEval = (code: string): ProcResult => {
-  const result = Bun.spawnSync({
-    cmd: ["python3", "-c", code],
-    cwd: ROOT,
-    env: { ...process.env, PYTHONPATH },
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  return {
-    stdout: result.stdout.toString(),
-    stderr: result.stderr.toString(),
-    exitCode: result.exitCode ?? 1,
-  };
-};
-
-/** Python's canonical_digest for one source in an on-disk catalog fixture. */
-const pythonCanonicalDigest = (root: string, sourceId: string): string => {
-  const code = `
-import sys
-sys.path.insert(0, ${JSON.stringify(PYTHONPATH)})
-from pathlib import Path
-from semantic_references.catalog import load_catalog
-catalog = load_catalog(Path(${JSON.stringify(root)}) / "references" / "sources.toml")
-print(catalog.sources[${JSON.stringify(sourceId)}].canonical_digest())
-`;
-  const result = pythonEval(code);
-  if (result.exitCode !== 0) throw new Error(`python digest oracle failed: ${result.stderr}`);
-  return result.stdout.trim();
-};
-
-/** Python's canonical digest for an arbitrary JSON-shaped catalog record. */
-const pythonCanonicalRecordDigest = (record: Readonly<Record<string, unknown>>): string => {
-  const encoded = JSON.stringify(record);
-  const code = `
-import hashlib
-import json
-record = json.loads(${JSON.stringify(encoded)})
-canonical = json.dumps(
-    record,
-    sort_keys=True,
-    separators=(",", ":"),
-    ensure_ascii=True,
-).encode("utf-8")
-print(hashlib.sha256(canonical).hexdigest())
-`;
-  const result = pythonEval(code);
-  if (result.exitCode !== 0) throw new Error(`python digest oracle failed: ${result.stderr}`);
-  return result.stdout.trim();
-};
-
-/** Whether Python's `parse_lock_text` accepts (vs. rejects) `text`. */
-const pythonAcceptsLockText = (text: string): boolean => {
-  const code = `
-import sys
-sys.path.insert(0, ${JSON.stringify(PYTHONPATH)})
-from semantic_references.lockfile import parse_lock_text
-from semantic_references.errors import LockFileError
-try:
-    parse_lock_text(${JSON.stringify(text)})
-    print("ACCEPTED")
-except LockFileError as exc:
-    print("REJECTED", exc)
-`;
-  return pythonEval(code).stdout.startsWith("ACCEPTED");
-};
-
-/** Python's canonical lock bytes for an already JSON-encoded lock fixture. */
-const pythonSerializeLock = (text: string): string => {
-  const code = `
-import sys
-sys.path.insert(0, ${JSON.stringify(PYTHONPATH)})
-from semantic_references.lockfile import parse_lock_text, serialize_lock
-sys.stdout.write(serialize_lock(parse_lock_text(${JSON.stringify(text)})).decode("utf-8"))
-`;
-  const result = pythonEval(code);
-  if (result.exitCode !== 0) throw new Error(`python lock serializer failed: ${result.stderr}`);
-  return result.stdout;
-};
-
-/** Whether Python's `parse_catalog_text` accepts (vs. rejects) `text`. */
-const pythonAcceptsCatalogText = (text: string): boolean => {
-  const code = `
-import sys
-sys.path.insert(0, ${JSON.stringify(PYTHONPATH)})
-from semantic_references.catalog import parse_catalog_text
-from semantic_references.errors import CatalogError
-try:
-    parse_catalog_text(${JSON.stringify(text)})
-    print("ACCEPTED")
-except CatalogError as exc:
-    print("REJECTED", exc)
-`;
-  return pythonEval(code).stdout.startsWith("ACCEPTED");
 };
 
 const temporaryProject = async (catalogToml: string, lockJson?: string): Promise<string> => {
@@ -640,6 +526,66 @@ const buildLockJson = (
     2,
   );
 
+/**
+ * Accepted pre-removal golden observations. These constants are deliberately
+ * not derived through the implementation under test.
+ */
+const CATALOG_DIGEST_GOLDEN: Readonly<Record<string, string>> = {
+  agda: "28de33df5d6802a90e58592c5f3c51009a1f5bc8c296b59a26ab53dc225b2281",
+  cakeml: "ba5bef4251d9e45b66abb31f7f7539e9dc10c58314562aeb15bff367a2732992",
+  compcert: "4d5d5a6d1037be541d8134b4ec36d3519e88392c5904e7d0935a5d1fcd05bb0e",
+  "elm-compiler": "46f96f49aae2ad2e4fa18543558bea4164df700104d39cddb628e4b6cc694a71",
+  flux: "7e36b62d59b12fb276d3f075aed65a9d746be60ebe4c867f1f961ce01f3be8ce",
+  fstar: "450955d02b93bfd594f99d489557518694aeeec847cdf90d043a41900af446e4",
+  ghc: "5a41ccca3b0c390b2660f63e34a283a01aeccce1f42cb8a2925898ad61aa8031",
+  gleam: "2452b74ac0c9d73b8f7e2ad127b697e345cbd2bc8dc33638b191dd65dd0ec49b",
+  idris2: "6529b4cd95576d1d1a2a8035ea8664b0b6d59744f864408304bbbbdba6bc064c",
+  "k-framework": "000e7a224a0830d68ef04cc2002b75dd5d4ede6f61066b237a97f606aee1326e",
+  koka: "613e18ffa39ac04404bcd3c9342fca119a8664a0db7cbea99f2f8d745e6386df",
+  lean4: "e8cfb7d82b32a9aee2fdced9b0a39f33f9824e9523533b65d3caf37eae5b3d2a",
+  lean4lean: "b7aa747ca7212a201d3c75e18027c58a032740a1c32cd8a1091e63888b7ceb9b",
+  "liquid-haskell": "02f6fceed2c08a7e52d2107068643774c029e47cf360e6123b470e915d098247",
+  llvm: "7c3e1f53745b5811f29e18d3d93fb90a1ed1386fcf16d2bcc1bbe8f7a7b3cc91",
+  "local.lang-bang": "6005459a097d48bbff74d174c914267c9c71a282993c8de063c31b54b3161e59",
+  "local.semantic-packages": "e859e404bb31c7ff693029b46d3744e455bee70dc43e581be136a35ec2d147ad",
+  oxc: "0b920b5de9225e599aaf0833cd048177038edc87d7713ae047a53b9c3e5b2d7d",
+  rocq: "f749b9eb96af3ec96823577a5c1254127ae1f8904687b68222232e5c230e8fb1",
+  rust: "f40ecb7091d18f5b3df3d1541e8a73a5b42e60650d1c62a67752c2ce07da41fc",
+  "rust-analyzer": "86e57a1aac0e8b95462257461d6736644333a4b6d03e5aff62899936c48b3a38",
+  salsa: "8c97690bbdeb47cc87f0cafcb108b2c2bbd8724c38fded2b30f3dbbc41190358",
+  tigerbeetle: "9fb65de5f759ee591563dd4013378bae7cbaaeb8b31b866054c8baafd8ec1b67",
+};
+const BASE_CATALOG_DIGEST_GOLDEN =
+  "4e95709df81eed8817eb5f8e4033c3a5e73d8383b4db6c39043454eca822f7d0";
+const ASTRAL_CATALOG_DIGEST_GOLDEN =
+  "5df1e7f60a9d1f98064cfc31dc2ff2c25e1ef8ec2e50d7be1072e0829a0823db";
+const CANONICAL_LOCK_GOLDEN = `{
+  "generator": "test/0.0.0",
+  "schema": "reference-lock-v1",
+  "sources": {
+    "demo.repo": {
+      "acquisition": "local-sibling",
+      "catalog_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "licenses": {
+        "LICENSE": {
+          "mode": "100644",
+          "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "size": 42
+        }
+      },
+      "object_format": "sha1",
+      "origin": "https://example.com/demo.git",
+      "origin_verified": false,
+      "resolved_ref": "refs/heads/main",
+      "retrieved_at": "2026-07-30T00:00:00Z",
+      "track": "HEAD",
+      "tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  }
+}
+`;
+
 describe("reference custody Effect v4 slice: pure predicates", () => {
   test("git-safe values reject option-like and control-bearing strings", () => {
     expect(isGitSafeValue("https://example.com/demo.git")).toBeTrue();
@@ -679,29 +625,27 @@ describe("reference custody Effect v4 slice: pure predicates", () => {
 });
 
 describe("reference custody Effect v4 slice: catalog parsing", () => {
-  test("parses the real repository catalog with byte-identical digests to Python", async () => {
+  test("parses the real repository catalog with all accepted golden digests", async () => {
     const catalog = await runBun(
       parseCatalogText(await Bun.file(join(ROOT, "references", "sources.toml")).text()),
     );
-    expect(catalog.sources.size).toBeGreaterThanOrEqual(20);
+    expect([...catalog.sources.keys()].sort()).toEqual(Object.keys(CATALOG_DIGEST_GOLDEN).sort());
     for (const [id, source] of catalog.sources) {
-      const tsDigest = await runBun(catalogDigest(source.raw));
-      const pyDigest = pythonCanonicalDigest(ROOT, id);
-      expect(tsDigest).toBe(pyDigest);
+      expect(await runBun(catalogDigest(source.raw))).toBe(CATALOG_DIGEST_GOLDEN[id]);
     }
   });
 
-  test("canonical digest escapes astral characters identically to Python", async () => {
+  test("canonical digest preserves the accepted astral-character observation", async () => {
     const record = {
       id: "demo.repo",
       questions: ["Does \u{1f600} preserve reference custody?"],
       "\ue000": "private-use sorts before astral by Unicode code point",
       "\u{1f600}": "astral key",
     };
-    expect(await runBun(catalogDigest(record))).toBe(pythonCanonicalRecordDigest(record));
+    expect(await runBun(catalogDigest(record))).toBe(ASTRAL_CATALOG_DIGEST_GOLDEN);
   });
 
-  test("rejects a duplicate source id, matching Python", async () => {
+  test("rejects a duplicate source id", async () => {
     const text = `
 schema = 1
 [[source]]
@@ -712,18 +656,16 @@ origin = "https://example.com/a.git"
 id = "dup"
 kind = "git"
 origin = "https://example.com/b.git"
-`;
+    `;
     const exit = await runBunExit(parseCatalogText(text));
     expect(Exit.isFailure(exit)).toBeTrue();
-    expect(pythonAcceptsCatalogText(text)).toBeFalse();
   });
 
-  test("rejects duplicate TOML keys in the same table, matching Python", () => {
+  test("rejects duplicate TOML keys in the same table", () => {
     const text = `
 schema = 1
 schema = 2
 `;
-    expect(pythonAcceptsCatalogText(text)).toBeFalse();
     // Bun's native TOML decoder rejects the duplicate before Schema ever sees it.
     expect(() => Bun.TOML.parse(text)).toThrow();
   });
@@ -732,7 +674,6 @@ schema = 2
     const text = `${BASE_CATALOG.replace('id = "demo.repo"', 'id = "Bad_ID"')}`;
     const exit = await runBunExit(parseCatalogText(text));
     expect(Exit.isFailure(exit)).toBeTrue();
-    expect(pythonAcceptsCatalogText(text)).toBeFalse();
   });
 
   test("rejects an option-like origin", async () => {
@@ -742,7 +683,6 @@ schema = 2
     );
     const exit = await runBunExit(parseCatalogText(text));
     expect(Exit.isFailure(exit)).toBeTrue();
-    expect(pythonAcceptsCatalogText(text)).toBeFalse();
   });
 
   test("rejects duplicate license_paths entries", async () => {
@@ -752,29 +692,25 @@ schema = 2
     );
     const exit = await runBunExit(parseCatalogText(text));
     expect(Exit.isFailure(exit)).toBeTrue();
-    expect(pythonAcceptsCatalogText(text)).toBeFalse();
   });
 
   test("requires track and license_paths to be declared together", async () => {
     const trackOnly = BASE_CATALOG.replace('license_paths = ["LICENSE"]\n', "");
     const exitTrackOnly = await runBunExit(parseCatalogText(trackOnly));
     expect(Exit.isFailure(exitTrackOnly)).toBeTrue();
-    expect(pythonAcceptsCatalogText(trackOnly)).toBeFalse();
 
     const licenseOnly = BASE_CATALOG.replace('track = "HEAD"\n', "");
     const exitLicenseOnly = await runBunExit(parseCatalogText(licenseOnly));
     expect(Exit.isFailure(exitLicenseOnly)).toBeTrue();
-    expect(pythonAcceptsCatalogText(licenseOnly)).toBeFalse();
   });
 
   test("rejects an unsupported schema version", async () => {
     const text = BASE_CATALOG.replace("schema = 1", "schema = 2");
     const exit = await runBunExit(parseCatalogText(text));
     expect(Exit.isFailure(exit)).toBeTrue();
-    expect(pythonAcceptsCatalogText(text)).toBeFalse();
   });
 
-  test("a source stays queued when custody fields are undeclared, matching Python's 'lockable'", async () => {
+  test("a source stays queued when custody fields are undeclared", async () => {
     const text = `
 schema = 1
 [[source]]
@@ -785,7 +721,6 @@ origin = "https://example.com/unlocked.git"
     const catalog = await runBun(parseCatalogText(text));
     const source = catalog.sources.get("unlocked.repo")!;
     expect(isLockable(source)).toBeFalse();
-    expect(pythonAcceptsCatalogText(text)).toBeTrue();
   });
 });
 
@@ -906,22 +841,12 @@ describe("reference custody Effect v4 slice: curator serialization", () => {
     expect(await readFile(lockPath, "utf8")).toBe(baseline);
   });
 
-  test("excludes the transitional Python curator through the same kernel lock", async () => {
+  test("excludes an independent Node curator through the same kernel lock", async () => {
     const root = await mkdtemp(join(tmpdir(), "semantic-curator-"));
     temporaryRoots.push(root);
     const referencesRoot = join(root, ".references");
-    const code = `
-import sys
-from pathlib import Path
-from semantic_references.curator import curator_lock
-from semantic_references.errors import CuratorLockedError
-try:
-    with curator_lock(Path(sys.argv[1])):
-        print("unexpected acquisition")
-except CuratorLockedError:
-    print("conflict")
-    raise SystemExit(75)
-`;
+    const lockPath = join(referencesRoot, ".curator.lock");
+    const independentReady = join(root, "independent-ready");
 
     const result = await runBun(
       Effect.scoped(
@@ -929,9 +854,19 @@ except CuratorLockedError:
           yield* acquireCuratorLock(referencesRoot);
           return yield* Effect.sync(() =>
             Bun.spawnSync({
-              cmd: ["python3", "-c", code, referencesRoot],
+              cmd: [
+                "flock",
+                "--exclusive",
+                "--nonblock",
+                "--conflict-exit-code",
+                "75",
+                "--no-fork",
+                lockPath,
+                NODE_EXECUTABLE,
+                join(ROOT, "src", "references", "curator-holder.ts"),
+                independentReady,
+              ],
               cwd: ROOT,
-              env: { ...process.env, PYTHONPATH },
               stdout: "pipe",
               stderr: "pipe",
             }),
@@ -940,19 +875,19 @@ except CuratorLockedError:
       ),
     );
     expect(result.exitCode).toBe(75);
-    expect(result.stdout.toString().trim()).toBe("conflict");
+    expect(await Bun.file(independentReady).exists()).toBeFalse();
   });
 
-  test("interoperates with the persistent Python-format lock file without rewriting it", async () => {
+  test("does not rewrite a preexisting opaque lock-file payload", async () => {
     const root = await mkdtemp(join(tmpdir(), "semantic-curator-"));
     temporaryRoots.push(root);
     const referencesRoot = join(root, ".references");
     const lockPath = join(referencesRoot, ".curator.lock");
     await mkdir(referencesRoot);
-    await writeFile(lockPath, "legacy-python-pid");
+    await writeFile(lockPath, "preexisting-curator-payload");
 
     await runBun(Effect.scoped(acquireCuratorLock(referencesRoot)));
-    expect(await readFile(lockPath, "utf8")).toBe("legacy-python-pid");
+    expect(await readFile(lockPath, "utf8")).toBe("preexisting-curator-payload");
   });
 
   test("rejects a symlinked lock without changing its target", async () => {
@@ -1624,14 +1559,14 @@ describe("reference custody Effect v4 slice: offline Git observation", () => {
 });
 
 describe("reference custody Effect v4 slice: lock parsing", () => {
-  test("a missing lock file loads as an empty lock, matching Python", async () => {
+  test("a missing lock file loads as an empty lock", async () => {
     const root = await temporaryProject(BASE_CATALOG);
     const lock = await runBun(loadLock(join(root, "references", "sources.lock.json")));
     expect(lock.generator).toBe("");
     expect(lock.sources.size).toBe(0);
   });
 
-  test("rejects a duplicate JSON key inside a lock entry, matching Python", () => {
+  test("rejects a duplicate JSON key inside a lock entry", () => {
     const text = `{
   "schema": "reference-lock-v1",
   "generator": "t",
@@ -1651,24 +1586,21 @@ describe("reference custody Effect v4 slice: lock parsing", () => {
       "licenses": { "LICENSE": { "mode": "100644", "size": 1, "sha256": "${FAKE_SHA256}" } }
     }
   }
-}`;
+    }`;
     const exit = Effect.runSyncExit(parseLockText(text));
     expect(Exit.isFailure(exit)).toBeTrue();
-    expect(pythonAcceptsLockText(text)).toBeFalse();
   });
 
-  test("rejects a duplicate JSON key at the top level, matching Python", () => {
+  test("rejects a duplicate JSON key at the top level", () => {
     const text = `{"schema":"reference-lock-v1","schema":"reference-lock-v1","generator":"t","sources":{}}`;
     const exit = Effect.runSyncExit(parseLockText(text));
     expect(Exit.isFailure(exit)).toBeTrue();
-    expect(pythonAcceptsLockText(text)).toBeFalse();
   });
 
-  test("rejects an abbreviated commit id, matching Python", () => {
+  test("rejects an abbreviated commit id", () => {
     const good = buildLockJson(FAKE_SHA256);
     const bad = good.replace(FAKE_COMMIT, FAKE_COMMIT.slice(0, 7));
     expect(Exit.isFailure(Effect.runSyncExit(parseLockText(bad)))).toBeTrue();
-    expect(pythonAcceptsLockText(bad)).toBeFalse();
     // sanity: the unmodified fixture (aside from the missing "sources" top-key wrapper) still parses
     expect(Exit.isSuccess(Effect.runSyncExit(parseLockText(good)))).toBeTrue();
   });
@@ -1676,7 +1608,6 @@ describe("reference custody Effect v4 slice: lock parsing", () => {
   test("rejects an unknown schema value", () => {
     const text = buildLockJson(FAKE_SHA256).replace('"reference-lock-v1"', '"reference-lock-v2"');
     expect(Exit.isFailure(Effect.runSyncExit(parseLockText(text)))).toBeTrue();
-    expect(pythonAcceptsLockText(text)).toBeFalse();
   });
 
   test("rejects a lock entry missing a required field", () => {
@@ -1684,7 +1615,6 @@ describe("reference custody Effect v4 slice: lock parsing", () => {
     delete withoutTree.sources["demo.repo"].tree;
     const text = JSON.stringify(withoutTree);
     expect(Exit.isFailure(Effect.runSyncExit(parseLockText(text)))).toBeTrue();
-    expect(pythonAcceptsLockText(text)).toBeFalse();
   });
 
   test("rejects a lock entry with an unexpected extra field", () => {
@@ -1692,7 +1622,6 @@ describe("reference custody Effect v4 slice: lock parsing", () => {
     withExtra.sources["demo.repo"].unexpected = true;
     const text = JSON.stringify(withExtra);
     expect(Exit.isFailure(Effect.runSyncExit(parseLockText(text)))).toBeTrue();
-    expect(pythonAcceptsLockText(text)).toBeFalse();
   });
 
   test("rejects a symlink-shaped license mode", () => {
@@ -1700,13 +1629,11 @@ describe("reference custody Effect v4 slice: lock parsing", () => {
       licenses: { LICENSE: { mode: "120000", size: 1, sha256: FAKE_SHA256 } },
     });
     expect(Exit.isFailure(Effect.runSyncExit(parseLockText(text)))).toBeTrue();
-    expect(pythonAcceptsLockText(text)).toBeFalse();
   });
 
   test("rejects an acquisition/origin_verified pairing that isn't possible", () => {
     const text = buildLockJson(FAKE_SHA256, { acquisition: "remote", origin_verified: false });
     expect(Exit.isFailure(Effect.runSyncExit(parseLockText(text)))).toBeTrue();
-    expect(pythonAcceptsLockText(text)).toBeFalse();
   });
 
   test("rejects an unsafe license path key", () => {
@@ -1716,28 +1643,33 @@ describe("reference custody Effect v4 slice: lock parsing", () => {
     };
     const text = JSON.stringify(parsed);
     expect(Exit.isFailure(Effect.runSyncExit(parseLockText(text)))).toBeTrue();
-    expect(pythonAcceptsLockText(text)).toBeFalse();
   });
 
-  test("serializes canonical lock bytes identically to Python", () => {
+  test("serializes the accepted canonical lock bytes", () => {
     const document = JSON.parse(buildLockJson(FAKE_SHA256));
     document.generator = "semantic-references/\u{1f600}";
     const text = JSON.stringify(document);
     const lock = Effect.runSync(parseLockText(text));
-    expect(new TextDecoder().decode(serializeLock(lock))).toBe(pythonSerializeLock(text));
+    expect(new TextDecoder().decode(serializeLock(lock))).toBe(
+      CANONICAL_LOCK_GOLDEN.replace(
+        '"generator": "test/0.0.0"',
+        '"generator": "semantic-references/\\ud83d\\ude00"',
+      ),
+    );
   });
 
-  test("preserves arbitrary-size JSON integers and rejects integer-valued floats like Python", () => {
+  test("preserves arbitrary-size JSON integers and rejects integer-valued floats", () => {
     const hugeInteger = buildLockJson(FAKE_SHA256).replace(
       '"size": 42',
       '"size": 9007199254740993',
     );
     const lock = Effect.runSync(parseLockText(hugeInteger));
-    expect(new TextDecoder().decode(serializeLock(lock))).toBe(pythonSerializeLock(hugeInteger));
+    expect(new TextDecoder().decode(serializeLock(lock))).toBe(
+      CANONICAL_LOCK_GOLDEN.replace('"size": 42', '"size": 9007199254740993'),
+    );
 
     const exponentFloat = buildLockJson(FAKE_SHA256).replace('"size": 42', '"size": 4.2e1');
     expect(Exit.isFailure(Effect.runSyncExit(parseLockText(exponentFloat)))).toBeTrue();
-    expect(pythonAcceptsLockText(exponentFloat)).toBeFalse();
   });
 
   test("atomically writes a canonical lock and makes byte-identical writes true no-ops", async () => {
@@ -1749,7 +1681,7 @@ describe("reference custody Effect v4 slice: lock parsing", () => {
     await runBun(writeLock(lockPath, lock));
     const firstBytes = await readFile(lockPath);
     const firstStat = await stat(lockPath);
-    expect(firstBytes.toString()).toBe(pythonSerializeLock(text));
+    expect(firstBytes.toString()).toBe(CANONICAL_LOCK_GOLDEN);
 
     await runBun(writeLock(lockPath, lock));
     const secondStat = await stat(lockPath);
@@ -2415,7 +2347,7 @@ describe("reference custody Effect v4 slice: offline materialization", () => {
 });
 
 describe("reference custody Effect v4 slice: full checkout status", () => {
-  test("a detached exact checkout is byte-identical to Python under Bun and Node", async () => {
+  test("a detached exact checkout is byte-identical under Bun and Node", async () => {
     const { fixture, checkout } = await lockedFixture();
     if (checkout === null) throw new Error("expected a materialized checkout");
     const indexPath = join(checkout, ".git", "index");
@@ -2425,13 +2357,19 @@ describe("reference custody Effect v4 slice: full checkout status", () => {
 
     const bun = runTsCli(args);
     const node = runNodeCli(args);
-    const python = runPythonCli(args);
     expect(bun.exitCode).toBe(0);
     expect(node.exitCode).toBe(bun.exitCode);
-    expect(python.exitCode).toBe(bun.exitCode);
-    expect(JSON.parse(bun.stdout)).toEqual(JSON.parse(python.stdout));
     expect(JSON.parse(node.stdout)).toEqual(JSON.parse(bun.stdout));
-    expect(JSON.parse(bun.stdout)[0].state).toBe("materialized_with_visible_assumption");
+    expect(JSON.parse(bun.stdout)[0]).toMatchObject({
+      source_id: "demo.repo",
+      state: "materialized_with_visible_assumption",
+      strict_ok: true,
+      reasons: [],
+      origin: "https://example.com/demo.git",
+      track: "main",
+      acquisition: "local-sibling",
+      origin_verified: false,
+    });
     expect(await readFile(indexPath)).toEqual(indexBytes);
     expect((await stat(indexPath, { bigint: true })).mtimeNs).toBe(indexMtime);
   });
@@ -2440,11 +2378,13 @@ describe("reference custody Effect v4 slice: full checkout status", () => {
     const { fixture } = await lockedFixture(false);
     const args = ["--root", fixture.project, "status", "demo.repo", "--json"];
     const bun = runTsCli(args);
-    const python = runPythonCli(args);
     expect(bun.exitCode).toBe(1);
-    expect(bun.exitCode).toBe(python.exitCode);
-    expect(JSON.parse(bun.stdout)).toEqual(JSON.parse(python.stdout));
-    expect(JSON.parse(bun.stdout)[0].state).toBe("locked_unmaterialized");
+    expect(JSON.parse(bun.stdout)[0]).toMatchObject({
+      source_id: "demo.repo",
+      state: "locked_unmaterialized",
+      strict_ok: false,
+      reasons: [],
+    });
   });
 
   test("an attached checkout is unverifiable", async () => {
@@ -2453,11 +2393,11 @@ describe("reference custody Effect v4 slice: full checkout status", () => {
     runCommand(["git", "switch", "--quiet", "main"], checkout);
     const args = ["--root", fixture.project, "status", "demo.repo", "--json"];
     const bun = runTsCli(args);
-    const python = runPythonCli(args);
     expect(bun.exitCode).toBe(1);
-    expect(JSON.parse(bun.stdout)).toEqual(JSON.parse(python.stdout));
     expect(JSON.parse(bun.stdout)[0]).toMatchObject({
+      source_id: "demo.repo",
       state: "unverifiable",
+      strict_ok: false,
       reasons: ["checkout HEAD is not detached"],
     });
   });
@@ -2482,10 +2422,12 @@ describe("reference custody Effect v4 slice: full checkout status", () => {
     );
     const args = ["--root", fixture.project, "status", "demo.repo", "--json"];
     const bun = runTsCli(args);
-    const python = runPythonCli(args);
     expect(bun.exitCode).toBe(1);
-    expect(JSON.parse(bun.stdout)).toEqual(JSON.parse(python.stdout));
-    expect(JSON.parse(bun.stdout)[0].state).toBe("drifted");
+    expect(JSON.parse(bun.stdout)[0]).toMatchObject({
+      source_id: "demo.repo",
+      state: "drifted",
+      strict_ok: false,
+    });
   });
 
   test("untracked dirt is unverifiable even when repository config hides it", async () => {
@@ -2495,11 +2437,11 @@ describe("reference custody Effect v4 slice: full checkout status", () => {
     await writeFile(join(checkout, "untracked.txt"), "hidden dirt\n");
     const args = ["--root", fixture.project, "status", "demo.repo", "--json"];
     const bun = runTsCli(args);
-    const python = runPythonCli(args);
     expect(bun.exitCode).toBe(1);
-    expect(JSON.parse(bun.stdout)).toEqual(JSON.parse(python.stdout));
     expect(JSON.parse(bun.stdout)[0]).toMatchObject({
+      source_id: "demo.repo",
       state: "unverifiable",
+      strict_ok: false,
       reasons: ["checkout has uncommitted changes"],
     });
   });
@@ -2604,16 +2546,10 @@ describe("reference custody Effect v4 slice: full checkout status", () => {
     expect(runCommand(["git", "status", "--porcelain=v1"], checkout)).toBe("");
     const args = ["--root", fixture.project, "status", "demo.repo", "--json"];
     const bun = runTsCli(args);
-    const python = runPythonCli(args);
     const [bunReport] = JSON.parse(bun.stdout);
-    const [pythonReport] = JSON.parse(python.stdout);
     expect(bun.exitCode).toBe(1);
-    expect(bun.exitCode).toBe(python.exitCode);
-    expect({ ...bunReport, reasons: bunReport.reasons.length }).toEqual({
-      ...pythonReport,
-      reasons: pythonReport.reasons.length,
-    });
     expect(bunReport.state).toBe("unverifiable");
+    expect(bunReport.strict_ok).toBeFalse();
     expect(bunReport.reasons.join(" ")).toContain("assume-unchanged");
   });
 
@@ -2628,16 +2564,10 @@ describe("reference custody Effect v4 slice: full checkout status", () => {
       }
       const args = ["--root", fixture.project, "status", "demo.repo", "--json"];
       const bun = runTsCli(args);
-      const python = runPythonCli(args);
       const [bunReport] = JSON.parse(bun.stdout);
-      const [pythonReport] = JSON.parse(python.stdout);
       expect(bun.exitCode).toBe(1);
-      expect(bun.exitCode).toBe(python.exitCode);
-      expect({ ...bunReport, reasons: bunReport.reasons.length }).toEqual({
-        ...pythonReport,
-        reasons: pythonReport.reasons.length,
-      });
       expect(bunReport.state).toBe("unverifiable");
+      expect(bunReport.strict_ok).toBeFalse();
       expect(bunReport.reasons.join(" ")).toContain(hiddenState);
     });
   }
@@ -2657,10 +2587,15 @@ describe("reference custody Effect v4 slice: full checkout status", () => {
     await runBun(writeLock(lockPath, { generator: lock.generator, sources }));
     const args = ["--root", fixture.project, "status", "demo.repo", "--json"];
     const bun = runTsCli(args);
-    const python = runPythonCli(args);
     expect(bun.exitCode).toBe(0);
-    expect(JSON.parse(bun.stdout)).toEqual(JSON.parse(python.stdout));
-    expect(JSON.parse(bun.stdout)[0].state).toBe("materialized_verified");
+    expect(JSON.parse(bun.stdout)[0]).toMatchObject({
+      source_id: "demo.repo",
+      state: "materialized_verified",
+      strict_ok: true,
+      reasons: [],
+      acquisition: "remote",
+      origin_verified: true,
+    });
   });
 
   test("locked tree and license observations are independently rebound to the checkout", async () => {
@@ -2681,16 +2616,10 @@ describe("reference custody Effect v4 slice: full checkout status", () => {
     await runBun(writeLock(lockPath, { generator: lock.generator, sources }));
     const args = ["--root", fixture.project, "status", "demo.repo", "--json"];
     const bun = runTsCli(args);
-    const python = runPythonCli(args);
     const [bunReport] = JSON.parse(bun.stdout);
-    const [pythonReport] = JSON.parse(python.stdout);
     expect(bun.exitCode).toBe(1);
-    expect(bun.exitCode).toBe(python.exitCode);
-    expect({ ...bunReport, reasons: bunReport.reasons.length }).toEqual({
-      ...pythonReport,
-      reasons: pythonReport.reasons.length,
-    });
     expect(bunReport.state).toBe("unverifiable");
+    expect(bunReport.strict_ok).toBeFalse();
     expect(bunReport.reasons.join(" ")).toContain("checkout tree");
     expect(bunReport.reasons.join(" ")).toContain("committed bytes changed");
     expect(bunReport.reasons.join(" ")).toContain("working-tree bytes changed");
@@ -3141,11 +3070,10 @@ describe("reference custody Effect v4 slice: full checkout status", () => {
       await installCheckout(fixture.project, fixture.sibling);
       const args = ["--root", fixture.project, "status", "demo.repo", "--json"];
       const bun = runTsCli(args);
-      const python = runPythonCli(args);
       expect(bun.exitCode).toBe(1);
-      expect(bun.exitCode).toBe(python.exitCode);
       const [report] = JSON.parse(bun.stdout);
       expect(report.state).toBe("unverifiable");
+      expect(report.strict_ok).toBeFalse();
       expect(report.reasons.join(" ")).toContain(
         incompleteKind === "gitlink" ? "submodule gitlink" : "Git LFS pointer",
       );
@@ -3153,7 +3081,7 @@ describe("reference custody Effect v4 slice: full checkout status", () => {
   }
 });
 
-describe("reference custody Effect v4 slice: CLI parity with Python", () => {
+describe("reference custody Effect v4 slice: CLI golden and cross-runtime observations", () => {
   test("offline local-sibling lock publishes under Node and is byte-stable under Bun", async () => {
     const fixture = await localSiblingFixture();
     await mkdir(join(fixture.project, "references"));
@@ -3223,37 +3151,93 @@ describe("reference custody Effect v4 slice: CLI parity with Python", () => {
     expect(lock.sources.get("demo.repo")?.retrievedAt).toBe(distinctiveTimestamp);
   });
 
-  test("catalog-check on the real repository catalog is byte-identical to Python", () => {
-    const ts = runTsCli(["catalog-check"]);
-    const py = runPythonCli(["catalog-check"]);
-    expect(ts.exitCode).toBe(py.exitCode);
-    expect(ts.stdout).toBe(py.stdout);
+  test("catalog-check on the real repository catalog is byte-identical under Bun and Node", () => {
+    const bun = runTsCli(["catalog-check"]);
+    const node = runNodeCli(["catalog-check"]);
+    expect(bun.exitCode).toBe(0);
+    expect(node.exitCode).toBe(bun.exitCode);
+    expect(node.stdout).toBe(bun.stdout);
+    expect(bun.stdout).toBe(
+      [
+        "agda: lockable",
+        "cakeml: queued (unlocked)",
+        "compcert: queued (unlocked)",
+        "elm-compiler: queued (unlocked)",
+        "flux: lockable",
+        "fstar: lockable",
+        "ghc: lockable",
+        "gleam: queued (unlocked)",
+        "idris2: lockable",
+        "k-framework: queued (unlocked)",
+        "koka: queued (unlocked)",
+        "lean4: queued (unlocked)",
+        "lean4lean: queued (unlocked)",
+        "liquid-haskell: lockable",
+        "llvm: queued (unlocked)",
+        "local.lang-bang: lockable",
+        "local.semantic-packages: queued (unlocked)",
+        "oxc: queued (unlocked)",
+        "rocq: queued (unlocked)",
+        "rust: queued (unlocked)",
+        "rust-analyzer: queued (unlocked)",
+        "salsa: queued (unlocked)",
+        "tigerbeetle: queued (unlocked)",
+        "23 source(s) validated",
+        "",
+      ].join("\n"),
+    );
   });
 
-  test("status --all --lock-only --json on the real repository catalog matches Python exactly", () => {
-    const ts = runTsCli(["status", "--all", "--lock-only", "--json"]);
-    const py = runPythonCli(["status", "--all", "--lock-only", "--json"]);
-    expect(ts.exitCode).toBe(py.exitCode);
-    expect(JSON.parse(ts.stdout)).toEqual(JSON.parse(py.stdout));
+  test("status --all --lock-only --json is byte-identical under Bun and Node", () => {
+    const bun = runTsCli(["status", "--all", "--lock-only", "--json"]);
+    const node = runNodeCli(["status", "--all", "--lock-only", "--json"]);
+    expect(bun.exitCode).toBe(1);
+    expect(node.exitCode).toBe(bun.exitCode);
+    expect(node.stdout).toBe(bun.stdout);
+    const reports = JSON.parse(bun.stdout);
+    expect(reports.map((report: { source_id: string }) => report.source_id)).toEqual(
+      Object.keys(CATALOG_DIGEST_GOLDEN).sort(),
+    );
+    expect(
+      reports.filter((report: { state: string }) => report.state === "locked_unmaterialized")
+        .length,
+    ).toBe(5);
+    expect(
+      reports.filter((report: { state: string }) => report.state === "queued_unlocked").length,
+    ).toBe(18);
   });
 
-  test("a locked, undrifted source reports locked_unmaterialized identically under --root", async () => {
+  test("a locked, undrifted source reports the accepted locked_unmaterialized shape", async () => {
     const root = await temporaryProject(BASE_CATALOG);
-    const digest = pythonCanonicalDigest(root, "demo.repo");
-    await writeFile(join(root, "references", "sources.lock.json"), buildLockJson(digest));
+    await writeFile(
+      join(root, "references", "sources.lock.json"),
+      buildLockJson(BASE_CATALOG_DIGEST_GOLDEN),
+    );
 
     const ts = runTsCli(["--root", root, "status", "demo.repo", "--lock-only", "--json"]);
-    const py = runPythonCli(["--root", root, "status", "demo.repo", "--lock-only", "--json"]);
     expect(ts.exitCode).toBe(0);
-    expect(ts.exitCode).toBe(py.exitCode);
-    expect(JSON.parse(ts.stdout)).toEqual(JSON.parse(py.stdout));
-    expect(JSON.parse(ts.stdout)[0].state).toBe("locked_unmaterialized");
+    expect(JSON.parse(ts.stdout)[0]).toEqual({
+      source_id: "demo.repo",
+      state: "locked_unmaterialized",
+      strict_ok: true,
+      reasons: ["--lock-only: checkout was not inspected"],
+      origin: "https://example.com/demo.git",
+      track: "HEAD",
+      resolved_ref: "refs/heads/main",
+      commit: FAKE_COMMIT,
+      tree: FAKE_TREE,
+      acquisition: "local-sibling",
+      origin_verified: false,
+      licenses: { LICENSE: FAKE_SHA256 },
+    });
   });
 
-  test("catalog drift after locking (origin change) is detected identically", async () => {
+  test("catalog drift after locking (origin change) is detected", async () => {
     const root = await temporaryProject(BASE_CATALOG);
-    const digest = pythonCanonicalDigest(root, "demo.repo");
-    await writeFile(join(root, "references", "sources.lock.json"), buildLockJson(digest));
+    await writeFile(
+      join(root, "references", "sources.lock.json"),
+      buildLockJson(BASE_CATALOG_DIGEST_GOLDEN),
+    );
     await writeFile(
       join(root, "references", "sources.toml"),
       BASE_CATALOG.replace(
@@ -3263,44 +3247,41 @@ describe("reference custody Effect v4 slice: CLI parity with Python", () => {
     );
 
     const ts = runTsCli(["--root", root, "status", "demo.repo", "--lock-only", "--json"]);
-    const py = runPythonCli(["--root", root, "status", "demo.repo", "--lock-only", "--json"]);
     expect(ts.exitCode).toBe(1);
-    expect(ts.exitCode).toBe(py.exitCode);
-    // Reason *text* legitimately differs (Python's `!r` single-quote repr vs.
-    // JSON double-quote interpolation); structural fields, including the
-    // reason *count*, must still match exactly.
     const [tsReport] = JSON.parse(ts.stdout);
-    const [pyReport] = JSON.parse(py.stdout);
-    expect({ ...tsReport, reasons: tsReport.reasons.length }).toEqual({
-      ...pyReport,
-      reasons: pyReport.reasons.length,
-    });
     expect(tsReport.state).toBe("drifted");
+    expect(tsReport.strict_ok).toBeFalse();
+    expect(tsReport.reasons).toEqual([
+      "catalog record no longer matches the digest recorded at lock time",
+      'locked origin "https://example.com/demo.git" is not the catalog origin "https://example.com/drifted.git"',
+    ]);
   });
 
-  test("catalog drift from an unrelated raw field change (digest-only) is detected identically", async () => {
+  test("catalog drift from an unrelated raw field change (digest-only) is detected", async () => {
     const root = await temporaryProject(BASE_CATALOG);
-    const digest = pythonCanonicalDigest(root, "demo.repo");
-    await writeFile(join(root, "references", "sources.lock.json"), buildLockJson(digest));
+    await writeFile(
+      join(root, "references", "sources.lock.json"),
+      buildLockJson(BASE_CATALOG_DIGEST_GOLDEN),
+    );
     await writeFile(
       join(root, "references", "sources.toml"),
       BASE_CATALOG.replace('classes = ["testing"]', 'classes = ["testing", "extra"]'),
     );
 
     const ts = runTsCli(["--root", root, "status", "demo.repo", "--lock-only", "--json"]);
-    const py = runPythonCli(["--root", root, "status", "demo.repo", "--lock-only", "--json"]);
-    expect(ts.exitCode).toBe(py.exitCode);
-    expect(JSON.parse(ts.stdout)).toEqual(JSON.parse(py.stdout));
+    expect(ts.exitCode).toBe(1);
     expect(JSON.parse(ts.stdout)[0].state).toBe("drifted");
     expect(JSON.parse(ts.stdout)[0].reasons).toEqual([
       "catalog record no longer matches the digest recorded at lock time",
     ]);
   });
 
-  test("an orphaned lock entry (removed from the catalog) is reported identically under --all", async () => {
+  test("an orphaned lock entry (removed from the catalog) is reported under --all", async () => {
     const root = await temporaryProject(BASE_CATALOG);
-    const digest = pythonCanonicalDigest(root, "demo.repo");
-    await writeFile(join(root, "references", "sources.lock.json"), buildLockJson(digest));
+    await writeFile(
+      join(root, "references", "sources.lock.json"),
+      buildLockJson(BASE_CATALOG_DIGEST_GOLDEN),
+    );
     await writeFile(
       join(root, "references", "sources.toml"),
       `
@@ -3313,23 +3294,27 @@ origin = "https://example.com/other.git"
     );
 
     const ts = runTsCli(["--root", root, "status", "--all", "--lock-only", "--json"]);
-    const py = runPythonCli(["--root", root, "status", "--all", "--lock-only", "--json"]);
-    expect(ts.exitCode).toBe(py.exitCode);
-    expect(JSON.parse(ts.stdout)).toEqual(JSON.parse(py.stdout));
+    expect(ts.exitCode).toBe(1);
+    expect(JSON.parse(ts.stdout)).toContainEqual(
+      expect.objectContaining({
+        source_id: "demo.repo",
+        state: "drifted",
+        strict_ok: false,
+        reasons: ["lock entry has no current catalog source"],
+      }),
+    );
   });
 
-  test("an unknown source id is a usage error under both CLIs", async () => {
+  test("an unknown source id is a usage error", async () => {
     const root = await temporaryProject(BASE_CATALOG);
     const ts = runTsCli(["--root", root, "status", "nonexistent", "--lock-only"]);
-    const py = runPythonCli(["--root", root, "status", "nonexistent", "--lock-only"]);
     expect(ts.exitCode).toBe(2);
-    expect(ts.exitCode).toBe(py.exitCode);
+    expect(ts.stderr).toContain('unknown source id "nonexistent"');
   });
 
-  test("a lock file with a duplicate JSON key is a usage error under both CLIs", async () => {
+  test("a lock file with a duplicate JSON key is a usage error", async () => {
     const root = await temporaryProject(BASE_CATALOG);
-    const digest = pythonCanonicalDigest(root, "demo.repo");
-    const good = JSON.parse(buildLockJson(digest));
+    const good = JSON.parse(buildLockJson(BASE_CATALOG_DIGEST_GOLDEN));
     const raw = JSON.stringify(good).replace(
       '"origin":"https://example.com/demo.git"',
       '"origin":"https://example.com/demo.git","origin":"https://example.com/demo.git"',
@@ -3337,9 +3322,8 @@ origin = "https://example.com/other.git"
     await writeFile(join(root, "references", "sources.lock.json"), raw);
 
     const ts = runTsCli(["--root", root, "status", "demo.repo", "--lock-only"]);
-    const py = runPythonCli(["--root", root, "status", "demo.repo", "--lock-only"]);
     expect(ts.exitCode).toBe(2);
-    expect(ts.exitCode).toBe(py.exitCode);
+    expect(ts.stderr).toContain("duplicate JSON key");
   });
 });
 

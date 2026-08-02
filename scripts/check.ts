@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
  * Integration loop (design spec 0005): frozen dependency install, fast loop,
- * full tests, and the remaining transitional custody Python checks.
+ * and the complete Bun test corpus.
  */
 import { resolve } from "node:path";
 import { Effect } from "effect";
@@ -11,14 +11,12 @@ const root = resolve(import.meta.dirname, "..");
 const label = "check";
 
 const program = Effect.gen(function* () {
-  for (const tool of ["pyright", "bun", "pytest"]) yield* requireTool(label, tool);
+  yield* requireTool(label, "bun");
   for (const command of [
     ["bun", "install", "--frozen-lockfile", "--ignore-scripts"],
     ["bun", "run", "effect:setup"],
     ["bun", "scripts/check-fast.ts"],
     ["bun", "run", "test"],
-    ["pyright"],
-    ["pytest", "-p", "no:cacheprovider"],
   ] as const) {
     yield* runCommand(command, { cwd: root });
   }
