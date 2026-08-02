@@ -40,24 +40,6 @@
 - Plan: [execution ledger](../plans/0007-reuse-first-engineering.md)
 - Acceptance: [runnable program](../scripts/accept/0007-reuse-first-engineering.ts)
 
-### `0015-open-semantic-system-design-lens` — Apply the open semantic system design lens
-
-- Status: `in_progress`
-- Feature loop: `managed`
-- Model: [canonical record](../model/work/features/0015-open-semantic-system-design-lens.json)
-- Design: [design contract](../design-specs/0015-open-semantic-system-design-lens.md)
-- Plan: [execution ledger](../plans/0015-open-semantic-system-design-lens.md)
-- Acceptance: [runnable program](../scripts/accept/0015-open-semantic-system-design-lens.ts)
-
-### `0048-pbk-control-room-acceptance-reconciliation` — Reconcile PBK Control Room acceptance lineage
-
-- Status: `in_progress`
-- Feature loop: `managed`
-- Model: [canonical record](../model/work/features/0048-pbk-control-room-acceptance-reconciliation.json)
-- Design: [design contract](../design-specs/0048-pbk-control-room-acceptance-reconciliation.md)
-- Plan: [execution ledger](../plans/0048-pbk-control-room-acceptance-reconciliation.md)
-- Acceptance: [runnable program](../scripts/accept/0048-pbk-control-room-acceptance-reconciliation.ts)
-
 ### `0049-canonical-work-lifecycle` — Canonicalize the project work lifecycle
 
 - Status: `in_progress`
@@ -122,6 +104,15 @@
 - Design: [design contract](../design-specs/0014-stm-effect-handler-laws.md)
 - Plan: [execution ledger](../plans/0014-stm-effect-handler-laws.md)
 - Acceptance: [runnable program](../scripts/accept/0014-stm-effect-handler-laws.ts)
+
+### `0015-open-semantic-system-design-lens` — Apply the open semantic system design lens
+
+- Status: `complete`
+- Feature loop: `managed`
+- Model: [canonical record](../model/work/features/0015-open-semantic-system-design-lens.json)
+- Design: [design contract](../design-specs/0015-open-semantic-system-design-lens.md)
+- Plan: [execution ledger](../plans/0015-open-semantic-system-design-lens.md)
+- Acceptance: [runnable program](../scripts/accept/0015-open-semantic-system-design-lens.ts)
 
 ### `0016-executable-semantic-system-kernel` — Build the executable semantic system kernel
 
@@ -203,6 +194,15 @@
 - Design: [design contract](../design-specs/0046-effect-graph-execution-index.md)
 - Plan: [execution ledger](../plans/0046-effect-graph-execution-index.md)
 - Acceptance: [runnable program](../scripts/accept/0046-effect-graph-execution-index.ts)
+
+### `0048-pbk-control-room-acceptance-reconciliation` — Reconcile PBK Control Room acceptance lineage
+
+- Status: `complete`
+- Feature loop: `managed`
+- Model: [canonical record](../model/work/features/0048-pbk-control-room-acceptance-reconciliation.json)
+- Design: [design contract](../design-specs/0048-pbk-control-room-acceptance-reconciliation.md)
+- Plan: [execution ledger](../plans/0048-pbk-control-room-acceptance-reconciliation.md)
+- Acceptance: [runnable program](../scripts/accept/0048-pbk-control-room-acceptance-reconciliation.ts)
 
 ## Superseded
 

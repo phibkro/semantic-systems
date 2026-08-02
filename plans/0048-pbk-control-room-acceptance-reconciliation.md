@@ -53,18 +53,32 @@ Independent review first rejected the candidate because project nodes and
 milestone containment were absent. A read-only audit accepted the corrected
 implementation semantics and one-gate custody. Static rereview at `a5184fc`
 accepted five of six correction items but returned `CHANGES_REQUIRED` because
-the 0021 integration head was absent from its cited plan. This follow-up adds
-that custody entry. These reviewer conclusions are static-analysis evidence,
-not independent final acceptance. Public deployment remains unobserved because
-Cloudflare rejects the current operator-owned Actions credential; no deployment
-success is claimed.
+the 0021 integration head was absent from its cited plan. The follow-up added
+that custody entry, and independent rereview of `06ac8a3` returned `ACCEPTED`
+with no Critical or Important defect. These reviewer conclusions are
+assertion/static-analysis evidence, not runtime evidence. Public deployment
+remains unobserved because Cloudflare rejects the current operator-owned
+Actions credential; no deployment success is claimed.
 
 ## Completion state
 
-Implementation and exact-head runtime verification are recorded. The 0048 work
-item remains `in_progress` pending follow-up rereview. This record does not
-claim independent final acceptance. Protected exact-head checks and merge
-remain the integration boundary.
+Implementation, exact-head runtime verification, and independent rereview are
+recorded. The canonical 0048 work item is `complete` with typed evidence.
+Protected CI and remote merge remain explicit integration boundaries rather
+than inferred completion evidence.
 
 - 2026-08-02: Historical lifecycle heading migrated verbatim from the pre-migration plan:
   # Completed plan 0048: PBK Control Room acceptance reconciliation
+- 2026-08-02: Exact acceptance at
+  `06ac8a3ecc6b715141d13672273babb75c5ab323` passed 15 portfolio
+  tests/8,235 assertions, 73 Control Room tests, 9 mobile Chromium journeys,
+  build/payload scans, model validation, and nine generated views. Its
+  inherited 0017 gate ran the full `just check`, which passed 676 tests/17,200
+  assertions. This is `runtime_validation` plus test/static-analysis evidence.
+- 2026-08-02: Independent read-only review of `06ac8a3` returned `ACCEPTED`
+  with no Critical or Important defect. This is `assertion`/static-analysis
+  evidence; two documentation nits remain non-blocking.
+- 2026-08-02: Status: complete — the canonical record now carries positive
+  completion with implementation head `67e6cbf`, integration head `8902ba7`,
+  typed exact-acceptance/integration/review evidence, and no unsupported public
+  deployment claim.

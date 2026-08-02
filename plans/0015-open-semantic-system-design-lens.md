@@ -432,3 +432,16 @@ Missing required artifacts or tools fail.
   integration, but static rereview returned `CHANGES_REQUIRED` on contract and
   ledger custody. Completion remains pending this follow-up and rereview; no
   protected-CI, push, merge, or final-acceptance claim is made for it.
+- 2026-08-02: Exact acceptance at
+  `3933e3932fa3a661e86a53cdf83521875e6d50f8` passed 15 lens tests/126
+  assertions and 28 control-loop tests/303 assertions with typecheck, severe
+  lint, formatting, model validation, and nine generated views. The separately
+  run full `nix develop -c just check` passed 676 tests/17,200 assertions at the
+  same head. This is `runtime_validation` plus test/static-analysis evidence.
+- 2026-08-02: Independent read-only review of `3933e39` returned `ACCEPTED`
+  with no Critical or Important defect. This is `assertion`/static-analysis
+  evidence; three documentation nits remain non-blocking.
+- 2026-08-02: Status: complete — the canonical record now carries positive
+  completion with implementation head `622e0f6`, integration head `643b6f0`,
+  typed exact-acceptance/integration/review evidence, and no unsupported
+  protected-CI, remote-push, or remote-merge claim.

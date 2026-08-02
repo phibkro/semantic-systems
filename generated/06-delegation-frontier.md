@@ -2,7 +2,7 @@
 
 <!-- Generated. Edit model sources, not this file. -->
 
-Ready parallel work items: **16**.
+Ready parallel work items: **14**.
 
 | Work item | Phase | Status | Ready | Score | Recommendation | Blockers |
 |---|---|---|---:|---:|---|---|
@@ -30,9 +30,9 @@ Ready parallel work items: **16**.
 | Specify Lean evidence adapter | research | planned | yes | 60 | delegate with review |  |
 | Design lossless incremental frontend | design | superseded | no | 75 | delegate with review |  |
 | Specify normalized core artifact | validation | complete | no | 45 | bounded spike |  |
-| Apply the open semantic system design lens | implementation | in_progress | yes | 80 | delegate with review |  |
+| Apply the open semantic system design lens | implementation | complete | no | 80 | delegate with review |  |
 | Implement package and evidence resolver | implementation | in_progress | no | 72 | delegate with review | Define normalized theory identity |
-| Reconcile PBK Control Room acceptance lineage | validation | in_progress | yes | 83 | delegate with review |  |
+| Reconcile PBK Control Room acceptance lineage | validation | complete | no | 83 | delegate with review |  |
 | Build PBK Technologies portfolio Control Room | validation | complete | no | 72 | delegate with review |  |
 | Research reference baselines for deep research | research | in_progress | yes | 86 | delegate with review |  |
 | Establish reference-source custody | validation | complete | no | 87 | delegate with review |  |
