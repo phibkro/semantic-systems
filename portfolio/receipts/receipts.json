@@ -10,9 +10,7 @@
         "outcome": "accepted",
         "commit": "3489ea576519bf71da7b5f7bc91fe9853076d65c",
         "observed_at": "2026-07-31T15:28:13Z",
-        "evidence_refs": [
-          "artifact.herdr.supervisor-spec"
-        ],
+        "evidence_refs": ["artifact.herdr.supervisor-spec"],
         "snapshot_id": null
       }
     },
@@ -25,9 +23,7 @@
         "outcome": "accepted",
         "commit": "2b5c507226a1e297ce3456fc9d287ffd58839caf",
         "observed_at": "2026-07-31T18:22:37Z",
-        "evidence_refs": [
-          "artifact.herdr.codex-session-evidence"
-        ],
+        "evidence_refs": ["artifact.herdr.codex-session-evidence"],
         "snapshot_id": null
       }
     },
@@ -40,9 +36,7 @@
         "outcome": "accepted",
         "commit": "25bea156a54628949549658ef1b614025fc23661",
         "observed_at": "2026-07-31T15:28:13Z",
-        "evidence_refs": [
-          "artifact.mastra.project"
-        ],
+        "evidence_refs": ["artifact.mastra.project"],
         "snapshot_id": null
       }
     },
@@ -55,9 +49,7 @@
         "outcome": "accepted",
         "commit": "139439ea246a7eb025cd50faee0cbf5096185bca",
         "observed_at": "2026-07-31T15:28:13Z",
-        "evidence_refs": [
-          "artifact.qeffect.readme"
-        ],
+        "evidence_refs": ["artifact.qeffect.readme"],
         "snapshot_id": null
       }
     },
@@ -70,9 +62,7 @@
         "outcome": "accepted",
         "commit": "26a7625ad4fdd5538efdbec3f28eaa7e0885c38a",
         "observed_at": "2026-07-31T14:24:06Z",
-        "evidence_refs": [
-          "artifact.semantic.control-room-spec"
-        ],
+        "evidence_refs": ["artifact.semantic.control-room-spec"],
         "snapshot_id": "snapshot.semantic.control-room-0017"
       }
     },
@@ -85,9 +75,7 @@
         "outcome": "accepted",
         "commit": "feeef051ed617ced438d0ede8b8352ae57946de6",
         "observed_at": "2026-07-31T18:22:37Z",
-        "evidence_refs": [
-          "artifact.semantic.kernel-json-spec"
-        ],
+        "evidence_refs": ["artifact.semantic.kernel-json-spec"],
         "snapshot_id": null
       }
     },
@@ -100,9 +88,7 @@
         "outcome": "accepted",
         "commit": "b48563fc1780e6bf76f06b5e0fa0ee6c6d4fac10",
         "observed_at": "2026-07-31T19:45:01Z",
-        "evidence_refs": [
-          "artifact.semantic.kernel-interpreter-acceptance"
-        ],
+        "evidence_refs": ["artifact.semantic.kernel-interpreter-acceptance"],
         "snapshot_id": null
       }
     },
@@ -115,9 +101,7 @@
         "outcome": "accepted",
         "commit": "b48563fc1780e6bf76f06b5e0fa0ee6c6d4fac10",
         "observed_at": "2026-07-31T19:45:01Z",
-        "evidence_refs": [
-          "artifact.semantic.kernel-diagnostic-fact-custody"
-        ],
+        "evidence_refs": ["artifact.semantic.kernel-diagnostic-fact-custody"],
         "snapshot_id": null
       }
     },
@@ -130,9 +114,7 @@
         "outcome": "accepted",
         "commit": "2959681e01df2acc4ea1318b8ce634b9ccf7d10c",
         "observed_at": "2026-07-31T11:38:26Z",
-        "evidence_refs": [
-          "artifact.semantic.normalized-core-spec"
-        ],
+        "evidence_refs": ["artifact.semantic.normalized-core-spec"],
         "snapshot_id": null
       }
     },
@@ -145,9 +127,7 @@
         "outcome": "accepted",
         "commit": "0302b468cac9f9d8f55d5e68b9a0e50e5fac9ac1",
         "observed_at": "2026-07-31T23:01:20Z",
-        "evidence_refs": [
-          "artifact.semantic.surface-language-spec"
-        ],
+        "evidence_refs": ["artifact.semantic.surface-language-spec"],
         "snapshot_id": null
       }
     },
@@ -160,9 +140,7 @@
         "outcome": "accepted",
         "commit": "800d70b74c96a476d34b9690374683b1843343b2",
         "observed_at": "2026-08-01T00:05:37Z",
-        "evidence_refs": [
-          "artifact.semantic.artifact-store-spec"
-        ],
+        "evidence_refs": ["artifact.semantic.artifact-store-spec"],
         "snapshot_id": null
       }
     },
@@ -175,9 +153,7 @@
         "outcome": "accepted",
         "commit": "68417a25f47a9a3f48a8782fae7f598d38a2ccd2",
         "observed_at": "2026-08-01T00:41:20Z",
-        "evidence_refs": [
-          "artifact.semantic.reachability-receipt-spec"
-        ],
+        "evidence_refs": ["artifact.semantic.reachability-receipt-spec"],
         "snapshot_id": null
       }
     },

@@ -307,14 +307,8 @@
           "work.infrastructure": "Alchemy v2",
           "work.a11y-gate": "Axe",
           "work.e2e-runner": "Playwright",
-          "work.reference-products": [
-            "Better-T-Stack",
-            "VoidZero Vite+"
-          ],
-          "work.generator-candidates": [
-            "Vite+ local generators",
-            "Nx generators"
-          ]
+          "work.reference-products": ["Better-T-Stack", "VoidZero Vite+"],
+          "work.generator-candidates": ["Vite+ local generators", "Nx generators"]
         }
       }
     },
