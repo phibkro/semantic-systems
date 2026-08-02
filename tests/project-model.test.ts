@@ -69,7 +69,8 @@ describe("project model Effect v4 slice", () => {
     expect(ready.has("work.kernel-spec")).toBeFalse();
     expect(ready.has("work.normalized-core-format")).toBeFalse();
     expect(ready.has("work.lossless-frontend-spec")).toBeTrue();
-    expect(ready.has("work.agent-facing-kernel-json")).toBeTrue();
+    expect(ready.has("work.agent-facing-kernel-json")).toBeFalse();
+    expect(ready.has("work.kernel-reference-interpreter")).toBeFalse();
     expect(ready.has("work.lean-evidence-adapter")).toBeTrue();
     expect(ready.has("work.stm-runtime")).toBeFalse();
     const path = criticalPath(project);
