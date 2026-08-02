@@ -49,15 +49,6 @@
 - Plan: [execution ledger](../plans/0049-canonical-work-lifecycle.md)
 - Acceptance: [runnable program](../scripts/accept/0049-canonical-work-lifecycle.ts)
 
-### `0050-bounded-stm-runtime` — Implement minimal STM runtime
-
-- Status: `in_progress`
-- Feature loop: `managed`
-- Model: [canonical record](../model/work/features/0050-bounded-stm-runtime.json)
-- Design: [design contract](../design-specs/0050-bounded-stm-runtime.md)
-- Plan: [execution ledger](../plans/0050-bounded-stm-runtime.md)
-- Acceptance: [runnable program](../scripts/accept/0050-bounded-stm-runtime.ts)
-
 ### `0051-kernel-finite-sums` — Add kernel finite sums and case
 
 - Status: `in_progress`
@@ -221,6 +212,15 @@
 - Design: [design contract](../design-specs/0048-pbk-control-room-acceptance-reconciliation.md)
 - Plan: [execution ledger](../plans/0048-pbk-control-room-acceptance-reconciliation.md)
 - Acceptance: [runnable program](../scripts/accept/0048-pbk-control-room-acceptance-reconciliation.ts)
+
+### `0050-bounded-stm-runtime` — Implement minimal STM runtime
+
+- Status: `complete`
+- Feature loop: `managed`
+- Model: [canonical record](../model/work/features/0050-bounded-stm-runtime.json)
+- Design: [design contract](../design-specs/0050-bounded-stm-runtime.md)
+- Plan: [execution ledger](../plans/0050-bounded-stm-runtime.md)
+- Acceptance: [runnable program](../scripts/accept/0050-bounded-stm-runtime.ts)
 
 ## Superseded
 

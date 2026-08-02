@@ -2,7 +2,7 @@
 
 <!-- Generated. Edit model sources, not this file. -->
 
-Ready parallel work items: **15**.
+Ready parallel work items: **16**.
 
 | Work item | Phase | Status | Ready | Score | Recommendation | Blockers |
 |---|---|---|---:|---:|---|---|
@@ -24,7 +24,7 @@ Ready parallel work items: **15**.
 | Prove inventory invariant | validation | planned | yes | 94 | delegate with review |  |
 | Implement pure inventory realization | implementation | complete | no | 97 | delegate directly |  |
 | Complete inventory evidence-resolution tracer | validation | complete | no | 87 | delegate with review |  |
-| Implement inventory STM realization | implementation | planned | no | 94 | delegate directly | Implement minimal STM runtime |
+| Implement inventory STM realization | implementation | planned | yes | 94 | delegate directly |  |
 | Add kernel finite sums and case | implementation | in_progress | yes | 65 | delegate with review |  |
 | Establish the kernel reference interpreter | validation | complete | no | 87 | delegate with review |  |
 | Specify minimal kernel calculus | validation | complete | no | 53 | bounded spike |  |
@@ -42,8 +42,8 @@ Ready parallel work items: **15**.
 | Apply reuse-first engineering assignments | implementation | in_progress | yes | 94 | delegate with review |  |
 | Specify semantic attestation profile | design | ready | no | 87 | delegate with review | Define normalized theory identity |
 | Specify STM effect and handler laws | validation | complete | no | 49 | bounded spike |  |
-| Model-check STM interleavings | validation | planned | no | 94 | delegate with review | Implement minimal STM runtime |
-| Implement minimal STM runtime | implementation | in_progress | yes | 80 | delegate with review |  |
+| Model-check STM interleavings | validation | planned | yes | 94 | delegate with review |  |
+| Implement minimal STM runtime | validation | complete | no | 80 | delegate with review |  |
 | Define normalized theory identity | design | in_progress | yes | 41 | bounded spike |  |
 | Specify translation-validation seams | research | planned | yes | 45 | bounded spike |  |
 | Migrate the runtime to TypeScript, Bun, and Effect v4 | validation | complete | no | 77 | delegate with review |  |

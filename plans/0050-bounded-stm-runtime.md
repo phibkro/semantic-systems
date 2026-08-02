@@ -109,3 +109,36 @@ git diff --check
 - 2026-08-02: contract frozen at primary base
   `8ad791db932d0fda93083dce3074a3149b438bbf`. Implementation, acceptance,
   integration, and independent review remain pending.
+- 2026-08-02: the bounded runtime was integrated at
+  `02c316cab1b428bf9d1464cd572aea677081f215`. It retains the accepted 0014
+  transaction model and adds Effect-owned bounded coordination, retry
+  registration and wake-up, interruption cleanup, close, immutable snapshots,
+  exact counters, and deterministic Bun/Node reports.
+- 2026-08-02: initial independent review found a publish-before-wake ordering
+  defect, retry-wake attempt-bound gaps, untyped model exceptions, and an
+  interruption window around pending-wait cleanup. The correction publishes
+  before waking, completes waiters independently, checks all three retry paths,
+  converts model exceptions to typed `evaluation_rejected` failures, and keeps
+  the loop uninterruptible except at the explicit scheduling and pending-wait
+  sites.
+- 2026-08-02: exact feature acceptance at committed descendant
+  `582ec7a70161e6da2663a96147c7e4838e54a270` passed 46 STM tests/343
+  expectations, 33 portable-model tests/276 expectations, 82 runtime closure
+  tests/483 expectations, 12 report tests/30 expectations, typecheck, strict
+  lint, formatting, project-model validation, and nine generated-view checks.
+  This is runtime-validation, test, and static-analysis evidence, not proof of
+  fairness, starvation freedom, lock freedom, or durable action delivery.
+- 2026-08-02: full `just check` passed on a clean detached worktree at
+  `582ec7a` with 689 tests/17,267 expectations, typecheck, strict lint,
+  formatting, commit-policy checks, model validation at 138 entities/194
+  relations with one pre-existing unsupported-claim warning, and nine checked
+  generated views. The primary working tree was not cleaned because its
+  operator-owned `AGENTS.md` change is preserved.
+- 2026-08-02: independent exact-head static review of `582ec7a` returned
+  `ACCEPTED` with no Critical or Important defect. It confirmed the
+  post-review interruption hardening and every prior correction. The reviewer
+  ran no tests; the runtime and integration observations above remain separate
+  evidence.
+- 2026-08-02: Status: complete — implementation and integration head
+  `02c316c`, exact committed-descendant acceptance, full clean-tree
+  integration, and independent review are recorded with typed evidence.
