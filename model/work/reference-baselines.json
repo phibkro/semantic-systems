@@ -57,7 +57,7 @@
                 "kind": "repository_artifact",
                 "path": "scripts/experiments/0002-generator-determinism.ts"
               },
-              "claim": "Three Bun and three genuine Node processes emitted byte-identical ten-view trees and CLI streams."
+              "claim": "Three Bun and three genuine Node runtime trials, each with separate validation and generation processes, emitted byte-identical ten-view trees and CLI streams."
             }
           ]
         },
@@ -126,7 +126,7 @@
           "research/reference-baselines/evidence-packet.json",
           "research/reference-baselines/refinement-ladder-packet.md"
         ],
-        "evidence_packet_sha256": "5f3f4fd7821347be0ad470094373c1619c8e30f7e5a14cd381e7fa9ed4dbab50",
+        "evidence_packet_sha256": "2c10a8cef26689bdc85f5251cf7c94d94b7016a151120f622170d8406eb9d5ff",
         "payload_sha256": "51bb064ba951578948654c25027359b33c9f3647e4e55c75d80b077c8807f9fc",
         "workflow_script_sha256": "3963a2d23c3d38a038316eabc625b4a543b956d3c9365a059cf4012fd20635b9",
         "provenance_limits": "Only 5 of 23 catalog sources are custody-locked; refinement cards preserve their own unresolved source and license fields."

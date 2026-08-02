@@ -191,3 +191,45 @@ success threshold.
 
 Invalidation: changes to required gates, merge authority, completion notice,
 cleanup rules, or PR-to-spec identity require the pilot checks to rerun.
+
+## CLM-0005 — staged model-routed reference research
+
+Hypothesis: a staged workflow that separates retrieval, comparison,
+verification, and synthesis can produce an auditable reference portfolio
+without making external projects semantic authorities.
+
+Expected observation: every adopted method resolves to primary-source
+provenance, license limits, evidence strength, an enforceability rung, a
+project-owned boundary, and a falsifiable local experiment. Unverified or
+uncovered inputs remain visible.
+
+Counterexample: forced default boundaries survive aggregation; a missing source
+or license becomes accepted evidence; coverage is inferred from project count;
+an external implementation defines project semantics; or a local experiment
+hides runtime or input differences.
+
+Evaluation method: inspect the immutable evidence packet against the current
+portfolio, enforcement ladder, adoption experiments, source-custody status,
+canonical model, and independent review. Run RX1 under the pinned Bun and
+genuine Node runtimes.
+
+Success threshold: every design-spec 0002 acceptance condition passes,
+load-bearing sources have exact custody, an independent reviewer accepts the
+integrated artifacts, and the next adoption experiment passes its threshold or
+records its kill result.
+
+Consequence if falsified: keep feature 0002 in progress, retract any adoption
+that depends on the failed premise, and repair provenance or boundary mapping
+without upgrading evidence by aggregation.
+
+Observed result (2026-08-02): the bounded integration records 23 representative
+entries across all six corpus areas and twelve current adoption decisions. RX1
+produced byte-identical ten-view trees and CLI streams in three Bun and three
+genuine Node runtime trials. Only 5 of 23 catalog sources are custody-locked;
+the refinement entries are coverage-only cards, and full feature acceptance
+remains open. This combines a research `assertion` with a finite
+`runtime_check`; it is not proof or custody-complete provenance.
+
+Invalidation: changes to the evidence packet, adopted method set, boundary
+mapping, source lock, project-model generator, runtime entrypoints, or RX1
+experiment require the affected checks and independent review to rerun.

@@ -101,9 +101,10 @@ scoping).
 **`dod.result-identity-short-circuit`** (precondition half) — B1 now.
 Canonical determinism is the precondition Salsa-style backdating needs. RX1
 observed byte-identical ten-view trees and CLI output from three Bun and three
-genuine Node processes on 2026-08-02. That establishes a repeatable machine
-check for the current output boundary, not future determinism. The backdating
-and recomputation-truncation mechanism remains deferred to B6. Silent
+genuine Node runtime trials on 2026-08-02. Each trial used separate validation
+and generation processes. That establishes a repeatable machine check for the
+current output boundary, not future determinism. The backdating and
+recomputation-truncation mechanism remains deferred to B6. Silent
 degradation from non-canonical results is visible only through recomputation
 observations, which is why RX1 precedes that mechanism.
 

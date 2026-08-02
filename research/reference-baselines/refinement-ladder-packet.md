@@ -1,18 +1,17 @@
 # Type-system refinement ladder — primary-source packet
 
 Status: mechanical research packet (A3, no semantic authority). This fills the
-factual gap recorded in `portfolio.md` §"Not covered by the pilot" and
-`uncertainties/0002-type-system-refinement-ladder.md` §"Coverage note
-(2026-07-29)": the refinement-ladder corpus class had zero primary-source
-packets. This document supplies six project cards (GHC System F/System FC,
-Liquid Haskell, Flux, F*, Agda, Idris 2) plus a cross-project comparison
-table.
+factual gap recorded in `portfolio.md` §"Corpus coverage" and behind
+`uncertainties/0002-type-system-refinement-ladder.md` §"Supporting evidence":
+the refinement-ladder corpus class had zero primary-source packets. This
+document supplies six project cards (GHC System F/System FC, Liquid Haskell,
+Flux, F*, Agda, Idris 2) plus a cross-project comparison table.
 
 **What this is not**: not proof, not static analysis, not legal advice, not
-an adoption decision, not a claim upgrade to anything in `portfolio.md` or
-`enforcement-ladder.md` (both untouched). External projects remain
-references, never semantic authorities. No implementation code is copied
-verbatim; source excerpts are short and paraphrased where indicated.
+an adoption decision, and not a claim upgrade to anything in `portfolio.md` or
+`enforcement-ladder.md`. External projects remain references, never semantic
+authorities. No implementation code is copied verbatim; source excerpts are
+short and paraphrased where indicated.
 
 **Evidence labeling convention used throughout**: `CITED` = read from a
 named primary source (repo file, doc page, release/issue metadata) at the

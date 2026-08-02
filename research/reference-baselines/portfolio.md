@@ -8,7 +8,7 @@ authorities.
 ## Provenance and repair record
 
 The checked-in source of record is `evidence-packet.json`, SHA-256
-`5f3f4fd7821347be0ad470094373c1619c8e30f7e5a14cd381e7fa9ed4dbab50`.
+`2c10a8cef26689bdc85f5251cf7c94d94b7016a151120f622170d8406eb9d5ff`.
 It preserves the audited reduction of cached control run `wf_4acac964-579`;
 the original payload digest is
 `51bb064ba951578948654c25027359b33c9f3647e4e55c75d80b077c8807f9fc`
@@ -78,10 +78,13 @@ six frozen corpus areas:
 
 The refinement entries live in `refinement-ladder-packet.md`. They preserve
 their own pin, license, trust-boundary, implementation-path, and unresolved
-fields; they were not injected into the older cached claim ledger. Redex/K,
-CompCert/CakeML, Rocq/Isabelle, Eff/Links/Frank/OCaml 5, Clang/LLVM/MLIR,
-Hazel, Gleam, SQLite testing, and attestation stacks remain outside this pilot.
-No accepted recommendation depends on those uncovered projects.
+fields; they were not injected into the older cached claim ledger. They are
+coverage-only cards, not full instances of the frozen project-card schema:
+they omit the fixed enforceability rung, Meadows mapping, target boundary, and
+adoption threshold/kill fields. No accepted method depends on them.
+Redex/K, CompCert/CakeML, Rocq/Isabelle, Eff/Links/Frank/OCaml 5,
+Clang/LLVM/MLIR, Hazel, Gleam, SQLite testing, and attestation stacks remain
+outside this pilot.
 
 Adoption consequence: the refinement projects form separate axes, not one
 "stronger type system" ordering. Explicit equality evidence, SMT-backed

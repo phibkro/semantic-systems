@@ -29,8 +29,9 @@ experiments touch only project tooling, fixtures, and gates).
 - Assumptions: the pinned environment supplies a genuine Node runtime.
   Rank rationale: this is the cheapest probe and gates later memoization.
 - Observation (2026-08-02): `nix develop --command bun
-scripts/experiments/0002-generator-determinism.ts` ran the validator and
-  generator in six fresh processes (three Bun, three genuine Node v24.18.0).
+scripts/experiments/0002-generator-determinism.ts` ran six fresh runtime
+  trials (three Bun, three genuine Node v24.18.0). Each trial used separate
+  validator and generator processes; the Node identity probe was separate.
   All ten-view trees and CLI output streams matched byte-for-byte:
   `sha256:9909444e8c4ccebf037daf9596dc872ceb3cade640a501b8d478ccecfed30cdd`.
   This is a machine check of this source tree, not a proof of future

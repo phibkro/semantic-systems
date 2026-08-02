@@ -231,9 +231,9 @@ are accepted.
   required areas, while uncovered projects and per-card uncertainties remain
   explicit.
 - 2026-08-02: Recut RX1-RX3 as current experiments. RX1 passed: three fresh
-  Bun and three genuine Node processes produced byte-identical ten-view trees
-  and CLI streams. This machine check establishes the present determinism
-  precondition only.
+  Bun and three genuine Node runtime trials, each with separate validation and
+  generation processes, produced byte-identical ten-view trees and CLI streams.
+  This machine check establishes the present determinism precondition only.
 - 2026-08-02: Feature closure remains blocked on broader source custody and an
   independent review of the integrated portfolio. RX2 is the next experiment;
   RX3 can proceed independently.
