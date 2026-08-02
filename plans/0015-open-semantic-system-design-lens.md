@@ -379,32 +379,25 @@ state, and unrelated project-model changes.
   acceptance at 15 tests/126 expectations, production-range validation, and
   full integration at 338 Bun tests/1,776 expectations with zero Effect
   diagnostics and 68 transitional Python custody checks.
+- 2026-07-31: the accepted head was integrated into the true primary branch by
+  conflict-free no-fast-forward merge `643b6f0`; its two parents are the prior
+  primary `bb7a701` and accepted feature head `622e0f6`.
 - 2026-08-02: Runtime evidence from the release replay at
   `01117e844d6367f722a57f308e9a3be00f433b79` covered 18 runnable managed
   features with zero failures and a 670-test/17,145-assertion integration loop.
 - 2026-08-02: Runtime evidence from the full `nix develop -c just check` at
   `b51f375` passed 676 tests and 17,200 assertions.
-- 2026-08-02: The exact current-head acceptance at
-  `46ba730521f2d2560feeff8184e8672e0a2983ed` passed 15 lens tests/126
-  assertions, 28 control-loop tests/303 assertions, typecheck, severe lint,
-  formatting, model validation, and nine generated views. The integrating lead
-  also supplied the full `nix develop -c just check` result at that same head:
-  it passed through the 0048 run with 676 tests and 17,200 assertions. These
-  are runtime evidence for the delivered implementation, not evidence that
-  this documentation correction was reviewed or gated.
-- 2026-08-02: Static-analysis/assertion evidence from final independent custody
-  review `8902ba7` ACCEPTED integration custody but returned `CHANGES_REQUIRED`
-  on documentation truth. No Critical defect was found.
-- 2026-08-02: The read-only audit returned `CHANGES_REQUIRED` (no Critical
-  defect). Its exact remaining correction scope is documentation-only: revise
-  this spec's frozen assumptions/evidence limits to name the
-  `mdast-util-from-markdown`/`micromark`/`parse5`/`css-tree` static
-  rendered-visibility boundary, three-valued CSS indeterminacy, conservative
-  subtree exclusions, and unsupported rendering/semantic guarantees; update
-  the existing Semantic diff; replace the stale trailing status and
-  superseded integration-pending claim; and resolve execution step 8 by
-  pointing to the contract's existing portability record. The correction
-  itself has not been reviewed or gated.
+- 2026-08-02: At exact correction head
+  `a5184fc95b59fb18832d2586456b5092c503e7e4`, acceptance passed 15 lens
+  tests/126 assertions, 28 control-loop tests/303 assertions, typecheck, severe
+  lint, formatting, model validation, and nine generated views. Exact 0048
+  acceptance at the same head included the full `just check`, which passed 676
+  tests and 17,200 assertions. This is runtime evidence for that correction
+  head, not evidence of semantic review, protected CI, push, or merge.
+- 2026-08-02: Static review of correction head `a5184fc` accepted the technical
+  contract boundary but returned `CHANGES_REQUIRED` on append-only custody:
+  restore the `643b6f0` integration entry and the verbatim migrated historical
+  status before rereview.
 
 ## Acceptance command
 
@@ -414,8 +407,12 @@ bun scripts/accept/0015-open-semantic-system-design-lens.ts
 
 Missing required artifacts or tools fail.
 
-- 2026-08-02: Status: in_progress — implementation is functionally complete,
-  integrated, and green at current primary `46ba730`, but the feature cannot
-  transition to complete until this documentation correction is integrated and
-  independently rereviewed. The read-only audit returned `CHANGES_REQUIRED`;
-  no completion, correction review, or correction gate is claimed.
+- 2026-08-02: Historical leading status migrated verbatim from the pre-migration plan:
+  Status: thirteenth independent-review counterexamples corrected; exact-head
+  acceptance and full integration pass; clean-head custody and Fable re-review
+  pending
+- 2026-08-02: Status: in_progress — implementation is functionally complete
+  and integrated. Correction head `a5184fc` passed exact acceptance and full
+  integration, but static rereview returned `CHANGES_REQUIRED` on append-only
+  custody. Completion remains pending correction integration and rereview; no
+  protected-CI, push, merge, or final-acceptance claim is made for it.

@@ -1,6 +1,6 @@
 # Design spec 0015: open semantic system design lens
 
-Status: frozen for tracer implementation; feature in_progress pending integration and rereview
+Status: frozen; feature in_progress pending correction integration and rereview
 
 Date: 2026-07-30
 
@@ -86,8 +86,10 @@ must not redefine the vocabulary.
 
 The checker reads repository files and invokes Git through bounded child
 processes. Missing files, ambiguous markers, parser-visible structural drift,
-rendered-visibility indeterminacy, and command failure reject explicitly. It
-performs no repair, retry, network publication, or natural-language inference.
+and command failure reject explicitly. Rendered-visibility indeterminacy
+explicitly excludes the affected subtree from eligible text instead of
+approximating it. The checker performs no repair, retry, network publication,
+or natural-language inference.
 The parser/rendering path establishes only recognized Markdown structure and
 static text eligibility under the bounded rendered-visibility model below; it
 does not establish browser rendering, semantic truth, or worldly consequences.
@@ -388,6 +390,7 @@ their subtrees from acceptance prose; conservative SVG/MathML,
 option/optgroup, progress/meter/rp, audio/video fallback, closed-details, and
 non-open-popover exclusions remain explicit. This documentation correction
 changes no gate behavior, domain, evidence-category, or merge-authority
-semantics, and prior acceptance evidence remains valid. The correction itself
-has not been independently reviewed or gated; feature status remains
-in_progress pending integration and rereview.
+semantics, and prior acceptance evidence remains valid. Exact acceptance at
+correction head `a5184fc` passed, but static rereview returned
+`CHANGES_REQUIRED` on append-only custody. Feature status remains
+in_progress pending correction integration and rereview.

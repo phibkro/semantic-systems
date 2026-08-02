@@ -140,5 +140,7 @@ then fail on the first absent implementation artifact,
   `835412b59b49ebd3c7bf362727f3a2da66c760f8`, onto authoritative primary
   `f7371bf276ddd2441fe0ec0a8e093c0d82a00838`. The giant source publication
   commit was not merged; no provider action or deployment is claimed.
+- 2026-08-02: the capability was integrated at Semantic primary
+  `8902ba7cd468063ec28385265befdfc45607e5c2`.
 - 2026-08-02: Historical leading status migrated verbatim from the pre-migration plan:
   Status: complete; implementation integrated and locally accepted

@@ -240,12 +240,6 @@ completion feedback, and cleanup.
   The correction disables body line length as a semantic gate, retains title,
   type, subject, and authored-message policy, and records the adaptation in
   the checked Clamor provenance graph.
-- 2026-07-30: operator revised the frozen execution-carrier boundary from
-  shell acceptance/check programs to executable Bun TypeScript, with a
-  declarative Just task surface. Validator, dispatcher, fixture oracles,
-  existing acceptance programs, hooks, CI commands, contributor guidance, and
-  checked provenance were migrated atomically; the semantic authority and
-  evidence categories are unchanged.
 - 2026-07-29: Repair PR #2 (`fix(governance): accept squash report prose`)
   passed `fast + integration (nix)`, `feature contract + acceptance`, and
   `commit message + PR title policy` on its exact head and squash-merged as
@@ -260,22 +254,35 @@ completion feedback, and cleanup.
   both PRs, their merge and repair commits, the preview command, exact checks,
   evidence categories, assumptions, and the next uncertainty. This is an
   `assertion` about notice delivery, not a gate result.
+  No GitHub PR review was requested for either merged PR (`reviewDecision`
+  empty, zero reviews on both). The pilot's process review was the main agent's
+  own documented counterexample rounds against pre-merge commits `da10eb4`,
+  `306d2ac`, and `df0d3c6`. These are `assertion` evidence limits, not
+  independent-review evidence.
 - 2026-07-29: The harvested Herdr tab was closed; scratch worktrees
   `/tmp/semantic-development-loop-0005` and
   `/tmp/semantic-development-loop-0005-close` were observed absent after
   clean integrated removal, while local feature branches were retained as
   history. This is an `assertion` about external session/host cleanup.
-- 2026-08-02: The current-history audit found closure commit `7ab468d` is
-  stranded: its parent `e00e8f9` is in the current history, but `7ab468d` is
-  not an ancestor of current head `46ba730521f2d2560feeff8184e8672e0a2983ed`.
-  This is `static_analysis` of repository history.
-- 2026-08-02: At exact current head
-  `46ba730521f2d2560feeff8184e8672e0a2983ed`, the supplied exact `0005`
-  acceptance evidence passed 28 tests/303 assertions, Actionlint, commit
-  policy, and contract checks. The supplied full `just check` at the same
-  head passed through the 0048 run with 676 tests/17,200 assertions. This is
-  `runtime_validation` supplied by the integrating lead; it does not establish
-  review, protection, push, or merge for this correction.
+- 2026-07-30: operator revised the frozen execution-carrier boundary from
+  shell acceptance/check programs to executable Bun TypeScript, with a
+  declarative Just task surface. Validator, dispatcher, fixture oracles,
+  existing acceptance programs, hooks, CI commands, contributor guidance, and
+  checked provenance were migrated atomically; the semantic authority and
+  evidence categories are unchanged.
+- 2026-08-02: The current-history audit found closure commit `7ab468d`
+  stranded: its parent `e00e8f9` is in current history, but `7ab468d` is not an
+  ancestor of correction head
+  `a5184fc95b59fb18832d2586456b5092c503e7e4`. This is `static_analysis` of
+  repository history.
+- 2026-08-02: At exact correction head
+  `a5184fc95b59fb18832d2586456b5092c503e7e4`, `0005` acceptance passed 28
+  tests/303 assertions, Actionlint, commit policy, and contract checks. Exact
+  0048 acceptance at the same head included the full `just check`, which
+  passed 676 tests/17,200 assertions. This is `runtime_validation`; static
+  rereview returned `CHANGES_REQUIRED` because this plan had dropped the
+  reviewer-independence limit. No protection, push, merge, or successful
+  review is claimed for the correction.
 
 ## Decisions and deviations
 

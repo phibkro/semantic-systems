@@ -35,32 +35,34 @@ and generated frontier without changing the frozen portfolio semantics.
 just accept 0048-pbk-control-room-acceptance-reconciliation
 ```
 
-The exact current head `46ba730521f2d2560feeff8184e8672e0a2983ed` passed
-15 portfolio tests with 8,235 assertions, 73 Control Room unit/component
-tests, 9 mobile Chromium journeys, model validation, nine generated views,
-build/payload scans, and the inherited feature programs. Full `just check`
-passed 676 tests with 17,200 assertions. These are current-head runtime
-observations; correction/re-review remains pending.
+At exact correction head `a5184fc95b59fb18832d2586456b5092c503e7e4`,
+15 portfolio tests passed with 8,235 assertions, together with 73 Control Room
+unit/component tests, 9 mobile Chromium journeys, model validation, nine
+generated views, build/payload scans, and the inherited feature programs. Full
+`just check` passed 676 tests with 17,200 assertions. These are exact-head
+runtime observations for `a5184fc`; correction/rereview remains pending.
 
-Historical pre-recut runtime evidence recorded 15 portfolio tests, 74 Control
-Room tests, 9 mobile Chromium journeys, and a complete repository gate with
-893 passed, 1 explicitly configured skip, 0 failed, and 20,744 assertions.
-Those counts are historical and are not the exact current-head result.
+Historical pre-reassignment runtime evidence recorded 15 portfolio tests, 74
+Control Room tests, 9 mobile Chromium journeys, and a complete repository gate
+with 893 passed, 1 explicitly configured skip, 0 failed, and 20,744 assertions.
+Those counts are historical and are not the `a5184fc` result.
 
 ## Review and uncertainty
 
 Independent review first rejected the candidate because project nodes and
-milestone containment were absent. A read-only audit accepted the
-implementation semantics and one-gate custody and found no Critical issue.
-That reviewer conclusion is static-analysis evidence, not independent final
-acceptance; correction/re-review remains pending. Public deployment remains
-unobserved because Cloudflare rejects the current operator-owned Actions
-credential; no deployment success is claimed.
+milestone containment were absent. A read-only audit accepted the corrected
+implementation semantics and one-gate custody. Static rereview at `a5184fc`
+accepted five of six correction items but returned `CHANGES_REQUIRED` because
+the 0021 integration head was absent from its cited plan. This follow-up adds
+that custody entry. These reviewer conclusions are static-analysis evidence,
+not independent final acceptance. Public deployment remains unobserved because
+Cloudflare rejects the current operator-owned Actions credential; no deployment
+success is claimed.
 
 ## Completion state
 
-Implementation and local runtime verification are recorded. The 0048 work
-item remains `in_progress` pending correction/re-review. This record does not
+Implementation and exact-head runtime verification are recorded. The 0048 work
+item remains `in_progress` pending follow-up rereview. This record does not
 claim independent final acceptance. Protected exact-head checks and merge
 remain the integration boundary.
 

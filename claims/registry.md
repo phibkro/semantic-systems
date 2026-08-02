@@ -167,24 +167,27 @@ an `assertion` about external session/host cleanup.
 
 No separate GitHub PR review was requested for either merged PR
 (`reviewDecision` empty, zero reviews on both); the independent process review
-used by the pilot was the main agent's own documented counterexample rounds,
-so reviewer independence is not established. The current-history audit found
-closure commit `7ab468d` stranded: parent `e00e8f9` is in current history, but
-`7ab468d` is not an ancestor of current head
-`46ba730521f2d2560feeff8184e8672e0a2983ed`. This is `static_analysis`, not
-new pilot execution.
+used by the pilot was the main agent's own documented counterexample rounds.
+These are `assertion` observations about provider state and process review;
+they do not establish reviewer independence.
 
-At exact current head `46ba730521f2d2560feeff8184e8672e0a2983ed`, the supplied
-exact `0005` acceptance evidence passed 28 tests/303 assertions, Actionlint,
-commit policy, and contract checks. The supplied full `just check` at the same
-head passed through the 0048 run with 676 tests/17,200 assertions. This is
+The current-history audit found closure commit `7ab468d` stranded: parent
+`e00e8f9` is in current history, but `7ab468d` is not an ancestor of correction
+head `a5184fc95b59fb18832d2586456b5092c503e7e4`. This is `static_analysis` of
+repository history, not new pilot execution.
+
+At exact correction head `a5184fc95b59fb18832d2586456b5092c503e7e4`, exact
+`0005` acceptance passed 28 tests/303 assertions, Actionlint, commit policy,
+and contract checks. Exact 0048 acceptance at the same head included the full
+`just check`, which passed 676 tests/17,200 assertions. This is
 `runtime_validation` supplied by the integrating lead; it does not establish
-review, protection, push, or merge for this correction. The pilot remains one
-observation, and uncertainty 0003's three-feature comparison remains open.
+successful review, protection, push, or merge for the correction. The pilot
+remains one observation, and uncertainty 0003's three-feature comparison
+remains open.
 
-The feature record remains `in_progress` pending integration and rereview of
-this correction; this bounded evidence does not establish the independent-
-review success threshold.
+The feature record remains `in_progress` pending correction integration and
+rereview. This bounded evidence does not establish the independent-review
+success threshold.
 
 Invalidation: changes to required gates, merge authority, completion notice,
 cleanup rules, or PR-to-spec identity require the pilot checks to rerun.
