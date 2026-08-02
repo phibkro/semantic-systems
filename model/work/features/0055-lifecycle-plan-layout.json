@@ -1,0 +1,35 @@
+{
+  "entities": [
+    {
+      "id": "work.lifecycle-plan-layout",
+      "kind": "work_item",
+      "name": "Adopt lifecycle-derived plan layout",
+      "summary": "Derive each feature plan path from canonical status and migrate all ledgers to active, completed, or superseded custody without legacy aliases.",
+      "status": "in_progress",
+      "tags": ["work", "lifecycle", "project-model", "custody"],
+      "attributes": {
+        "feature_id": "0055-lifecycle-plan-layout",
+        "feature_loop": "managed",
+        "phase": "implementation",
+        "effort": 13,
+        "acceptance": [
+          "Active, completed, and superseded work resolves to its matching plan directory",
+          "No root-level feature plan, alias, symlink, or fallback resolver remains",
+          "Canonical model records remain the only lifecycle authority and author no derived paths",
+          "Changed-path selection, acceptance dispatch, references, and generated views use resolved lifecycle paths",
+          "Existing feature behavior and evidence categories remain unchanged"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 4,
+          "testability": 5,
+          "reversibility": 4,
+          "integration_independence": 2,
+          "blast_radius": 5,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": []
+}
