@@ -2,7 +2,7 @@
 
 <!-- Generated. Edit model sources, not this file. -->
 
-Ready parallel work items: **13**.
+Ready parallel work items: **12**.
 
 | Work item | Phase | Status | Ready | Score | Recommendation | Blockers |
 |---|---|---|---:|---:|---|---|
@@ -50,4 +50,4 @@ Ready parallel work items: **13**.
 | Define normalized theory identity | design | in_progress | yes | 41 | bounded spike |  |
 | Specify translation-validation seams | research | planned | yes | 45 | bounded spike |  |
 | Migrate the runtime to TypeScript, Bun, and Effect v4 | validation | complete | no | 77 | delegate with review |  |
-| Research semantic contracts to WIT mapping | implementation | in_progress | yes | 86 | delegate directly |  |
+| Research semantic contracts to WIT mapping | validation | complete | no | 86 | delegate directly |  |

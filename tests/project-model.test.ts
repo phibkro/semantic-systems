@@ -87,7 +87,8 @@ describe("project model Effect v4 slice", () => {
     expect(project.entities.get("work.relational-fact-schema")?.source).toEndWith(
       "/model/work/features/0053-relational-fact-export.json",
     );
-    expect(project.entities.get("work.wasm-contract-mapping")?.status).toBe("in_progress");
+    expect(ready.has("work.wasm-contract-mapping")).toBeFalse();
+    expect(project.entities.get("work.wasm-contract-mapping")?.status).toBe("complete");
     expect(project.entities.get("work.wasm-contract-mapping")?.source).toEndWith(
       "/model/work/features/0054-semantic-contract-wit-mapping.json",
     );

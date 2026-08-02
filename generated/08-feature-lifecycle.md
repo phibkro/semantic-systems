@@ -40,15 +40,6 @@
 - Plan: [execution ledger](../plans/active/0007-reuse-first-engineering.md)
 - Acceptance: [runnable program](../scripts/accept/0007-reuse-first-engineering.ts)
 
-### `0054-semantic-contract-wit-mapping` — Research semantic contracts to WIT mapping
-
-- Status: `in_progress`
-- Feature loop: `managed`
-- Model: [canonical record](../model/work/features/0054-semantic-contract-wit-mapping.json)
-- Design: [design contract](../design-specs/0054-semantic-contract-wit-mapping.md)
-- Plan: [execution ledger](../plans/active/0054-semantic-contract-wit-mapping.md)
-- Acceptance: [runnable program](../scripts/accept/0054-semantic-contract-wit-mapping.ts)
-
 ## Completed
 
 ### `0001-inventory-resolution-tracer` — Complete inventory evidence-resolution tracer
@@ -239,6 +230,15 @@
 - Design: [design contract](../design-specs/0053-relational-fact-export.md)
 - Plan: [execution ledger](../plans/completed/0053-relational-fact-export.md)
 - Acceptance: [runnable program](../scripts/accept/0053-relational-fact-export.ts)
+
+### `0054-semantic-contract-wit-mapping` — Research semantic contracts to WIT mapping
+
+- Status: `complete`
+- Feature loop: `managed`
+- Model: [canonical record](../model/work/features/0054-semantic-contract-wit-mapping.json)
+- Design: [design contract](../design-specs/0054-semantic-contract-wit-mapping.md)
+- Plan: [execution ledger](../plans/completed/0054-semantic-contract-wit-mapping.md)
+- Acceptance: [runnable program](../scripts/accept/0054-semantic-contract-wit-mapping.ts)
 
 ### `0055-lifecycle-plan-layout` — Adopt lifecycle-derived plan layout
 

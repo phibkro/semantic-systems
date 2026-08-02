@@ -49,7 +49,11 @@ nix develop -c bun scripts/accept/0054-semantic-contract-wit-mapping.ts
 - 2026-08-02: direct Bun smoke generation and Bun entrypoint execution passed; bare `node` was unavailable outside the pinned environment and was intentionally not substituted.
 - 2026-08-02: the delegated correction lane recorded a parent-reported preliminary observation of `manifest_bytes 10224`; that observation is superseded by the direct integration evidence below.
 - 2026-08-02: the integrating lead ran the exact acceptance command against the corrected source and regenerated goldens. It passed 8 focused mapper tests, 23 predecessor finite-sum tests, typecheck, strict lint, format, project-model validation and generation checks, and pinned parser observations: `wasm-tools 1.254.0`, `manifest_bytes 10246`, `wit_bytes 1184`, positive exit 0, invalid exit 1, native async true, native stream true, and native future true.
+- 2026-08-02: final integration head `9c4475aa73c5d79e42aeffc715bce91f591d1918` passed the exact acceptance command with 15 focused mapper tests, 23 predecessor tests, typecheck, strict lint, format, project-model validation and generation checks, and the same pinned parser observations and canonical byte counts. Focused `wasm-tools 1.254.0` probes also confirmed that `error-context` is reserved, empty enum and variant declarations are rejected, and empty record and flags declarations remain accepted.
+- 2026-08-02: independent reviews accepted the final closed vocabulary, exhaustive semantic dimensions, direction-specific capability rows, nested ownership provenance, alias classification and bounds, parser-derived observations, deterministic interface/resource handling, and typed grammar rejections. Review is an authored assertion, not proof or runtime validation.
 
 ## Assumptions and limits
 
 The descriptor links to a complete semantic contract and trusted source key supplied by another subsystem. WIT syntax parsing is delegated to pinned `wasm-tools` at acceptance; parser success is not Semantic theory realization, proof, evidence sufficiency, runtime conformance, scheduling, fairness, cancellation, ordering, delivery, backpressure, liveness, ownership-calculus correctness, cleanup correctness, or external-effect authentication.
+
+Status: accepted at integration head `9c4475aa73c5d79e42aeffc715bce91f591d1918`.
