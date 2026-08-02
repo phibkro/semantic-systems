@@ -58,6 +58,15 @@
 - Plan: [execution ledger](../plans/0050-bounded-stm-runtime.md)
 - Acceptance: [runnable program](../scripts/accept/0050-bounded-stm-runtime.ts)
 
+### `0051-kernel-finite-sums` — Add kernel finite sums and case
+
+- Status: `in_progress`
+- Feature loop: `managed`
+- Model: [canonical record](../model/work/features/0051-kernel-finite-sums.json)
+- Design: [design contract](../design-specs/0051-kernel-finite-sums.md)
+- Plan: [execution ledger](../plans/0051-kernel-finite-sums.md)
+- Acceptance: [runnable program](../scripts/accept/0051-kernel-finite-sums.ts)
+
 ## Completed
 
 ### `0001-inventory-resolution-tracer` — Complete inventory evidence-resolution tracer

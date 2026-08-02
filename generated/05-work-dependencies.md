@@ -24,6 +24,7 @@ flowchart LR
     work_inventory_pure["Implement pure inventory realization"]
     work_inventory_resolution_tracer["Complete inventory evidence-resolution tracer"]
     work_inventory_stm["Implement inventory STM realization"]
+    work_kernel_finite_sums["Add kernel finite sums and case"]
     work_kernel_reference_interpreter["Establish the kernel reference interpreter"]
     work_kernel_spec["Specify minimal kernel calculus"]
     work_lean_evidence_adapter["Specify Lean evidence adapter"]
@@ -44,6 +45,7 @@ flowchart LR
     work_effect_graph_execution_index -->|requires| work_pbk_portfolio_control_room
     work_executable_semantic_system_kernel -->|blocks| work_actor_runtime
     work_inventory_resolution_tracer -->|requires| decision_theory_identity
+    work_kernel_finite_sums -->|requires| work_kernel_spec
     work_kernel_reference_interpreter -->|requires| work_agent_facing_kernel_json
     work_pbk_portfolio_control_room -->|requires| work_control_room_reconstruction
     work_normalized_core_format -->|blocks| work_kernel_spec

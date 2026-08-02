@@ -1,0 +1,35 @@
+{
+  "entities": [
+    {
+      "id": "work.kernel-finite-sums",
+      "kind": "work_item",
+      "name": "Add kernel finite sums and case",
+      "summary": "Extend the active kernel pipeline with binary sum values, quantitative case elimination, and explicit version 2 artifacts.",
+      "status": "in_progress",
+      "tags": ["language", "kernel", "semantics", "interpreter"],
+      "attributes": {
+        "feature_id": "0051-kernel-finite-sums",
+        "feature_loop": "managed",
+        "phase": "implementation",
+        "effort": 13,
+        "acceptance": [
+          "Binary injections and exhaustive case are typed and executable",
+          "Mutually exclusive branch uses join without weakening sequential addition",
+          "All active canonical kernel formats carry exact version 2 identities",
+          "The historical version 1 JSON Schema remains byte-identical",
+          "Bun and Node emit identical checked, normalized, and run observations"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 4,
+          "testability": 5,
+          "reversibility": 3,
+          "integration_independence": 3,
+          "blast_radius": 5,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": []
+}

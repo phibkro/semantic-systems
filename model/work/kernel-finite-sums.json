@@ -1,0 +1,33 @@
+{
+  "entities": [],
+  "relations": [
+    {
+      "source": "work.kernel-finite-sums",
+      "target": "work.kernel-spec",
+      "kind": "requires",
+      "summary": "Finite sums extend the accepted CBPV-style kernel without changing existing type and effect meaning.",
+      "attributes": {}
+    },
+    {
+      "source": "work.kernel-finite-sums",
+      "target": "work.normalized-core-format",
+      "kind": "changes",
+      "summary": "The normalized artifact cuts over to a version 2 grammar and recomputed identities.",
+      "attributes": {}
+    },
+    {
+      "source": "work.kernel-finite-sums",
+      "target": "work.agent-facing-kernel-json",
+      "kind": "changes",
+      "summary": "The agent-facing raw and checked documents add closed sum variants under version 2 markers.",
+      "attributes": {}
+    },
+    {
+      "source": "work.kernel-finite-sums",
+      "target": "work.kernel-reference-interpreter",
+      "kind": "changes",
+      "summary": "The reference interpreter executes and observes both injections and exhaustive case under version 2.",
+      "attributes": {}
+    }
+  ]
+}
