@@ -33,7 +33,7 @@ scripts/experiments/0002-generator-determinism.ts` ran six fresh runtime
   trials (three Bun, three genuine Node v24.18.0). Each trial used separate
   validator and generator processes; the Node identity probe was separate.
   All ten-view trees and CLI output streams matched byte-for-byte:
-  `sha256:9909444e8c4ccebf037daf9596dc872ceb3cade640a501b8d478ccecfed30cdd`.
+  `sha256:edbab5827c077e672c2cc805d670b54957f76b453e1d8610d1496edc221ee257`.
   This is a machine check of this source tree, not a proof of future
   determinism or memoization correctness.
 
