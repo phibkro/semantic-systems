@@ -67,6 +67,15 @@
 - Plan: [execution ledger](../plans/0048-pbk-control-room-acceptance-reconciliation.md)
 - Acceptance: [runnable program](../scripts/accept/0048-pbk-control-room-acceptance-reconciliation.ts)
 
+### `0049-canonical-work-lifecycle` — Canonicalize the project work lifecycle
+
+- Status: `in_progress`
+- Feature loop: `managed`
+- Model: [canonical record](../model/work/features/0049-canonical-work-lifecycle.json)
+- Design: [design contract](../design-specs/0049-canonical-work-lifecycle.md)
+- Plan: [execution ledger](../plans/0049-canonical-work-lifecycle.md)
+- Acceptance: [runnable program](../scripts/accept/0049-canonical-work-lifecycle.ts)
+
 ## Completed
 
 ### `0001-inventory-resolution-tracer` — Complete inventory evidence-resolution tracer
@@ -194,15 +203,6 @@
 - Design: [design contract](../design-specs/0046-effect-graph-execution-index.md)
 - Plan: [execution ledger](../plans/0046-effect-graph-execution-index.md)
 - Acceptance: [runnable program](../scripts/accept/0046-effect-graph-execution-index.ts)
-
-### `0049-canonical-work-lifecycle` — Canonicalize the project work lifecycle
-
-- Status: `complete`
-- Feature loop: `managed`
-- Model: [canonical record](../model/work/features/0049-canonical-work-lifecycle.json)
-- Design: [design contract](../design-specs/0049-canonical-work-lifecycle.md)
-- Plan: [execution ledger](../plans/0049-canonical-work-lifecycle.md)
-- Acceptance: [runnable program](../scripts/accept/0049-canonical-work-lifecycle.ts)
 
 ## Superseded
 

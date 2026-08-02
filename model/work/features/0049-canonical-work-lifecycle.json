@@ -5,57 +5,13 @@
       "kind": "work_item",
       "name": "Canonicalize the project work lifecycle",
       "summary": "Make model/work the only lifecycle authority and derive stable feature artifacts, acceptance dispatch, and lifecycle views from one typed feature record.",
-      "status": "complete",
+      "status": "in_progress",
       "tags": ["work", "lifecycle", "project-model", "migration"],
       "attributes": {
         "feature_id": "0049-canonical-work-lifecycle",
         "feature_loop": "managed",
-        "phase": "validation",
+        "phase": "implementation",
         "effort": 13,
-        "completion": {
-          "outcome": "positive",
-          "implementation_head": "451361f6fa1cf10b6a13b988cb288f1439c9a4d0",
-          "integration_head": "451361f6fa1cf10b6a13b988cb288f1439c9a4d0",
-          "evidence": [
-            {
-              "role": "feature_acceptance",
-              "category": "runtime_check",
-              "method": "runtime_validation",
-              "source": {
-                "kind": "repository_artifact",
-                "path": "plans/0049-canonical-work-lifecycle.md"
-              },
-              "claim": "feature_acceptance: runtime_validation"
-            },
-            {
-              "role": "integration_test",
-              "category": "test",
-              "method": "test_and_static_analysis",
-              "source": {
-                "kind": "repository_artifact",
-                "path": "plans/0049-canonical-work-lifecycle.md"
-              },
-              "claim": "integration_gate: test_and_static_analysis"
-            },
-            {
-              "role": "integration_analysis",
-              "category": "analysis",
-              "method": "canonical_resolution_and_projection_validation",
-              "source": {
-                "kind": "repository_artifact",
-                "path": "plans/0049-canonical-work-lifecycle.md"
-              },
-              "claim": "canonical feature resolution and deterministic lifecycle projection validated"
-            },
-            {
-              "role": "independent_review",
-              "category": "assertion",
-              "method": "assertion",
-              "source": { "kind": "authored_assertion" },
-              "claim": "independent_review: assertion"
-            }
-          ]
-        },
         "acceptance": [
           "One canonical work entity owns each feature ID and stable artifact resolution derives from it",
           "Work, contract, review, evidence, question, and deployment states remain separate",

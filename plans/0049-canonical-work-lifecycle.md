@@ -82,15 +82,17 @@ just check
 
 The acceptance report must include command results, counts, revisions, unrun checks, assumptions, and unsupported claims.
 
-## Completion
+## Completion blocker
 
 Implementation and integration completed at
-`451361f6fa1cf10b6a13b988cb288f1439c9a4d0`. The canonical feature record now
-owns lifecycle status, stable artifact resolution, acceptance dispatch, typed
-completion evidence, and deterministic lifecycle projections.
+`451361f6fa1cf10b6a13b988cb288f1439c9a4d0`. Stable artifact resolution,
+acceptance dispatch, typed completion evidence, and deterministic lifecycle
+projections are implemented.
 
-This completion changes no contract, review, question, evidence, or deployment
-state. It has no UI preview surface.
+The feature remains `in_progress`: frozen acceptance criterion 14 still requires
+the operator-owned `AGENTS.md` to prescribe the stable plan path and one-record
+completion transition, but its preserved dirty content still prescribes
+`plans/active/`. This work has no UI preview surface.
 
 ## Evidence ledger
 
@@ -105,6 +107,11 @@ state. It has no UI preview surface.
   errors and one disclosed unsupported-claim warning, and checked all nine
   generated views. Range replay selected the canonical 0049 migration owner
   and passed. Release replay passed 18 runnable managed features, classified
-  five pre-loop features as non-runnable, and failed none; its integration loop
+  four pre-loop features and one superseded managed feature as non-runnable,
+  and failed none; its integration loop
   passed 670 tests/17,145 assertions plus typecheck, Effect diagnostics, severe
   lint, formatting, commit policy, and native Nix source-invariant checks.
+- 2026-08-02: independent full implementation review of the staged tree later
+  committed as `451361f6fa1cf10b6a13b988cb288f1439c9a4d0` reported `ACCEPTED`
+  with no Critical or Important findings. It explicitly disclosed the unmet
+  operator-owned `AGENTS.md` part of acceptance criterion 14.
