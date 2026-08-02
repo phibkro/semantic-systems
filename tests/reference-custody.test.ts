@@ -1438,15 +1438,30 @@ describe("reference custody Effect v4 slice: offline Git observation", () => {
       "--offline",
     ]);
     expect(materialize.exitCode).toBe(0);
-    const checkout = join(fixture.project, ".references", "demo.repo", "checkout");
-    runCommand(["git", "update-index", "--assume-unchanged", "LICENSE-APACHE"], checkout);
-    await writeFile(join(checkout, "LICENSE-APACHE"), "CHANGED\n");
+    const apacheObservation = entry?.licenses.get("LICENSE-APACHE");
+    if (entry === undefined || apacheObservation === undefined) {
+      throw new Error("second license observation is absent");
+    }
+    const licenses = new Map(entry.licenses);
+    licenses.set("LICENSE-APACHE", {
+      ...apacheObservation,
+      sha256: "c".repeat(64),
+    });
+    const sources = new Map(lockFile.sources);
+    sources.set("demo.repo", { ...entry, licenses });
+    await runBun(
+      writeLock(join(fixture.project, "references", "sources.lock.json"), {
+        generator: lockFile.generator,
+        sources,
+      }),
+    );
 
     const status = runTsCli(["--root", fixture.project, "status", "demo.repo", "--json"]);
     expect(status.exitCode).toBe(1);
     const [report] = JSON.parse(status.stdout);
     expect(report.strict_ok).toBeFalse();
-    expect(report.reasons.some((reason: string) => reason.includes("LICENSE-APACHE"))).toBeTrue();
+    expect(report.reasons).toContain('license path "LICENSE-APACHE" committed bytes changed');
+    expect(report.reasons).toContain('license path "LICENSE-APACHE" working-tree bytes changed');
   });
 
   test("rejects a local sibling whose configured origin is outside catalog custody", async () => {
@@ -3259,6 +3274,7 @@ describe("reference custody Effect v4 slice: CLI golden and cross-runtime observ
       expect(bun.stderr).toContain("usage: semrefs");
     }
   });
+
   test("status --all --lock-only --json is byte-identical under Bun and Node", () => {
     const bun = runTsCli(["status", "--all", "--lock-only", "--json"]);
     const node = runNodeCli(["status", "--all", "--lock-only", "--json"]);

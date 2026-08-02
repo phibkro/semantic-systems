@@ -47,8 +47,8 @@ Other active feature worktrees and their owned files remain forbidden.
 2. Implement the project-model vertical slice with differential/golden oracles.
    **Complete.**
 3. Switch project-model active commands and gates after focused parity passes.
-   **Complete: host and active commands plus Nix derivations use
-   TypeScript/Effect; no Python runtime remains.**
+   **Complete: host and active commands use TypeScript/Effect; Nix derivations
+   no longer depend on a Python runtime.**
 4. Implement the inventory-tracer vertical slice. **Complete; the former
    Python package and test suite were removed after exact result differential
    parity and a final pinned Python oracle pass.**

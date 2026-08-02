@@ -9,6 +9,20 @@ class AcceptanceFailure extends Data.TaggedError("AcceptanceFailure")<{
 
 const root = resolve(import.meta.dirname, "../..");
 const expectedEffect = "4.0.0-beta.102";
+const NON_RUNTIME_FLAKE_CACHE_REFERENCES = [
+  'name == ".pyright"',
+  'name == ".pytest_cache"',
+  'name == ".ruff_cache"',
+] as const;
+
+const activeRuntimeText = (path: string, text: string): string =>
+  path === "flake.nix"
+    ? NON_RUNTIME_FLAKE_CACHE_REFERENCES.reduce(
+        (current, reference) => current.replaceAll(reference, ""),
+        text,
+      )
+    : text;
+
 const activeToolchainFiles = async (): Promise<string[]> => {
   const files = [
     ".github/workflows/check.yml",
@@ -123,7 +137,7 @@ const program = Effect.gen(function* () {
 
   for (const path of yield* Effect.promise(activeToolchainFiles)) {
     const text = yield* Effect.promise(() => Bun.file(resolve(root, path)).text());
-    if (/(python|pytest|pyright|ruff)/i.test(text)) {
+    if (/(python|pytest|pyright|ruff)/i.test(activeRuntimeText(path, text))) {
       return yield* new AcceptanceFailure({
         message: `active toolchain still references Python in ${path}`,
       });

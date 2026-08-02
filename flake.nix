@@ -80,8 +80,9 @@
                 || name == ".research-cache"
                 || name == ".venv"
                 || name == "__pycache__"
-                || pkgs.lib.hasPrefix ".py" name
-                || pkgs.lib.hasSuffix "_cache" name
+                || name == ".pyright"
+                || name == ".pytest_cache"
+                || name == ".ruff_cache"
                 || name == "build"
                 || name == "dist"
                 || pkgs.lib.hasPrefix "bun-debug-" name

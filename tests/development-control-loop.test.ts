@@ -984,13 +984,17 @@ await Bun.write(
       ".references",
       ".research-cache",
       ".venv",
+      ".pyright",
+      ".pytest_cache",
+      ".ruff_cache",
       "build",
       "dist",
     ]) {
       expect(flake).toContain(`name == "${directory}"`);
     }
-    expect(flake).toContain('pkgs.lib.hasPrefix ".py" name');
-    expect(flake).toContain('pkgs.lib.hasSuffix "_cache" name');
+    expect(flake).toContain("for directory in src tests scripts; do");
+    expect(flake).toContain('test -d "$directory"');
+    expect(flake).toContain(')" || exit 1');
   });
 
   test("uses Just over typed Bun entrypoints and owns no shell program", async () => {
