@@ -1,0 +1,65 @@
+{
+  "entities": [
+    {
+      "id": "assumption.inventory.direct",
+      "kind": "assumption",
+      "name": "Direct assumption",
+      "summary": "The adapter preserves integer arithmetic.",
+      "tags": ["explicit"],
+      "attributes": { "scope": "fixture" }
+    },
+    {
+      "id": "assumption.inventory.transitive",
+      "kind": "assumption",
+      "name": "Transitive assumption",
+      "summary": "The fixture covers the reference cases.",
+      "attributes": {}
+    },
+    {
+      "id": "evidence.inventory.pure",
+      "kind": "evidence",
+      "name": "Pure conformance",
+      "summary": "The exact fixture cases pass.",
+      "tags": ["example_test"],
+      "attributes": { "nested": { "case_count": 9 } }
+    },
+    {
+      "id": "obligation.inventory.conformance",
+      "kind": "obligation",
+      "name": "Inventory conformance",
+      "summary": "A realization must satisfy every reference case.",
+      "status": "active",
+      "attributes": { "owner": "inventory" }
+    }
+  ],
+  "relations": [
+    {
+      "source": "evidence.inventory.pure",
+      "target": "obligation.inventory.conformance",
+      "kind": "supports",
+      "summary": "Covers the obligation with example-test evidence.",
+      "attributes": {}
+    },
+    {
+      "source": "evidence.inventory.pure",
+      "target": "obligation.inventory.conformance",
+      "kind": "invalidates",
+      "summary": "Retains the authored invalidating force.",
+      "attributes": {}
+    },
+    {
+      "source": "evidence.inventory.pure",
+      "target": "assumption.inventory.direct",
+      "kind": "assumes",
+      "summary": "The evidence relies on the direct assumption.",
+      "attributes": {}
+    },
+    {
+      "source": "assumption.inventory.direct",
+      "target": "assumption.inventory.transitive",
+      "kind": "assumes",
+      "summary": "The direct assumption has a transitive prerequisite.",
+      "attributes": {}
+    }
+  ]
+}

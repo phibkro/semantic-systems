@@ -1,0 +1,25 @@
+{
+  "evidence": {
+    "target": "obligation.inventory.conformance",
+    "direct": [
+      { "relation_ordinal": 0, "kind": "supports", "entity_id": "evidence.inventory.pure" },
+      { "relation_ordinal": 1, "kind": "invalidates", "entity_id": "evidence.inventory.pure" }
+    ],
+    "assumptions": [
+      "assumption.inventory.direct",
+      "assumption.inventory.transitive"
+    ],
+    "assumption_relation_ordinals": [2, 3]
+  },
+  "incoming": {
+    "roots": ["obligation.inventory.conformance"],
+    "direction": "incoming",
+    "relation_kinds": ["supports", "invalidates"],
+    "nodes": [
+      "obligation.inventory.conformance",
+      "evidence.inventory.pure"
+    ],
+    "relation_ordinals": [0, 1],
+    "truncated": false
+  }
+}

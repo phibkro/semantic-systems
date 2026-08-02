@@ -1,0 +1,112 @@
+{
+  "attributes": [
+    {
+      "entity_id": "assumption.inventory.direct",
+      "key": "scope",
+      "source_key": "fixture.json",
+      "value": "fixture"
+    },
+    {
+      "entity_id": "evidence.inventory.pure",
+      "key": "nested",
+      "source_key": "fixture.json",
+      "value": { "case_count": 9 }
+    },
+    {
+      "entity_id": "obligation.inventory.conformance",
+      "key": "owner",
+      "source_key": "fixture.json",
+      "value": "inventory"
+    }
+  ],
+  "entities": [
+    {
+      "entity_id": "assumption.inventory.direct",
+      "kind": "assumption",
+      "name": "Direct assumption",
+      "source_key": "fixture.json",
+      "status": null,
+      "summary": "The adapter preserves integer arithmetic."
+    },
+    {
+      "entity_id": "assumption.inventory.transitive",
+      "kind": "assumption",
+      "name": "Transitive assumption",
+      "source_key": "fixture.json",
+      "status": null,
+      "summary": "The fixture covers the reference cases."
+    },
+    {
+      "entity_id": "evidence.inventory.pure",
+      "kind": "evidence",
+      "name": "Pure conformance",
+      "source_key": "fixture.json",
+      "status": null,
+      "summary": "The exact fixture cases pass."
+    },
+    {
+      "entity_id": "obligation.inventory.conformance",
+      "kind": "obligation",
+      "name": "Inventory conformance",
+      "source_key": "fixture.json",
+      "status": "active",
+      "summary": "A realization must satisfy every reference case."
+    }
+  ],
+  "format": "semantic.relational-facts/v1",
+  "relations": [
+    {
+      "attributes": {},
+      "kind": "supports",
+      "relation_ordinal": 0,
+      "source_id": "evidence.inventory.pure",
+      "source_key": "fixture.json",
+      "summary": "Covers the obligation with example-test evidence.",
+      "target_id": "obligation.inventory.conformance"
+    },
+    {
+      "attributes": {},
+      "kind": "invalidates",
+      "relation_ordinal": 1,
+      "source_id": "evidence.inventory.pure",
+      "source_key": "fixture.json",
+      "summary": "Retains the authored invalidating force.",
+      "target_id": "obligation.inventory.conformance"
+    },
+    {
+      "attributes": {},
+      "kind": "assumes",
+      "relation_ordinal": 2,
+      "source_id": "evidence.inventory.pure",
+      "source_key": "fixture.json",
+      "summary": "The evidence relies on the direct assumption.",
+      "target_id": "assumption.inventory.direct"
+    },
+    {
+      "attributes": {},
+      "kind": "assumes",
+      "relation_ordinal": 3,
+      "source_id": "assumption.inventory.direct",
+      "source_key": "fixture.json",
+      "summary": "The direct assumption has a transitive prerequisite.",
+      "target_id": "assumption.inventory.transitive"
+    }
+  ],
+  "schema": {
+    "fact_kinds": ["entity", "relation", "tag", "attribute", "source_document"],
+    "revision": 1
+  },
+  "source_documents": [{ "source_key": "fixture.json" }],
+  "tags": [
+    {
+      "entity_id": "assumption.inventory.direct",
+      "source_key": "fixture.json",
+      "tag": "explicit"
+    },
+    {
+      "entity_id": "evidence.inventory.pure",
+      "source_key": "fixture.json",
+      "tag": "example_test"
+    }
+  ]
+}
