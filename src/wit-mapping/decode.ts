@@ -83,6 +83,7 @@ const reservedIdentifiers = new Set([
   "char",
   "constructor",
   "enum",
+  "error-context",
   "export",
   "f32",
   "f64",
@@ -736,35 +737,31 @@ const parseTypeDeclaration = (
     }
     case "variant": {
       hasOnly(value, new Set(["kind", "name", "semantic_path", "cases"]), path);
-      return Object.freeze({
-        kind,
-        name,
+      const cases = parseCases(
+        property(value, "cases", path),
+        `${path}/cases`,
         semantic_path,
-        cases: parseCases(
-          property(value, "cases", path),
-          `${path}/cases`,
-          semantic_path,
-          depth + 1,
-          bounds,
-          true,
-        ),
-      });
+        depth + 1,
+        bounds,
+        true,
+      );
+      if (cases.length === 0)
+        fail("type.invalid", `${path}/cases`, "variant must contain at least one case");
+      return Object.freeze({ kind, name, semantic_path, cases });
     }
     case "enum": {
       hasOnly(value, new Set(["kind", "name", "semantic_path", "cases"]), path);
-      return Object.freeze({
-        kind,
-        name,
+      const cases = parseCases(
+        property(value, "cases", path),
+        `${path}/cases`,
         semantic_path,
-        cases: parseCases(
-          property(value, "cases", path),
-          `${path}/cases`,
-          semantic_path,
-          depth + 1,
-          bounds,
-          false,
-        ),
-      });
+        depth + 1,
+        bounds,
+        false,
+      );
+      if (cases.length === 0)
+        fail("type.invalid", `${path}/cases`, "enum must contain at least one case");
+      return Object.freeze({ kind, name, semantic_path, cases });
     }
     case "flags": {
       hasOnly(value, new Set(["kind", "name", "semantic_path", "cases"]), path);

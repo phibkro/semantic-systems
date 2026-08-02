@@ -51,32 +51,49 @@ const toHex = (bytes: Uint8Array): string => {
   return output;
 };
 
-const projectionForOperation = (operation: WitOperation): WitMappingProjection =>
-  operation.async ||
-  operation.params.some((parameter) => containsAsync(parameter.type)) ||
-  (operation.result !== null && containsAsync(operation.result))
-    ? "operational_async_shape"
-    : "shape";
+type TypeAliases = ReadonlyMap<string, WitType>;
 
-const containsAsync = (type: WitType): boolean => {
+const containsAsync = (
+  type: WitType,
+  typeAliases: TypeAliases,
+  visiting: Set<string> = new Set(),
+): boolean => {
   switch (type.kind) {
     case "stream":
     case "future":
       return true;
     case "list":
     case "option":
-      return containsAsync(type.element);
+      return containsAsync(type.element, typeAliases, visiting);
     case "result":
       return (
-        (type.ok !== null && containsAsync(type.ok)) ||
-        (type.err !== null && containsAsync(type.err))
+        (type.ok !== null && containsAsync(type.ok, typeAliases, visiting)) ||
+        (type.err !== null && containsAsync(type.err, typeAliases, visiting))
       );
     case "tuple":
-      return type.elements.some(containsAsync);
+      return type.elements.some((element) => containsAsync(element, typeAliases, visiting));
+    case "named": {
+      const alias = typeAliases.get(type.name);
+      if (alias === undefined || visiting.has(type.name)) return false;
+      visiting.add(type.name);
+      const result = containsAsync(alias, typeAliases, visiting);
+      visiting.delete(type.name);
+      return result;
+    }
     default:
       return false;
   }
 };
+
+const projectionForOperation = (
+  operation: WitOperation,
+  typeAliases: TypeAliases,
+): WitMappingProjection =>
+  operation.async ||
+  operation.params.some((parameter) => containsAsync(parameter.type, typeAliases)) ||
+  (operation.result !== null && containsAsync(operation.result, typeAliases))
+    ? "operational_async_shape"
+    : "shape";
 
 const renderType = (type: WitType): string => {
   switch (type.kind) {
@@ -215,13 +232,20 @@ const collectTypeRows = (
   declaration: WitTypeDeclaration,
   rows: WitMappingRow[],
   resourceNames: ReadonlySet<string>,
+  typeAliases: TypeAliases,
 ): void => {
   const base = pathForType(interfaceValue, declaration);
+  const projection =
+    declaration.kind === "resource"
+      ? "ownership_boundary"
+      : declaration.kind === "type" && containsAsync(declaration.type, typeAliases)
+        ? "operational_async_shape"
+        : "shape";
   rows.push(
     mapRow(
       base,
       declaration.semantic_path,
-      declaration.kind === "resource" ? "ownership_boundary" : "shape",
+      projection,
       declaration.kind === "resource" ? declaration.ownership_statement : undefined,
     ),
   );
@@ -255,9 +279,21 @@ const collectTypeRows = (
         );
     }
     for (const operation of declaration.methods)
-      collectOperationRows(`${base}/method/${operation.name}`, operation, rows, resourceNames);
+      collectOperationRows(
+        `${base}/method/${operation.name}`,
+        operation,
+        rows,
+        resourceNames,
+        typeAliases,
+      );
     for (const operation of declaration.statics)
-      collectOperationRows(`${base}/static/${operation.name}`, operation, rows, resourceNames);
+      collectOperationRows(
+        `${base}/static/${operation.name}`,
+        operation,
+        rows,
+        resourceNames,
+        typeAliases,
+      );
     if (declaration.usage_grade !== null)
       rows.push(
         mapRow(
@@ -397,8 +433,9 @@ const collectOperationRows = (
   operation: WitOperation,
   rows: WitMappingRow[],
   resourceNames: ReadonlySet<string>,
+  typeAliases: TypeAliases,
 ): void => {
-  rows.push(mapRow(base, operation.semantic_path, projectionForOperation(operation)));
+  rows.push(mapRow(base, operation.semantic_path, projectionForOperation(operation, typeAliases)));
   for (const parameter of operation.params)
     collectTypeUseRows(base, operation.semantic_path, parameter, rows, resourceNames);
   if (operation.result !== null)
@@ -453,6 +490,11 @@ const collectManifest = (
   const operationEffectLabels = new Set<string>();
   const sortedInterfaces = [...input.interfaces].sort(compareByName);
   for (const interfaceValue of sortedInterfaces) {
+    const typeAliases = new Map(
+      interfaceValue.types
+        .filter((declaration) => declaration.kind === "type")
+        .map((declaration) => [declaration.name, declaration.type] as const),
+    );
     const resourceNames = new Set(
       interfaceValue.types
         .filter((declaration) => declaration.kind === "resource")
@@ -477,13 +519,14 @@ const collectManifest = (
         ),
       );
     for (const declaration of interfaceValue.types)
-      collectTypeRows(interfaceValue, declaration, rows, resourceNames);
+      collectTypeRows(interfaceValue, declaration, rows, resourceNames, typeAliases);
     for (const operation of interfaceValue.functions) {
       collectOperationRows(
         `${interfacePath}/function/${operation.name}`,
         operation,
         rows,
         resourceNames,
+        typeAliases,
       );
       for (const label of operation.effect_labels) {
         operationEffectLabels.add(label);

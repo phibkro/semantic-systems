@@ -162,6 +162,31 @@ describe("semantic.wit-mapping/v1", () => {
       artifact.manifest.mappings.some((row) => row.wit_path.endsWith("/effect/effect.clock")),
     ).toBe(false);
   });
+  test("classifies named stream aliases as operational async shapes", async () => {
+    const input = structuredClone(fixture) as JsonRecord;
+    const inventory = inventoryInterface(input);
+    (inventory.types as JsonRecord[]).push({
+      kind: "type",
+      name: "event-stream",
+      semantic_path: "theory.inventory/type/event-stream",
+      type: { kind: "stream", element: "inventory-event" },
+    });
+    inventoryFunction(input, "watch").result = "event-stream";
+    const decoded = decodePortableBoundary(input);
+    expect(decoded.status).toBe("decoded");
+    if (decoded.status === "rejected") throw new Error(JSON.stringify(decoded.diagnostics));
+    const artifact = await generate(decoded.value);
+    expect(
+      artifact.manifest.mappings.find(
+        (row) => row.wit_path === "interface/inventory/type/event-stream",
+      )?.projection,
+    ).toBe("operational_async_shape");
+    expect(
+      artifact.manifest.mappings.find(
+        (row) => row.wit_path === "interface/inventory/function/watch",
+      )?.projection,
+    ).toBe("operational_async_shape");
+  });
   test("rejects empty semantic paths for operations, declarations, constructors, and cases", () => {
     const mutations: ReadonlyArray<(input: JsonRecord) => void> = [
       (input) => {
@@ -423,6 +448,17 @@ describe("semantic.wit-mapping/v1", () => {
     if (bounded.status === "rejected")
       expect(bounded.diagnostics[0]!.code).toBe("bounds.collection-too-large");
     expect(defaultWitMappingBounds.maximum_depth).toBe(32);
+  });
+  test("rejects unescaped error-context and empty enum or variant declarations", () => {
+    const reserved = structuredClone(fixture) as JsonRecord;
+    inventoryDeclaration(reserved, "type").name = "error-context";
+    expect(diagnosticCode(reserved)).toBe("name.invalid");
+
+    for (const kind of ["enum", "variant"]) {
+      const input = structuredClone(fixture) as JsonRecord;
+      inventoryDeclaration(input, kind).cases = [];
+      expect(diagnosticCode(input)).toBe("type.invalid");
+    }
   });
   test("rejects recursive and unbounded integer types with typed diagnostics", () => {
     const recursive = structuredClone(fixture) as JsonRecord;
