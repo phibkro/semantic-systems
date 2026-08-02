@@ -48,6 +48,16 @@
               "claim": "integration_gate: test_and_static_analysis"
             },
             {
+              "role": "equivalence",
+              "category": "test",
+              "method": "differential_testing",
+              "source": {
+                "kind": "repository_artifact",
+                "path": "tests/reference-custody.test.ts"
+              },
+              "claim": "Bun and Node catalog-check observations are byte-identical"
+            },
+            {
               "role": "independent_review",
               "category": "assertion",
               "method": "assertion",

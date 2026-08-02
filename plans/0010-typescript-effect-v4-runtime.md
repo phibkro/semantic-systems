@@ -109,6 +109,11 @@ Other active feature worktrees and their owned files remain forbidden.
     ambient nondeterminism. **Complete for the project-model, inventory tracer,
     and reference-custody portable slices.**
 
+Feature completion closes the runtime migration, not the stopped checker-policy
+frontier in item 5, the annotated-tag and cache-namespace follow-ups in item 6,
+or expansion of items 11 and 12 beyond the named portable slices. Those
+residues require their own contracts.
+
 ## Historical delegated custody slice: remote acquisition and materialization
 
 This section preserves the frozen assignment completed before the final
@@ -735,7 +740,7 @@ reference-custody goldens; no Python runtime or implementation is active.
   The review found no custody or security regression and required this
   follow-up to repair stale plan claims, preserve ignored-cache filtering, and
   make the sandboxed source invariant fail closed. The focused reference gate
-  passes 145 tests and 606 assertions with typecheck, severe lint, formatting,
+  passes 145 tests and 607 assertions with typecheck, severe lint, formatting,
   Bun/Node catalog parity, and a network-free real CLI observation.
   Feature acceptance passes 670 tests and 17,145 assertions plus model,
   generated-view, typecheck, severe-lint, formatting, commit-policy, and native
