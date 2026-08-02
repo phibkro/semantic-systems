@@ -16,7 +16,7 @@ const run = (arguments_: ReadonlyArray<string>) =>
     const project = yield* loadProject(arguments_[0] ?? ".");
     const bundle = exportRelationalFacts(project);
     if (bundle instanceof Error) {
-      yield* Console.error(`${bundle._tag}: ${bundle.code}: ${bundle.message}`);
+      yield* Console.error(`${bundle.code}: ${bundle.message}`);
       return 1;
     }
     const incoming = queryReachability(bundle, {
@@ -27,12 +27,12 @@ const run = (arguments_: ReadonlyArray<string>) =>
       maximumRows: 10_000,
     });
     if (incoming instanceof Error) {
-      yield* Console.error(`${incoming._tag}: ${incoming.code}: ${incoming.message}`);
+      yield* Console.error(`${incoming.code}: ${incoming.message}`);
       return 1;
     }
     const evidence = queryEvidence(bundle, "obligation.inventory.conformance");
     if (evidence instanceof Error) {
-      yield* Console.error(`${evidence._tag}: ${evidence.code}: ${evidence.message}`);
+      yield* Console.error(`${evidence.code}: ${evidence.message}`);
       return 1;
     }
     const report = makeRelationalFactsReport(bundle, incoming, evidence);

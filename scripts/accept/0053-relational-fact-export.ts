@@ -171,13 +171,13 @@ const program = Effect.gen(function* () {
   });
   yield* ensure(!(incoming instanceof RelationalQueryError), "incoming dependency query failed");
   if (incoming instanceof RelationalQueryError) return yield* incoming;
-  const incomingIds = incoming.nodes.map((node) => node.entity_id);
+  const incomingIds = new Set(incoming.nodes.map((node) => node.entity_id));
   yield* ensure(
-    incomingIds.includes("work.inventory-stm"),
+    incomingIds.has("work.inventory-stm"),
     "inventory dependency is missing from incoming reachability",
   );
   yield* ensure(
-    incomingIds.includes("work.stm-model-check"),
+    incomingIds.has("work.stm-model-check"),
     "model-check dependency is missing from incoming reachability",
   );
   yield* ensure(
