@@ -2,7 +2,7 @@
 
 <!-- Generated. Edit model sources, not this file. -->
 
-Ready parallel work items: **14**.
+Ready parallel work items: **13**.
 
 | Work item | Phase | Status | Ready | Score | Recommendation | Blockers |
 |---|---|---|---:|---:|---|---|
@@ -30,7 +30,7 @@ Ready parallel work items: **14**.
 | Establish the kernel reference interpreter | validation | complete | no | 87 | delegate with review |  |
 | Specify minimal kernel calculus | validation | complete | no | 53 | bounded spike |  |
 | Specify Lean evidence adapter | research | planned | yes | 60 | delegate with review |  |
-| Adopt lifecycle-derived plan layout | implementation | in_progress | yes | 65 | delegate with review |  |
+| Adopt lifecycle-derived plan layout | validation | complete | no | 65 | delegate with review |  |
 | Design lossless incremental frontend | design | superseded | no | 75 | delegate with review |  |
 | Specify normalized core artifact | validation | complete | no | 45 | bounded spike |  |
 | Apply the open semantic system design lens | implementation | complete | no | 80 | delegate with review |  |

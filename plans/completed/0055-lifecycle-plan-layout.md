@@ -65,3 +65,9 @@ just accept 0055-lifecycle-plan-layout
   violates current policy, while dual lookup creates a second convention and
   hides drift. The frozen 0055 contract selects one lifecycle-derived clean
   cutover.
+
+- 2026-08-02: the integrating lead ran the exact 0055 acceptance program. It passed 11 focused lifecycle tests, 145 reference-custody tests, typecheck, strict lint, format, reference-source validation, project-model validation, and generated-view checks.
+- 2026-08-02: `just check` at clean integration head `4b7d1c09812b0453b23779bb1e03e1134075f74c` passed 749 tests with 16,582 assertions after the completed-language frontier oracle was updated. The same command against the operator's dirty working tree fails only the reuse-first charter test because its uncommitted `AGENTS.md` edit contradicts the committed contract.
+- 2026-08-02: independent exact-head review accepted the lifecycle cutover with no Critical or Important findings. It recorded three non-blocking observations: reconcile the operator's uncommitted `AGENTS.md` completion rule before it lands, tolerate a future missing empty lifecycle directory in acceptance, and optionally align one historical superseded-plan link label.
+
+Status: accepted at integration head `4b7d1c09812b0453b23779bb1e03e1134075f74c`.

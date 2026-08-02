@@ -49,15 +49,6 @@
 - Plan: [execution ledger](../plans/active/0054-semantic-contract-wit-mapping.md)
 - Acceptance: [runnable program](../scripts/accept/0054-semantic-contract-wit-mapping.ts)
 
-### `0055-lifecycle-plan-layout` — Adopt lifecycle-derived plan layout
-
-- Status: `in_progress`
-- Feature loop: `managed`
-- Model: [canonical record](../model/work/features/0055-lifecycle-plan-layout.json)
-- Design: [design contract](../design-specs/0055-lifecycle-plan-layout.md)
-- Plan: [execution ledger](../plans/active/0055-lifecycle-plan-layout.md)
-- Acceptance: [runnable program](../scripts/accept/0055-lifecycle-plan-layout.ts)
-
 ## Completed
 
 ### `0001-inventory-resolution-tracer` — Complete inventory evidence-resolution tracer
@@ -248,6 +239,15 @@
 - Design: [design contract](../design-specs/0053-relational-fact-export.md)
 - Plan: [execution ledger](../plans/completed/0053-relational-fact-export.md)
 - Acceptance: [runnable program](../scripts/accept/0053-relational-fact-export.ts)
+
+### `0055-lifecycle-plan-layout` — Adopt lifecycle-derived plan layout
+
+- Status: `complete`
+- Feature loop: `managed`
+- Model: [canonical record](../model/work/features/0055-lifecycle-plan-layout.json)
+- Design: [design contract](../design-specs/0055-lifecycle-plan-layout.md)
+- Plan: [execution ledger](../plans/completed/0055-lifecycle-plan-layout.md)
+- Acceptance: [runnable program](../scripts/accept/0055-lifecycle-plan-layout.ts)
 
 ### `0056-project-json-language-tooling` — Generate schema-backed project JSON tooling
 
