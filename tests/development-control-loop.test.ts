@@ -820,13 +820,15 @@ describe("autonomous development control loop", () => {
 
   test("detects stale generated views through the Bun project model", async () => {
     const root = await temporaryRoot("semantic-generated-drift-");
-    for (const directory of ["model", "generated", "design-specs", "plans"]) {
+    for (const directory of ["model", "generated", "design-specs", "plans", "research"]) {
       await cp(join(ROOT, directory), join(root, directory), { recursive: true });
     }
     await mkdir(join(root, "scripts"), { recursive: true });
-    await cp(join(ROOT, "scripts", "accept"), join(root, "scripts", "accept"), {
-      recursive: true,
-    });
+    for (const directory of ["accept", "experiments"]) {
+      await cp(join(ROOT, "scripts", directory), join(root, "scripts", directory), {
+        recursive: true,
+      });
+    }
     const generated = join(root, "generated", "README.md");
     await Bun.write(generated, `${await Bun.file(generated).text()}\nstale drift\n`);
     const result = run(["bun", "run", "semproj", "--", "--root", root, "generate", "--check"], {
