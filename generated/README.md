@@ -7,13 +7,13 @@
 | agent | 2 |
 | artifact | 6 |
 | assumption | 4 |
-| claim | 5 |
+| claim | 6 |
 | component | 21 |
-| decision | 6 |
+| decision | 7 |
 | deployment | 4 |
 | domain_machine | 1 |
 | effect | 1 |
-| evidence | 6 |
+| evidence | 7 |
 | handler | 1 |
 | human | 1 |
 | invariant | 1 |
@@ -26,7 +26,7 @@
 | responsibility | 2 |
 | runtime | 8 |
 | theory | 12 |
-| work_item | 45 |
+| work_item | 47 |
 
 - [System map](01-system-map.md)
 - [Theory-realization map](02-theory-realization.md)

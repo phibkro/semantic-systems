@@ -1,0 +1,173 @@
+{
+  "entities": [
+    {
+      "id": "decision.reference-method-adoption",
+      "kind": "decision",
+      "name": "Adopt reference methods by class behind project boundaries",
+      "summary": "Pilot methods are adopted as-is, adapted behind project-owned boundaries, or deferred as design constraints; never imported as code or authority.",
+      "status": "accepted",
+      "tags": ["references", "research"],
+      "attributes": {
+        "record": "decisions/0007-reference-method-adoption.md"
+      }
+    },
+    {
+      "id": "work.rx1-generator-determinism",
+      "kind": "work_item",
+      "name": "RX1: cross-runtime generator determinism",
+      "summary": "Byte-compare canonical project views across repeated Bun and genuine Node runs; inventory or kill on divergence.",
+      "status": "complete",
+      "tags": ["references", "experiment"],
+      "attributes": {
+        "phase": "validation",
+        "effort": 2,
+        "acceptance": [
+          "Bun and genuine Node produce byte-identical ten-view trees from the same canonical sources",
+          "Three clean repeated runs produce identical view digests",
+          "Divergence sources are inventoried, or the kill criterion is recorded"
+        ],
+        "observation": {
+          "evidence_type": "machine_check",
+          "observed_at": "2026-08-02",
+          "command": "nix develop --command bun scripts/experiments/0002-generator-determinism.ts",
+          "node_version": "v24.18.0",
+          "trials_per_runtime": 3,
+          "view_count": 10,
+          "tree_digest": "sha256:edbab5827c077e672c2cc805d670b54957f76b453e1d8610d1496edc221ee257",
+          "not_established": "Future determinism, result-identity backdating correctness, or memoization correctness."
+        },
+        "completion": {
+          "outcome": "positive",
+          "evidence": [
+            {
+              "role": "status_basis",
+              "category": "assertion",
+              "method": "authored_completion_state",
+              "source": {
+                "kind": "repository_artifact",
+                "path": "research/reference-baselines/adoption-experiments.md"
+              },
+              "claim": "RX1 is complete for the current project-model output boundary; future determinism and memoization correctness remain unestablished."
+            },
+            {
+              "role": "equivalence",
+              "category": "runtime_check",
+              "method": "runtime_validation",
+              "source": {
+                "kind": "repository_artifact",
+                "path": "scripts/experiments/0002-generator-determinism.ts"
+              },
+              "claim": "Three Bun and three genuine Node runtime trials, each with separate validation and generation processes, emitted byte-identical ten-view trees and CLI streams."
+            }
+          ]
+        },
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 5,
+          "testability": 5,
+          "reversibility": 5,
+          "integration_independence": 4,
+          "blast_radius": 1,
+          "human_review": false
+        }
+      }
+    },
+    {
+      "id": "work.rx2-assumption-query",
+      "kind": "work_item",
+      "name": "RX2: assumptions(artifact) over recorded edges",
+      "summary": "Derive per-artifact assumption reports from canonical relations with a seeded-stub positive fixture and a permanent opaque-adapter negative fixture.",
+      "status": "planned",
+      "tags": ["references", "experiment"],
+      "attributes": {
+        "phase": "implementation",
+        "effort": 3,
+        "acceptance": [
+          "Seeded stub assumption surfaces through at least three intermediate derivations",
+          "Opaque-adapter negative fixture demonstrates the silent-partial report and is linked from the opaque-primitive register",
+          "Two-day wiring cap respected or the kill recorded"
+        ],
+        "delegation": {
+          "specification_completeness": 4,
+          "context_locality": 4,
+          "testability": 5,
+          "reversibility": 4,
+          "integration_independence": 3,
+          "blast_radius": 2,
+          "human_review": true
+        }
+      }
+    },
+    {
+      "id": "claim.research.reference-portfolio",
+      "kind": "claim",
+      "name": "Staged model-routed reference research",
+      "summary": "A staged, model-routed workflow produced auditable evidence packets; current adoption decisions are separately re-derived against repository boundaries.",
+      "status": "asserted",
+      "tags": ["references", "research"],
+      "attributes": {
+        "registry": "claims/registry.md#clm-0005--staged-model-routed-reference-research",
+        "not_established": "Correctness or suitability of any external method; custody-complete provenance; paper-body verification; independent acceptance of the integrated portfolio."
+      }
+    },
+    {
+      "id": "evidence.research.reference-portfolio",
+      "kind": "evidence",
+      "name": "Integrated reference-baselines portfolio artifacts",
+      "summary": "Current boundary-mapped portfolio, ladder, and experiments reuse the immutable 17-card cached packet and add the verified six-card refinement packet without upgrading their evidence.",
+      "status": "current",
+      "tags": ["references", "research"],
+      "attributes": {
+        "evidence_type": "assertion",
+        "artifacts": [
+          "research/reference-baselines/portfolio.md",
+          "research/reference-baselines/enforcement-ladder.md",
+          "research/reference-baselines/adoption-experiments.md",
+          "research/reference-baselines/evidence-packet.json",
+          "research/reference-baselines/refinement-ladder-packet.md"
+        ],
+        "evidence_packet_sha256": "2c10a8cef26689bdc85f5251cf7c94d94b7016a151120f622170d8406eb9d5ff",
+        "payload_sha256": "51bb064ba951578948654c25027359b33c9f3647e4e55c75d80b077c8807f9fc",
+        "workflow_script_sha256": "3963a2d23c3d38a038316eabc625b4a543b956d3c9365a059cf4012fd20635b9",
+        "provenance_limits": "Only 5 of 23 catalog sources are custody-locked; refinement cards preserve their own unresolved source and license fields."
+      }
+    }
+  ],
+  "relations": [
+    {
+      "source": "evidence.research.reference-portfolio",
+      "target": "claim.research.reference-portfolio",
+      "kind": "supports",
+      "summary": "Research assertion with recorded provenance; not proof.",
+      "attributes": {}
+    },
+    {
+      "source": "decision.reference-method-adoption",
+      "target": "work.reference-baselines-deep-research",
+      "kind": "informs",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "decision.reference-method-adoption",
+      "target": "work.rx1-generator-determinism",
+      "kind": "informs",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "decision.reference-method-adoption",
+      "target": "work.rx2-assumption-query",
+      "kind": "informs",
+      "summary": "",
+      "attributes": {}
+    },
+    {
+      "source": "work.rx2-assumption-query",
+      "target": "work.rx1-generator-determinism",
+      "kind": "blocks",
+      "summary": "RX2 and later experiments rest on the determinism precondition RX1 probes.",
+      "attributes": {}
+    }
+  ]
+}
