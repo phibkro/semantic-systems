@@ -138,3 +138,27 @@ git diff --check
   resumption formula, closed v2 rule/diagnostic vocabularies, exact bounds,
   `/v2` identity domains, effect-carrying sum types, external resumption, and
   machine snapshots. No implementation was accepted under the earlier text.
+
+- 2026-08-02: the finite-sum pipeline was integrated at
+  `bc505b152f7f7d7f613fbf66f79d8ed515058219`.
+- 2026-08-02: the first implementation review found ten defects. The correction
+  at `cbbdda63ca530f9a2b1e7fc34f10a107fb886a40` closed all Critical and
+  Important findings.
+- 2026-08-02: exact feature acceptance passed on a clean detached worktree at
+  `cbbdda6`. The focused gates passed 23 tests with 80 expectations and 183
+  tests with 5,227 expectations.
+- 2026-08-02: five genuine Node tests passed. They cover checked, normalized,
+  and run observations that contain finite sums.
+- 2026-08-02: full `just check` passed with 720 tests and 16,257 expectations.
+  Type checks, strict lint, formatting, commit policy, and all predecessor gates
+  also passed.
+- 2026-08-02: project-model validation checked 138 entities and 194 relations.
+  It reported one pre-existing unsupported-claim warning. Nine generated views
+  matched their canonical sources.
+- 2026-08-02: independent exact-head review of `cbbdda6` returned `ACCEPTED`.
+  It found no Critical or Important defect. The reviewer ran no tests.
+- 2026-08-02: this evidence is runtime validation, tests, static analysis, and
+  review assertion. It is not proof of safety, normalization, termination, or
+  grade-zero observational erasure.
+- 2026-08-02: Status: complete. The implementation and integration head is
+  `cbbdda6`.
