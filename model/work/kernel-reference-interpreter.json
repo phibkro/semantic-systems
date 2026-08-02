@@ -5,13 +5,20 @@
       "kind": "work_item",
       "name": "Establish the kernel reference interpreter",
       "summary": "Compose the stable kernel JSON boundary, authoritative checker, and bounded CBPV machine into one implementation-neutral execution observation that becomes the optimized compiler's differential oracle.",
-      "status": "in_progress",
+      "status": "complete",
       "tags": ["language", "kernel", "interpreter", "cbpv", "property-testing"],
       "attributes": {
-        "phase": "implementation",
+        "phase": "validation",
         "effort": 8,
         "design_spec": "design-specs/0022-kernel-reference-interpreter.md",
-        "plan": "plans/active/0022-kernel-reference-interpreter.md",
+        "plan": "plans/completed/0022-kernel-reference-interpreter.md",
+        "completion": {
+          "implementation_head": "c660b657ee951a65328a485bbaf6762d90a07910",
+          "integration_head": "c660b657ee951a65328a485bbaf6762d90a07910",
+          "feature_acceptance": "runtime_validation",
+          "integration_gate": "test_and_static_analysis",
+          "independent_review": "assertion"
+        },
         "acceptance": [
           "Agent-facing kernel JSON runs through one documented reference interpreter",
           "Invalid representation and semantic programs remain in their owning rejection phase",

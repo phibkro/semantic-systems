@@ -4,7 +4,7 @@ Canonical frozen contract:
 [`design-specs/0022-kernel-reference-interpreter.md`](../../design-specs/0022-kernel-reference-interpreter.md).
 This execution record cannot redefine that contract.
 
-Status: implementation candidate; exact acceptance pending
+Status: accepted and integrated at `c660b657ee951a65328a485bbaf6762d90a07910`
 
 Owner: primary Semantic Systems language lead
 
@@ -19,7 +19,7 @@ Owner: primary Semantic Systems language lead
 ## Owned paths
 
 - `design-specs/0022-kernel-reference-interpreter.md`
-- `plans/active/0022-kernel-reference-interpreter.md`
+- `plans/completed/0022-kernel-reference-interpreter.md`
 - `model/work/kernel-reference-interpreter.json`
 - `src/kernel-interpreter/**`
 - `tests/kernel-reference-interpreter*.test.ts`
@@ -195,3 +195,14 @@ Exact feature acceptance and independent review remain before integration.
   `__proto__` regression now covers object, scalar, and null values. Focused
   evidence after correction: 68 Bun tests / 5,658 expectations, TypeScript,
   and strict Oxlint pass.
+- 2026-08-02: final independent static rereview returned `READY` at exact head
+  `c660b657ee951a65328a485bbaf6762d90a07910`; no code, contract, or custody
+  blocker remained. Exact acceptance passed 44 interpreter tests / 5,571
+  expectations, genuine-Node canonical corpus parity, the composed
+  0020/0019/0018 gates, TypeScript, strict Oxlint, Oxfmt, project-model
+  validation and generation, 638 full-suite Bun tests / 16,885 expectations,
+  68 reference-custody compatibility tests, and zero diagnostics. The
+  unsupported `claim.kernel.safety` warning remains explicit. The accepted
+  head was then fast-forwarded into the primary lineage without touching the
+  operator-owned `AGENTS.md` modification. The optimized compiler and its
+  required differential property suite remain intentionally future work.

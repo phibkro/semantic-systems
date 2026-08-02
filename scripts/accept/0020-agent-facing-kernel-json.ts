@@ -28,7 +28,7 @@ const goldenExamples = [
 
 const contractArtifacts = [
   "design-specs/0020-agent-facing-kernel-json.md",
-  "plans/active/0020-agent-facing-kernel-json.md",
+  "plans/completed/0020-agent-facing-kernel-json.md",
   "design-specs/superseded/0020-lossless-kernel-source.md",
   "plans/superseded/0020-lossless-kernel-source.md",
   "tests/kernel-json-observation-bounds.test.ts",

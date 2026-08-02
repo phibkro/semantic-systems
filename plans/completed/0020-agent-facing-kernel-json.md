@@ -31,7 +31,7 @@ and a storage-independence rule that keeps any future Merkle DAG internal.
 
 - `design-specs/0020-agent-facing-kernel-json.md`
 - `design-specs/superseded/0020-lossless-kernel-source.md`
-- `plans/active/0020-agent-facing-kernel-json.md`
+- `plans/completed/0020-agent-facing-kernel-json.md`
 - `plans/superseded/0020-lossless-kernel-source.md`
 - `scripts/accept/0020-agent-facing-kernel-json.ts`
 - `spec/kernel-json/kernel-json-v1.schema.json`
@@ -250,3 +250,10 @@ failure is not a warning.
   variant. The 0020 acceptance artifact list now also holds
   `rejected-type-mismatch.kernel.json`, the generated input consumed by the
   0022 Bun and genuine-Node corpora.
+- 2026-08-02: the corrected 0020 lineage was integrated at
+  `c660b657ee951a65328a485bbaf6762d90a07910` through the accepted 0022
+  interpreter slice. The composed acceptance chain passed 65 focused kernel
+  JSON tests / 176 expectations, genuine-Node golden parity, TypeScript,
+  strict lint, formatting, project-model validation and generation, and the
+  full repository gate. The only project-model warning remains the explicit
+  unsupported `claim.kernel.safety` claim.
