@@ -67,6 +67,7 @@ flowchart LR
   C --> L[standard JSON language service]
   M[model JSON] --> L
   M --> V[semproj semantic validator]
+```
 
 The generator preserves one structural vocabulary. The semantic validator applies
 a different, stronger graph vocabulary. Neither result upgrades the other's

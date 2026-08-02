@@ -49,6 +49,7 @@ const program = Effect.gen(function* () {
   yield* requireLedger;
   for (const command of [
     ["bun", "test", "tests/project-json-language-tooling.test.ts"],
+    ["bun", "test", "tests/project-model.test.ts"],
     ["bun", "run", "semproj", "--", "validate"],
     ["bun", "run", "semproj", "--", "generate", "--check"],
     ["bun", "run", "typecheck"],
