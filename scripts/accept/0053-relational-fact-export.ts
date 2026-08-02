@@ -5,6 +5,7 @@ import { BunFileSystem, BunPath } from "@effect/platform-bun";
 import { runCommand, runMain } from "../lib/command.ts";
 import { loadProject } from "../../src/project-model/loader.ts";
 import type { JsonValue, ProjectGraph } from "../../src/project-model/types.ts";
+import { isFeatureDiagnostic, resolveFeature } from "../../src/project-model/work-lifecycle.ts";
 import {
   encodeRelationalFacts,
   exportRelationalFacts,
@@ -23,7 +24,6 @@ const root = resolve(import.meta.dirname, "../..");
 const nodeExecutable = process.env.SEMANTIC_NODE_BIN ?? "node";
 const requiredArtifacts = [
   "design-specs/0053-relational-fact-export.md",
-  "plans/active/0053-relational-fact-export.md",
   "model/work/features/0053-relational-fact-export.json",
   "tests/relational-facts.test.ts",
   "examples/relational-facts/model/fixture.json",
@@ -88,6 +88,16 @@ const required = Effect.gen(function* () {
     });
     yield* ensure(exists, `missing required artifact: ${artifact}`);
   }
+  const feature = resolveFeature(yield* loadProject(root), "0053-relational-fact-export");
+  if (isFeatureDiagnostic(feature)) {
+    return yield* new AcceptanceFailure({
+      message: `cannot resolve relational fact export feature: ${feature.message}`,
+    });
+  }
+  yield* ensure(
+    yield* Effect.promise(() => Bun.file(resolve(root, feature.planPath)).exists()),
+    `missing required relational fact export ledger: ${feature.planPath}`,
+  );
 });
 
 const relativeSource = (project: ProjectGraph, source: string): string => {
