@@ -1,6 +1,6 @@
 # Design spec 0015: open semantic system design lens
 
-Status: frozen; feature in_progress pending correction integration and rereview
+Status: frozen for tracer implementation
 
 Date: 2026-07-30
 
@@ -379,18 +379,21 @@ constitution authoritative.
 
 ## Semantic diff
 
-The 2026-08-02 correction records the delivered rendered-visibility evidence
-boundary in this owning contract. The gate's existing path remains
-`mdast-util-from-markdown@2.0.2` for Markdown structure, `micromark@4.0.2` for
-complete-section HTML rendering, `parse5@8.0.1` for WHATWG fragment parsing,
-and `css-tree@3.2.1` for direct-inline `display`/`visibility` cascade
-classification. Its three-valued CSS outcome treats grammar-invalid
-function/raw syntax and unparseable styles as indeterminate and excludes
-their subtrees from acceptance prose; conservative SVG/MathML,
-option/optgroup, progress/meter/rp, audio/video fallback, closed-details, and
-non-open-popover exclusions remain explicit. This documentation correction
-changes no gate behavior, domain, evidence-category, or merge-authority
-semantics, and prior acceptance evidence remains valid. Exact acceptance at
-correction head `a5184fc` passed, but static rereview returned
-`CHANGES_REQUIRED` on append-only custody. Feature status remains
-in_progress pending correction integration and rereview.
+Revision 1, 2026-07-30: The correction after rejected head `077e70a` makes
+this owning contract itself conform to the worksheet it introduces and
+replaces repository-owned Markdown block recognition with an attributed
+CommonMark parser. It changes no domain, evidence-category, or merge-authority
+semantics.
+
+Revision 2, 2026-08-02: The rendered-visibility correction records the
+delivered evidence boundary in this owning contract. The gate's existing path
+remains `mdast-util-from-markdown@2.0.2` for Markdown structure,
+`micromark@4.0.2` for complete-section HTML rendering, `parse5@8.0.1` for
+WHATWG fragment parsing, and `css-tree@3.2.1` for direct-inline
+`display`/`visibility` cascade classification. Its three-valued CSS outcome
+treats grammar-invalid function/raw syntax and unparseable styles as
+indeterminate and excludes their subtrees from acceptance prose. Conservative
+SVG/MathML, option/optgroup, progress/meter/rp, audio/video fallback,
+closed-details, and non-open-popover exclusions remain explicit. This
+documentation correction changes no gate behavior, domain, evidence-category,
+or merge-authority semantics.

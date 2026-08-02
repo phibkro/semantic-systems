@@ -387,6 +387,11 @@ state, and unrelated project-model changes.
   features with zero failures and a 670-test/17,145-assertion integration loop.
 - 2026-08-02: Runtime evidence from the full `nix develop -c just check` at
   `b51f375` passed 676 tests and 17,200 assertions.
+- 2026-08-02: Static-analysis/assertion evidence from final independent custody
+  review `8902ba7` ACCEPTED integration custody but returned `CHANGES_REQUIRED`
+  on documentation truth. No Critical defect was found.
+- 2026-08-02: The read-only audit at `46ba730` returned `CHANGES_REQUIRED` with
+  no Critical defect; its remaining scope was documentation-only.
 - 2026-08-02: At exact correction head
   `a5184fc95b59fb18832d2586456b5092c503e7e4`, acceptance passed 15 lens
   tests/126 assertions, 28 control-loop tests/303 assertions, typecheck, severe
@@ -398,6 +403,17 @@ state, and unrelated project-model changes.
   contract boundary but returned `CHANGES_REQUIRED` on append-only custody:
   restore the `643b6f0` integration entry and the verbatim migrated historical
   status before rereview.
+- 2026-08-02: Exact 0015 acceptance at correction head
+  `06ac8a3ecc6b715141d13672273babb75c5ab323` passed 15 lens tests/126
+  assertions, 28 control-loop tests/303 assertions, typecheck, severe lint,
+  formatting, model validation, and nine generated views. Exact 0048
+  acceptance at the same head included the full `just check`, which passed 676
+  tests and 17,200 assertions.
+- 2026-08-02: Static rereview of `06ac8a3` accepted the technical boundary and
+  restored integration/status custody but returned `CHANGES_REQUIRED`: keep
+  contract, work, and review status axes distinct; retain the earlier Semantic
+  diff revision; and preserve the earlier 2026-08-02 review verdicts. No
+  Critical defect was found.
 
 ## Acceptance command
 
@@ -412,7 +428,7 @@ Missing required artifacts or tools fail.
   acceptance and full integration pass; clean-head custody and Fable re-review
   pending
 - 2026-08-02: Status: in_progress — implementation is functionally complete
-  and integrated. Correction head `a5184fc` passed exact acceptance and full
-  integration, but static rereview returned `CHANGES_REQUIRED` on append-only
-  custody. Completion remains pending correction integration and rereview; no
+  and integrated. Correction head `06ac8a3` passed exact acceptance and full
+  integration, but static rereview returned `CHANGES_REQUIRED` on contract and
+  ledger custody. Completion remains pending this follow-up and rereview; no
   protected-CI, push, merge, or final-acceptance claim is made for it.
