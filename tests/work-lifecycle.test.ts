@@ -278,11 +278,7 @@ describe("canonical work lifecycle", () => {
     );
     expect(emphasized.some((item) => item.code === "feature.plan.status")).toBeTrue();
 
-    await writeText(
-      root,
-      `plans/active/${featureId}.md`,
-      `Plan ${featureId}\n=================\n`,
-    );
+    await writeText(root, `plans/active/${featureId}.md`, `Plan ${featureId}\n=================\n`);
     const setext = await runBun(
       validateFeatureRepository(project(root, [entity(root, featureId, "ready")]), root),
     );

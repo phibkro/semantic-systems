@@ -850,11 +850,7 @@ const inspectLifecycleDirectories = (
       );
     }
 
-    const lifecycles: ReadonlyArray<FeatureLifecycle> = [
-      "active",
-      "completed",
-      "superseded",
-    ];
+    const lifecycles: ReadonlyArray<FeatureLifecycle> = ["active", "completed", "superseded"];
     for (const lifecycle of lifecycles) {
       const directory = absoluteRepositoryPath(path, root, `plans/${lifecycle}`);
       const files = yield* globRelative(fs, directory, "**/*.md", issues);
@@ -874,11 +870,10 @@ const inspectLifecycleDirectories = (
         const feature = expected.get(featureId);
         if (feature === undefined) {
           issues.push(
-            issue(
-              "feature.plan.path",
-              `plan cannot be classified at observed path: ${relative}`,
-              { featureId, path: relative },
-            ),
+            issue("feature.plan.path", `plan cannot be classified at observed path: ${relative}`, {
+              featureId,
+              path: relative,
+            }),
           );
           continue;
         }
@@ -931,7 +926,6 @@ const inspectStableOrphans = (
         }
       }
     }
-
 
     const acceptance = yield* globRelative(fs, acceptanceRoot, "*.ts", issues);
     for (const file of acceptance) {
@@ -1088,14 +1082,7 @@ export const validateFeatureRepository = (
     }
     const expectedPlans = new Map<FeatureId, FeatureArtifacts>();
     for (const feature of validFeatures) expectedPlans.set(feature.featureId, feature);
-    yield* inspectLifecycleDirectories(
-      fs,
-      path,
-      root,
-      expectedPlans,
-      candidates,
-      issues,
-    );
+    yield* inspectLifecycleDirectories(fs, path, root, expectedPlans, candidates, issues);
     yield* inspectStableOrphans(fs, path, root, candidates, issues);
     return sortDiagnostics(issues);
   });
