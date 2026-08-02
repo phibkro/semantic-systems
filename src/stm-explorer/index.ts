@@ -244,6 +244,13 @@ const invalidScenario = (
   details: Omit<InvalidScenario, "kind" | "reason" | "message"> = {},
 ): InvalidScenario => freezeDeep({ kind: "invalid_scenario", reason, message, ...details });
 
+const snapshotReplayChoice = (choice: unknown): unknown =>
+  Array.isArray(choice)
+    ? Object.freeze([...choice])
+    : isObject(choice)
+      ? Object.freeze({ ...choice })
+      : choice;
+
 const invalidReplay = (
   index: number,
   reason: ReplayRejectedReason,
@@ -251,12 +258,12 @@ const invalidReplay = (
   choice: unknown,
   enabledChoices: ReadonlyArray<ScheduleChoice>,
 ): ReplayRejected =>
-  freezeDeep({
+  Object.freeze({
     kind: "replay_rejected",
     index,
     reason,
     message,
-    choice,
+    choice: snapshotReplayChoice(choice),
     enabled_choices: Object.freeze(enabledChoices.map((item) => Object.freeze({ ...item }))),
   });
 

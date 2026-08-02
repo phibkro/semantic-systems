@@ -214,6 +214,24 @@ describe("bounded STM schedule explorer 0052", () => {
     });
   });
 
+  test("replay rejection snapshots without mutating the caller choice", () => {
+    const choice: { transaction_id: string; action: "begin" | "settle" } = {
+      transaction_id: "missing",
+      action: "begin",
+    };
+    const rejected = replaySchedule(contentionScenario(), [choice]);
+    expect(rejected).toMatchObject({
+      kind: "replay_rejected",
+      choice: { transaction_id: "missing", action: "begin" },
+    });
+    if (!("kind" in rejected) || rejected.kind !== "replay_rejected") return;
+    expect(rejected.choice).not.toBe(choice);
+    expect(() => {
+      choice.action = "settle";
+    }).not.toThrow();
+    expect(rejected.choice).toEqual({ transaction_id: "missing", action: "begin" });
+  });
+
   test("bounded exhaustion is explicit and never upgrades an unknown property", () => {
     const owner = domain("explorer-bounds");
     const x = tvar(owner, "x", 0);
