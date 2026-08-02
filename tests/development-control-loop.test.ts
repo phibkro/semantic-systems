@@ -995,6 +995,8 @@ await Bun.write(
     expect(flake).toContain("for directory in src tests scripts; do");
     expect(flake).toContain('test -d "$directory"');
     expect(flake).toContain(')" || exit 1');
+    expect(flake).toContain("-name '*.py' -print");
+    expect(flake).toContain('test -z "$legacy_sources"');
   });
 
   test("uses Just over typed Bun entrypoints and owns no shell program", async () => {
