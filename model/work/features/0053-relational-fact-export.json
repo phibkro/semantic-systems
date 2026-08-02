@@ -5,13 +5,57 @@
       "kind": "work_item",
       "name": "Define relational fact export",
       "summary": "Project canonical dependencies, effects, ownership, obligations, evidence, and source correspondence into immutable relational facts with bounded queries.",
-      "status": "in_progress",
+      "status": "complete",
       "tags": ["analysis", "tooling", "facts", "projection", "query", "evidence"],
       "attributes": {
         "feature_id": "0053-relational-fact-export",
         "feature_loop": "managed",
-        "phase": "implementation",
+        "phase": "validation",
         "effort": 13,
+        "completion": {
+          "outcome": "positive",
+          "implementation_head": "6581de153f5cadb18ee36299ec53813a12396d57",
+          "integration_head": "6536fbe03fe2d25bc7e0776312092a04508c5c24",
+          "evidence": [
+            {
+              "role": "feature_acceptance",
+              "category": "runtime_check",
+              "method": "runtime_validation",
+              "source": {
+                "kind": "repository_artifact",
+                "path": "plans/completed/0053-relational-fact-export.md"
+              },
+              "claim": "feature_acceptance: runtime_validation"
+            },
+            {
+              "role": "integration_test",
+              "category": "test",
+              "method": "test_and_static_analysis",
+              "source": {
+                "kind": "repository_artifact",
+                "path": "plans/completed/0053-relational-fact-export.md"
+              },
+              "claim": "integration_gate: test_and_static_analysis"
+            },
+            {
+              "role": "integration_analysis",
+              "category": "analysis",
+              "method": "test_and_static_analysis",
+              "source": {
+                "kind": "repository_artifact",
+                "path": "plans/completed/0053-relational-fact-export.md"
+              },
+              "claim": "integration_gate: test_and_static_analysis"
+            },
+            {
+              "role": "independent_review",
+              "category": "assertion",
+              "method": "assertion",
+              "source": { "kind": "authored_assertion" },
+              "claim": "independent_review: assertion"
+            }
+          ]
+        },
         "acceptance": [
           "Canonical export preserves exact entity, relation, tag, attribute, and source-document row counts with valid relative source keys",
           "Rows and nested JSON snapshots are deterministic and deeply immutable",

@@ -2,7 +2,7 @@
 
 <!-- Generated. Edit model sources, not this file. -->
 
-Ready parallel work items: **16**.
+Ready parallel work items: **14**.
 
 | Work item | Phase | Status | Ready | Score | Recommendation | Blockers |
 |---|---|---|---:|---:|---|---|
@@ -40,12 +40,12 @@ Ready parallel work items: **16**.
 | Generate schema-backed project JSON tooling | validation | complete | no | 87 | delegate directly |  |
 | Research reference baselines for deep research | research | in_progress | yes | 86 | delegate with review |  |
 | Establish reference-source custody | validation | complete | no | 87 | delegate with review |  |
-| Define relational fact export | implementation | in_progress | yes | 84 | delegate with review |  |
+| Define relational fact export | validation | complete | no | 84 | delegate with review |  |
 | Recut the independent resolution checker | design | complete | no | 83 | delegate with review |  |
 | Apply reuse-first engineering assignments | implementation | in_progress | yes | 94 | delegate with review |  |
 | Specify semantic attestation profile | design | ready | no | 87 | delegate with review | Define normalized theory identity |
 | Specify STM effect and handler laws | validation | complete | no | 49 | bounded spike |  |
-| Model-check STM interleavings | implementation | in_progress | yes | 84 | delegate with review |  |
+| Model-check STM interleavings | validation | complete | no | 84 | delegate with review |  |
 | Implement minimal STM runtime | validation | complete | no | 80 | delegate with review |  |
 | Define normalized theory identity | design | in_progress | yes | 41 | bounded spike |  |
 | Specify translation-validation seams | research | planned | yes | 45 | bounded spike |  |

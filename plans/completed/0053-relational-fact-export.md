@@ -83,6 +83,8 @@ nix develop -c bun scripts/accept/0053-relational-fact-export.ts
 - 2026-08-02: delegated implementation intentionally did not run formatter,
   lint, typecheck, tests, acceptance, or project-wide validation. The
   integrating lead owns those gates.
+- 2026-08-02: the integrating lead ran the exact acceptance program at integration head `6536fbe03fe2d25bc7e0776312092a04508c5c24`; it completed successfully. The gate exercised focused export/query behavior, canonical golden bytes, typed custody failures, genuine Bun/Node parity, typecheck, strict lint, format, project-model validation, and generated-view checks.
+- 2026-08-02: independent exact-head review accepted canonical source custody, deep immutable snapshots, exact relation ordinals and direction, bounded shortest-path queries, authored evidence force, and transitive-assumption preservation. Review is an authored assertion, not proof or runtime validation.
 
 ## Assumptions and limits
 
@@ -91,3 +93,5 @@ fails closed for source custody and unsupported runtime JSON values. Query
 observations are structural derivations only. They do not establish evidence
 sufficiency, claim truth, logical entailment, graph completeness, durable
 relation identity, or termination of arbitrary future query vocabularies.
+
+Status: accepted at integration head `6536fbe03fe2d25bc7e0776312092a04508c5c24`.

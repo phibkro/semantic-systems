@@ -102,6 +102,8 @@ golden.
   review, and exact-head evidence remain pending.
 - 2026-08-02: delegated worker intentionally did not run validation commands;
   the integrating lead owns those evidence categories.
+- 2026-08-02: the integrating lead ran the exact acceptance program at integration head `6536fbe03fe2d25bc7e0776312092a04508c5c24`; it completed successfully. The gate exercised focused explorer behavior, predecessor contracts, canonical goldens, genuine Bun/Node parity, typecheck, strict lint, format, project-model validation, and generated-view checks.
+- 2026-08-02: independent exact-head review accepted bounded-status honesty, snapshot custody, portable lint coverage, breadth-first shortest counterexamples, complete state projections, replay diagnostics, and committed-settlement isolation. Review is an authored assertion, not proof or runtime validation.
 
 ## Evidence boundaries
 
@@ -111,4 +113,4 @@ outside the explored state space, production scheduler behavior, liveness,
 fairness, starvation freedom, lock freedom, host memory safety, or Effect
 primitive correctness.
 
-Status: implementation committed by delegated worker; integration and review pending.
+Status: accepted at integration head `6536fbe03fe2d25bc7e0776312092a04508c5c24`.
