@@ -30,6 +30,11 @@ Owner: primary Semantic Systems lead
 - The upstream case rule has no at-least-once floor. That floor applies to
   computation sequencing. Feature 0051 retains this distinction: direct case
   scrutinizes a value; a computed scrutinee passes through existing `let`.
+- Independent pre-implementation review found that the first freeze omitted the
+  scrutinee contribution to resumption use, the strict checked-observation
+  vocabulary members, the five versioned identity domains, and direct v2
+  bounds and machine-projection gates. The lead corrected the frozen contract
+  before accepting any implementation.
 
 ## Owned paths
 
@@ -70,7 +75,9 @@ The implementing lead must not modify:
 - Add only binary sum, typed injections, and value-scrutinee case.
 - Make absent-side injection types explicit; add no inference metavariables.
 - Add pointwise grade and usage join as a separate operation from sequential addition.
-- Join mutually exclusive branch ordinary and resumption uses; add sequential scrutinee and selected-branch demands as frozen.
+- Compute both usage dimensions as `q * scrutinee + join(left, right)`;
+  ordinary and resumption vectors obey the same sequential-versus-exclusive
+  distinction.
 - Join possible branch effects and require exact branch computation-type equality.
 - Keep checked-program, runtime-value, environment, and resumption custody private.
 - Extend every exhaustive switch, recursive clone/equality/type check, schema, decoder, projection, canonical encoder, identity payload, property generator, shrinker, report, and Node journey.
@@ -96,7 +103,7 @@ The implementing lead must not modify:
 ## Acceptance commands
 
 ```bash
-bun test tests/kernel-finite-sums.test.ts tests/kernel-calculus-checker.test.ts tests/kernel-calculus-machine.test.ts tests/kernel-json-format.test.ts tests/kernel-json-check-view.test.ts tests/normalized-core-format.test.ts tests/kernel-reference-interpreter.test.ts
+bun test tests/kernel-finite-sums.test.ts tests/kernel-calculus-checker.test.ts tests/kernel-calculus-machine.test.ts tests/kernel-calculus-oracle.test.ts tests/kernel-calculus-custody.test.ts tests/kernel-json-format.test.ts tests/kernel-json-check-view.test.ts tests/kernel-json-custody.test.ts tests/kernel-json-diagnostic-fact-custody.test.ts tests/kernel-json-observation-bounds.test.ts tests/normalized-core-format.test.ts tests/normalized-core-custody.test.ts tests/kernel-reference-interpreter.test.ts
 node --test tests/kernel-calculus-node.test.ts tests/kernel-json-node.test.ts tests/normalized-core-node.test.ts tests/kernel-reference-interpreter-node.test.ts
 bun run typecheck
 bun run lint
@@ -125,3 +132,9 @@ git diff --check
 - 2026-08-02: contract frozen at primary base
   `c6ce0615eab168ce7c8800b70270737709f6167d`. Implementation, acceptance,
   integration, and independent review remain pending.
+
+- 2026-08-02: independent contract review returned `CHANGES_REQUIRED` before
+  implementation acceptance. The freeze was corrected to bind the full
+  resumption formula, closed v2 rule/diagnostic vocabularies, exact bounds,
+  `/v2` identity domains, effect-carrying sum types, external resumption, and
+  machine snapshots. No implementation was accepted under the earlier text.

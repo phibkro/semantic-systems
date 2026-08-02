@@ -13,9 +13,14 @@ const nodeExecutable = process.env.SEMANTIC_NODE_BIN ?? "node";
 const v1SchemaDigest = "43760534c0c08a3ab9626f624cd1789c3803002d26f3bb73a6c048b57926eee8";
 
 const requiredArtifacts = [
+  "design-specs/0051-kernel-finite-sums.md",
+  "plans/0051-kernel-finite-sums.md",
+  "model/work/features/0051-kernel-finite-sums.json",
+  "model/work/work.json",
   "src/kernel-json/schema-data-v2.ts",
   "spec/kernel-json/kernel-json-v2.schema.json",
   "tests/kernel-finite-sums.test.ts",
+  "tests/kernel-json-observation-bounds.test.ts",
   "examples/kernel-json/sum-case.kernel.json",
   "examples/kernel-json/sum-case.accepted.kernel-check.json",
   "examples/kernel-json/sum-case.kernel-run.json.golden",
@@ -51,15 +56,21 @@ const program = Effect.gen(function* () {
   yield* preserveV1Schema;
 
   for (const command of [
+    ["bun", "test", "tests/kernel-finite-sums.test.ts"],
     [
       "bun",
       "test",
-      "tests/kernel-finite-sums.test.ts",
       "tests/kernel-calculus-checker.test.ts",
       "tests/kernel-calculus-machine.test.ts",
+      "tests/kernel-calculus-oracle.test.ts",
+      "tests/kernel-calculus-custody.test.ts",
       "tests/kernel-json-format.test.ts",
       "tests/kernel-json-check-view.test.ts",
+      "tests/kernel-json-custody.test.ts",
+      "tests/kernel-json-diagnostic-fact-custody.test.ts",
+      "tests/kernel-json-observation-bounds.test.ts",
       "tests/normalized-core-format.test.ts",
+      "tests/normalized-core-custody.test.ts",
       "tests/kernel-reference-interpreter.test.ts",
     ],
     [nodeExecutable, "--test", "tests/kernel-calculus-node.test.ts"],

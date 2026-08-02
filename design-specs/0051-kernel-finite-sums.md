@@ -135,18 +135,33 @@ Sigma ; Gamma |-c case(V, ML, MR) : C ; epsilonL union epsilonR
   ! q * uV + join(uL, uR)
 ```
 
-Resumption use across the mutually exclusive branches is also pointwise join,
-not addition. One affine resumption can therefore appear once in each branch;
-only one occurrence can run.
+Let `rV`, `rL`, and `rR` be the resumption-usage vectors of the scrutinee and
+the two branches. A case branch binds one ordinary value entry and no
+resumption binder, so all three vectors already have the resumption-context
+length and none is sliced. The case resumption usage is:
 
-Both branch payload judgment entries record the derived usage limit `q`. The
+```text
+q * rV + join(rL, rR)
+```
+
+The branch contribution is a pointwise join because the branches are mutually
+exclusive. The scaled scrutinee contribution is sequential with the selected
+branch and is therefore added. One affine resumption may appear once in each
+branch, but an affine resumption used by both the scrutinee and a selected
+branch must be rejected when the formula yields `omega`.
+
+Both branch payload judgment entries record the inferred derived usage limit
+`q`; it is not an authored limit and creates no additional acceptance check. The
 checker rejects unequal branch computation types before it returns the case
 judgment.
 
 There is no `atLeastOnce` floor in the case rule. The scrutinee is a pure value,
-not a computation. Existing `let` sequencing retains its floor, so a computed
-scrutinee still runs once. This rule does not prove grade-zero observational
-erasure or permit the machine to skip constructor inspection.
+not a computation. When both branch payload uses are zero, `q = 0` and neither
+ordinary nor resumption use captured only by the scrutinee is charged to the
+case result. A focused oracle must retain this zero-use outcome. Existing `let`
+sequencing retains its floor, so a computed scrutinee still runs once. This
+rule does not prove grade-zero observational erasure or permit the machine to
+skip constructor inspection.
 
 ### Components and orthogonal structures
 
@@ -172,13 +187,31 @@ are exactly `computation.case-left` and `computation.case-right`.
 
 ### Bounded autonomy and resources
 
-The existing decoder depth, node, string, collection, operation, clause, and row
-bounds remain numerically unchanged. Every new sum type, injection, annotation,
-case, and branch counts through the same recursive decoder rules.
-The version 2 checked-observation bounds must be re-derived for the largest
-sum type node, case judgment, two branch contexts, and new diagnostic facts.
-Retaining the version 1 arithmetic without that derivation is not acceptance
-evidence, even when the numeric public maxima happen to remain equal.
+The exact version 2 raw bounds remain:
+
+```text
+maximumBytes=1048576, maximumDepth=128, maximumNodes=524288,
+maximumStringBytes=4096, maximumCollectionLength=4096,
+maximumOperations=256, maximumOperationClauses=256,
+maximumEffectLabels=256
+```
+
+The exact version 2 checked-observation envelope bounds remain:
+
+```text
+maximumObservationBytes=33554432, maximumObservationNodes=4194304,
+maximumObservationCollectionLength=1048576, maximumObservationDepth=128,
+maximumObservationStringBytes=4096, maximumLabels=1048576,
+maximumTypeNodes=16384, maximumJudgments=16384,
+maximumContextEntries=256, maximumDiagnostics=1024
+```
+
+Every new sum type, injection, annotation, case, and branch counts through the
+same recursive decoder rules. The version 2 bound gate must re-derive the
+largest sum type node, the case judgment, both branch-context entries, and the
+new diagnostic facts against these named maxima. Retaining only the version 1
+arithmetic is not acceptance evidence, even though the numeric public maxima
+remain equal.
 
 The existing evaluation fuel and trace bounds remain. One case selection is one
 machine transition. Sum runtime values are finite recursive values. This feature
@@ -288,6 +321,12 @@ semantic.normalized-core:   version 2
 semantic.kernel-run:        version 2
 machine snapshot format:    kernel-machine-v2
 JSON Schema $id:            https://semantic.phibkro.org/spec/kernel-json/kernel-json-v2.schema.json
+normalized identity domains:
+  semantic.normalized-core/operation/v2
+  semantic.normalized-core/assumption/v2
+  semantic.normalized-core/source-unit/v2
+  semantic.normalized-core/semantic/v2
+  semantic.normalized-core/artifact/v2
 ```
 
 The active decoders reject every other version or kernel marker before deeper
@@ -321,6 +360,27 @@ type.case-branch-mismatch
   rule: computation.case
   path: <case>.rightBranch
 ```
+
+The closed checked-observation vocabularies add exactly these members:
+
+```text
+judgment rules:
+  value.inject-left
+  value.inject-right
+  computation.case
+
+diagnostic codes:
+  type.expected-sum
+  type.case-branch-mismatch
+
+diagnostic rules:
+  computation.case
+```
+
+The strict version 2 checked-observation decoder must accept the checker's own
+accepted sum judgments and both authored rejection facts. It must reject every
+other vocabulary member. The checked type table must preserve effect labels
+inside sum children, including thunk and function children with non-empty rows.
 
 Existing decoder diagnostics cover missing/excess properties, unknown tags,
 bounds, invalid markers, and malformed absent-side type annotations. The JSON
@@ -357,32 +417,60 @@ Retain executable rejection or runtime observations for:
 6. joining sequential uses and falsely accepting affine duplication;
 7. duplicating one branch payload without propagating `omega` to the scrutinee use;
 8. adding the same resumption occurrence across exclusive branches;
-9. evaluating the unselected branch or reporting its operation;
-10. swapping left and right payload types;
-11. losing a branch binder through de Bruijn index handling;
-12. changing a sum child without changing canonical bytes and normalized identity;
-13. accepting version 1 through the active decoder;
-14. changing the historical v1 schema bytes;
-15. Bun and Node producing different version 2 observations; and
-16. a property generator omitting any new constructor.
+9. omitting `q * rV` and falsely accepting one affine resumption used by the
+   scrutinee and a selected branch;
+10. applying a non-zero floor when `q = 0` and both branch payloads are ignored;
+11. evaluating the unselected branch or reporting its operation;
+12. swapping left and right payload types;
+13. losing a branch binder through de Bruijn index handling;
+14. rejecting the checker's own sum judgment or diagnostic vocabulary during
+    strict checked-observation decoding;
+15. dropping a non-empty effect row from a sum child in the checked type table;
+16. losing a sum value through external resumption or machine snapshot projection;
+17. changing a sum child without changing canonical bytes and normalized identity;
+18. accepting version 1 through the active decoder;
+19. changing the historical v1 schema bytes;
+20. Bun and Node producing different version 2 observations; and
+21. a property generator omitting any new constructor.
 
 ## Acceptance
 
 `bun scripts/accept/0051-kernel-finite-sums.ts` must establish:
 
-1. the exact frozen contract, managed feature record, implementation, v2 schema, and sum-case tracer artifacts exist;
-2. the historical v1 schema has the recorded SHA-256 and the active embedded v2 schema equals its checked-in artifact;
-3. direct checker tests cover both introductions, both branches, branch type mismatch, usage join, payload duplication, resumption join, and exact derivation premises;
-4. machine tests cover both branch transitions, de Bruijn payload custody, unselected-branch non-evaluation, runtime sum typing, and bounded traces;
-5. normalized-core v2 covers every sum/type/term child in canonical identity and source correspondence without changing v1 files in place;
-6. strict JSON v2 decode, checked view, type table, binder origins, canonical encoding, and bounds cover every new variant;
-7. the smallest version 2 tracer returns the right-injected integer through case and has checked and run goldens;
-8. the reference interpreter's seeded generators cover every v2 type and term constructor, use consuming contexts for sums, shrink, replay, and reject inconclusive agreement;
-9. active decoders reject v1 markers and all current examples use v2 markers;
-10. Bun and genuine Node produce byte-identical canonical checked, normalized, and run observations;
-11. exact acceptance for 0018, 0019, 0020, and 0022 remains green under the v2 cutover;
-12. project-model validation and generated-view drift checks pass; and
-13. focused type, lint, formatting, and full integration gates pass.
+1. the frozen design spec, active plan, managed feature record, lifecycle
+   record, implementation, v2 schema, and sum-case tracer artifacts exist;
+2. the historical v1 schema has the recorded SHA-256 and the active embedded v2
+   schema equals its checked-in artifact;
+3. the strict v2 decoder accepts exactly the three new judgment rules, two
+   diagnostic codes, and `computation.case` diagnostic rule frozen above;
+4. direct checker tests cover both introductions, both branches, branch type
+   mismatch, pointwise usage join, zero payload use, payload duplication, the
+   full `q * rV + join(rL, rR)` resumption formula, its affine shared-resumption
+   rejection, and exact derivation premises;
+5. checked observations retain non-empty effect rows in sum child thunk and
+   function types and strict re-decoding preserves their label table;
+6. machine tests cover both branch transitions, de Bruijn payload custody,
+   unselected-branch non-evaluation, runtime sum typing, an external resumption
+   that returns a sum, sum-valued machine snapshots, and bounded traces;
+7. normalized-core v2 covers every sum/type/term child in canonical identity
+   and source correspondence, uses exactly the five `/v2` domain separators
+   frozen above, and changes no v1 artifact in place;
+8. strict JSON v2 decode, checked view, type table, binder origins, canonical
+   encoding, and the exact re-derived v2 bounds cover every new variant;
+9. the smallest version 2 tracer returns the right-injected integer through case
+   and has checked, normalized, and run goldens;
+10. the reference interpreter's seeded generators cover every v2 type and term
+    constructor, use consuming contexts for sums, shrink, replay, and reject
+    inconclusive agreement;
+11. active decoders reject v1 markers and all current examples use v2 markers;
+12. Bun and genuine Node produce byte-identical canonical checked, normalized,
+    and run observations;
+13. exact acceptance for 0018, 0019, 0020, and 0022 remains green and directly
+    asserts the active v2 marker at each migrated boundary;
+14. the version 2 bounds test derives the widest sum node and both branch
+    context entries against the exact maxima frozen above;
+15. project-model validation and generated-view drift checks pass; and
+16. focused type, lint, formatting, and full integration gates pass.
 
 ## Kill or redesign criteria
 
