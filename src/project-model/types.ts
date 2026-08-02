@@ -4,6 +4,8 @@ export type JsonValue =
   | ReadonlyArray<JsonValue>
   | { readonly [key: string]: JsonValue };
 export type Attributes = Readonly<Record<string, JsonValue>>;
+export const compareText = (left: string, right: string): number =>
+  left < right ? -1 : left > right ? 1 : 0;
 
 export const ENTITY_KIND_VALUES = [
   "agent",

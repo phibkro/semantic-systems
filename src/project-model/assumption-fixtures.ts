@@ -85,6 +85,23 @@ export const duplicatePathAssumptionFixture = (): ProjectGraph => {
   );
 };
 
+/** Equal-distance fixture: the lexically smaller hop must win the witnessed path. */
+export const equalDistancePathAssumptionFixture = (): ProjectGraph => {
+  const start = entity("artifact.rx2.tie.start", "artifact", "RX2 tie start");
+  const hopA = entity("artifact.rx2.tie.hop-a", "artifact", "RX2 tie hop a");
+  const hopB = entity("artifact.rx2.tie.hop-b", "artifact", "RX2 tie hop b");
+  const target = entity("assumption.rx2.tie", "assumption", "RX2 tie assumption");
+  return graph(
+    [start, hopA, hopB, target],
+    [
+      relation(start.id, hopB.id, "derives"),
+      relation(hopB.id, target.id, "assumes"),
+      relation(start.id, hopA.id, "derives"),
+      relation(hopA.id, target.id, "assumes"),
+    ],
+  );
+};
+
 /** Cycle fixture: a derivation cycle terminates while retaining the shortest exit witness. */
 export const cyclicAssumptionFixture = (): ProjectGraph => {
   const start = entity("artifact.rx2.cycle.start", "artifact", "RX2 cycle start");
@@ -152,7 +169,13 @@ export const negativeOpaqueAdapterFixture = (): ProjectGraph => {
     "current",
     { primitive_class: "runtime_adapter" },
   );
-  return graph([start, adapter], []);
+  const unreachableStub = entity(
+    "assumption.rx2.negative-unreachable-stub",
+    "assumption",
+    "RX2 unreachable stub assumption",
+    "stub",
+  );
+  return graph([start, adapter, unreachableStub], []);
 };
 
 export const fixtureOpaqueRegistry = (): OpaquePrimitiveRegistry =>

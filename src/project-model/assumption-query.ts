@@ -1,4 +1,5 @@
 import { Data, Result } from "effect";
+import { compareText } from "./types.ts";
 import type { Entity, ProjectGraph, Relation, RelationKind } from "./types.ts";
 
 export const OPAQUE_PRIMITIVE_REGISTER_ID =
@@ -102,14 +103,6 @@ export interface OpaquePrimitiveRegistry {
   readonly negativeFixture: string | null;
 }
 
-const compareCodeUnits = (left: string, right: string): number => {
-  const length = Math.min(left.length, right.length);
-  for (let index = 0; index < length; index += 1) {
-    const difference = left.charCodeAt(index) - right.charCodeAt(index);
-    if (difference !== 0) return difference;
-  }
-  return left.length - right.length;
-};
 
 const asRecord = (value: unknown): Readonly<Record<string, unknown>> | undefined =>
   value !== null && typeof value === "object" && !Array.isArray(value)
@@ -171,9 +164,9 @@ export const decodeOpaquePrimitiveRegistry = (project: ProjectGraph): OpaquePrim
     sourceArtifactId: register.id,
     primitives: primitives.sort(
       (left, right) =>
-        compareCodeUnits(left.id, right.id) || compareCodeUnits(left.class, right.class),
+        compareText(left.id, right.id) || compareText(left.class, right.class),
     ),
-    manuallyAssertedRelationClasses: manuallyAssertedRelationClasses.sort(compareCodeUnits),
+    manuallyAssertedRelationClasses: manuallyAssertedRelationClasses.sort(compareText),
     negativeFixture,
   });
 };
@@ -237,11 +230,11 @@ interface PathState {
 
 const pathStateOrder = (left: PathState, right: PathState): number =>
   left.distance - right.distance ||
-  compareCodeUnits(left.orderKey, right.orderKey) ||
-  compareCodeUnits(left.nodeId, right.nodeId);
+  compareText(left.orderKey, right.orderKey) ||
+  compareText(left.nodeId, right.nodeId);
 
 const neighborOrder = (left: TraversalNeighbor, right: TraversalNeighbor): number =>
-  compareCodeUnits(left.orderKey, right.orderKey) || compareCodeUnits(left.nextId, right.nextId);
+  compareText(left.orderKey, right.orderKey) || compareText(left.nextId, right.nextId);
 
 const pathFor = (state: PathState): AssumptionPath => {
   const states: Array<PathState> = [];
@@ -323,7 +316,7 @@ export const assumptions = (
         previous !== undefined &&
         (previous.distance < candidate.distance ||
           (previous.distance === candidate.distance &&
-            compareCodeUnits(previous.orderKey, candidate.orderKey) <= 0))
+            compareText(previous.orderKey, candidate.orderKey) <= 0))
       ) {
         continue;
       }
@@ -338,36 +331,43 @@ export const assumptions = (
   for (const [entityId, state] of best) {
     const entity = project.entities.get(entityId);
     if (entity === undefined) continue;
+    const markerKinds = markerFor(entity);
+    const isAssumption = entity.kind === "assumption";
+    const isOpaque = primitiveIds.has(entityId);
+    if (!isAssumption && markerKinds.length === 0 && !isOpaque) continue;
     const path = pathFor(state);
-    if (entity.kind === "assumption") {
+    if (isAssumption) {
       findings.push(Object.freeze({ entity: entityIdentity(entity), path }));
     }
-    for (const markerKind of markerFor(entity)) {
+    for (const markerKind of markerKinds) {
       markers.push(Object.freeze({ kind: markerKind, entityId, path }));
     }
-    if (primitiveIds.has(entityId)) {
+    if (isOpaque) {
       markers.push(Object.freeze({ kind: "known_opaque", entityId, path }));
     }
   }
 
   findings.sort(
     (left, right) =>
-      compareCodeUnits(left.entity.id, right.entity.id) ||
-      compareCodeUnits(left.path.entityIds.join("\u0000"), right.path.entityIds.join("\u0000")),
+      compareText(left.entity.id, right.entity.id) ||
+      compareText(left.path.entityIds.join("\u0000"), right.path.entityIds.join("\u0000")),
   );
   markers.sort(
     (left, right) =>
-      compareCodeUnits(left.entityId, right.entityId) ||
-      compareCodeUnits(left.kind, right.kind) ||
-      compareCodeUnits(left.path.entityIds.join("\u0000"), right.path.entityIds.join("\u0000")),
+      compareText(left.entityId, right.entityId) ||
+      compareText(left.kind, right.kind) ||
+      compareText(left.path.entityIds.join("\u0000"), right.path.entityIds.join("\u0000")),
   );
 
   const scope: AssumptionReportScope = Object.freeze({
     meaning: ASSUMPTION_REPORT_SCOPE,
-    opaqueRegistry: opaqueRegistry === undefined ? "not_supplied" : "supplied",
+    opaqueRegistry:
+      opaqueRegistry === undefined || opaqueRegistry.sourceArtifactId === null
+        ? "not_supplied"
+        : "supplied",
     opaqueRegisterId: opaqueRegistry?.sourceArtifactId ?? null,
     opaqueRelationClasses: Object.freeze(
-      [...(opaqueRegistry?.manuallyAssertedRelationClasses ?? [])].sort(compareCodeUnits),
+      [...(opaqueRegistry?.manuallyAssertedRelationClasses ?? [])].sort(compareText),
     ),
     traversalRelationKinds: Object.freeze(ASSUMPTION_TRAVERSAL_TABLE.map((edge) => edge.kind)),
   });

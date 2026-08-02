@@ -9,6 +9,7 @@ import {
 import {
   cyclicAssumptionFixture,
   duplicatePathAssumptionFixture,
+  equalDistancePathAssumptionFixture,
   fixtureOpaqueRegistry,
   incompleteAssumptionFixture,
   knownOpaqueAssumptionFixture,
@@ -115,6 +116,18 @@ describe("project-model assumptions query", () => {
     expect(report.assumptions[0]?.path.relations).toHaveLength(1);
   });
 
+  test("chooses the lexically smallest witness among equal-distance paths", () => {
+    const report = assumptionReport(
+      equalDistancePathAssumptionFixture(),
+      "artifact.rx2.tie.start",
+    );
+    expect(report.assumptions[0]?.path.entityIds).toEqual([
+      "artifact.rx2.tie.start",
+      "artifact.rx2.tie.hop-a",
+      "assumption.rx2.tie",
+    ]);
+  });
+
   test("terminates on cycles and retains the shortest witnessed exit", () => {
     const report = assumptionReport(cyclicAssumptionFixture(), "artifact.rx2.cycle.start");
     expect(report.assumptions.map((item) => item.entity.id)).toEqual(["assumption.rx2.cycle"]);
@@ -164,16 +177,10 @@ describe("project-model assumptions query", () => {
 
   test("keeps the disconnected opaque adapter as a stable clean-but-wrong report", () => {
     const registry = fixtureOpaqueRegistry();
-    const first = assumptionReport(
-      negativeOpaqueAdapterFixture(),
-      "artifact.rx2.negative.start",
-      registry,
-    );
-    const second = assumptionReport(
-      negativeOpaqueAdapterFixture(),
-      "artifact.rx2.negative.start",
-      registry,
-    );
+    const negative = negativeOpaqueAdapterFixture();
+    expect(negative.entities.has("assumption.rx2.negative-unreachable-stub")).toBeTrue();
+    const first = assumptionReport(negative, "artifact.rx2.negative.start", registry);
+    const second = assumptionReport(negative, "artifact.rx2.negative.start", registry);
     expect(first).toEqual(second);
     expect(first.assumptions).toEqual([]);
     expect(first.markers).toEqual([]);
@@ -193,5 +200,16 @@ describe("project-model assumptions query", () => {
     ]);
     expect(registry.manuallyAssertedRelationClasses).toEqual(["assumes", "discharges", "supports"]);
     expect(registry.negativeFixture).toContain("negativeOpaqueAdapterFixture");
+  });
+
+  test("treats a decoded missing register as not supplied", () => {
+    const registry = decodeOpaquePrimitiveRegistry({
+      entities: new Map(),
+      relations: [],
+      root: "fixture",
+    });
+    expect(registry.sourceArtifactId).toBeNull();
+    const report = assumptionReport(positiveAssumptionFixture(), "artifact.rx2.positive.start", registry);
+    expect(report.scope.opaqueRegistry).toBe("not_supplied");
   });
 });

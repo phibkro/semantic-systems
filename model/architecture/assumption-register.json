@@ -62,7 +62,167 @@
         "manually_asserted_relation_classes": ["assumes", "supports", "discharges"],
         "negative_fixture": "src/project-model/assumption-fixtures.ts#negativeOpaqueAdapterFixture"
       }
+    },
+    {
+      "id": "runtime.adapter.bun",
+      "kind": "runtime",
+      "name": "Bun project-model runtime adapter",
+      "summary": "Effect platform layer used by the Bun project-model entrypoint.",
+      "status": "current",
+      "tags": ["opaque-primitive", "runtime-adapter"],
+      "attributes": {
+        "opaque_primitive_class": "runtime_adapter",
+        "implementation": "src/project-model/main-bun.ts"
+      }
+    },
+    {
+      "id": "runtime.adapter.node",
+      "kind": "runtime",
+      "name": "Node project-model runtime adapter",
+      "summary": "Effect platform layer used by the genuine Node project-model entrypoint.",
+      "status": "current",
+      "tags": ["opaque-primitive", "runtime-adapter"],
+      "attributes": {
+        "opaque_primitive_class": "runtime_adapter",
+        "implementation": "src/project-model/main-node.ts"
+      }
+    },
+    {
+      "id": "tool.bun",
+      "kind": "component",
+      "name": "Bun runtime tool",
+      "summary": "Pinned Bun executable used for project-model and experiment execution.",
+      "status": "current",
+      "tags": ["opaque-primitive", "external-tool"],
+      "attributes": {
+        "opaque_primitive_class": "external_tool",
+        "implementation": "package.json"
+      }
+    },
+    {
+      "id": "tool.node",
+      "kind": "component",
+      "name": "Node runtime tool",
+      "summary": "Genuine Node executable used for cross-runtime project-model execution.",
+      "status": "current",
+      "tags": ["opaque-primitive", "external-tool"],
+      "attributes": {
+        "opaque_primitive_class": "external_tool",
+        "implementation": "package.json"
+      }
+    },
+    {
+      "id": "tool.typescript",
+      "kind": "component",
+      "name": "TypeScript compiler tool",
+      "summary": "Pinned TypeScript 7 compiler used by the project toolchain.",
+      "status": "current",
+      "tags": ["opaque-primitive", "external-tool"],
+      "attributes": {
+        "opaque_primitive_class": "external_tool",
+        "implementation": "package.json"
+      }
+    },
+    {
+      "id": "tool.effect-v4",
+      "kind": "component",
+      "name": "Effect v4 runtime library",
+      "summary": "Pinned Effect v4 library used by the project-model boundary.",
+      "status": "current",
+      "tags": ["opaque-primitive", "external-tool"],
+      "attributes": {
+        "opaque_primitive_class": "external_tool",
+        "implementation": "package.json"
+      }
+    },
+    {
+      "id": "tool.oxfmt",
+      "kind": "component",
+      "name": "Oxfmt formatter",
+      "summary": "Pinned formatter used by the repository gates.",
+      "status": "current",
+      "tags": ["opaque-primitive", "external-tool"],
+      "attributes": {
+        "opaque_primitive_class": "external_tool",
+        "implementation": "package.json"
+      }
+    },
+    {
+      "id": "tool.oxlint",
+      "kind": "component",
+      "name": "Oxlint linter",
+      "summary": "Pinned linter used by the repository gates.",
+      "status": "current",
+      "tags": ["opaque-primitive", "external-tool"],
+      "attributes": {
+        "opaque_primitive_class": "external_tool",
+        "implementation": "package.json"
+      }
     }
   ],
-  "relations": []
+  "relations": [
+    {
+      "source": "artifact.project-model.opaque-primitive-register",
+      "target": "runtime.adapter.bun",
+      "kind": "requires",
+      "summary": "Register tracks the Bun runtime boundary.",
+      "attributes": {}
+    },
+    {
+      "source": "artifact.project-model.opaque-primitive-register",
+      "target": "runtime.adapter.node",
+      "kind": "requires",
+      "summary": "Register tracks the genuine Node runtime boundary.",
+      "attributes": {}
+    },
+    {
+      "source": "artifact.project-model.opaque-primitive-register",
+      "target": "component.project-model",
+      "kind": "requires",
+      "summary": "Register tracks the project-model generator.",
+      "attributes": {}
+    },
+    {
+      "source": "artifact.project-model.opaque-primitive-register",
+      "target": "tool.bun",
+      "kind": "requires",
+      "summary": "Register tracks the Bun executable.",
+      "attributes": {}
+    },
+    {
+      "source": "artifact.project-model.opaque-primitive-register",
+      "target": "tool.node",
+      "kind": "requires",
+      "summary": "Register tracks the Node executable.",
+      "attributes": {}
+    },
+    {
+      "source": "artifact.project-model.opaque-primitive-register",
+      "target": "tool.typescript",
+      "kind": "requires",
+      "summary": "Register tracks the TypeScript compiler.",
+      "attributes": {}
+    },
+    {
+      "source": "artifact.project-model.opaque-primitive-register",
+      "target": "tool.effect-v4",
+      "kind": "requires",
+      "summary": "Register tracks the Effect v4 runtime library.",
+      "attributes": {}
+    },
+    {
+      "source": "artifact.project-model.opaque-primitive-register",
+      "target": "tool.oxfmt",
+      "kind": "requires",
+      "summary": "Register tracks the formatter boundary.",
+      "attributes": {}
+    },
+    {
+      "source": "artifact.project-model.opaque-primitive-register",
+      "target": "tool.oxlint",
+      "kind": "requires",
+      "summary": "Register tracks the linter boundary.",
+      "attributes": {}
+    }
+  ]
 }

@@ -63,6 +63,7 @@ scripts/experiments/0002-generator-determinism.ts` ran six fresh runtime
 - Runnable Bun command: `nix develop --command bun scripts/experiments/0002-assumption-query.ts`.
 - Runnable Node command: `nix develop --command node scripts/experiments/0002-assumption-query.ts`.
 - Fixture linkage: the canonical register is `model/architecture/assumption-register.json`; positive and permanent negative fixtures are `src/project-model/assumption-fixtures.ts#positiveAssumptionFixture` and `src/project-model/assumption-fixtures.ts#negativeOpaqueAdapterFixture`.
+- Each invocation emits its runtime identity and selected Effect platform layer plus a real-graph register probe; compare semantic fixture reports across the Bun and genuine Node observations.
 
 ### RX3 — ambient-effect inventory and capability wall (from cached E2)
 

@@ -5,15 +5,20 @@ import {
   PROJECT_DOCUMENT_SCHEMA_PATH,
   projectDocumentJsonSchemaText,
 } from "./project-json-schema.ts";
-import { byKind, incoming, type Entity, type ProjectGraph, type Relation } from "./types.ts";
+import {
+  byKind,
+  compareText,
+  incoming,
+  type Entity,
+  type ProjectGraph,
+  type Relation,
+} from "./types.ts";
 
 export class ViewWriteError extends Data.TaggedError("ViewWriteError")<{
   readonly message: string;
   readonly cause?: unknown;
 }> {}
 
-const compareText = (left: string, right: string): number =>
-  left < right ? -1 : left > right ? 1 : 0;
 const identifier = (value: string): string => value.replace(/[^A-Za-z0-9]/g, "_");
 const node = (entity: Entity): string => `${identifier(entity.id)}["${entity.name}"]`;
 const edge = (relation: Relation): string =>
