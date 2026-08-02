@@ -73,7 +73,7 @@ describe("project model Effect v4 slice", () => {
     expect(ready.has("work.agent-facing-kernel-json")).toBeFalse();
     expect(ready.has("work.kernel-reference-interpreter")).toBeFalse();
     expect(ready.has("work.lean-evidence-adapter")).toBeTrue();
-    expect(ready.has("work.stm-runtime")).toBeFalse();
+    expect(ready.has("work.stm-runtime")).toBeTrue();
     const path = criticalPath(project);
     expect(path.length).toBeGreaterThan(0);
     expect(["work.stm-model-check", "work.inventory-stm"]).toContain(path[path.length - 1]!);
