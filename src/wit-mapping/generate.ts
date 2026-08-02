@@ -236,7 +236,7 @@ const collectTypeRows = (
     for (const entry of declaration.cases)
       rows.push(mapRow(`${base}/case/${entry.name}`, entry.semantic_path, "shape"));
   } else if (declaration.kind === "resource") {
-    if (declaration.constructor !== null)
+    if (declaration.constructor !== null) {
       rows.push(
         mapRow(
           `${base}/constructor`,
@@ -245,6 +245,15 @@ const collectTypeRows = (
           "constructor transfers an owned handle",
         ),
       );
+      for (const parameter of declaration.constructor.params)
+        collectTypeUseRows(
+          `${base}/constructor`,
+          declaration.constructor.semantic_path,
+          parameter,
+          rows,
+          resourceNames,
+        );
+    }
     for (const operation of declaration.methods)
       collectOperationRows(`${base}/method/${operation.name}`, operation, rows, resourceNames);
     for (const operation of declaration.statics)
@@ -441,6 +450,7 @@ const collectManifest = (
   const imported = new Set(input.world.imports);
   const exported = new Set(input.world.exports);
   const operationEffectPaths = new Map<string, string>();
+  const operationEffectLabels = new Set<string>();
   const sortedInterfaces = [...input.interfaces].sort(compareByName);
   for (const interfaceValue of sortedInterfaces) {
     const resourceNames = new Set(
@@ -475,35 +485,41 @@ const collectManifest = (
         rows,
         resourceNames,
       );
-      for (const label of operation.effect_labels)
+      for (const label of operation.effect_labels) {
+        operationEffectLabels.add(label);
         if (imported.has(interfaceValue.name) && !operationEffectPaths.has(label))
           operationEffectPaths.set(
             label,
             `world/${input.world.name}/import/${interfaceValue.name}`,
           );
+      }
     }
     for (const declaration of interfaceValue.types)
       if (declaration.kind === "resource") {
         for (const operation of [...declaration.methods, ...declaration.statics])
-          for (const label of operation.effect_labels)
+          for (const label of operation.effect_labels) {
+            operationEffectLabels.add(label);
             if (imported.has(interfaceValue.name) && !operationEffectPaths.has(label))
               operationEffectPaths.set(
                 label,
                 `world/${input.world.name}/import/${interfaceValue.name}`,
               );
+          }
         if (declaration.constructor !== null)
-          for (const label of declaration.constructor.effect_labels)
+          for (const label of declaration.constructor.effect_labels) {
+            operationEffectLabels.add(label);
             if (imported.has(interfaceValue.name) && !operationEffectPaths.has(label))
               operationEffectPaths.set(
                 label,
                 `world/${input.world.name}/import/${interfaceValue.name}`,
               );
+          }
       }
   }
   const laws = uniqueDeclarations(input.theory.laws);
   const effects = uniqueDeclarations([
     ...input.theory.effect_labels,
-    ...[...operationEffectPaths.keys()].map((id) => ({ id, statement: id })),
+    ...[...operationEffectLabels].map((id) => ({ id, statement: id })),
   ]);
   const resourceGrades: TheoryDeclaration[] = [];
   const resourceAssumptions: TheoryDeclaration[] = [];

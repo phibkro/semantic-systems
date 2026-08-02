@@ -536,11 +536,7 @@ const parseParams = (
   depth: number,
   bounds: WitMappingBounds,
 ): ReadonlyArray<WitParameter> => {
-  const direct = optionalProperty(value, "params");
-  const alternate = optionalProperty(value, "parameters");
-  if (direct !== undefined && alternate !== undefined)
-    fail("input.duplicate-property", path, "use either 'params' or 'parameters', not both");
-  const entries = requireArray(direct ?? alternate ?? [], `${path}/params`);
+  const entries = requireArray(optionalProperty(value, "params") ?? [], `${path}/params`);
   if (entries.length > bounds.maximum_fields_or_cases)
     fail("bounds.collection-too-large", `${path}/params`, "parameter collection is too large");
   const result = entries.map((entry, index) =>
@@ -571,16 +567,7 @@ const parseOperation = (
   const value = requireRecord(input, path);
   hasOnly(
     value,
-    new Set([
-      "name",
-      "semantic_path",
-      "async",
-      "params",
-      "parameters",
-      "result",
-      "returns",
-      "effect_labels",
-    ]),
+    new Set(["name", "semantic_path", "async", "params", "result", "effect_labels"]),
     path,
   );
   const name = requireIdentifier(
@@ -594,11 +581,9 @@ const parseOperation = (
       `${path}/semantic_path`,
       bounds.maximum_string_length,
     ) ?? `${semanticParent}/${name}`;
-  const resultInput = optionalProperty(value, "result");
-  const returnsInput = optionalProperty(value, "returns");
-  if (resultInput !== undefined && returnsInput !== undefined)
-    fail("input.duplicate-property", path, "use either 'result' or 'returns', not both");
-  const resultValue = resultInput ?? returnsInput;
+  if (semantic_path.length === 0)
+    fail("semantic-path.empty", `${path}/semantic_path`, "semantic path must be non-empty");
+  const resultValue = optionalProperty(value, "result");
   const result =
     resultValue === undefined || resultValue === null || resultValue === "_"
       ? null
@@ -626,13 +611,15 @@ const parseConstructor = (
   bounds: WitMappingBounds,
 ): WitConstructor => {
   const value = requireRecord(input, path);
-  hasOnly(value, new Set(["semantic_path", "params", "parameters", "effect_labels"]), path);
+  hasOnly(value, new Set(["semantic_path", "params", "effect_labels"]), path);
   const semantic_path =
     optionalString(
       optionalProperty(value, "semantic_path"),
       `${path}/semantic_path`,
       bounds.maximum_string_length,
     ) ?? `${semanticParent}/constructor`;
+  if (semantic_path.length === 0)
+    fail("semantic-path.empty", `${path}/semantic_path`, "semantic path must be non-empty");
   return Object.freeze({
     semantic_path,
     params: parseParams(value, path, semantic_path, depth + 1, bounds),
@@ -681,6 +668,12 @@ const parseCases = (
         `${path}/${index}/semantic_path`,
         bounds.maximum_string_length,
       ) ?? `${semanticParent}/${name}`;
+    if (semantic_path.length === 0)
+      fail(
+        "semantic-path.empty",
+        `${path}/${index}/semantic_path`,
+        "semantic path must be non-empty",
+      );
     const typeValue = optionalProperty(value, "type");
     const type =
       withPayload && typeValue !== undefined && typeValue !== null
@@ -722,6 +715,8 @@ const parseTypeDeclaration = (
       `${path}/semantic_path`,
       bounds.maximum_string_length,
     ) ?? `${semanticParent}/${name}`;
+  if (semantic_path.length === 0)
+    fail("semantic-path.empty", `${path}/semantic_path`, "semantic path must be non-empty");
   switch (kind) {
     case "record": {
       hasOnly(value, new Set(["kind", "name", "semantic_path", "fields"]), path);

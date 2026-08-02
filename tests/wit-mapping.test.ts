@@ -79,6 +79,38 @@ describe("semantic.wit-mapping/v1", () => {
       ),
     ).toBe(true);
   });
+  test("maps nested resource constructor handles with constructor provenance", async () => {
+    const input = structuredClone(fixture) as JsonRecord;
+    const resource = inventoryDeclaration(input, "resource");
+    const constructor = resource["constructor"] as JsonRecord;
+    const parameter = (constructor.params as JsonRecord[])[0]!;
+    parameter.type = "tuple<borrow<reservation>, reservation>";
+    const decoded = decodePortableBoundary(input);
+    expect(decoded.status).toBe("decoded");
+    if (decoded.status === "rejected") throw new Error(JSON.stringify(decoded.diagnostics));
+    const artifact = await generate(decoded.value);
+    const ownership = artifact.manifest.mappings.filter(
+      (row) =>
+        row.projection === "ownership_boundary" &&
+        row.wit_path.startsWith("interface/inventory/type/reservation/constructor/"),
+    );
+    expect(
+      ownership.some(
+        (row) =>
+          row.wit_path.endsWith("/param/request/0") &&
+          row.semantic_path === "theory.inventory/resource/reservation/constructor/request/0" &&
+          row.detail === "borrow<reservation> temporary handle",
+      ),
+    ).toBe(true);
+    expect(
+      ownership.some(
+        (row) =>
+          row.wit_path.endsWith("/param/request/1") &&
+          row.semantic_path === "theory.inventory/resource/reservation/constructor/request/1" &&
+          row.detail === "reservation owned handle",
+      ),
+    ).toBe(true);
+  });
 
   test("exhaustively records laws, effects, grades, assumptions, evidence, and claims", async () => {
     const artifact = await generate(decodeFixture());
@@ -113,6 +145,45 @@ describe("semantic.wit-mapping/v1", () => {
     expect(artifact.manifest.unsupported_claims.join("\n")).toContain(
       "Companion laws and evidence are declarations",
     );
+  });
+  test("collects exported operation effects without theory effect declarations", async () => {
+    const input = structuredClone(fixture) as JsonRecord;
+    delete (input.theory as JsonRecord).effect_labels;
+    const decoded = decodePortableBoundary(input);
+    expect(decoded.status).toBe("decoded");
+    if (decoded.status === "rejected") throw new Error(JSON.stringify(decoded.diagnostics));
+    const artifact = await generate(decoded.value);
+    expect(
+      artifact.manifest.semantic_dimensions.some(
+        (row) => row.kind === "effect_label" && row.id === "effect.clock",
+      ),
+    ).toBe(true);
+    expect(
+      artifact.manifest.mappings.some((row) => row.wit_path.endsWith("/effect/effect.clock")),
+    ).toBe(false);
+  });
+  test("rejects empty semantic paths for operations, declarations, constructors, and cases", () => {
+    const mutations: ReadonlyArray<(input: JsonRecord) => void> = [
+      (input) => {
+        inventoryFunction(input, "reserve").semantic_path = "";
+      },
+      (input) => {
+        inventoryDeclaration(input, "type").semantic_path = "";
+      },
+      (input) => {
+        const resource = inventoryDeclaration(input, "resource");
+        (resource["constructor"] as JsonRecord).semantic_path = "";
+      },
+      (input) => {
+        const variant = inventoryDeclaration(input, "variant");
+        (variant.cases as JsonRecord[])[0]!.semantic_path = "";
+      },
+    ];
+    for (const mutate of mutations) {
+      const input = structuredClone(fixture) as JsonRecord;
+      mutate(input);
+      expect(diagnosticCode(input)).toBe("semantic-path.empty");
+    }
   });
 
   test("changing only a companion law changes manifest identity but not WIT identity", async () => {
@@ -292,6 +363,16 @@ describe("semantic.wit-mapping/v1", () => {
       (input) => {
         inventoryFunction(input, "reserve").kind = "static";
       },
+      (input) => {
+        inventoryFunction(input, "reserve").parameters = [];
+      },
+      (input) => {
+        inventoryFunction(input, "reserve").returns = "reservation";
+      },
+      (input) => {
+        const resource = inventoryDeclaration(input, "resource");
+        (resource["constructor"] as JsonRecord).parameters = [];
+      },
     ];
     for (const mutate of aliasMutations) {
       const input = structuredClone(fixture) as JsonRecord;
@@ -342,5 +423,15 @@ describe("semantic.wit-mapping/v1", () => {
     if (bounded.status === "rejected")
       expect(bounded.diagnostics[0]!.code).toBe("bounds.collection-too-large");
     expect(defaultWitMappingBounds.maximum_depth).toBe(32);
+  });
+  test("rejects recursive and unbounded integer types with typed diagnostics", () => {
+    const recursive = structuredClone(fixture) as JsonRecord;
+    inventoryDeclaration(recursive, "type").type = "reservation-id";
+    expect(diagnosticCode(recursive)).toBe("type.unrestricted-recursive");
+
+    const unbounded = structuredClone(fixture) as JsonRecord;
+    const reserve = inventoryFunction(unbounded, "reserve");
+    (reserve.params as JsonRecord[])[0]!.type = "number";
+    expect(diagnosticCode(unbounded)).toBe("type.unsupported");
   });
 });
