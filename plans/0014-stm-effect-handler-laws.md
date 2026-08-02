@@ -28,7 +28,7 @@ Owner: main research and integration agent
 ## Owned paths
 
 - `design-specs/0014-stm-effect-handler-laws.md`
-- `plans/active/0014-stm-effect-handler-laws.md`
+- `plans/0014-stm-effect-handler-laws.md`
 - `scripts/accept/0014-stm-effect-handler-laws.ts`
 - `src/stm/**`
 - `tests/stm-laws.test.ts`
@@ -254,3 +254,43 @@ decision.stm-library`; generated readiness must derive from that source edge.
   conformance, and every repository gate green.
 - 2026-08-02: Historical leading status migrated verbatim from the pre-migration plan:
   Status: third independent-review correction implemented; exact-head acceptance and full integration green; re-review pending
+- 2026-08-02: fourth independent review rejected the prior implementation at
+  `bb7a701`. The review found four defects. The right `orElse` path lost the
+  left branch reads that selected the fallback. The report reused an exhausted
+  CE07 suspension. One scenario passed an expression to the data-only
+  `sequence` result. Attempts could also settle against an unrelated authentic
+  store.
+- 2026-08-02: the fourth correction retains actual store observations from the
+  left branch that selects the fallback. It discards validation from blind
+  writes and reads of those staged writes. Private store ancestry now rejects
+  unrelated roots, siblings, and
+  ancestors before publication. The same ancestry binds discard, conflict
+  rerun, dependency query, and wake rights before their affine rights are
+  consumed.
+- 2026-08-02: the canonical CE07 path now probes the live suspension before
+  the relevant wake. The alternative scenario now passes the plain string
+  `"right"` to `sequence`.
+- 2026-08-02: six red observations reproduced the stale `orElse` commit,
+  unrelated-store commit, sibling-store commit, blind-write validation
+  conflict, staged-write-read validation conflict, and foreign-store
+  affine-right consumption. The corrected suite passes 33 tests and 276
+  assertions.
+- 2026-08-02: exact feature acceptance passed in the dirty primary tree. It
+  passed 33 STM tests, 82 neighboring tests, 12 semantic-lint tests, typecheck,
+  severe lint, formatting, Bun/Node report parity, model validation, and nine
+  generated-view checks. The only model warning remains the pre-existing
+  unsupported `claim.kernel.safety`.
+- 2026-08-02: independent read-only follow-up accepted the live correction with
+  no Critical or Important finding. It did not run commands. Clean exact-head
+  acceptance and review remain pending.
+- 2026-08-02: exact-head review of candidate `44c3c2e` accepted the correction
+  with no Critical or Important finding. Two Minor findings identified a
+  staged-write-read validation leak and a missing ancestor-store oracle. The
+  final correction tracks actual store reads separately and adds the
+  discriminating ancestor oracle.
+- 2026-08-02: the private parent map retains store ancestors, and ancestry
+  checks are O(depth). These costs are accepted for this bounded reference
+  model. The optimized runtime remains outside feature 0014.
+
+Status: fourth correction accepted in the live tree; clean exact-head acceptance
+and review pending

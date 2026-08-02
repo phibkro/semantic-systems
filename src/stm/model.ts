@@ -24,6 +24,43 @@ const knownSuspensionCustody = new WeakSet<object>();
 const liveSuspensionCustody = new WeakSet<object>();
 const expressionCustody = new WeakSet<object>();
 const storeCustody = new WeakSet<object>();
+const storeParentCustody = new WeakMap<object, object | null>();
+const attemptOriginStoreCustody = new WeakMap<object, object>();
+const rerunnableAttemptStoreCustody = new WeakMap<object, object>();
+const suspensionOriginStoreCustody = new WeakMap<object, object>();
+
+const storeParentOf = (store: object): object | null => {
+  const parent = storeParentCustody.get(store);
+  if (parent === undefined) throw new Error("handler-custodied store has no ancestry");
+  return parent;
+};
+
+const attemptOriginStoreOf = (attempt: object): object => {
+  const store = attemptOriginStoreCustody.get(attempt);
+  if (store === undefined) throw new Error("handler-custodied attempt has no origin store");
+  return store;
+};
+
+const rerunnableAttemptStoreOf = (attempt: object): object => {
+  const store = rerunnableAttemptStoreCustody.get(attempt);
+  if (store === undefined) throw new Error("rerunnable attempt has no conflict store");
+  return store;
+};
+
+const suspensionOriginStoreOf = (suspension: object): object => {
+  const store = suspensionOriginStoreCustody.get(suspension);
+  if (store === undefined) throw new Error("handler-custodied suspension has no origin store");
+  return store;
+};
+
+const storeDescendsFrom = (store: object, ancestor: object): boolean => {
+  let cursor: object | null = store;
+  while (cursor !== null) {
+    if (cursor === ancestor) return true;
+    cursor = storeParentOf(cursor);
+  }
+  return false;
+};
 
 export interface Domain<out Name extends string = string> {
   readonly [DomainTypeId]: true;
@@ -174,6 +211,7 @@ export interface InvalidAttempt {
   readonly reason:
     | "not_handler_custodied"
     | "store_not_handler_custodied"
+    | "store_lineage_mismatch"
     | "already_settled"
     | "not_rerunnable";
   readonly commitActions: readonly [];
@@ -848,6 +886,7 @@ export const makeStore = <D extends string>(
     cells: Object.freeze(cells),
   });
   storeCustody.add(store);
+  storeParentCustody.set(store, null);
   return store;
 };
 
@@ -916,6 +955,7 @@ interface MutableContext {
   readonly store: Store<string>;
   readonly bindings: Map<string, JsonValue>;
   readonly reads: Map<string, ReadObservation>;
+  readonly storeReadIds: Set<string>;
   readonly writes: Map<string, JournalEntry>;
   readonly dependencies: Set<string>;
   readonly commitActions: JsonValue[];
@@ -925,6 +965,7 @@ const cloneContext = (context: MutableContext): MutableContext => ({
   store: context.store,
   bindings: new Map(context.bindings),
   reads: new Map(context.reads),
+  storeReadIds: new Set(context.storeReadIds),
   writes: new Map(context.writes),
   dependencies: new Set(context.dependencies),
   commitActions: [...context.commitActions],
@@ -955,11 +996,13 @@ const evalExpression = (expression: Expression, bindings: Map<string, JsonValue>
 const copyContextInto = (target: MutableContext, source: MutableContext): void => {
   target.bindings.clear();
   target.reads.clear();
+  target.storeReadIds.clear();
   target.writes.clear();
   target.dependencies.clear();
   target.commitActions.length = 0;
   for (const [key, value] of source.bindings) target.bindings.set(key, value);
   for (const [key, value] of source.reads) target.reads.set(key, value);
+  for (const id of source.storeReadIds) target.storeReadIds.add(id);
   for (const [key, value] of source.writes) target.writes.set(key, value);
   for (const value of source.dependencies) target.dependencies.add(value);
   target.commitActions.push(...source.commitActions);
@@ -979,6 +1022,7 @@ const evaluate = (
           break;
         }
         const cell = cellOf(context.store, instruction.ref.id);
+        context.storeReadIds.add(cell.id);
         if (!context.reads.has(cell.id)) {
           context.reads.set(
             cell.id,
@@ -1068,12 +1112,23 @@ const evaluate = (
               throw new RangeError(`retry dependency ${id} has no branch observation`);
             }
             context.reads.set(id, observation);
+            if (leftContext.storeReadIds.has(id) || rightContext.storeReadIds.has(id)) {
+              context.storeReadIds.add(id);
+            }
             context.dependencies.add(id);
           }
           return Object.freeze({
             kind: "retry",
             dependencies: Object.freeze(dependencyIds),
           });
+        }
+        for (const id of leftContext.storeReadIds) {
+          const observation = leftContext.reads.get(id);
+          if (observation === undefined) {
+            throw new RangeError(`store read ${id} has no branch observation`);
+          }
+          if (!rightContext.reads.has(id)) rightContext.reads.set(id, observation);
+          rightContext.storeReadIds.add(id);
         }
         copyContextInto(context, rightContext);
         if (rightResult.kind === "success" && instruction.bind !== undefined) {
@@ -1124,6 +1179,7 @@ export const beginAttempt = <
     store,
     bindings: new Map(),
     reads: new Map(),
+    storeReadIds: new Set(),
     writes: new Map(),
     dependencies: new Set(),
     commitActions: [],
@@ -1143,6 +1199,7 @@ export const beginAttempt = <
   });
   knownAttemptCustody.add(attempt);
   liveAttemptCustody.add(attempt);
+  attemptOriginStoreCustody.set(attempt, store);
   return Object.freeze({
     kind: "attempt",
     attempt,
@@ -1167,11 +1224,14 @@ export const settleAttempt = (currentStore: Store<string>, attempt: Attempt): Se
   if (!knownAttemptCustody.has(attempt)) {
     return invalidAttempt(currentStore, "not_handler_custodied");
   }
-  if (!liveAttemptCustody.delete(attempt)) {
-    return invalidAttempt(currentStore, "already_settled");
-  }
   if (currentStore.domain !== attempt.description.domain) {
     throw new TypeError("attempt cannot settle against another transaction domain");
+  }
+  if (!storeDescendsFrom(currentStore, attemptOriginStoreOf(attempt))) {
+    return invalidAttempt(currentStore, "store_lineage_mismatch");
+  }
+  if (!liveAttemptCustody.delete(attempt)) {
+    return invalidAttempt(currentStore, "already_settled");
   }
   if (attempt.evaluation.kind === "retry") {
     const dependencies = attempt.evaluation.dependencies.map((id) => {
@@ -1189,6 +1249,7 @@ export const settleAttempt = (currentStore: Store<string>, attempt: Attempt): Se
     });
     knownSuspensionCustody.add(suspension);
     liveSuspensionCustody.add(suspension);
+    suspensionOriginStoreCustody.set(suspension, currentStore);
     return Object.freeze({
       kind: "suspended",
       store: unchangedStore(currentStore),
@@ -1214,6 +1275,7 @@ export const settleAttempt = (currentStore: Store<string>, attempt: Attempt): Se
     .sort();
   if (stale.length > 0) {
     rerunnableAttemptCustody.add(attempt);
+    rerunnableAttemptStoreCustody.set(attempt, currentStore);
     return Object.freeze({
       kind: "conflict",
       store: unchangedStore(currentStore),
@@ -1239,6 +1301,7 @@ export const settleAttempt = (currentStore: Store<string>, attempt: Attempt): Se
     cells: Object.freeze(cells),
   }) as Store<string>;
   storeCustody.add(nextStore);
+  storeParentCustody.set(nextStore, currentStore);
   return Object.freeze({
     kind: "committed",
     store: nextStore,
@@ -1269,6 +1332,9 @@ export const discardAttempt = (
   if (!knownAttemptCustody.has(attempt)) {
     return invalidAttempt(store, "not_handler_custodied");
   }
+  if (!storeDescendsFrom(store, attemptOriginStoreOf(attempt))) {
+    return invalidAttempt(store, "store_lineage_mismatch");
+  }
   if (!liveAttemptCustody.delete(attempt)) {
     return invalidAttempt(store, "already_settled");
   }
@@ -1292,9 +1358,14 @@ export const rerunAttempt = (store: Store<string>, attempt: Attempt): BeginResul
   if (!knownAttemptCustody.has(attempt)) {
     return invalidAttempt(store, "not_handler_custodied");
   }
-  if (!rerunnableAttemptCustody.delete(attempt)) {
+  if (!rerunnableAttemptCustody.has(attempt)) {
     return invalidAttempt(store, "not_rerunnable");
   }
+  if (!storeDescendsFrom(store, rerunnableAttemptStoreOf(attempt))) {
+    return invalidAttempt(store, "store_lineage_mismatch");
+  }
+  rerunnableAttemptCustody.delete(attempt);
+  rerunnableAttemptStoreCustody.delete(attempt);
   return beginAttempt(store, attempt.description, attempt.ordinal + 1n);
 };
 
@@ -1304,6 +1375,9 @@ export const changedDependencies = (
 ): ReadonlyArray<string> => {
   if (!storeCustody.has(store)) throw new TypeError("store is not handler-custodied");
   const authenticated = requireKnownSuspension(suspension);
+  if (!storeDescendsFrom(store, suspensionOriginStoreOf(authenticated))) {
+    throw new TypeError("store is outside the suspension lineage");
+  }
   return Object.freeze(
     authenticated.dependencies
       .filter((dependency) => cellOf(store, dependency.id).version !== dependency.observedVersion)
@@ -1324,6 +1398,7 @@ export const wakeAndRerun = (
     });
   }
   if (!liveSuspensionCustody.has(suspension)) return undefined;
+  if (!storeDescendsFrom(store, suspensionOriginStoreOf(suspension))) return undefined;
   if (changedDependencies(suspension, store).length === 0) return undefined;
   liveSuspensionCustody.delete(suspension);
   return beginAttempt(store, suspension.description, suspension.attemptOrdinal + 1n);

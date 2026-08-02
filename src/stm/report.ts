@@ -114,6 +114,7 @@ const retryScenario = (
   readonly unrelatedStore: Store<string>;
   readonly relevantStore: Store<string>;
   readonly wakeAttempt: Attempt;
+  readonly unrelatedWakeIgnored: boolean;
 } => {
   const retrying = sequenceExpression(
     base.initial.domain,
@@ -134,6 +135,8 @@ const retryScenario = (
   const suspendedResult = settleAttempt(base.initial, retryAttempt);
   if (suspendedResult.kind !== "suspended") throw new Error("retry did not suspend");
   const unrelatedStore = commit(base.initial, write(base.unrelated, 1)).store;
+  const unrelatedWakeIgnored =
+    wakeAndRerun(suspendedResult.suspension, unrelatedStore) === undefined;
   const relevantStore = commit(unrelatedStore, write(base.x, 1)).store;
   const wake = wakeAndRerun(suspendedResult.suspension, relevantStore);
   if (wake === undefined || wake.kind !== "attempt")
@@ -141,6 +144,7 @@ const retryScenario = (
   return {
     suspended: suspendedResult,
     unrelatedStore,
+    unrelatedWakeIgnored,
     relevantStore,
     wakeAttempt: wake.attempt,
   };
@@ -163,7 +167,7 @@ const alternativeScenario = (
     base.initial.domain,
     "right-succeeds",
     [write(base.y, 2), afterCommit(base.initial.domain, { branch: "right" })],
-    literal("right"),
+    "right",
   );
   const committed = requireCommitted(
     settleAttempt(base.initial, requireAttempt(beginAttempt(base.initial, orElse(left, right)))),
@@ -626,8 +630,7 @@ export const buildStmLawReport = (runtimeLayer: RuntimeLayer): JsonObject => {
     observation(
       "ce07-unrelated-retry-wake",
       changedDependencies(retryResult.suspended.suspension, retryResult.unrelatedStore).length ===
-        0 &&
-        wakeAndRerun(retryResult.suspended.suspension, retryResult.unrelatedStore) === undefined,
+        0 && retryResult.unrelatedWakeIgnored,
     ),
     observation(
       "ce08-missed-retry-wake",

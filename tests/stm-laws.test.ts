@@ -279,6 +279,117 @@ describe("STM law boundary 0014", () => {
     expect(inspectCell(current, x)).toEqual({ value: 10, version: 1n });
   });
 
+  test("[L2 custody] an attempt can settle only on its originating store lineage", () => {
+    const { owner, store, x, y, z } = fixture();
+    const seeded = commit(store, sequence(owner, "seed-lineage", [write(x, 10), write(y, 1)]));
+    const description = sequence(owner, "lineage-bound-attempt", [
+      read(x, "lineage-x"),
+      writeExpression(y, add(binding("lineage-x"), literal(1))),
+    ]);
+    const attempt = requireAttempt(beginAttempt(seeded.store, description));
+    const unrelatedLineage = makeStore(owner, [x, y, z], 1n);
+
+    expect(settleAttempt(unrelatedLineage, attempt)).toEqual({
+      kind: "invalid_attempt",
+      store: unrelatedLineage,
+      reason: "store_lineage_mismatch",
+      commitActions: [],
+      abortActions: [],
+    });
+    expect(inspectCell(unrelatedLineage, x)).toEqual({ value: 0, version: 1n });
+    expect(inspectCell(unrelatedLineage, y)).toEqual({ value: 0, version: 1n });
+
+    const committed = requireSettlement(settleAttempt(seeded.store, attempt), "committed");
+    expect(inspectCell(committed.store, x)).toEqual({ value: 10, version: 1n });
+    expect(inspectCell(committed.store, y)).toEqual({ value: 11, version: 2n });
+  });
+
+  test("[L2 custody] sibling store branches are not one comparable lineage", () => {
+    const { owner, store, x, y } = fixture();
+    const firstSibling = commit(store, write(x, 1)).store;
+    const secondSibling = commit(store, write(x, 2)).store;
+    const description = sequence(owner, "sibling-bound-attempt", [
+      read(x, "sibling-x"),
+      writeExpression(y, add(binding("sibling-x"), literal(1))),
+    ]);
+    const attempt = requireAttempt(beginAttempt(firstSibling, description));
+
+    expect(settleAttempt(secondSibling, attempt)).toEqual({
+      kind: "invalid_attempt",
+      store: secondSibling,
+      reason: "store_lineage_mismatch",
+      commitActions: [],
+      abortActions: [],
+    });
+    expect(inspectCell(secondSibling, x)).toEqual({ value: 2, version: 1n });
+    expect(inspectCell(secondSibling, y)).toEqual({ value: 0, version: 0n });
+
+    const committed = requireSettlement(settleAttempt(firstSibling, attempt), "committed");
+    expect(inspectCell(committed.store, x)).toEqual({ value: 1, version: 1n });
+    expect(inspectCell(committed.store, y)).toEqual({ value: 2, version: 1n });
+  });
+
+  test("[L2 custody] an ancestor store cannot erase an attempt's observed descendants", () => {
+    const { owner, store, x, y, z } = fixture();
+    const descendant = commit(store, write(z, 1)).store;
+    const description = sequence(owner, "ancestor-bound-attempt", [
+      read(x, "ancestor-x"),
+      writeExpression(y, add(binding("ancestor-x"), literal(1))),
+    ]);
+    const attempt = requireAttempt(beginAttempt(descendant, description));
+
+    expect(settleAttempt(store, attempt)).toEqual({
+      kind: "invalid_attempt",
+      store,
+      reason: "store_lineage_mismatch",
+      commitActions: [],
+      abortActions: [],
+    });
+    expect(inspectCell(store, z)).toEqual({ value: 0, version: 0n });
+
+    const committed = requireSettlement(settleAttempt(descendant, attempt), "committed");
+    expect(inspectCell(committed.store, y)).toEqual({ value: 1, version: 1n });
+    expect(inspectCell(committed.store, z)).toEqual({ value: 1, version: 1n });
+  });
+
+  test("[L2/L4 custody] unrelated stores cannot consume affine attempt or wake rights", () => {
+    const { owner, store, x, y, z } = fixture();
+    const unrelatedLineage = makeStore(owner, [x, y, z], 1n);
+
+    const disposable = requireAttempt(beginAttempt(store, succeed(owner, "disposable", null)));
+    expect(discardAttempt(unrelatedLineage, disposable, "interrupted")).toMatchObject({
+      kind: "invalid_attempt",
+      reason: "store_lineage_mismatch",
+    });
+    expect(discardAttempt(store, disposable, "interrupted")).toMatchObject({
+      kind: "interrupted",
+      store,
+    });
+
+    const conflicting = requireAttempt(
+      beginAttempt(store, sequence(owner, "rerun-lineage", [read(x, "rerun-x"), write(y, 1)])),
+    );
+    const concurrent = commit(store, write(x, 1)).store;
+    expect(settleAttempt(concurrent, conflicting).kind).toBe("conflict");
+    expect(rerunAttempt(unrelatedLineage, conflicting)).toMatchObject({
+      kind: "invalid_attempt",
+      reason: "store_lineage_mismatch",
+    });
+    expect(rerunAttempt(concurrent, conflicting)).toMatchObject({
+      kind: "attempt",
+    });
+
+    const retrying = requireAttempt(beginAttempt(store, retryUntilPositive(owner, x)));
+    const suspended = requireSettlement(settleAttempt(store, retrying), "suspended");
+    expect(() => changedDependencies(suspended.suspension, unrelatedLineage)).toThrow(
+      "store is outside the suspension lineage",
+    );
+    expect(wakeAndRerun(suspended.suspension, unrelatedLineage)).toBeUndefined();
+    expect(wakeAndRerun(suspended.suspension, concurrent)).toMatchObject({
+      kind: "attempt",
+    });
+  });
+
   test("[expression custody] data-shaped AST collisions remain exact values", () => {
     const owner = domain("value-domain");
     const slot = tvar(owner, "slot", null as JsonValue);
@@ -611,6 +722,42 @@ describe("STM law boundary 0014", () => {
     const result = requireSettlement(settleAttempt(concurrent.store, attempt), "conflict");
     expect(result.stale).toEqual(["x"]);
     expect(result.store).toBe(concurrent.store);
+  });
+
+  test("[L2 negative oracle] orElse validates reads that selected its right branch", () => {
+    const { owner, store, x, y } = fixture();
+    const left = sequence(owner, "left-selected-by-x", [
+      read(x, "or-else-x"),
+      when(
+        owner,
+        equal(binding("or-else-x"), literal(0)),
+        retry(owner, "left-zero-retry"),
+        succeed(owner, "left-ready", "left"),
+      ),
+    ]);
+    const right = write(y, 5);
+    const attempt = requireAttempt(beginAttempt(store, orElse(left, right)));
+    const concurrent = commit(store, write(x, 42));
+
+    const conflict = requireSettlement(settleAttempt(concurrent.store, attempt), "conflict");
+    expect(conflict.stale).toEqual(["x"]);
+    expect(inspectCell(conflict.store, y)).toEqual({ value: 0, version: 0n });
+  });
+
+  test("[L5 branch isolation] orElse discards blind-write validation from a retried left branch", () => {
+    const { owner, store, y, z } = fixture();
+    const left = sequence(owner, "discarded-left-write", [
+      write(z, 99),
+      read(z, "read-own-left-write"),
+      retry(owner, "retry-after-left-write"),
+    ]);
+    const attempt = requireAttempt(beginAttempt(store, orElse(left, write(y, 2))));
+    const concurrent = commit(store, write(z, 5));
+
+    expect(attempt.readSet).toEqual([{ id: "y", value: 0, version: 0n }]);
+    const committed = requireSettlement(settleAttempt(concurrent.store, attempt), "committed");
+    expect(inspectCell(committed.store, y)).toEqual({ value: 2, version: 1n });
+    expect(inspectCell(committed.store, z)).toEqual({ value: 5, version: 1n });
   });
 
   test("[L2 blind-write negative oracle / CE06] an unread write records a version and detects loss", () => {
