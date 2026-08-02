@@ -84,15 +84,15 @@ The acceptance report must include command results, counts, revisions, unrun che
 
 ## Completion blocker
 
-Implementation and integration completed at
+The lifecycle code and canonical migration integrated at
 `451361f6fa1cf10b6a13b988cb288f1439c9a4d0`. Stable artifact resolution,
 acceptance dispatch, typed completion evidence, and deterministic lifecycle
 projections are implemented.
 
-The feature remains `in_progress`: frozen acceptance criterion 14 still requires
-the operator-owned `AGENTS.md` to prescribe the stable plan path and one-record
-completion transition, but its preserved dirty content still prescribes
-`plans/active/`. This work has no UI preview surface.
+The feature remains `in_progress`: frozen acceptance criterion 14's stable-plan
+instruction is still unmet because the preserved operator-owned `AGENTS.md`
+content prescribes `plans/active/`. Its one-record completion instruction is
+already correct. This work has no UI preview surface.
 
 ## Evidence ledger
 
