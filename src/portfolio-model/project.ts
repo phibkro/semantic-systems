@@ -120,7 +120,6 @@ const cyclic = (identities: ReadonlyArray<string>, edges: ReadonlyArray<WorkRela
   return identities.some(visit);
 };
 
-
 const dependencyDepths = (
   identities: ReadonlyArray<string>,
   edges: ReadonlyArray<WorkRelation>,
