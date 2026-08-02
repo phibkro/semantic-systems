@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { Result } from "effect";
 import {
   ASSUMPTION_REPORT_SCOPE,
   AssumptionQueryError,
@@ -27,8 +28,16 @@ const registerProject = (): ProjectGraph => {
     tags: [],
     attributes: {
       opaque_primitives: [
-        { id: "runtime.adapter.bun", class: "runtime_adapter", source: "src/project-model/main-bun.ts" },
-        { id: "component.project-model", class: "project_model_generator", source: "src/project-model/views.ts" },
+        {
+          id: "runtime.adapter.bun",
+          class: "runtime_adapter",
+          source: "src/project-model/main-bun.ts",
+        },
+        {
+          id: "component.project-model",
+          class: "project_model_generator",
+          source: "src/project-model/views.ts",
+        },
       ],
       manually_asserted_relation_classes: ["assumes", "supports", "discharges"],
       negative_fixture: "src/project-model/assumption-fixtures.ts#negativeOpaqueAdapterFixture",
@@ -38,12 +47,17 @@ const registerProject = (): ProjectGraph => {
   return { entities: new Map([[register.id, register]]), relations: [], root: "fixture" };
 };
 
+const assumptionReport = (...args: Parameters<typeof assumptions>) =>
+  Result.getOrThrow(assumptions(...args));
+
 describe("project-model assumptions query", () => {
   test("surfaces a three-hop stub assumption with a deterministic witness", () => {
-    const report = assumptions(positiveAssumptionFixture(), "artifact.rx2.positive.start");
+    const report = assumptionReport(positiveAssumptionFixture(), "artifact.rx2.positive.start");
     expect(report.schema).toBe("semantic-assumption-report-v1");
     expect(report.artifact.id).toBe("artifact.rx2.positive.start");
-    expect(report.assumptions.map((item) => item.entity.id)).toEqual(["assumption.rx2.seeded-stub"]);
+    expect(report.assumptions.map((item) => item.entity.id)).toEqual([
+      "assumption.rx2.seeded-stub",
+    ]);
     expect(report.assumptions[0]?.path.entityIds).toEqual([
       "artifact.rx2.positive.start",
       "artifact.rx2.positive.stage-1",
@@ -69,7 +83,10 @@ describe("project-model assumptions query", () => {
   });
 
   test("walks supports and discharges from semantic target to evidence source", () => {
-    const report = assumptions(reverseEvidenceAssumptionFixture(), "artifact.rx2.reverse.start");
+    const report = assumptionReport(
+      reverseEvidenceAssumptionFixture(),
+      "artifact.rx2.reverse.start",
+    );
     expect(report.assumptions.map((item) => item.entity.id)).toEqual(["assumption.rx2.reverse"]);
     expect(report.assumptions[0]?.path.entityIds).toEqual([
       "artifact.rx2.reverse.start",
@@ -77,7 +94,9 @@ describe("project-model assumptions query", () => {
       "evidence.rx2.reverse",
       "assumption.rx2.reverse",
     ]);
-    expect(report.assumptions[0]?.path.relations.map((item) => [item.kind, item.direction])).toEqual([
+    expect(
+      report.assumptions[0]?.path.relations.map((item) => [item.kind, item.direction]),
+    ).toEqual([
       ["derives", "forward"],
       ["supports", "reverse"],
       ["assumes", "forward"],
@@ -85,7 +104,10 @@ describe("project-model assumptions query", () => {
   });
 
   test("chooses the shortest path before applying deterministic tie ordering", () => {
-    const report = assumptions(duplicatePathAssumptionFixture(), "artifact.rx2.duplicate.start");
+    const report = assumptionReport(
+      duplicatePathAssumptionFixture(),
+      "artifact.rx2.duplicate.start",
+    );
     expect(report.assumptions[0]?.path.entityIds).toEqual([
       "artifact.rx2.duplicate.start",
       "assumption.rx2.duplicate-direct",
@@ -94,7 +116,7 @@ describe("project-model assumptions query", () => {
   });
 
   test("terminates on cycles and retains the shortest witnessed exit", () => {
-    const report = assumptions(cyclicAssumptionFixture(), "artifact.rx2.cycle.start");
+    const report = assumptionReport(cyclicAssumptionFixture(), "artifact.rx2.cycle.start");
     expect(report.assumptions.map((item) => item.entity.id)).toEqual(["assumption.rx2.cycle"]);
     expect(report.assumptions[0]?.path.entityIds).toEqual([
       "artifact.rx2.cycle.start",
@@ -105,7 +127,7 @@ describe("project-model assumptions query", () => {
   });
 
   test("renders an explicit incomplete marker for a reachable incomplete entity", () => {
-    const report = assumptions(incompleteAssumptionFixture(), "artifact.rx2.incomplete.start");
+    const report = assumptionReport(incompleteAssumptionFixture(), "artifact.rx2.incomplete.start");
     expect(report.completeness).toBe("incomplete");
     expect(report.markers).toEqual([
       expect.objectContaining({ kind: "incomplete", entityId: "artifact.rx2.incomplete.node" }),
@@ -114,7 +136,7 @@ describe("project-model assumptions query", () => {
   });
 
   test("renders a known opaque marker without synthesizing an assumption", () => {
-    const report = assumptions(
+    const report = assumptionReport(
       knownOpaqueAssumptionFixture(),
       "artifact.rx2.known-opaque.start",
       fixtureOpaqueRegistry(),
@@ -122,26 +144,36 @@ describe("project-model assumptions query", () => {
     expect(report.completeness).toBe("incomplete");
     expect(report.assumptions).toEqual([]);
     expect(report.markers).toEqual([
-      expect.objectContaining({ kind: "known_opaque", entityId: "runtime.rx2.known-opaque-adapter" }),
+      expect.objectContaining({
+        kind: "known_opaque",
+        entityId: "runtime.rx2.known-opaque-adapter",
+      }),
     ]);
     expect(report.scope.opaqueRegistry).toBe("supplied");
   });
 
   test("returns a typed error for a missing start entity", () => {
-    try {
-      assumptions(positiveAssumptionFixture(), "artifact.rx2.missing");
-      throw new Error("missing start unexpectedly succeeded");
-    } catch (error) {
-      expect(error).toBeInstanceOf(AssumptionQueryError);
-      expect((error as AssumptionQueryError).artifactId).toBe("artifact.rx2.missing");
-      expect((error as AssumptionQueryError).reason).toBe("missing_entity");
+    const result = assumptions(positiveAssumptionFixture(), "artifact.rx2.missing");
+    expect(Result.isFailure(result)).toBeTrue();
+    if (Result.isFailure(result)) {
+      expect(result.failure).toBeInstanceOf(AssumptionQueryError);
+      expect(result.failure.artifactId).toBe("artifact.rx2.missing");
+      expect(result.failure.reason).toBe("missing_entity");
     }
   });
 
   test("keeps the disconnected opaque adapter as a stable clean-but-wrong report", () => {
     const registry = fixtureOpaqueRegistry();
-    const first = assumptions(negativeOpaqueAdapterFixture(), "artifact.rx2.negative.start", registry);
-    const second = assumptions(negativeOpaqueAdapterFixture(), "artifact.rx2.negative.start", registry);
+    const first = assumptionReport(
+      negativeOpaqueAdapterFixture(),
+      "artifact.rx2.negative.start",
+      registry,
+    );
+    const second = assumptionReport(
+      negativeOpaqueAdapterFixture(),
+      "artifact.rx2.negative.start",
+      registry,
+    );
     expect(first).toEqual(second);
     expect(first.assumptions).toEqual([]);
     expect(first.markers).toEqual([]);

@@ -1,7 +1,8 @@
-import { Data } from "effect";
+import { Data, Result } from "effect";
 import type { Entity, ProjectGraph, Relation, RelationKind } from "./types.ts";
 
-export const OPAQUE_PRIMITIVE_REGISTER_ID = "artifact.project-model.opaque-primitive-register" as const;
+export const OPAQUE_PRIMITIVE_REGISTER_ID =
+  "artifact.project-model.opaque-primitive-register" as const;
 export const ASSUMPTION_REPORT_SCHEMA = "semantic-assumption-report-v1" as const;
 export const ASSUMPTION_REPORT_SCOPE = "recorded_graph_plus_supplied_opaque_registry" as const;
 
@@ -120,8 +121,9 @@ const asString = (value: unknown): string | undefined =>
 
 const asOpaquePrimitive = (value: unknown): OpaquePrimitive | undefined => {
   const record = asRecord(value);
-  const id = record === undefined ? undefined : asString(record.id);
-  const primitiveClass = record === undefined ? undefined : asString(record.class);
+  if (record === undefined) return undefined;
+  const id = asString(record.id);
+  const primitiveClass = asString(record.class);
   if (id === undefined || primitiveClass === undefined) return undefined;
   const source = asString(record.source);
   return source === undefined
@@ -167,8 +169,9 @@ export const decodeOpaquePrimitiveRegistry = (project: ProjectGraph): OpaquePrim
 
   return freezeRegistry({
     sourceArtifactId: register.id,
-    primitives: primitives.sort((left, right) =>
-      compareCodeUnits(left.id, right.id) || compareCodeUnits(left.class, right.class),
+    primitives: primitives.sort(
+      (left, right) =>
+        compareCodeUnits(left.id, right.id) || compareCodeUnits(left.class, right.class),
     ),
     manuallyAssertedRelationClasses: manuallyAssertedRelationClasses.sort(compareCodeUnits),
     negativeFixture,
@@ -256,7 +259,9 @@ const pathFor = (state: PathState): AssumptionPath => {
   });
 };
 
-const buildNeighbors = (project: ProjectGraph): ReadonlyMap<string, ReadonlyArray<TraversalNeighbor>> => {
+const buildNeighbors = (
+  project: ProjectGraph,
+): ReadonlyMap<string, ReadonlyArray<TraversalNeighbor>> => {
   const neighbors = new Map<string, Array<TraversalNeighbor>>();
   for (const relation of project.relations) {
     const traversal = ASSUMPTION_TRAVERSAL_TABLE.find((item) => item.kind === relation.kind);
@@ -284,14 +289,16 @@ export const assumptions = (
   project: ProjectGraph,
   artifactId: string,
   opaqueRegistry?: OpaquePrimitiveRegistry,
-): AssumptionReport => {
+): Result.Result<AssumptionReport, AssumptionQueryError> => {
   const artifact = project.entities.get(artifactId);
   if (artifact === undefined) {
-    throw new AssumptionQueryError({
-      artifactId,
-      reason: "missing_entity",
-      message: `assumption query start entity is missing: ${artifactId}`,
-    });
+    return Result.fail(
+      new AssumptionQueryError({
+        artifactId,
+        reason: "missing_entity",
+        message: `assumption query start entity is missing: ${artifactId}`,
+      }),
+    );
   }
 
   const neighbors = buildNeighbors(project);
@@ -343,9 +350,10 @@ export const assumptions = (
     }
   }
 
-  findings.sort((left, right) =>
-    compareCodeUnits(left.entity.id, right.entity.id) ||
-    compareCodeUnits(left.path.entityIds.join("\u0000"), right.path.entityIds.join("\u0000")),
+  findings.sort(
+    (left, right) =>
+      compareCodeUnits(left.entity.id, right.entity.id) ||
+      compareCodeUnits(left.path.entityIds.join("\u0000"), right.path.entityIds.join("\u0000")),
   );
   markers.sort(
     (left, right) =>
@@ -363,12 +371,14 @@ export const assumptions = (
     ),
     traversalRelationKinds: Object.freeze(ASSUMPTION_TRAVERSAL_TABLE.map((edge) => edge.kind)),
   });
-  return freezeReport({
-    schema: ASSUMPTION_REPORT_SCHEMA,
-    artifact: entityIdentity(artifact),
-    assumptions: Object.freeze(findings),
-    markers: Object.freeze(markers),
-    completeness: markers.length === 0 ? "recorded_complete" : "incomplete",
-    scope,
-  });
+  return Result.succeed(
+    freezeReport({
+      schema: ASSUMPTION_REPORT_SCHEMA,
+      artifact: entityIdentity(artifact),
+      assumptions: Object.freeze(findings),
+      markers: Object.freeze(markers),
+      completeness: markers.length === 0 ? "recorded_complete" : "incomplete",
+      scope,
+    }),
+  );
 };

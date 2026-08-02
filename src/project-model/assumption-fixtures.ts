@@ -1,8 +1,5 @@
 import type { Attributes, Entity, ProjectGraph, Relation } from "./types.ts";
-import {
-  OPAQUE_PRIMITIVE_REGISTER_ID,
-  type OpaquePrimitiveRegistry,
-} from "./assumption-query.ts";
+import { OPAQUE_PRIMITIVE_REGISTER_ID, type OpaquePrimitiveRegistry } from "./assumption-query.ts";
 
 const fixtureSource = "fixtures/rx2-assumption-query.json";
 
@@ -37,7 +34,10 @@ const relation = (
   source: fixtureSource,
 });
 
-const graph = (entities: ReadonlyArray<Entity>, relations: ReadonlyArray<Relation>): ProjectGraph => ({
+const graph = (
+  entities: ReadonlyArray<Entity>,
+  relations: ReadonlyArray<Relation>,
+): ProjectGraph => ({
   entities: new Map(entities.map((item) => [item.id, item] as const)),
   relations,
   root: fixtureSource,
@@ -48,7 +48,11 @@ export const positiveAssumptionFixture = (): ProjectGraph => {
   const start = entity("artifact.rx2.positive.start", "artifact", "RX2 positive start");
   const stageOne = entity("artifact.rx2.positive.stage-1", "artifact", "RX2 positive stage one");
   const stageTwo = entity("artifact.rx2.positive.stage-2", "artifact", "RX2 positive stage two");
-  const stageThree = entity("artifact.rx2.positive.stage-3", "artifact", "RX2 positive stage three");
+  const stageThree = entity(
+    "artifact.rx2.positive.stage-3",
+    "artifact",
+    "RX2 positive stage three",
+  );
   const seededStub = entity(
     "assumption.rx2.seeded-stub",
     "assumption",

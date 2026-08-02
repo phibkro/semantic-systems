@@ -5,7 +5,7 @@
 | Kind | Count |
 |---|---:|
 | agent | 2 |
-| artifact | 6 |
+| artifact | 7 |
 | assumption | 4 |
 | claim | 6 |
 | component | 21 |

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { resolve } from "node:path";
-import { Effect } from "effect";
+import { Effect, Result } from "effect";
 import {
   ASSUMPTION_REPORT_SCHEMA,
   assumptions,
@@ -36,15 +36,11 @@ const loadRegister = async () => {
 const main = async (): Promise<void> => {
   const project = await loadRegister();
   const registry = decodeOpaquePrimitiveRegistry(project);
-  const positive = assumptions(
-    positiveAssumptionFixture(),
-    "artifact.rx2.positive.start",
-    registry,
+  const positive = Result.getOrThrow(
+    assumptions(positiveAssumptionFixture(), "artifact.rx2.positive.start", registry),
   );
-  const negative = assumptions(
-    negativeOpaqueAdapterFixture(),
-    "artifact.rx2.negative.start",
-    registry,
+  const negative = Result.getOrThrow(
+    assumptions(negativeOpaqueAdapterFixture(), "artifact.rx2.negative.start", registry),
   );
 
   if (
