@@ -15,7 +15,7 @@ This lane owns only:
 - `scripts/accept/0054-semantic-contract-wit-mapping.ts`; and
 - this plan.
 
-The canonical project model, generated views, frozen design specification, package manifests, and adjacent feature lanes remain read-only.
+The canonical project model, generated views, package manifests, and adjacent feature lanes remain read-only. The frozen design specification received one authorized parser-version amendment from `wasm-tools` 1.253.0 to 1.254.0; it remains otherwise read-only for this lane.
 
 ## Design decisions
 
@@ -44,10 +44,11 @@ nix develop -c bun scripts/accept/0054-semantic-contract-wit-mapping.ts
 
 ## Evidence ledger
 
-- 2026-08-02: frozen 0054 contract inspected at parent commit `8fd6b46`; no existing WIT mapping module was present.
+- 2026-08-02: frozen 0054 contract inspected at parent commit `8fd6b46`; an authorized revision amended only the parser pin from `wasm-tools` 1.253.0 to 1.254.0.
 - 2026-08-02: mapper source, inventory descriptor, goldens, focused tests, acceptance program, and plan were created only in the delegated ownership paths.
 - 2026-08-02: direct Bun smoke generation and Bun entrypoint execution passed; bare `node` was unavailable outside the pinned environment and was intentionally not substituted.
-- 2026-08-02: formatter, linter, typecheck, full tests, exact acceptance, wasm-tools, finite-sum predecessor, and semproj gates were intentionally left to the integrating lead.
+- 2026-08-02: the delegated correction lane recorded a parent-reported preliminary observation of `manifest_bytes 10224`; that observation is superseded by the direct integration evidence below.
+- 2026-08-02: the integrating lead ran the exact acceptance command against the corrected source and regenerated goldens. It passed 8 focused mapper tests, 23 predecessor finite-sum tests, typecheck, strict lint, format, project-model validation and generation checks, and pinned parser observations: `wasm-tools 1.254.0`, `manifest_bytes 10246`, `wit_bytes 1184`, positive exit 0, invalid exit 1, native async true, native stream true, and native future true.
 
 ## Assumptions and limits
 

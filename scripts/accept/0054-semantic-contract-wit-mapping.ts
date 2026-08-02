@@ -57,16 +57,23 @@ const capture = (
       new AcceptanceFailure({ message: `cannot execute ${command.join(" ")}: ${String(cause)}` }),
   });
 
-const decodeFixture = (source: string): PortableBoundaryInput => {
-  const decoded = decodePortableBoundary(JSON.parse(source));
-  if (decoded.status === "rejected")
-    throw new AcceptanceFailure({ message: JSON.stringify(decoded.diagnostics) });
-  return decoded.value;
-};
+const decodeFixture = (source: string): Effect.Effect<PortableBoundaryInput, AcceptanceFailure> =>
+  Effect.try({
+    try: () => JSON.parse(source) as unknown,
+    catch: (cause) =>
+      new AcceptanceFailure({ message: `cannot parse fixture JSON: ${String(cause)}` }),
+  }).pipe(
+    Effect.flatMap((input) => {
+      const decoded = decodePortableBoundary(input);
+      return decoded.status === "rejected"
+        ? Effect.fail(new AcceptanceFailure({ message: JSON.stringify(decoded.diagnostics) }))
+        : Effect.succeed(decoded.value);
+    }),
+  );
 
 const program = Effect.gen(function* () {
   const source = yield* readText(fixturePath);
-  const decoded = decodeFixture(source);
+  const decoded = yield* decodeFixture(source);
   const artifact = yield* generateWitMapping(decoded);
   const witGolden = yield* readText(witGoldenPath);
   const manifestGolden = yield* readText(manifestGoldenPath);
@@ -120,7 +127,7 @@ const program = Effect.gen(function* () {
     "effect_label:effect.clock",
     "usage_grade:linear",
     "assumption:inventory.initial-state",
-    "assumption:reservation.drop",
+    "assumption:inventory/reservation.drop",
     "evidence_requirement:inventory.conformance",
   ])
     yield* ensure(dimensionKeys.has(key), `manifest omitted semantic dimension ${key}`);
@@ -177,7 +184,17 @@ const program = Effect.gen(function* () {
     version.exitCode === 0 && version.stdout.includes("wasm-tools 1.254.0"),
     `expected pinned wasm-tools 1.254.0, observed ${version.stdout.trim()}`,
   );
-  yield* runCommand([wasmTools, "component", "wit", witGoldenPath], { cwd: root });
+  const positive = yield* capture([wasmTools, "component", "wit", witGoldenPath]);
+  yield* ensure(
+    positive.exitCode === 0,
+    `wasm-tools rejected the generated WIT: ${positive.stderr.trim()}`,
+  );
+  const native_async = positive.stdout.includes("async func");
+  const native_stream = positive.stdout.includes("stream<");
+  const native_future = positive.stdout.includes("future<");
+  yield* ensure(native_async, "wasm-tools output omitted async func");
+  yield* ensure(native_stream, "wasm-tools output omitted stream type");
+  yield* ensure(native_future, "wasm-tools output omitted future type");
   const invalidPath = "/tmp/semantic-wit-mapping-invalid.wit";
   yield* Effect.tryPromise({
     try: () => Bun.write(invalidPath, "package semantic:invalid@1.0.0; interface {\n"),
@@ -221,11 +238,11 @@ const program = Effect.gen(function* () {
     stringifyCanonicalJson({
       wasm_tools_version: version.stdout.trim(),
       parser: {
-        positive_exit: 0,
+        positive_exit: positive.exitCode,
         invalid_exit: invalid.exitCode,
-        native_async: true,
-        native_stream: true,
-        native_future: true,
+        native_async,
+        native_stream,
+        native_future,
       },
       wit_bytes: new TextEncoder().encode(artifact.wit).byteLength,
       manifest_bytes: manifestBytes.byteLength,

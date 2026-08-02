@@ -31,6 +31,16 @@ const diagnosticCode = (input: unknown): string => {
   if (decoded.status === "decoded") throw new Error("expected rejection");
   return decoded.diagnostics[0]!.code;
 };
+type JsonRecord = Record<string, unknown>;
+
+const inventoryInterface = (input: JsonRecord): JsonRecord =>
+  (input.interfaces as JsonRecord[]).find((entry) => entry.name === "inventory")!;
+
+const inventoryFunction = (input: JsonRecord, name: string): JsonRecord =>
+  (inventoryInterface(input).functions as JsonRecord[]).find((entry) => entry.name === name)!;
+
+const inventoryDeclaration = (input: JsonRecord, kind: string): JsonRecord =>
+  (inventoryInterface(input).types as JsonRecord[]).find((entry) => entry.kind === kind)!;
 
 describe("semantic.wit-mapping/v1", () => {
   test("renders native async, stream, and future shapes without resource desugaring", async () => {
@@ -60,6 +70,14 @@ describe("semantic.wit-mapping/v1", () => {
     );
     expect(ownership.some((row) => row.detail?.includes("borrow<reservation>"))).toBe(true);
     expect(ownership.some((row) => row.detail?.includes("owned handle"))).toBe(true);
+    const nestedOwnership = ownership.filter((row) => row.wit_path.includes("/result/"));
+    expect(nestedOwnership.length).toBeGreaterThan(0);
+    expect(nestedOwnership.every((row) => row.semantic_path !== row.wit_path)).toBe(true);
+    expect(
+      nestedOwnership.some(
+        (row) => row.semantic_path === "theory.inventory/operation/reserve/result/ok",
+      ),
+    ).toBe(true);
   });
 
   test("exhaustively records laws, effects, grades, assumptions, evidence, and claims", async () => {
@@ -75,7 +93,7 @@ describe("semantic.wit-mapping/v1", () => {
         "effect_label:effect.fresh",
         "usage_grade:linear",
         "assumption:inventory.initial-state",
-        "assumption:reservation.drop",
+        "assumption:inventory/reservation.drop",
         "evidence_requirement:inventory.conformance",
       ]),
     );
@@ -150,6 +168,146 @@ describe("semantic.wit-mapping/v1", () => {
       encodeWitMappingManifest(right.manifest),
     );
     expect(left.manifest_identity).toBe(right.manifest_identity);
+  });
+
+  test("keeps duplicate resource names exhaustive and permutation invariant", async () => {
+    const makeInput = (): JsonRecord => {
+      const input = structuredClone(fixture) as JsonRecord;
+      (input.interfaces as JsonRecord[]).push({
+        name: "warehouse",
+        semantic_path: "theory.warehouse",
+        types: [
+          {
+            kind: "resource",
+            name: "reservation",
+            semantic_path: "theory.warehouse/resource/reservation",
+            ownership_statement: "The warehouse reservation handle is owned by its holder.",
+            drop_assumption: "Dropping a warehouse reservation releases its host record.",
+            usage_grade: null,
+            constructor: null,
+            methods: [],
+            statics: [],
+          },
+        ],
+        functions: [],
+      });
+      return input;
+    };
+    const leftInput = makeInput();
+    const rightInput = structuredClone(leftInput) as JsonRecord;
+    (rightInput.interfaces as JsonRecord[]).reverse();
+    const leftDecoded = decodePortableBoundary(leftInput);
+    const rightDecoded = decodePortableBoundary(rightInput);
+    expect(leftDecoded.status).toBe("decoded");
+    expect(rightDecoded.status).toBe("decoded");
+    if (leftDecoded.status === "rejected") throw new Error(JSON.stringify(leftDecoded.diagnostics));
+    if (rightDecoded.status === "rejected")
+      throw new Error(JSON.stringify(rightDecoded.diagnostics));
+    const [left, right] = await Promise.all([
+      generate(leftDecoded.value),
+      generate(rightDecoded.value),
+    ]);
+    expect(left.wit).toBe(right.wit);
+    expect(left.wit_identity).toBe(right.wit_identity);
+    expect(encodeWitMappingManifest(left.manifest)).toEqual(
+      encodeWitMappingManifest(right.manifest),
+    );
+    expect(left.manifest_identity).toBe(right.manifest_identity);
+    const dropDimensions = left.manifest.semantic_dimensions.filter(
+      (row) => row.kind === "assumption" && row.id.endsWith(".drop"),
+    );
+    expect(dropDimensions).toHaveLength(2);
+    expect(new Set(dropDimensions.map((row) => row.id))).toEqual(
+      new Set(["inventory/reservation.drop", "warehouse/reservation.drop"]),
+    );
+  });
+
+  test("rejects noncanonical aliases and conflicting operation spellings", () => {
+    const aliasMutations: ReadonlyArray<(input: JsonRecord) => void> = [
+      (input) => {
+        const reserve = inventoryFunction(input, "reserve");
+        (reserve.params as JsonRecord[])[0]!.type = { kind: "list", item: "string" };
+      },
+      (input) => {
+        const reserve = inventoryFunction(input, "reserve");
+        (reserve.params as JsonRecord[])[0]!.type = { kind: "list", of: "string" };
+      },
+      (input) => {
+        const reserve = inventoryFunction(input, "reserve");
+        reserve.result = { kind: "result", ok_type: "reservation", err: "inventory-error" };
+      },
+      (input) => {
+        const reserve = inventoryFunction(input, "reserve");
+        reserve.result = { kind: "result", ok: "reservation", error: "inventory-error" };
+      },
+      (input) => {
+        const reserve = inventoryFunction(input, "reserve");
+        reserve.result = { kind: "result", ok: "reservation", err_type: "inventory-error" };
+      },
+      (input) => {
+        const watch = inventoryFunction(input, "watch");
+        (watch.result as JsonRecord).items = (watch.result as JsonRecord).elements;
+        delete (watch.result as JsonRecord).elements;
+      },
+      (input) => {
+        const release = inventoryFunction(input, "release");
+        (release.params as JsonRecord[])[0]!.type = { kind: "borrow", name: "reservation" };
+      },
+      (input) => {
+        inventoryDeclaration(input, "variant").constructors = [];
+      },
+      (input) => {
+        inventoryDeclaration(input, "enum").values = [];
+      },
+      (input) => {
+        inventoryDeclaration(input, "flags").flags = [];
+      },
+      (input) => {
+        inventoryDeclaration(input, "type").target = "string";
+      },
+      (input) => {
+        inventoryDeclaration(input, "resource").ownership = "legacy ownership";
+      },
+      (input) => {
+        inventoryDeclaration(input, "resource").static_functions = [];
+      },
+      (input) => {
+        inventoryInterface(input).declarations = [];
+      },
+      (input) => {
+        inventoryInterface(input).operations = [];
+      },
+      (input) => {
+        ((input.theory as JsonRecord).laws as JsonRecord[])[0]!.claim = "legacy claim";
+      },
+      (input) => {
+        ((input.theory as JsonRecord).laws as JsonRecord[])[0]!.description = "legacy description";
+      },
+      (input) => {
+        inventoryFunction(input, "reserve").static = true;
+      },
+      (input) => {
+        inventoryFunction(input, "reserve").mode = "async";
+      },
+      (input) => {
+        inventoryFunction(input, "reserve").kind = "static";
+      },
+    ];
+    for (const mutate of aliasMutations) {
+      const input = structuredClone(fixture) as JsonRecord;
+      mutate(input);
+      expect(diagnosticCode(input)).toBe("input.unknown-property");
+    }
+
+    const aliasKind = structuredClone(fixture) as JsonRecord;
+    inventoryDeclaration(aliasKind, "type").kind = "alias";
+    expect(diagnosticCode(aliasKind)).toBe("type.unsupported");
+
+    const asyncConflict = structuredClone(fixture) as JsonRecord;
+    const reserve = inventoryFunction(asyncConflict, "reserve");
+    reserve.async = false;
+    reserve.mode = "async";
+    expect(diagnosticCode(asyncConflict)).toBe("input.unknown-property");
   });
 
   test("rejects unsupported type forms, invalid names, ambiguous directions, and bounds", () => {

@@ -271,16 +271,21 @@ const collectTypeRows = (
 
 const collectTypeUseRows = (
   base: string,
+  semanticBase: string,
   parameter: WitParameter,
   rows: WitMappingRow[],
   resourceNames: ReadonlySet<string>,
 ): void => {
   const type = parameter.type;
+  const parameterSemanticBase =
+    parameter.semantic_path.length > 0
+      ? parameter.semantic_path
+      : `${semanticBase}/param/${parameter.name}`;
   if (type.kind === "borrow")
     rows.push(
       mapRow(
         `${base}/param/${parameter.name}`,
-        parameter.semantic_path,
+        parameterSemanticBase,
         "ownership_boundary",
         `borrow<${type.name}> temporary handle`,
       ),
@@ -289,7 +294,7 @@ const collectTypeUseRows = (
     rows.push(
       mapRow(
         `${base}/param/${parameter.name}`,
-        parameter.semantic_path,
+        parameterSemanticBase,
         "ownership_boundary",
         `${type.name} owned handle`,
       ),
@@ -300,16 +305,29 @@ const collectTypeUseRows = (
     type.kind === "stream" ||
     type.kind === "future"
   )
-    collectNestedTypeUseRows(`${base}/param/${parameter.name}`, type.element, rows, resourceNames);
+    collectNestedTypeUseRows(
+      `${base}/param/${parameter.name}`,
+      type.element,
+      rows,
+      resourceNames,
+      parameterSemanticBase,
+    );
   else if (type.kind === "result") {
     if (type.ok !== null)
-      collectNestedTypeUseRows(`${base}/param/${parameter.name}/ok`, type.ok, rows, resourceNames);
+      collectNestedTypeUseRows(
+        `${base}/param/${parameter.name}/ok`,
+        type.ok,
+        rows,
+        resourceNames,
+        `${parameterSemanticBase}/ok`,
+      );
     if (type.err !== null)
       collectNestedTypeUseRows(
         `${base}/param/${parameter.name}/err`,
         type.err,
         rows,
         resourceNames,
+        `${parameterSemanticBase}/err`,
       );
   } else if (type.kind === "tuple") {
     for (let index = 0; index < type.elements.length; index += 1)
@@ -318,6 +336,7 @@ const collectTypeUseRows = (
         type.elements[index]!,
         rows,
         resourceNames,
+        `${parameterSemanticBase}/${index}`,
       );
   }
 };
@@ -327,24 +346,41 @@ const collectNestedTypeUseRows = (
   type: WitType,
   rows: WitMappingRow[],
   resourceNames: ReadonlySet<string>,
+  semanticBase: string,
 ): void => {
   if (type.kind === "borrow")
-    rows.push(mapRow(base, base, "ownership_boundary", `borrow<${type.name}> temporary handle`));
+    rows.push(
+      mapRow(base, semanticBase, "ownership_boundary", `borrow<${type.name}> temporary handle`),
+    );
   else if (type.kind === "named" && resourceNames.has(type.name))
-    rows.push(mapRow(base, base, "ownership_boundary", `${type.name} owned handle`));
+    rows.push(mapRow(base, semanticBase, "ownership_boundary", `${type.name} owned handle`));
   else if (
     type.kind === "list" ||
     type.kind === "option" ||
     type.kind === "stream" ||
     type.kind === "future"
   )
-    collectNestedTypeUseRows(`${base}/element`, type.element, rows, resourceNames);
+    collectNestedTypeUseRows(
+      `${base}/element`,
+      type.element,
+      rows,
+      resourceNames,
+      `${semanticBase}/element`,
+    );
   else if (type.kind === "result") {
-    if (type.ok !== null) collectNestedTypeUseRows(`${base}/ok`, type.ok, rows, resourceNames);
-    if (type.err !== null) collectNestedTypeUseRows(`${base}/err`, type.err, rows, resourceNames);
+    if (type.ok !== null)
+      collectNestedTypeUseRows(`${base}/ok`, type.ok, rows, resourceNames, `${semanticBase}/ok`);
+    if (type.err !== null)
+      collectNestedTypeUseRows(`${base}/err`, type.err, rows, resourceNames, `${semanticBase}/err`);
   } else if (type.kind === "tuple")
     for (let index = 0; index < type.elements.length; index += 1)
-      collectNestedTypeUseRows(`${base}/${index}`, type.elements[index]!, rows, resourceNames);
+      collectNestedTypeUseRows(
+        `${base}/${index}`,
+        type.elements[index]!,
+        rows,
+        resourceNames,
+        `${semanticBase}/${index}`,
+      );
 };
 
 const collectOperationRows = (
@@ -355,9 +391,15 @@ const collectOperationRows = (
 ): void => {
   rows.push(mapRow(base, operation.semantic_path, projectionForOperation(operation)));
   for (const parameter of operation.params)
-    collectTypeUseRows(base, parameter, rows, resourceNames);
+    collectTypeUseRows(base, operation.semantic_path, parameter, rows, resourceNames);
   if (operation.result !== null)
-    collectNestedTypeUseRows(`${base}/result`, operation.result, rows, resourceNames);
+    collectNestedTypeUseRows(
+      `${base}/result`,
+      operation.result,
+      rows,
+      resourceNames,
+      `${operation.semantic_path}/result`,
+    );
 };
 
 const uniqueDeclarations = (
@@ -399,7 +441,8 @@ const collectManifest = (
   const imported = new Set(input.world.imports);
   const exported = new Set(input.world.exports);
   const operationEffectPaths = new Map<string, string>();
-  for (const interfaceValue of input.interfaces) {
+  const sortedInterfaces = [...input.interfaces].sort(compareByName);
+  for (const interfaceValue of sortedInterfaces) {
     const resourceNames = new Set(
       interfaceValue.types
         .filter((declaration) => declaration.kind === "resource")
@@ -464,13 +507,13 @@ const collectManifest = (
   ]);
   const resourceGrades: TheoryDeclaration[] = [];
   const resourceAssumptions: TheoryDeclaration[] = [];
-  for (const interfaceValue of input.interfaces)
+  for (const interfaceValue of sortedInterfaces)
     for (const declaration of interfaceValue.types)
       if (declaration.kind === "resource") {
         if (declaration.usage_grade !== null)
           resourceGrades.push({ id: declaration.usage_grade, statement: declaration.usage_grade });
         resourceAssumptions.push({
-          id: `${declaration.name}.drop`,
+          id: `${interfaceValue.name}/${declaration.name}.drop`,
           statement: declaration.drop_assumption,
         });
       }

@@ -235,12 +235,9 @@ const parseTheoryDeclaration = (
     return Object.freeze({ id, statement: id });
   }
   const value = requireRecord(input, path);
-  hasOnly(value, new Set(["id", "statement", "claim", "description"]), path);
+  hasOnly(value, new Set(["id", "statement"]), path);
   const id = requireNonemptyString(property(value, "id", path), `${path}/id`, maximum);
-  const statementValue =
-    optionalProperty(value, "statement") ??
-    optionalProperty(value, "claim") ??
-    optionalProperty(value, "description");
+  const statementValue = optionalProperty(value, "statement");
   const statement = requireNonemptyString(statementValue ?? id, `${path}/statement`, maximum);
   return Object.freeze({ id, statement });
 };
@@ -409,25 +406,17 @@ const parseType = (
     case "option":
     case "stream":
     case "future": {
-      hasOnly(value, new Set(["kind", "element", "item", "of"]), path);
-      const element =
-        optionalProperty(value, "element") ??
-        optionalProperty(value, "item") ??
-        optionalProperty(value, "of");
-      if (element === undefined)
-        fail("input.missing-property", `${path}/item`, "required property is missing");
+      hasOnly(value, new Set(["kind", "element"]), path);
+      const element = property(value, "element", path);
       return Object.freeze({
         kind,
-        element: parseType(element, `${path}/item`, depth + 1, bounds),
+        element: parseType(element, `${path}/element`, depth + 1, bounds),
       });
     }
     case "result": {
-      hasOnly(value, new Set(["kind", "ok", "error", "err", "ok_type", "err_type"]), path);
-      const okInput = optionalProperty(value, "ok") ?? optionalProperty(value, "ok_type");
-      const errInput =
-        optionalProperty(value, "error") ??
-        optionalProperty(value, "err") ??
-        optionalProperty(value, "err_type");
+      hasOnly(value, new Set(["kind", "ok", "err"]), path);
+      const okInput = optionalProperty(value, "ok");
+      const errInput = optionalProperty(value, "err");
       if (okInput === undefined && errInput === undefined)
         fail("type.invalid", path, "result must declare an ok or error payload");
       const ok =
@@ -437,15 +426,12 @@ const parseType = (
       const err =
         errInput === undefined || errInput === null || errInput === "_"
           ? null
-          : parseType(errInput, `${path}/error`, depth + 1, bounds);
+          : parseType(errInput, `${path}/err`, depth + 1, bounds);
       return Object.freeze({ kind, ok, err });
     }
     case "tuple": {
-      hasOnly(value, new Set(["kind", "elements", "items"]), path);
-      const entries = requireArray(
-        optionalProperty(value, "elements") ?? optionalProperty(value, "items"),
-        `${path}/elements`,
-      );
+      hasOnly(value, new Set(["kind", "elements"]), path);
+      const entries = requireArray(property(value, "elements", path), `${path}/elements`);
       if (entries.length === 0)
         fail("type.invalid", `${path}/elements`, "tuple must contain at least one element");
       return Object.freeze({
@@ -457,21 +443,29 @@ const parseType = (
         ),
       });
     }
-    case "named":
-    case "resource": {
-      hasOnly(value, new Set(["kind", "name", "resource"]), path);
+    case "named": {
+      hasOnly(value, new Set(["kind", "name"]), path);
       const name = requireIdentifier(
-        optionalProperty(value, "name") ?? optionalProperty(value, "resource"),
+        property(value, "name", path),
         `${path}/name`,
+        bounds.maximum_string_length,
+      );
+      return Object.freeze({ kind, name });
+    }
+    case "resource": {
+      hasOnly(value, new Set(["kind", "resource"]), path);
+      const name = requireIdentifier(
+        property(value, "resource", path),
+        `${path}/resource`,
         bounds.maximum_string_length,
       );
       return Object.freeze({ kind: "named", name });
     }
     case "borrow": {
-      hasOnly(value, new Set(["kind", "name", "resource"]), path);
+      hasOnly(value, new Set(["kind", "resource"]), path);
       const name = requireIdentifier(
-        optionalProperty(value, "name") ?? optionalProperty(value, "resource"),
-        `${path}/name`,
+        property(value, "resource", path),
+        `${path}/resource`,
         bounds.maximum_string_length,
       );
       return Object.freeze({ kind, name });
@@ -562,25 +556,8 @@ const parseParams = (
 };
 const parseAsync = (value: UnknownRecord, path: string): boolean => {
   const asyncValue = optionalProperty(value, "async");
-  const mode = optionalProperty(value, "mode");
-  const kind = optionalProperty(value, "kind");
   if (asyncValue !== undefined && typeof asyncValue !== "boolean")
     fail("input.expected-boolean", `${path}/async`, "async must be boolean");
-  if (mode !== undefined && mode !== "sync" && mode !== "async")
-    fail("function.invalid-mode", `${path}/mode`, "mode must be 'sync' or 'async'");
-  if (kind !== undefined && typeof kind !== "string")
-    fail("input.expected-string", `${path}/kind`, "kind must be a string");
-  if (
-    typeof kind === "string" &&
-    kind !== "func" &&
-    kind !== "async" &&
-    kind !== "async-func" &&
-    kind !== "method" &&
-    kind !== "static"
-  ) {
-    fail("function.invalid-kind", `${path}/kind`, `unsupported function kind '${kind}'`);
-  }
-  if (mode === "async" || kind === "async" || kind === "async-func") return true;
   return asyncValue === true;
 };
 
@@ -590,7 +567,6 @@ const parseOperation = (
   semanticParent: string,
   depth: number,
   bounds: WitMappingBounds,
-  resourceMember = false,
 ): WitOperation => {
   const value = requireRecord(input, path);
   hasOnly(
@@ -599,14 +575,11 @@ const parseOperation = (
       "name",
       "semantic_path",
       "async",
-      "mode",
-      "kind",
       "params",
       "parameters",
       "result",
       "returns",
       "effect_labels",
-      "static",
     ]),
     path,
   );
@@ -631,13 +604,6 @@ const parseOperation = (
       ? null
       : parseType(resultValue, `${path}/result`, depth + 1, bounds);
   const async = parseAsync(value, `${path}`);
-  if (
-    resourceMember &&
-    optionalProperty(value, "static") !== undefined &&
-    typeof optionalProperty(value, "static") !== "boolean"
-  ) {
-    fail("input.expected-boolean", `${path}/static`, "static must be boolean");
-  }
   return Object.freeze({
     name,
     semantic_path,
@@ -660,19 +626,7 @@ const parseConstructor = (
   bounds: WitMappingBounds,
 ): WitConstructor => {
   const value = requireRecord(input, path);
-  hasOnly(
-    value,
-    new Set(["semantic_path", "params", "parameters", "effect_labels", "async", "mode", "kind"]),
-    path,
-  );
-  const asyncValue = optionalProperty(value, "async");
-  const mode = optionalProperty(value, "mode");
-  const kind = optionalProperty(value, "kind");
-  if (mode !== undefined && mode !== "sync")
-    fail("function.unsupported", path, "WIT constructors cannot be async in this portable subset");
-  if (asyncValue === true || kind === "async" || kind === "async-func") {
-    fail("function.unsupported", path, "WIT constructors cannot be async in this portable subset");
-  }
+  hasOnly(value, new Set(["semantic_path", "params", "parameters", "effect_labels"]), path);
   const semantic_path =
     optionalString(
       optionalProperty(value, "semantic_path"),
@@ -713,9 +667,7 @@ const parseCases = (
     const value = requireRecord(entry, `${path}/${index}`);
     hasOnly(
       value,
-      withPayload
-        ? new Set(["name", "type", "semantic_path", "payload"])
-        : new Set(["name", "semantic_path"]),
+      withPayload ? new Set(["name", "type", "semantic_path"]) : new Set(["name", "semantic_path"]),
       `${path}/${index}`,
     );
     const name = requireIdentifier(
@@ -729,17 +681,11 @@ const parseCases = (
         `${path}/${index}/semantic_path`,
         bounds.maximum_string_length,
       ) ?? `${semanticParent}/${name}`;
-    const payload = optionalProperty(value, "type") ?? optionalProperty(value, "payload");
+    const typeValue = optionalProperty(value, "type");
     const type =
-      withPayload && payload !== undefined && payload !== null
-        ? parseType(payload, `${path}/${index}/type`, depth + 1, bounds)
+      withPayload && typeValue !== undefined && typeValue !== null
+        ? parseType(typeValue, `${path}/${index}/type`, depth + 1, bounds)
         : null;
-    if (!withPayload && payload !== undefined)
-      fail(
-        "input.unknown-property",
-        `${path}/${index}/type`,
-        "enum and flag cases cannot carry a payload",
-      );
     return Object.freeze({ name, type, semantic_path });
   });
   const names = new Set<string>();
@@ -764,7 +710,7 @@ const parseTypeDeclaration = (
     `${path}/kind`,
     bounds.maximum_string_length,
   );
-  const kind = rawKind === "alias" ? "type" : rawKind;
+  const kind = rawKind;
   const name = requireIdentifier(
     property(value, "name", path),
     `${path}/name`,
@@ -794,13 +740,13 @@ const parseTypeDeclaration = (
       return Object.freeze({ kind, name, semantic_path, fields: Object.freeze(parsed) });
     }
     case "variant": {
-      hasOnly(value, new Set(["kind", "name", "semantic_path", "cases", "constructors"]), path);
+      hasOnly(value, new Set(["kind", "name", "semantic_path", "cases"]), path);
       return Object.freeze({
         kind,
         name,
         semantic_path,
         cases: parseCases(
-          optionalProperty(value, "cases") ?? optionalProperty(value, "constructors"),
+          property(value, "cases", path),
           `${path}/cases`,
           semantic_path,
           depth + 1,
@@ -810,13 +756,13 @@ const parseTypeDeclaration = (
       });
     }
     case "enum": {
-      hasOnly(value, new Set(["kind", "name", "semantic_path", "cases", "values"]), path);
+      hasOnly(value, new Set(["kind", "name", "semantic_path", "cases"]), path);
       return Object.freeze({
         kind,
         name,
         semantic_path,
         cases: parseCases(
-          optionalProperty(value, "cases") ?? optionalProperty(value, "values"),
+          property(value, "cases", path),
           `${path}/cases`,
           semantic_path,
           depth + 1,
@@ -826,13 +772,13 @@ const parseTypeDeclaration = (
       });
     }
     case "flags": {
-      hasOnly(value, new Set(["kind", "name", "semantic_path", "cases", "flags"]), path);
+      hasOnly(value, new Set(["kind", "name", "semantic_path", "cases"]), path);
       return Object.freeze({
         kind,
         name,
         semantic_path,
         cases: parseCases(
-          optionalProperty(value, "cases") ?? optionalProperty(value, "flags"),
+          property(value, "cases", path),
           `${path}/cases`,
           semantic_path,
           depth + 1,
@@ -842,13 +788,12 @@ const parseTypeDeclaration = (
       });
     }
     case "type": {
-      hasOnly(value, new Set(["kind", "name", "semantic_path", "type", "target"]), path);
-      const target = optionalProperty(value, "type") ?? optionalProperty(value, "target");
+      hasOnly(value, new Set(["kind", "name", "semantic_path", "type"]), path);
       return Object.freeze({
         kind,
         name,
         semantic_path,
-        type: parseType(target, `${path}/type`, depth + 1, bounds),
+        type: parseType(property(value, "type", path), `${path}/type`, depth + 1, bounds),
       });
     }
     case "resource": {
@@ -859,18 +804,16 @@ const parseTypeDeclaration = (
           "name",
           "semantic_path",
           "ownership_statement",
-          "ownership",
           "drop_assumption",
           "usage_grade",
           "constructor",
           "methods",
           "statics",
-          "static_functions",
         ]),
         path,
       );
       const ownership = requireNonemptyString(
-        optionalProperty(value, "ownership_statement") ?? optionalProperty(value, "ownership"),
+        property(value, "ownership_statement", path),
         `${path}/ownership_statement`,
         bounds.maximum_string_length,
       );
@@ -890,8 +833,7 @@ const parseTypeDeclaration = (
             );
       const constructorInput = optionalProperty(value, "constructor");
       const methodsInput = optionalProperty(value, "methods") ?? [];
-      const staticsInput =
-        optionalProperty(value, "statics") ?? optionalProperty(value, "static_functions") ?? [];
+      const staticsInput = optionalProperty(value, "statics") ?? [];
       const methods = requireArray(methodsInput, `${path}/methods`);
       const statics = requireArray(staticsInput, `${path}/statics`);
       if (
@@ -902,10 +844,10 @@ const parseTypeDeclaration = (
       )
         fail("bounds.collection-too-large", path, "resource operation collection is too large");
       const parsedMethods = methods.map((entry, index) =>
-        parseOperation(entry, `${path}/methods/${index}`, semantic_path, depth + 1, bounds, true),
+        parseOperation(entry, `${path}/methods/${index}`, semantic_path, depth + 1, bounds),
       );
       const parsedStatics = statics.map((entry, index) =>
-        parseOperation(entry, `${path}/statics/${index}`, semantic_path, depth + 1, bounds, true),
+        parseOperation(entry, `${path}/statics/${index}`, semantic_path, depth + 1, bounds),
       );
       const names = new Set<string>();
       for (const [index, operation] of [...parsedMethods, ...parsedStatics].entries()) {
@@ -1062,11 +1004,7 @@ const validateTypes = (interfaces: ReadonlyArray<WitInterface>): void => {
 
 const parseInterface = (input: unknown, path: string, bounds: WitMappingBounds): WitInterface => {
   const value = requireRecord(input, path);
-  hasOnly(
-    value,
-    new Set(["name", "semantic_path", "types", "declarations", "functions", "operations"]),
-    path,
-  );
+  hasOnly(value, new Set(["name", "semantic_path", "types", "functions"]), path);
   const name = requireIdentifier(
     property(value, "name", path),
     `${path}/name`,
@@ -1077,10 +1015,8 @@ const parseInterface = (input: unknown, path: string, bounds: WitMappingBounds):
     `${path}/semantic_path`,
     bounds.maximum_string_length,
   );
-  const typesInput =
-    optionalProperty(value, "types") ?? optionalProperty(value, "declarations") ?? [];
-  const functionsInput =
-    optionalProperty(value, "functions") ?? optionalProperty(value, "operations") ?? [];
+  const typesInput = optionalProperty(value, "types") ?? [];
+  const functionsInput = optionalProperty(value, "functions") ?? [];
   const typeEntries = requireArray(typesInput, `${path}/types`);
   const functionEntries = requireArray(functionsInput, `${path}/functions`);
   if (typeEntries.length > bounds.maximum_types)
