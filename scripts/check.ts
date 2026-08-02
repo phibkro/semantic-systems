@@ -16,7 +16,7 @@ const program = Effect.gen(function* () {
     ["bun", "install", "--frozen-lockfile", "--ignore-scripts"],
     ["bun", "run", "effect:setup"],
     ["bun", "scripts/check-fast.ts"],
-    ["bun", "test"],
+    ["bun", "run", "test"],
     ["pyright"],
     ["pytest", "-p", "no:cacheprovider"],
   ] as const) {

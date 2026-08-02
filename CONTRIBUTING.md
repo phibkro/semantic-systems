@@ -31,11 +31,16 @@ TypeScript 7 compiler and the checked hook installer sets
 `core.hooksPath=.githooks`; local hooks improve feedback latency but remain
 advisory and bypassable.
 
-| Loop | Command | Latency | Covers |
-|---|---|---|---|
-| Fast | `just fast` | seconds | format, lint, typecheck, model validate/generate, commit-policy conformance |
-| Integration | `just check` | minutes | frozen install + fast loop + full `bun test` + transitional custody `pyright`/`pytest` |
-| Feature | `just accept <id>-<slug>` | tracer-sized | the exact Bun acceptance program for one frozen design spec |
+| Loop        | Command                   | Latency      | Covers                                                                                     |
+| ----------- | ------------------------- | ------------ | ------------------------------------------------------------------------------------------ |
+| Fast        | `just fast`               | seconds      | format, lint, typecheck, model validate/generate, commit-policy conformance                |
+| Integration | `just check`              | minutes      | frozen install + fast loop + full `bun run test` + transitional custody `pyright`/`pytest` |
+| Feature     | `just accept <id>-<slug>` | tracer-sized | the exact Bun acceptance program for one frozen design spec                                |
+
+`bun run test` keeps each test bounded at 30 seconds. Several custody tests
+create clean Git repositories or perform a pinned offline build; Bun's
+five-second default can misclassify host scheduling contention as a semantic
+failure.
 
 `nix flake check` runs the parts of the fast/integration loop that are
 hermetic (Python static checks, tests, and the network-free commit-policy
@@ -82,7 +87,7 @@ ruff check .
 ruff format --check .
 pyright
 pytest
-bun test
+bun run test
 semproj validate
 semproj generate --check
 bun run format:check

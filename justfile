@@ -18,7 +18,7 @@ report:
     bun run semproj -- report
 
 test:
-    bun test
+    bun run test
 
 fast:
     bun scripts/check-fast.ts
