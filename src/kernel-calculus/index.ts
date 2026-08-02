@@ -76,7 +76,6 @@ export {
   isRuntimeResult,
   isRuntimeThunk,
   isRuntimeValue,
-  observeInternalResumptionOneShotForTest,
   resume,
   runtimeBool,
   runtimeInjectLeft,
@@ -135,8 +134,14 @@ export type {
   StructuredFact,
   ValueBinderOriginKind,
 } from "./checker.ts";
-export { check, checkEffectAssertion } from "./checker.ts";
-export { valueTypesEqual } from "./checker.ts";
+export {
+  check,
+  checkEffectAssertion,
+  computationTypesEqual,
+  isCheckedProgram,
+  isCheckResult,
+  valueTypesEqual,
+} from "./checker.ts";
 export type { EffectRow } from "./effect-row.ts";
 export type { Grade, Usage } from "./grade.ts";
 export type {

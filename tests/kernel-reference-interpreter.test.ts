@@ -22,6 +22,11 @@ type PrimitiveNode =
 
 type ValueNode =
   | PrimitiveNode
+  | {
+      readonly tag: "inject-left";
+      readonly value: ValueNode;
+      readonly right_type: { readonly tag: "unit" };
+    }
   | { readonly tag: "pair"; readonly first: ValueNode; readonly second: ValueNode }
   | {
       readonly tag: "inject-right";
@@ -59,6 +64,11 @@ const valueArbitrary: fc.Arbitrary<ValueNode> = fc.oneof(
     left_type: { tag: "unit" as const },
     value,
   })),
+  primitiveArbitrary.map((value) => ({
+    tag: "inject-left" as const,
+    value,
+    right_type: { tag: "unit" as const },
+  })),
 );
 
 const typeOfValueNode = (node: ValueNode): unknown => {
@@ -74,6 +84,12 @@ const typeOfValueNode = (node: ValueNode): unknown => {
         tag: "pair",
         first: typeOfValueNode(node.first),
         second: typeOfValueNode(node.second),
+      };
+    case "inject-left":
+      return {
+        tag: "sum",
+        left: typeOfValueNode(node.value),
+        right: node.right_type,
       };
     case "inject-right":
       return {
@@ -97,6 +113,8 @@ const mismatchedTypeOfValueNode = (node: ValueNode): unknown => {
       return { tag: "int" };
     case "pair":
       return { tag: "unit" };
+    case "inject-left":
+      return { tag: "int" };
     case "inject-right":
       return { tag: "int" };
   }
@@ -140,6 +158,14 @@ const pureProgramFromValue = (value: ValueNode): fc.Arbitrary<Record<string, unk
         value: { tag: "inject-right", left_type: { tag: "unit" }, value: { tag: "unit" } },
         left_branch: { tag: "return", grade: "1", value: { tag: "int", value: 0 } },
         right_branch: { tag: "return", grade: "1", value: { tag: "int", value: 1 } },
+      }),
+    ),
+    fc.constant(
+      document({
+        tag: "case",
+        value: { tag: "inject-left", value: { tag: "unit" }, right_type: { tag: "unit" } },
+        left_branch: { tag: "return", grade: "1", value: { tag: "int", value: 1 } },
+        right_branch: { tag: "return", grade: "1", value: { tag: "int", value: 0 } },
       }),
     ),
   );
@@ -300,6 +326,7 @@ describe("kernel reference interpreter examples", () => {
       "handled-program",
       "rejected-double-resume",
       "rejected-type-mismatch",
+      "sum-case",
     ] as const) {
       const source = new Uint8Array(
         await Bun.file(

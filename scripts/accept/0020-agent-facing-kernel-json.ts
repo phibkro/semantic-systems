@@ -18,6 +18,8 @@ const goldenExamples = [
   ["examples/kernel-json/handled-program.kernel.json", "semantic.kernel-json"],
   ["examples/kernel-json/pure-program.accepted.kernel-check.json", "semantic.kernel-check"],
   ["examples/kernel-json/handled-program.accepted.kernel-check.json", "semantic.kernel-check"],
+  ["examples/kernel-json/sum-case.kernel.json", "semantic.kernel-json"],
+  ["examples/kernel-json/sum-case.accepted.kernel-check.json", "semantic.kernel-check"],
   ["examples/kernel-json/rejected-double-resume.kernel.json", "semantic.kernel-json"],
   ["examples/kernel-json/rejected-type-mismatch.kernel.json", "semantic.kernel-json"],
   [

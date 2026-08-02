@@ -26,7 +26,11 @@ import {
   type ComputationTerm,
   type ValueType,
 } from "../src/kernel-calculus/index.ts";
-import { checkKernelDocument, decodeKernelDocumentValue } from "../src/kernel-json/index.ts";
+import {
+  checkKernelDocument,
+  decodeKernelDocumentValue,
+  defaultKernelCheckEnvelopeBounds,
+} from "../src/kernel-json/index.ts";
 
 const RAW_MAXIMUM_BYTES = 1_048_576;
 const RAW_MAXIMUM_NODES = 524_288;
@@ -34,10 +38,15 @@ const PREVIOUS_RAW_MAXIMUM_NODES = 65_536;
 const PREVIOUS_MAXIMUM_LABELS = 65_536;
 const MAXIMUM_LABELS = 1_048_576;
 const TIGHT_LABEL_LEMMA = Math.floor(RAW_MAXIMUM_BYTES / 3);
-const MAXIMUM_TYPE_NODES = 16_384;
 const MAXIMUM_OBSERVATION_NODES = 4_194_304;
 const MAXIMUM_OBSERVATION_COLLECTION_LENGTH = 1_048_576;
 const MAXIMUM_OBSERVATION_BYTES = 33_554_432;
+const {
+  maximumJudgments: MAXIMUM_JUDGMENTS,
+  maximumDiagnostics: MAXIMUM_DIAGNOSTICS,
+  maximumContextEntries: MAXIMUM_CONTEXT_ENTRIES,
+  maximumTypeNodes: MAXIMUM_TYPE_NODES,
+} = defaultKernelCheckEnvelopeBounds;
 const KERNEL_0018_MAXIMUM_NODES = 4_096;
 const KERNEL_0018_MAXIMUM_ROW_LABELS = 256;
 const WIDEST_TYPE_NODE_OCCURRENCES = 262;
@@ -210,26 +219,56 @@ describe("0020 bound derivations", () => {
     const widestSumNode = widestSumNodes[0]!;
     expect(widestSumNode.left).toBeLessThan(observation.observation.types.length);
     expect(widestSumNode.right).toBeLessThan(observation.observation.types.length);
-    const branchContextEntries = observation.observation.judgments
-      .filter(
-        (judgment) =>
-          judgment.tag === "computation-judgment" &&
-          (judgment.occurrence_path === "/program/left_branch" ||
-            judgment.occurrence_path === "/program/right_branch"),
-      )
-      .flatMap((judgment) =>
-        judgment.value_context.filter(
-          (entry) =>
-            entry.origin_kind === "case-left-payload" || entry.origin_kind === "case-right-payload",
-        ),
-      );
+    const branchJudgments = observation.observation.judgments.filter(
+      (judgment) =>
+        judgment.tag === "computation-judgment" &&
+        (judgment.occurrence_path === "/program/left_branch" ||
+          judgment.occurrence_path === "/program/right_branch"),
+    );
+    const branchContextEntries = branchJudgments.flatMap((judgment) =>
+      judgment.value_context.filter(
+        (entry) =>
+          entry.origin_kind === "case-left-payload" || entry.origin_kind === "case-right-payload",
+      ),
+    );
     expect(branchContextEntries).toHaveLength(2);
     expect(branchContextEntries.map((entry) => entry.origin_kind).sort()).toEqual([
       "case-left-payload",
       "case-right-payload",
     ]);
-    const v2AdditionalObservationOccurrences = widestSumNodes.length + branchContextEntries.length;
-    expect(v2AdditionalObservationOccurrences).toBe(3);
+    expect(observation.observation.types.length).toBeLessThanOrEqual(MAXIMUM_TYPE_NODES);
+    expect(
+      branchJudgments.every((judgment) => judgment.value_context.length <= MAXIMUM_CONTEXT_ENTRIES),
+    ).toBeTrue();
+    const caseJudgments = observation.observation.judgments.filter(
+      (judgment) => judgment.tag === "computation-judgment" && judgment.rule === "computation.case",
+    );
+    expect(caseJudgments).toHaveLength(1);
+    expect(observation.observation.judgments.length).toBeLessThanOrEqual(MAXIMUM_JUDGMENTS);
+
+    const rejected = decodeKernelDocumentValue({
+      format: "semantic.kernel-json",
+      version: 2,
+      kernel: "semantic.kernel-calculus/0018/v2",
+      signature: [],
+      program: {
+        tag: "case",
+        value: { tag: "int", value: 1 },
+        left_branch: { tag: "return", grade: "1", value: { tag: "unit" } },
+        right_branch: { tag: "return", grade: "1", value: { tag: "unit" } },
+      },
+    });
+    expect(rejected.status).toBe("decoded");
+    if (rejected.status !== "decoded") return;
+    const rejectedObservation = checkKernelDocument(rejected.value);
+    expect(rejectedObservation.observation).toMatchObject({
+      tag: "rejected",
+      diagnostics: [{ code: "type.expected-sum" }],
+    });
+    if (rejectedObservation.observation.tag !== "rejected") return;
+    expect(rejectedObservation.observation.diagnostics.length).toBeLessThanOrEqual(
+      MAXIMUM_DIAGNOSTICS,
+    );
   });
 
   test("maximumObservationNodes dominates the rejected-observation worst case", () => {

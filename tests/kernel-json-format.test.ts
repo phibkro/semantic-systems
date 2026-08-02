@@ -19,12 +19,14 @@ const readGoldenBytes = async (name: string): Promise<Uint8Array> =>
 const documentGoldens = [
   "pure-program.kernel.json",
   "handled-program.kernel.json",
+  "sum-case.kernel.json",
   "rejected-double-resume.kernel.json",
 ] as const;
 
 const observationGoldens = [
   "pure-program.accepted.kernel-check.json",
   "handled-program.accepted.kernel-check.json",
+  "sum-case.accepted.kernel-check.json",
   "rejected-double-resume.rejected.kernel-check.json",
 ] as const;
 
@@ -34,6 +36,37 @@ describe("kernel-json schema artifact", () => {
       new URL("../spec/kernel-json/kernel-json-v2.schema.json", import.meta.url),
     ).json();
     expect(JSON.stringify(kernelJsonSchema())).toBe(JSON.stringify(fileSchema));
+  });
+
+  test("published schema envelope constraints match every frozen v2 artifact", async () => {
+    const schema = (await Bun.file(
+      new URL("../spec/kernel-json/kernel-json-v2.schema.json", import.meta.url),
+    ).json()) as {
+      $defs: Record<
+        string,
+        {
+          properties: {
+            version: { const: unknown };
+            kernel: { const: unknown };
+          };
+        }
+      >;
+    };
+    for (const [definition, names] of [
+      ["kernel_document", documentGoldens],
+      ["kernel_check_observation", observationGoldens],
+    ] as const) {
+      expect(schema.$defs[definition]?.properties.version.const).toBe(2);
+      expect(schema.$defs[definition]?.properties.kernel.const).toBe(
+        "semantic.kernel-calculus/0018/v2",
+      );
+      for (const name of names) {
+        expect(await readGoldenJson(name)).toMatchObject({
+          version: 2,
+          kernel: "semantic.kernel-calculus/0018/v2",
+        });
+      }
+    }
   });
 
   test("returned schema is deeply frozen inert data", () => {

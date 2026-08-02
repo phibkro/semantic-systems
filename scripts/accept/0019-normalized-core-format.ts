@@ -1,7 +1,19 @@
 #!/usr/bin/env bun
 import { resolve } from "node:path";
+import { BunCrypto } from "@effect/platform-bun";
 import { Data, Effect } from "effect";
 import { runCommand, runMain } from "../lib/command.ts";
+import {
+  caseTerm,
+  check,
+  injectRight,
+  int,
+  operationSignature,
+  returnTerm,
+  unitType,
+  variable,
+} from "../../src/kernel-calculus/index.ts";
+import { emitNormalizedCore } from "../../src/normalized-core/index.ts";
 
 class AcceptanceFailure extends Data.TaggedError("AcceptanceFailure")<{
   readonly message: string;
@@ -35,16 +47,31 @@ const requireArtifacts = Effect.forEach(requiredArtifacts, (relativePath) =>
   }),
 );
 const requireV2Boundary = Effect.gen(function* () {
-  const source = yield* Effect.promise(() =>
-    Bun.file(resolve(root, "src/normalized-core/schema.ts")).text(),
+  const checked = check(
+    operationSignature([]),
+    caseTerm(
+      injectRight(unitType(), int(7)),
+      returnTerm("1", int(0)),
+      returnTerm("1", variable(0)),
+    ),
   );
+  if (checked.status !== "accepted") {
+    return yield* new AcceptanceFailure({
+      message: "active normalized-core boundary must accept its v2 sum tracer",
+    });
+  }
+  const emitted = yield* emitNormalizedCore(checked.program, {
+    assumptions: [],
+    source: { units: [], correspondence: [] },
+  }).pipe(Effect.provide(BunCrypto.layer));
   if (
-    !source.includes("version: 2") ||
-    !source.includes("semantic.kernel-calculus/0018/v2") ||
-    !source.includes('tag: "sum"')
+    emitted.status !== "emitted" ||
+    emitted.artifact.version !== 2 ||
+    emitted.artifact.kernel !== "semantic.kernel-calculus/0018/v2" ||
+    emitted.artifact.term.tag !== "case"
   ) {
     return yield* new AcceptanceFailure({
-      message: "active normalized-core boundary must expose the v2 kernel and sum grammar",
+      message: "active normalized-core boundary must emit the v2 kernel and sum grammar",
     });
   }
 });

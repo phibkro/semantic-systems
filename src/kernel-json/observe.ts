@@ -526,6 +526,13 @@ const emptyObservation = (diagnostic: CheckDiagnostic): KernelCheckObservation =
     observation: { tag: "rejected", labels: [], types: [], diagnostics: [diagnostic] },
   });
 
+/**
+ * Compose strict projection with the authoritative kernel checker.
+ *
+ * This boundary never re-derives a context, type, usage, premise, or origin
+ * fact. Every judgment field directly translates a fact recorded by the
+ * authoritative checker.
+ */
 export const checkKernelDocument = (document: KernelDocument): KernelCheckObservation => {
   const projected = projectKernelProgram(document);
   if (projected.status === "rejected") {

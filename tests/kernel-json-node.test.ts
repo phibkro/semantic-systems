@@ -16,6 +16,7 @@ test("genuine Node reproduces the frozen golden kernel-json observations", async
   const cases: ReadonlyArray<readonly [string, string]> = [
     ["pure-program.kernel.json", "pure-program.accepted.kernel-check.json"],
     ["handled-program.kernel.json", "handled-program.accepted.kernel-check.json"],
+    ["sum-case.kernel.json", "sum-case.accepted.kernel-check.json"],
     ["rejected-double-resume.kernel.json", "rejected-double-resume.rejected.kernel-check.json"],
   ];
   for (const [documentFile, observationFile] of cases) {

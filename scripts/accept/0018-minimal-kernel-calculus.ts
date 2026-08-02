@@ -2,6 +2,15 @@
 import { resolve } from "node:path";
 import { Data, Effect } from "effect";
 import { runCommand, runMain } from "../lib/command.ts";
+import {
+  check,
+  evaluate,
+  int,
+  letTerm,
+  operationSignature,
+  returnTerm,
+  variable,
+} from "../../src/kernel-calculus/index.ts";
 
 class AcceptanceFailure extends Data.TaggedError("AcceptanceFailure")<{
   readonly message: string;
@@ -23,6 +32,7 @@ const requiredArtifacts = [
   "tests/kernel-calculus-custody.test.ts",
   "tests/kernel-calculus-oracle.test.ts",
   "tests/kernel-calculus-node.test.ts",
+  "tests/kernel-finite-sums.test.ts",
   "examples/kernel-calculus/lang-bang-overlap.bang",
   "examples/kernel-calculus/lang-bang-overlap.expected.txt",
 ] as const;
@@ -38,16 +48,22 @@ const requireArtifacts = Effect.forEach(requiredArtifacts, (relativePath) =>
   }),
 );
 const requireV2Boundary = Effect.gen(function* () {
-  const source = yield* Effect.promise(() =>
-    Bun.file(resolve(root, "src/kernel-calculus/machine.ts")).text(),
+  const checked = check(
+    operationSignature([]),
+    letTerm(returnTerm("1", int(1)), returnTerm("1", variable(0))),
   );
+  if (checked.status !== "accepted") {
+    return yield* new AcceptanceFailure({
+      message: "active kernel calculus boundary must accept its v2 snapshot tracer",
+    });
+  }
+  const observation = evaluate(checked.program, { fuel: 1, maximumTraceEntries: 4 });
   if (
-    !source.includes('format: "kernel-machine-v2"') ||
-    !source.includes('"computation.case-left"') ||
-    !source.includes('"computation.case-right"')
+    observation.status !== "exhausted" ||
+    observation.machineSnapshot.format !== "kernel-machine-v2"
   ) {
     return yield* new AcceptanceFailure({
-      message: "active kernel calculus boundary must expose the v2 machine and case rules",
+      message: "active kernel calculus boundary must emit a v2 machine snapshot",
     });
   }
 });
@@ -63,6 +79,7 @@ const program = Effect.gen(function* () {
       "tests/kernel-calculus-machine.test.ts",
       "tests/kernel-calculus-custody.test.ts",
       "tests/kernel-calculus-oracle.test.ts",
+      "tests/kernel-finite-sums.test.ts",
     ],
     [nodeExecutable, "--test", "tests/kernel-calculus-node.test.ts"],
     ["bun", "run", "typecheck"],
@@ -77,6 +94,7 @@ const program = Effect.gen(function* () {
       "tests/kernel-calculus-custody.test.ts",
       "tests/kernel-calculus-oracle.test.ts",
       "tests/kernel-calculus-node.test.ts",
+      "tests/kernel-finite-sums.test.ts",
       "examples/kernel-calculus",
       "scripts/accept/0018-minimal-kernel-calculus.ts",
     ],

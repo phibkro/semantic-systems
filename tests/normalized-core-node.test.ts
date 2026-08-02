@@ -18,6 +18,7 @@ import {
   unitType,
   variable,
 } from "../src/kernel-calculus/index.ts";
+import { decodeKernelDocumentBytes, projectKernelProgram } from "../src/kernel-json/index.ts";
 import { emitNormalizedCore, validateNormalizedCoreBytes } from "../src/normalized-core/index.ts";
 
 test("genuine Node emits and validates the frozen host-neutral bytes", async () => {
@@ -105,4 +106,53 @@ test("genuine Node emits and validates the frozen host-neutral bytes", async () 
     ),
   );
   assert.deepEqual(report, expectedReport);
+});
+
+test("genuine Node emits the frozen finite-sum normalized core", async () => {
+  const decoded = decodeKernelDocumentBytes(
+    new Uint8Array(
+      await readFile(new URL("../examples/kernel-json/sum-case.kernel.json", import.meta.url)),
+    ),
+  );
+  assert.equal(decoded.status, "decoded");
+  if (decoded.status !== "decoded") return;
+  const projected = projectKernelProgram(decoded.value);
+  assert.equal(projected.status, "projected");
+  if (projected.status !== "projected") return;
+  const checked = check(projected.value.signature, projected.value.term);
+  assert.equal(checked.status, "accepted");
+  if (checked.status !== "accepted") return;
+  const result = await Effect.runPromise(
+    emitNormalizedCore(checked.program, {
+      assumptions: [{ kind: "declared", statement: "SHA-256 is collision resistant" }],
+      source: {
+        units: [
+          {
+            source_key: "sum-case",
+            uri: "memory:sum-case",
+            content_identity: `sha256:${"1".repeat(64)}`,
+            byte_length: 1,
+          },
+        ],
+        correspondence: [
+          {
+            node_path: "/term",
+            source_key: "sum-case",
+            role: "expression",
+            start_byte: 0,
+            end_byte: 1,
+          },
+        ],
+      },
+    }).pipe(Effect.provide(NodeCrypto.layer)),
+  );
+  assert.equal(result.status, "emitted");
+  if (result.status !== "emitted") return;
+  const expected = Schema.decodeUnknownSync(Schema.UnknownFromJsonString)(
+    await readFile(
+      new URL("../examples/normalized-core/sum-case.expected.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  assert.deepEqual(result.artifact, expected);
 });

@@ -26,6 +26,10 @@ describe("checkKernelDocument reproduces the frozen golden observations", () => 
     await checkGolden("pure-program.kernel.json", "pure-program.accepted.kernel-check.json");
   });
 
+  test("finite-sum case program: accepted, byte-exact", async () => {
+    await checkGolden("sum-case.kernel.json", "sum-case.accepted.kernel-check.json");
+  });
+
   test("handled fresh.allocate program: accepted with one resumption, byte-exact", async () => {
     const observation = await checkGolden(
       "handled-program.kernel.json",

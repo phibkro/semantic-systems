@@ -576,7 +576,7 @@ export const kernelJsonSchemaData = {
           const: "semantic.kernel-json",
         },
         version: {
-          const: 1,
+          const: 2,
         },
         kernel: {
           const: "semantic.kernel-calculus/0018/v2",
@@ -1231,7 +1231,7 @@ export const kernelJsonSchemaData = {
           const: "semantic.kernel-check",
         },
         version: {
-          const: 1,
+          const: 2,
         },
         kernel: {
           const: "semantic.kernel-calculus/0018/v2",

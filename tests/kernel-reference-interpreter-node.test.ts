@@ -9,6 +9,7 @@ import {
 const corpus = [
   "pure-program.kernel.json",
   "handled-program.kernel.json",
+  "sum-case.kernel.json",
   "rejected-double-resume.kernel.json",
   "rejected-type-mismatch.kernel.json",
 ] as const;
