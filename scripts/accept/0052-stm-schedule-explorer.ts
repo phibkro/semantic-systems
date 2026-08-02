@@ -129,6 +129,16 @@ const runAssertions = async (): Promise<void> => {
   assert(contentionReport.unsupported_claims.length > 0, "unsupported claims are absent");
   assert(!canonicalJson(contentionReport).includes("proved"), "report uses proof language");
 
+  const strictPrefixReplay = replaySchedule(contention, []);
+  assert(!("kind" in strictPrefixReplay), "strict-prefix replay was rejected");
+  assert(strictPrefixReplay.status === "bounded", "strict-prefix replay was not bounded");
+  for (const name of ["serializable_commits", "no_partial_publication", "relevant_retry_wakeup"]) {
+    assert(
+      property(strictPrefixReplay, name).outcome === "unknown_due_to_bound",
+      `${name} strict-prefix replay was overclaimed`,
+    );
+  }
+
   const retryCase = retryScenario();
   const retryReport = exploreScenario(retryCase);
   const retryFinding = property(retryReport, "all_transactions_terminal");
@@ -137,6 +147,11 @@ const runAssertions = async (): Promise<void> => {
   assert(retryFinding.counterexample.schedule.length === 2, "retry counterexample is not shortest");
   const replay = replaySchedule(retryCase, retryFinding.counterexample.schedule);
   assert(!("kind" in replay), "valid retry counterexample was rejected");
+  assert(replay.status === "complete", "terminal retry replay was not complete");
+  assert(
+    property(replay, "all_transactions_terminal").outcome === "counterexample",
+    "terminal retry replay lost its counterexample",
+  );
   assert(
     canonicalJson(replay.terminal_projection) ===
       canonicalJson(retryFinding.counterexample.terminal_projection),

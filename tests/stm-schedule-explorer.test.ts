@@ -99,6 +99,20 @@ describe("bounded STM schedule explorer 0052", () => {
     expect(() => Object.defineProperty(report, "status", { value: "bounded" })).toThrow();
   });
 
+  test("replay status distinguishes strict prefixes from terminal counterexamples", () => {
+    const strictPrefix = replaySchedule(contentionScenario(), []);
+    expect("kind" in strictPrefix && strictPrefix.kind).not.toBe("replay_rejected");
+    assertReplayReport(strictPrefix);
+    expect(strictPrefix.status).toBe("bounded");
+    for (const name of [
+      "serializable_commits",
+      "no_partial_publication",
+      "relevant_retry_wakeup",
+    ]) {
+      expect(finding(strictPrefix, name).outcome).toBe("unknown_due_to_bound");
+    }
+  });
+
   test("retry deadlock returns shortest replayable counterexample", () => {
     const scenario = retryScenario();
     const report = exploreScenario(scenario);
@@ -112,6 +126,8 @@ describe("bounded STM schedule explorer 0052", () => {
     const replayResult = replaySchedule(scenario, deadlock.counterexample.schedule);
     expect("kind" in replayResult && replayResult.kind).not.toBe("replay_rejected");
     assertReplayReport(replayResult);
+    expect(replayResult.status).toBe("complete");
+    expect(finding(replayResult, "all_transactions_terminal").outcome).toBe("counterexample");
     expect(canonicalJson(replayResult.terminal_projection)).toBe(
       canonicalJson(deadlock.counterexample.terminal_projection),
     );

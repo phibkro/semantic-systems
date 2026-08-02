@@ -153,6 +153,7 @@ export interface ExplorationReport extends JsonObject {
 export interface ReplayReport extends JsonObject {
   readonly format: typeof REPLAY_FORMAT;
   readonly scenario_id: string;
+  readonly status: "complete" | "bounded";
   readonly schedule: ReadonlyArray<ScheduleChoice>;
   readonly trace: ReadonlyArray<TraceStep>;
   readonly terminal_projection: MachineProjection;
@@ -963,13 +964,14 @@ const replayProperties = (
   scenario: Scenario,
   execution: Execution,
   enabled: ReadonlyArray<ScheduleChoice>,
+  status: "complete" | "bounded",
 ): ReadonlyArray<PropertyFinding> => {
   const found = violations(scenario, execution, enabled);
   const counterexamples = new Map<ExplorerProperty, Counterexample>();
   for (const property of scenario.properties) {
     if (found.has(property)) counterexamples.set(property, counterexampleFor(execution));
   }
-  return makeProperties(scenario, "complete", counterexamples);
+  return makeProperties(scenario, status, counterexamples);
 };
 
 export const replaySchedule = (
@@ -983,14 +985,16 @@ export const replaySchedule = (
   if (!("machine" in result)) return result.rejected;
   const execution: Execution = result;
   const enabled = enabledChoices(execution.machine);
+  const status = enabled.length === 0 ? "complete" : "bounded";
   const projection = projectMachine(execution.machine);
   return freezeDeep({
     format: REPLAY_FORMAT,
     scenario_id: scenario.id,
+    status,
     schedule: execution.schedule,
     trace: execution.machine.trace,
     terminal_projection: projection,
-    properties: replayProperties(scenario, execution, enabled),
+    properties: replayProperties(scenario, execution, enabled, status),
     assumptions,
     unsupported_claims: unsupportedClaims,
   });
