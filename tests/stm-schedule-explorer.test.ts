@@ -31,7 +31,7 @@ const requireScenario = (value: Scenario | InvalidScenario): Scenario => {
 const assertReplayReport: (
   value: ReplayReport | ReplayRejected,
 ) => asserts value is ReplayReport = (value) => {
-  if ("kind" in value) throw new Error(value.message);
+  if (!("format" in value)) throw new Error(value.message);
 };
 
 const retryScenario = (): Scenario => {

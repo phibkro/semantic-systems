@@ -46,19 +46,16 @@ const run = (command: ReadonlyArray<string>): string => {
   return decoder.decode(result.stdout);
 };
 
-const property: (report: ExplorationReport | ReplayReport, name: string) => PropertyFinding = (
-  report,
-  name,
-) => {
-  const result = report.properties.find((entry) => entry.property === name);
-  if (result === undefined) fail(`report is missing property ${name}`);
-  return result;
-};
+const property = (report: ExplorationReport | ReplayReport, name: string): PropertyFinding =>
+  report.properties.find((entry) => entry.property === name) ??
+  fail(`report is missing property ${name}`);
 
-const requireScenario = (value: Scenario | InvalidScenario): Scenario => {
-  if ("kind" in value) fail(value.message);
-  return value;
-};
+const isInvalidScenario = (value: Scenario | InvalidScenario): value is InvalidScenario =>
+  Object.hasOwn(value, "kind") &&
+  (value as { readonly kind?: unknown }).kind === "invalid_scenario";
+
+const requireScenario = (value: Scenario | InvalidScenario): Scenario =>
+  isInvalidScenario(value) ? fail(value.message) : value;
 
 const retryScenario = (): Scenario => {
   const owner = domain("schedule-retry");
@@ -132,13 +129,13 @@ const runAssertions = async (): Promise<void> => {
   assert(contentionReport.unsupported_claims.length > 0, "unsupported claims are absent");
   assert(!canonicalJson(contentionReport).includes("proved"), "report uses proof language");
 
-  const retry = retryScenario();
-  const retryReport = exploreScenario(retry);
+  const retryCase = retryScenario();
+  const retryReport = exploreScenario(retryCase);
   const retryFinding = property(retryReport, "all_transactions_terminal");
   assert(retryFinding.outcome === "counterexample", "retry deadlock has no counterexample");
   assert(retryFinding.counterexample !== null, "retry counterexample payload is absent");
   assert(retryFinding.counterexample.schedule.length === 2, "retry counterexample is not shortest");
-  const replay = replaySchedule(retry, retryFinding.counterexample.schedule);
+  const replay = replaySchedule(retryCase, retryFinding.counterexample.schedule);
   assert(!("kind" in replay), "valid retry counterexample was rejected");
   assert(
     canonicalJson(replay.terminal_projection) ===

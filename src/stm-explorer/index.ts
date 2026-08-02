@@ -391,7 +391,7 @@ export function makeScenario(
     const began = (() => {
       try {
         return beginAttempt(initialStore, entry.transaction, 1n);
-      } catch (cause) {
+      } catch {
         return undefined;
       }
     })();
@@ -410,7 +410,7 @@ export function makeScenario(
     if (!isAttempt(attempt)) return { ...attempt, index } as InvalidScenario;
     try {
       discardAttempt(initialStore, attempt, "interrupted");
-    } catch (cause) {
+    } catch {
       return invalidScenario(
         "transaction_rejected",
         `transaction ${entry.id} could not be discarded`,
