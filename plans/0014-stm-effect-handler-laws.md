@@ -291,6 +291,17 @@ decision.stm-library`; generated readiness must derive from that source edge.
 - 2026-08-02: the private parent map retains store ancestors, and ancestry
   checks are O(depth). These costs are accepted for this bounded reference
   model. The optimized runtime remains outside feature 0014.
+- 2026-08-02: a read of a staged write remains a retry dependency under frozen
+  L3. This dependency does not become a retained store observation after a
+  rejected `orElse` branch.
+- 2026-08-02: clean exact-head acceptance at `d677bba` passed 33 STM
+  tests/276 assertions, 82 neighboring tests/483 assertions, 12 semantic-lint
+  tests/30 assertions, typecheck, severe lint, formatting, Bun/Node parity,
+  model validation, and nine generated-view checks. Full `just check` passed
+  676 tests/17,200 assertions and every repository integration gate.
+- 2026-08-02: independent read-only exact-head rereview accepted `d677bba`.
+  It found no Critical or Important issue. The reviewer ran no build or test
+  command. The accepted review remains static analysis and assertion evidence.
 
-Status: fourth correction accepted in the live tree; clean exact-head acceptance
-and review pending
+Status: complete; exact-head acceptance, full integration, and independent
+review passed at `d677bba`

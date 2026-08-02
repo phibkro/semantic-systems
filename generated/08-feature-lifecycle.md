@@ -40,15 +40,6 @@
 - Plan: [execution ledger](../plans/0007-reuse-first-engineering.md)
 - Acceptance: [runnable program](../scripts/accept/0007-reuse-first-engineering.ts)
 
-### `0014-stm-effect-handler-laws` — Specify STM effect and handler laws
-
-- Status: `in_progress`
-- Feature loop: `managed`
-- Model: [canonical record](../model/work/features/0014-stm-effect-handler-laws.json)
-- Design: [design contract](../design-specs/0014-stm-effect-handler-laws.md)
-- Plan: [execution ledger](../plans/0014-stm-effect-handler-laws.md)
-- Acceptance: [runnable program](../scripts/accept/0014-stm-effect-handler-laws.ts)
-
 ### `0015-open-semantic-system-design-lens` — Apply the open semantic system design lens
 
 - Status: `in_progress`
@@ -122,6 +113,15 @@
 - Design: [design contract](../design-specs/0013-bounded-actor-trace-retention.md)
 - Plan: [execution ledger](../plans/0013-bounded-actor-trace-retention.md)
 - Acceptance: [runnable program](../scripts/accept/0013-bounded-actor-trace-retention.ts)
+
+### `0014-stm-effect-handler-laws` — Specify STM effect and handler laws
+
+- Status: `complete`
+- Feature loop: `managed`
+- Model: [canonical record](../model/work/features/0014-stm-effect-handler-laws.json)
+- Design: [design contract](../design-specs/0014-stm-effect-handler-laws.md)
+- Plan: [execution ledger](../plans/0014-stm-effect-handler-laws.md)
+- Acceptance: [runnable program](../scripts/accept/0014-stm-effect-handler-laws.ts)
 
 ### `0016-executable-semantic-system-kernel` — Build the executable semantic system kernel
 

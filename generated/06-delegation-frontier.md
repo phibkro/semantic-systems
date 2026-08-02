@@ -2,7 +2,7 @@
 
 <!-- Generated. Edit model sources, not this file. -->
 
-Ready parallel work items: **15**.
+Ready parallel work items: **16**.
 
 | Work item | Phase | Status | Ready | Score | Recommendation | Blockers |
 |---|---|---|---:|---:|---|---|
@@ -14,7 +14,7 @@ Ready parallel work items: **15**.
 | Render the PBK roadmap as an interactive skill tree | implementation | complete | no | 72 | delegate with review |  |
 | Reconstruct the Control Room on TypeScript and Effect v4 | validation | complete | no | 72 | delegate with review |  |
 | Implement core checker | implementation | planned | yes | 65 | delegate with review |  |
-| Design deterministic concurrency simulator | design | planned | no | 68 | delegate with review | Specify STM effect and handler laws |
+| Design deterministic concurrency simulator | design | planned | yes | 68 | delegate with review |  |
 | Adopt Effect Graph as a portfolio execution index | implementation | complete | no | 90 | delegate with review |  |
 | Build the executable semantic system kernel | validation | complete | no | 72 | delegate with review |  |
 | Specify explorer query contract | design | ready | yes | 94 | delegate directly |  |
@@ -40,9 +40,9 @@ Ready parallel work items: **15**.
 | Recut the independent resolution checker | design | complete | no | 83 | delegate with review |  |
 | Apply reuse-first engineering assignments | implementation | in_progress | yes | 94 | delegate with review |  |
 | Specify semantic attestation profile | design | ready | no | 87 | delegate with review | Define normalized theory identity |
-| Specify STM effect and handler laws | research | in_progress | yes | 49 | bounded spike |  |
+| Specify STM effect and handler laws | validation | complete | no | 49 | bounded spike |  |
 | Model-check STM interleavings | validation | planned | no | 94 | delegate with review | Implement minimal STM runtime |
-| Implement minimal STM runtime | implementation | planned | no | 68 | delegate with review | Specify STM effect and handler laws |
+| Implement minimal STM runtime | implementation | planned | yes | 68 | delegate with review |  |
 | Define normalized theory identity | design | in_progress | yes | 41 | bounded spike |  |
 | Specify translation-validation seams | research | planned | yes | 45 | bounded spike |  |
 | Migrate the runtime to TypeScript, Bun, and Effect v4 | validation | complete | no | 77 | delegate with review |  |
