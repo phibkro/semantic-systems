@@ -39,8 +39,9 @@ At exact correction head `a5184fc95b59fb18832d2586456b5092c503e7e4`,
 15 portfolio tests passed with 8,235 assertions, together with 73 Control Room
 unit/component tests, 9 mobile Chromium journeys, model validation, nine
 generated views, build/payload scans, and the inherited feature programs. Full
-`just check` passed 676 tests with 17,200 assertions. These are exact-head
-runtime observations for `a5184fc`; correction/rereview remains pending.
+`just check` passed 676 tests with 17,200 assertions. These exact-head runtime
+observations apply to `a5184fc`; the later exact acceptance and accepted
+independent rereview at `06ac8a3` are recorded in the status history below.
 
 Historical pre-reassignment runtime evidence recorded 15 portfolio tests, 74
 Control Room tests, 9 mobile Chromium journeys, and a complete repository gate
