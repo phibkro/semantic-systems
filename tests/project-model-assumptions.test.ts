@@ -211,6 +211,17 @@ describe("project-model assumptions query", () => {
     const project = await loadCanonicalProject();
     const registry = decodeOpaquePrimitiveRegistry(project);
     expect(registry.sourceArtifactId).toBe("artifact.project-model.opaque-primitive-register");
+    expect(registry.primitives.map((primitive) => primitive.id)).toEqual([
+      "component.project-model",
+      "runtime.adapter.bun",
+      "runtime.adapter.node",
+      "tool.bun",
+      "tool.effect-v4",
+      "tool.node",
+      "tool.oxfmt",
+      "tool.oxlint",
+      "tool.typescript",
+    ]);
     expect(registry.primitives.every((primitive) => project.entities.has(primitive.id))).toBeTrue();
     if (registry.sourceArtifactId === null) return;
     const report = assumptionReport(project, registry.sourceArtifactId, registry);

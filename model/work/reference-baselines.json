@@ -106,7 +106,7 @@
           "positive_completeness": "incomplete",
           "negative_assumptions": 0,
           "negative_completeness": "recorded_complete",
-          "behavior_tests": 11,
+          "behavior_tests": 12,
           "wiring_elapsed_minutes": 56,
           "not_established": "Completeness beyond the recorded graph plus supplied register, external-tool correctness, proof of traversal laws, or future runtime behavior."
         },
@@ -131,7 +131,7 @@
                 "kind": "repository_artifact",
                 "path": "tests/project-model-assumptions.test.ts"
               },
-              "claim": "Eleven behavior tests passed, including deterministic equal-distance choice, cycle termination, typed missing-entity failure, and the permanent unreachable opaque-adapter negative."
+              "claim": "Twelve behavior tests passed, including canonical opaque-register binding, deterministic equal-distance choice, cycle termination, typed missing-entity failure, and the permanent unreachable opaque-adapter negative."
             },
             {
               "role": "equivalence",
