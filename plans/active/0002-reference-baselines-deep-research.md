@@ -219,4 +219,21 @@ are accepted.
   `research/reference-baselines/pilot-control-synthesis.md`. The portfolio
   remains incomplete until the cached repair re-runs boundary-aware synthesis.
 - 2026-08-02: Historical lifecycle heading migrated verbatim from the pre-migration plan:
+
   # Active plan 0002: reference baselines deep research
+
+- 2026-08-02: Reconciled the cached portfolio against the current
+  TypeScript/Bun/Effect repository. The historical packet remains immutable;
+  current boundary and enforcement claims were re-derived in the portfolio,
+  ladder, and experiments.
+- 2026-08-02: Integrated the separately verified six-project type-system
+  refinement ladder. The corpus now has representative entries in all six
+  required areas, while uncovered projects and per-card uncertainties remain
+  explicit.
+- 2026-08-02: Recut RX1-RX3 as current experiments. RX1 passed: three fresh
+  Bun and three genuine Node processes produced byte-identical ten-view trees
+  and CLI streams. This machine check establishes the present determinism
+  precondition only.
+- 2026-08-02: Feature closure remains blocked on broader source custody and an
+  independent review of the integrated portfolio. RX2 is the next experiment;
+  RX3 can proceed independently.

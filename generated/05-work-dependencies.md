@@ -6,6 +6,7 @@
 flowchart LR
     decision_gated_autonomous_merges["Gate autonomous feature merges"]
     decision_one_shot["One-shot handlers by default"]
+    decision_reference_method_adoption["Adopt reference methods by class behind project boundaries"]
     decision_stm_library["STM is a library effect"]
     decision_theory_identity["Laws participate in semantic identity"]
     work_actor_runtime["Implement minimal actor runtime"]
@@ -32,7 +33,10 @@ flowchart LR
     work_normalized_core_format["Specify normalized core artifact"]
     work_package_resolver["Implement package and evidence resolver"]
     work_pbk_portfolio_control_room["Build PBK Technologies portfolio Control Room"]
+    work_reference_baselines_deep_research["Research reference baselines for deep research"]
     work_relational_fact_schema["Define relational fact export"]
+    work_rx1_generator_determinism["RX1: cross-runtime generator determinism"]
+    work_rx2_assumption_query["RX2: assumptions(artifact) over recorded edges"]
     work_semantic_attestation_profile["Specify semantic attestation profile"]
     work_stm_laws["Specify STM effect and handler laws"]
     work_stm_model_check["Model-check STM interleavings"]
@@ -58,6 +62,10 @@ flowchart LR
     work_wasm_contract_mapping -->|blocks| work_normalized_core_format
     work_deterministic_simulator_spec -->|blocks| work_stm_laws
     work_explorer_query_contract -->|informs| work_relational_fact_schema
+    decision_reference_method_adoption -->|informs| work_reference_baselines_deep_research
+    decision_reference_method_adoption -->|informs| work_rx1_generator_determinism
+    decision_reference_method_adoption -->|informs| work_rx2_assumption_query
+    work_rx1_generator_determinism -->|blocks| work_rx2_assumption_query
     work_core_checker -->|blocks| work_kernel_spec
     work_kernel_spec -->|requires| decision_one_shot
     work_theory_identity -->|requires| decision_theory_identity
