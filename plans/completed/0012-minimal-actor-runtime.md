@@ -1,7 +1,7 @@
 # Plan 0012-minimal-actor-runtime: minimal actor runtime
 
 Canonical problem contract:
-[`design-specs/0012-minimal-actor-runtime.md`](../design-specs/0012-minimal-actor-runtime.md).
+[`design-specs/0012-minimal-actor-runtime.md`](../../design-specs/0012-minimal-actor-runtime.md).
 This mutable execution record must not redefine the frozen contract.
 
 Owner: main integration agent
@@ -23,7 +23,7 @@ Owner: main integration agent
 ## Owned paths
 
 - `design-specs/0012-minimal-actor-runtime.md` (frozen after this commit);
-- `plans/active/0012-minimal-actor-runtime.md`;
+- `plans/completed/0012-minimal-actor-runtime.md`;
 - `scripts/accept/0012-minimal-actor-runtime.ts`;
 - `scripts/oxlint/semantic-effect-rules.ts` only to add the actor portable
   closure and its two composition-root exclusions;

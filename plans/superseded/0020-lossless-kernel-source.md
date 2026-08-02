@@ -3,7 +3,7 @@
 ## Contract
 
 The superseded contract is
-[`design-specs/0020-lossless-kernel-source.md`](../design-specs/0020-lossless-kernel-source.md).
+[`design-specs/0020-lossless-kernel-source.md`](../../design-specs/0020-lossless-kernel-source.md).
 
 ## Goal
 
@@ -89,7 +89,7 @@ At this frozen-design checkpoint, the command must fail on the missing
   or external repository effect occurred during this design checkpoint.
 - 2026-08-02: Historical leading status migrated verbatim from the pre-migration plan:
   Superseded on 2026-07-31 by operator decision. The active 0020 plan is
-  [`plans/active/0020-agent-facing-kernel-json.md`](0020-agent-facing-kernel-json.md).
+  [`plans/active/0020-agent-facing-kernel-json.md`](../completed/0020-agent-facing-kernel-json.md).
   The S-expression checkpoint is preserved at commit
   `ee13bffec46ac4df9fa73874b8bf7a17cf6d2496`; this plan is retained as history
   only and its acceptance script was removed with the recut.

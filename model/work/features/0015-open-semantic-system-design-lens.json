@@ -23,7 +23,7 @@
               "method": "runtime_validation",
               "source": {
                 "kind": "repository_artifact",
-                "path": "plans/0015-open-semantic-system-design-lens.md"
+                "path": "plans/completed/0015-open-semantic-system-design-lens.md"
               },
               "claim": "feature_acceptance: runtime_validation"
             },
@@ -33,7 +33,7 @@
               "method": "test_and_static_analysis",
               "source": {
                 "kind": "repository_artifact",
-                "path": "plans/0015-open-semantic-system-design-lens.md"
+                "path": "plans/completed/0015-open-semantic-system-design-lens.md"
               },
               "claim": "integration_gate: test_and_static_analysis"
             },
@@ -43,7 +43,7 @@
               "method": "test_and_static_analysis",
               "source": {
                 "kind": "repository_artifact",
-                "path": "plans/0015-open-semantic-system-design-lens.md"
+                "path": "plans/completed/0015-open-semantic-system-design-lens.md"
               },
               "claim": "integration_gate: test_and_static_analysis"
             },

@@ -495,10 +495,10 @@ const lifecycleForStatus: Readonly<Record<WorkStatus, FeatureLifecycle>> = {
 export const classifyWorkStatus = (status: WorkStatus): FeatureLifecycle =>
   lifecycleForStatus[status];
 
-const derivedPaths = (featureId: FeatureId) => ({
+const derivedPaths = (featureId: FeatureId, lifecycle: FeatureLifecycle) => ({
   modelSource: `model/work/features/${featureId}.json`,
   designSpecPath: `design-specs/${featureId}.md`,
-  planPath: `plans/${featureId}.md`,
+  planPath: `plans/${lifecycle}/${featureId}.md`,
   acceptancePath: `scripts/accept/${featureId}.ts`,
 });
 
@@ -531,7 +531,8 @@ const artifactFromRecord = (
   const owners = candidates.get(metadata.feature_id) ?? [];
   if (owners.length !== 1) return duplicateIssue(metadata.feature_id, owners);
 
-  const paths = derivedPaths(metadata.feature_id);
+  const lifecycle = classifyWorkStatus(status);
+  const paths = derivedPaths(metadata.feature_id, lifecycle);
   let acceptance: FeatureAcceptance;
   if (metadata.feature_loop === "pre_loop") {
     acceptance = { kind: "pre_loop" };
@@ -568,7 +569,7 @@ const artifactFromRecord = (
     name: record.entity.name,
     summary: record.entity.summary,
     status,
-    lifecycle: classifyWorkStatus(status),
+    lifecycle,
     featureLoop: metadata.feature_loop,
     modelSource: paths.modelSource,
     designSpecPath: paths.designSpecPath,
@@ -670,7 +671,7 @@ export const featuresForChangedPaths = (
     if (!isFeatureArtifact(result)) continue;
     const paths = [result.modelSource, result.designSpecPath, result.planPath];
     if (result.acceptance.kind === "runnable" || result.acceptance.kind === "superseded") {
-      paths.push(derivedPaths(result.featureId).acceptancePath);
+      paths.push(derivedPaths(result.featureId, result.lifecycle).acceptancePath);
     }
     for (const artifactPath of paths) {
       const existing = owners.get(artifactPath);
@@ -829,38 +830,64 @@ const inspectLifecycleDirectories = (
   fs: FileSystem.FileSystem,
   path: Path.Path,
   root: string,
+  expected: ReadonlyMap<FeatureId, FeatureArtifacts>,
+  candidates: ReadonlyMap<FeatureId, ReadonlyArray<DecodedWorkRecord>>,
   issues: Array<FeatureDiagnostic>,
 ) =>
   Effect.gen(function* () {
-    const directories = [
-      ["plans", "active"],
-      ["plans", "completed"],
-      ["plans", "superseded"],
-      ["design-specs", "superseded"],
-    ] as const;
-    for (const segments of directories) {
-      const relative = segments.join("/");
-      const absolute = path.resolve(root, ...segments);
-      const inspected = yield* fs.stat(absolute).pipe(Effect.exit);
-      if (Exit.isFailure(inspected)) continue;
+    const planRoot = absoluteRepositoryPath(path, root, "plans");
+    const rootPlans = yield* globRelative(fs, planRoot, "*.md", issues);
+    for (const file of rootPlans) {
+      const relative = normalizeRepositoryPath(path.join("plans", file));
+      if (relative === undefined) continue;
+      const featureId = featureIdFromPath(path, file, ".md");
       issues.push(
         issue(
-          "feature.lifecycle.path",
-          `lifecycle-dependent path exists; use the stable artifact path: ${relative}`,
-          { path: relative },
+          "feature.plan.root",
+          `plan must be stored at its lifecycle-derived path, not directly under plans: ${relative}`,
+          { featureId, path: relative },
         ),
       );
-      const children = yield* globRelative(fs, absolute, "**/*", issues);
-      for (const child of children) {
-        const childRelative = normalizeRepositoryPath(
-          path.relative(root, path.join(absolute, child)),
-        );
-        if (childRelative !== undefined) {
+    }
+
+    const lifecycles: ReadonlyArray<FeatureLifecycle> = [
+      "active",
+      "completed",
+      "superseded",
+    ];
+    for (const lifecycle of lifecycles) {
+      const directory = absoluteRepositoryPath(path, root, `plans/${lifecycle}`);
+      const files = yield* globRelative(fs, directory, "**/*.md", issues);
+      for (const file of files) {
+        const relative = normalizeRepositoryPath(path.join(`plans/${lifecycle}`, file));
+        if (relative === undefined) continue;
+        const featureId = featureIdFromPath(path, file, ".md");
+        if (featureId === undefined || !candidates.has(featureId)) {
+          issues.push(
+            issue("feature.orphan.plan", `plan has no canonical feature owner: ${relative}`, {
+              featureId,
+              path: relative,
+            }),
+          );
+          continue;
+        }
+        const feature = expected.get(featureId);
+        if (feature === undefined) {
           issues.push(
             issue(
-              "feature.lifecycle.path",
-              `lifecycle-dependent artifact exists: ${childRelative}`,
-              { path: childRelative },
+              "feature.plan.path",
+              `plan cannot be classified at observed path: ${relative}`,
+              { featureId, path: relative },
+            ),
+          );
+          continue;
+        }
+        if (feature.planPath !== relative) {
+          issues.push(
+            issue(
+              "feature.plan.path",
+              `plan is at ${relative}; expected lifecycle-derived path ${feature.planPath}`,
+              { featureId, path: relative },
             ),
           );
         }
@@ -888,7 +915,6 @@ const inspectStableOrphans = (
 ) =>
   Effect.gen(function* () {
     const modelRoot = absoluteRepositoryPath(path, root, "model/work/features");
-    const planRoot = absoluteRepositoryPath(path, root, "plans");
     const acceptanceRoot = absoluteRepositoryPath(path, root, "scripts/accept");
 
     const modelFiles = yield* globRelative(fs, modelRoot, "*.json", issues);
@@ -906,19 +932,6 @@ const inspectStableOrphans = (
       }
     }
 
-    const plans = yield* globRelative(fs, planRoot, "*.md", issues);
-    for (const file of plans) {
-      const featureId = featureIdFromPath(path, file, ".md");
-      const relative = normalizeRepositoryPath(path.join("plans", file));
-      if (relative === undefined) continue;
-      if (featureId === undefined || !candidates.has(featureId)) {
-        issues.push(
-          issue("feature.orphan.plan", `plan has no canonical feature owner: ${relative}`, {
-            path: relative,
-          }),
-        );
-      }
-    }
 
     const acceptance = yield* globRelative(fs, acceptanceRoot, "*.ts", issues);
     for (const file of acceptance) {
@@ -1073,8 +1086,16 @@ export const validateFeatureRepository = (
         );
       }
     }
-
-    yield* inspectLifecycleDirectories(fs, path, root, issues);
+    const expectedPlans = new Map<FeatureId, FeatureArtifacts>();
+    for (const feature of validFeatures) expectedPlans.set(feature.featureId, feature);
+    yield* inspectLifecycleDirectories(
+      fs,
+      path,
+      root,
+      expectedPlans,
+      candidates,
+      issues,
+    );
     yield* inspectStableOrphans(fs, path, root, candidates, issues);
     return sortDiagnostics(issues);
   });

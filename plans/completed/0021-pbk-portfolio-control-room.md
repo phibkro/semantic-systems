@@ -1,7 +1,7 @@
 # Plan 0021-pbk-portfolio-control-room: PBK Technologies portfolio Control Room
 
 Canonical frozen contract:
-[`design-specs/0021-pbk-portfolio-control-room.md`](../design-specs/0021-pbk-portfolio-control-room.md).
+[`design-specs/0021-pbk-portfolio-control-room.md`](../../design-specs/0021-pbk-portfolio-control-room.md).
 This execution record cannot redefine that contract.
 
 Owner: primary Semantic Systems and PBK Technologies portfolio lead

@@ -1,7 +1,7 @@
 # Plan 0005-autonomous-development-control-loop: autonomous development control loop
 
 Canonical problem contract:
-[`design-specs/0005-autonomous-development-control-loop.md`](../design-specs/0005-autonomous-development-control-loop.md).
+[`design-specs/0005-autonomous-development-control-loop.md`](../../design-specs/0005-autonomous-development-control-loop.md).
 This mutable execution record must not redefine the frozen contract.
 
 ## Semantic claim

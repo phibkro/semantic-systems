@@ -36,7 +36,7 @@
               "method": "authored_completion_state",
               "source": {
                 "kind": "repository_artifact",
-                "path": "plans/0004-reference-source-custody.md"
+                "path": "plans/completed/0004-reference-source-custody.md"
               },
               "claim": "Complete. Deterministic positive and adversarial fixtures, two independent counterexample rounds, the real offline `local.lang-bang` scenario, full repository validation, a generated exact lock, and explicit evidence limits are recorded."
             }

@@ -11,7 +11,7 @@ const root = resolve(import.meta.dirname, "../..");
 
 const contractArtifacts = [
   "design-specs/0021-pbk-portfolio-control-room.md",
-  "plans/0021-pbk-portfolio-control-room.md",
+  "plans/completed/0021-pbk-portfolio-control-room.md",
   "model/work/features/0021-pbk-portfolio-control-room.json",
 ] as const;
 

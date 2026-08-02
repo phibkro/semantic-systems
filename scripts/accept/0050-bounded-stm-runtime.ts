@@ -171,7 +171,7 @@ const program = Effect.gen(function* () {
       "scripts/accept/0050-bounded-stm-runtime.ts",
       "model/work/features/0050-bounded-stm-runtime.json",
       "design-specs/0050-bounded-stm-runtime.md",
-      "plans/0050-bounded-stm-runtime.md",
+      "plans/completed/0050-bounded-stm-runtime.md",
     ],
     ["bun", "scripts/accept/0014-stm-effect-handler-laws.ts"],
     ["bun", "run", "semproj", "--", "validate"],

@@ -1,7 +1,7 @@
 # Plan 0002-reference-baselines-deep-research: reference baselines deep research
 
 Canonical problem contract:
-[`design-specs/0002-reference-baselines-deep-research.md`](../design-specs/0002-reference-baselines-deep-research.md).
+[`design-specs/0002-reference-baselines-deep-research.md`](../../design-specs/0002-reference-baselines-deep-research.md).
 This file is the mutable execution record and must not redefine that contract.
 
 ## Semantic claim

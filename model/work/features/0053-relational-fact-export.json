@@ -12,9 +12,6 @@
         "feature_loop": "managed",
         "phase": "implementation",
         "effort": 13,
-        "design_spec": "design-specs/0053-relational-fact-export.md",
-        "plan": "plans/active/0053-relational-fact-export.md",
-        "acceptance_script": "scripts/accept/0053-relational-fact-export.ts",
         "acceptance": [
           "Canonical export preserves exact entity, relation, tag, attribute, and source-document row counts with valid relative source keys",
           "Rows and nested JSON snapshots are deterministic and deeply immutable",

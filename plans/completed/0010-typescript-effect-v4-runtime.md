@@ -31,7 +31,7 @@ Owner: main integration agent
 ## Owned paths
 
 - `design-specs/0010-typescript-effect-v4-runtime.md`
-- `plans/active/0010-typescript-effect-v4-runtime.md`
+- `plans/completed/0010-typescript-effect-v4-runtime.md`
 - `scripts/accept/0010-typescript-effect-v4-runtime.ts`
 - `src/**/*.ts`
 - `tests/**/*.test.ts`

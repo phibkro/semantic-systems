@@ -67,12 +67,14 @@ a Conventional-Commit-preserving merge strategy (normally squash); that
 external prerequisite is not claimed active by this checkout.
 
 A nontrivial feature owns one feature ID shared by
-`design-specs/<feature_id>.md`, `plans/<feature_id>.md`,
-`model/work/features/<feature_id>.json`, and
+`design-specs/<feature_id>.md`, its lifecycle-derived plan ledger
+(`plans/active/<feature_id>.md`, `plans/completed/<feature_id>.md`, or
+`plans/superseded/<feature_id>.md`), `model/work/features/<feature_id>.json`, and
 `scripts/accept/<feature_id>.ts`, plus one feature branch and one pull request.
 The canonical work record owns status and completion evidence. To complete a
-feature, change only that record from `in_progress` to `complete`; do not move
-the plan or edit its lifecycle-neutral heading/status prose.
+feature, change that record from `in_progress` to `complete` with typed evidence
+and move its unchanged ledger to `plans/completed/`; do not edit its
+lifecycle-neutral heading or status prose.
 Trivial formatting, typo, generated-refresh, and mechanically equivalent
 maintenance may skip the feature loop but must still pass the fast and
 integration loops.

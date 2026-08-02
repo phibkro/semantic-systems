@@ -1,7 +1,7 @@
 # Plan 0048-pbk-control-room-acceptance-reconciliation: PBK Control Room acceptance reconciliation
 
 Canonical contract:
-[`design-specs/0048-pbk-control-room-acceptance-reconciliation.md`](../design-specs/0048-pbk-control-room-acceptance-reconciliation.md).
+[`design-specs/0048-pbk-control-room-acceptance-reconciliation.md`](../../design-specs/0048-pbk-control-room-acceptance-reconciliation.md).
 
 ## Claim and scope
 

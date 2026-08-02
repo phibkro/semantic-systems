@@ -10,7 +10,7 @@ Ready parallel work items: **15**.
 | Bound actor trace retention | implementation | complete | no | 83 | delegate with review |  |
 | Design agent-facing kernel JSON | validation | complete | no | 75 | delegate with review |  |
 | Establish the autonomous development control loop | implementation | in_progress | yes | 83 | delegate with review |  |
-| Canonicalize the project work lifecycle | implementation | in_progress | yes | 77 | delegate with review |  |
+| Canonicalize the project work lifecycle | implementation | superseded | no | 77 | delegate with review |  |
 | Render the PBK roadmap as an interactive skill tree | implementation | complete | no | 72 | delegate with review |  |
 | Reconstruct the Control Room on TypeScript and Effect v4 | validation | complete | no | 72 | delegate with review |  |
 | Implement core checker | implementation | planned | yes | 65 | delegate with review |  |
@@ -29,6 +29,7 @@ Ready parallel work items: **15**.
 | Establish the kernel reference interpreter | validation | complete | no | 87 | delegate with review |  |
 | Specify minimal kernel calculus | validation | complete | no | 53 | bounded spike |  |
 | Specify Lean evidence adapter | research | planned | yes | 60 | delegate with review |  |
+| Adopt lifecycle-derived plan layout | implementation | in_progress | yes | 65 | delegate with review |  |
 | Design lossless incremental frontend | design | superseded | no | 75 | delegate with review |  |
 | Specify normalized core artifact | validation | complete | no | 45 | bounded spike |  |
 | Apply the open semantic system design lens | implementation | complete | no | 80 | delegate with review |  |
@@ -37,12 +38,12 @@ Ready parallel work items: **15**.
 | Build PBK Technologies portfolio Control Room | validation | complete | no | 72 | delegate with review |  |
 | Research reference baselines for deep research | research | in_progress | yes | 86 | delegate with review |  |
 | Establish reference-source custody | validation | complete | no | 87 | delegate with review |  |
-| Define relational fact export | design | ready | yes | 94 | delegate directly |  |
+| Define relational fact export | implementation | in_progress | yes | 84 | delegate with review |  |
 | Recut the independent resolution checker | design | complete | no | 83 | delegate with review |  |
 | Apply reuse-first engineering assignments | implementation | in_progress | yes | 94 | delegate with review |  |
 | Specify semantic attestation profile | design | ready | no | 87 | delegate with review | Define normalized theory identity |
 | Specify STM effect and handler laws | validation | complete | no | 49 | bounded spike |  |
-| Model-check STM interleavings | validation | planned | yes | 94 | delegate with review |  |
+| Model-check STM interleavings | implementation | in_progress | yes | 84 | delegate with review |  |
 | Implement minimal STM runtime | validation | complete | no | 80 | delegate with review |  |
 | Define normalized theory identity | design | in_progress | yes | 41 | bounded spike |  |
 | Specify translation-validation seams | research | planned | yes | 45 | bounded spike |  |

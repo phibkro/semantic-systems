@@ -10,7 +10,7 @@ class AcceptanceFailure extends Data.TaggedError("AcceptanceFailure")<{
 const root = resolve(import.meta.dirname, "../..");
 const artifacts = [
   "design-specs/0031-control-room-interactive-skill-tree.md",
-  "plans/0031-control-room-interactive-skill-tree.md",
+  "plans/completed/0031-control-room-interactive-skill-tree.md",
   "model/work/features/0031-control-room-interactive-skill-tree.json",
   "apps/control-room/src/roadmap-model.ts",
   "apps/control-room/src/roadmap-model.test.ts",

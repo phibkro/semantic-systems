@@ -11,7 +11,7 @@ const root = resolve(import.meta.dirname, "../..");
 const nodeExecutable = process.env.SEMANTIC_NODE_BIN ?? "node";
 const required = [
   "design-specs/0046-effect-graph-execution-index.md",
-  "plans/0046-effect-graph-execution-index.md",
+  "plans/completed/0046-effect-graph-execution-index.md",
   "model/work/features/0046-effect-graph-execution-index.json",
   "src/portfolio-model/graph-index.ts",
   "tests/pbk-portfolio-model.test.ts",
@@ -65,7 +65,7 @@ const program = Effect.gen(function* () {
       "tests/pbk-portfolio-model.test.ts",
       "scripts/accept/0046-effect-graph-execution-index.ts",
       "design-specs/0046-effect-graph-execution-index.md",
-      "plans/0046-effect-graph-execution-index.md",
+      "plans/completed/0046-effect-graph-execution-index.md",
       "model/work/features/0046-effect-graph-execution-index.json",
     ],
     { cwd: root },

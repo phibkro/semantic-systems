@@ -5,11 +5,15 @@
       "kind": "work_item",
       "name": "Canonicalize the project work lifecycle",
       "summary": "Make model/work the only lifecycle authority and derive stable feature artifacts, acceptance dispatch, and lifecycle views from one typed feature record.",
-      "status": "in_progress",
+      "status": "superseded",
       "tags": ["work", "lifecycle", "project-model", "migration"],
       "attributes": {
         "feature_id": "0049-canonical-work-lifecycle",
         "feature_loop": "managed",
+        "replacement": {
+          "target": "0055-lifecycle-plan-layout",
+          "reason": "Lifecycle-derived plan custody supersedes the root-plan resolver."
+        },
         "phase": "implementation",
         "effort": 13,
         "acceptance": [

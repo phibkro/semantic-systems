@@ -30,7 +30,7 @@
               "method": "authored_completion_state",
               "source": {
                 "kind": "repository_artifact",
-                "path": "plans/0031-control-room-interactive-skill-tree.md"
+                "path": "plans/completed/0031-control-room-interactive-skill-tree.md"
               },
               "claim": "Status: complete; accepted and integrated locally. Public deployment remains unobserved and is not completion evidence."
             }

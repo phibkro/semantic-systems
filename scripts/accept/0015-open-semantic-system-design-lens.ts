@@ -92,7 +92,7 @@ const program = Effect.gen(function* () {
       "design-specs/TEMPLATE.md",
       "design-specs/0005-autonomous-development-control-loop.md",
       "design-specs/0015-open-semantic-system-design-lens.md",
-      "plans/0015-open-semantic-system-design-lens.md",
+      "plans/completed/0015-open-semantic-system-design-lens.md",
       "scripts/check-feature-contract.ts",
       "scripts/accept/0015-open-semantic-system-design-lens.ts",
       "tests/open-semantic-system-design-lens.test.ts",

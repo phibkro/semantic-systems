@@ -1,6 +1,6 @@
 # Plan 0049-canonical-work-lifecycle: canonical work lifecycle
 
-Canonical contract: [`design-specs/0049-canonical-work-lifecycle.md`](../design-specs/0049-canonical-work-lifecycle.md)
+Canonical contract: [`design-specs/0049-canonical-work-lifecycle.md`](../../design-specs/0049-canonical-work-lifecycle.md)
 
 Feature base: `8902ba7cd468063ec28385265befdfc45607e5c2`
 

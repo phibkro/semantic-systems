@@ -226,7 +226,7 @@
               "method": "runtime_validation",
               "source": {
                 "kind": "repository_artifact",
-                "path": "plans/0012-minimal-actor-runtime.md"
+                "path": "plans/completed/0012-minimal-actor-runtime.md"
               },
               "claim": "equivalence_evidence: runtime_validation"
             },

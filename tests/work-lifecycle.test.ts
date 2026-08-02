@@ -67,10 +67,15 @@ const writeText = async (root: string, relative: string, text = "#!/usr/bin/env 
   return destination;
 };
 
-const writeFeatureArtifacts = async (root: string, featureId: string, executable = true) => {
+const writeFeatureArtifacts = async (
+  root: string,
+  featureId: string,
+  lifecycle: "active" | "completed" | "superseded" = "active",
+  executable = true,
+) => {
   await writeText(root, `model/work/features/${featureId}.json`, "{}\n");
   await writeText(root, `design-specs/${featureId}.md`, `# Design ${featureId}\n`);
-  await writeText(root, `plans/${featureId}.md`, `# Plan ${featureId}: fixture\n`);
+  await writeText(root, `plans/${lifecycle}/${featureId}.md`, `# Plan ${featureId}: fixture\n`);
   const acceptance = await writeText(root, `scripts/accept/${featureId}.ts`);
   if (executable) await chmod(acceptance, 0o755);
 };
@@ -99,10 +104,47 @@ describe("canonical work lifecycle", () => {
       featuresForChangedPaths(graph, [
         "model/work/features/0005-managed-feature.json",
         "design-specs/0005-managed-feature.md",
+
         "plans/active/0005-managed-feature.md",
         "scripts/accept/0005-managed-feature.ts",
       ]),
     ).toEqual(["0005-managed-feature"]);
+  });
+  test("derives completed and superseded plan paths and inverts every lifecycle plan", () => {
+    const root = "/fixture";
+    const active = entity(root, "0005-active", "ready");
+    const complete = entity(root, "0006-complete", "complete", { completion });
+    const superseded = entity(root, "0007-superseded", "superseded", {
+      replacement: {
+        target: "0005-active",
+        reason: "replaced by the active lifecycle layout",
+      },
+    });
+    const graph = project(root, [superseded, complete, active]);
+
+    const activeArtifacts = resolveFeature(graph, "0005-active");
+    const completedArtifacts = resolveFeature(graph, "0006-complete");
+    const supersededArtifacts = resolveFeature(graph, "0007-superseded");
+    expect(isFeatureDiagnostic(activeArtifacts)).toBeFalse();
+    expect(isFeatureDiagnostic(completedArtifacts)).toBeFalse();
+    expect(isFeatureDiagnostic(supersededArtifacts)).toBeFalse();
+    if (
+      isFeatureDiagnostic(activeArtifacts) ||
+      isFeatureDiagnostic(completedArtifacts) ||
+      isFeatureDiagnostic(supersededArtifacts)
+    ) {
+      return;
+    }
+    expect(activeArtifacts.planPath).toBe("plans/active/0005-active.md");
+    expect(completedArtifacts.planPath).toBe("plans/completed/0006-complete.md");
+    expect(supersededArtifacts.planPath).toBe("plans/superseded/0007-superseded.md");
+    expect(
+      featuresForChangedPaths(graph, [
+        activeArtifacts.planPath,
+        completedArtifacts.planPath,
+        supersededArtifacts.planPath,
+      ]),
+    ).toEqual(["0005-active", "0006-complete", "0007-superseded"]);
   });
 
   test("returns typed diagnostics for invalid status, duplicate owners, and unknown IDs", () => {
@@ -187,9 +229,9 @@ describe("canonical work lifecycle", () => {
     temporaryRoots.push(root);
     const record = entity(root, "0005-artifact-check", "in_progress");
     await writeText(root, "design-specs/0005-artifact-check.md");
-    await mkdir(join(root, "plans/0005-artifact-check.md"), { recursive: true });
+    await mkdir(join(root, "plans/active/0005-artifact-check.md"), { recursive: true });
     await writeText(root, "scripts/accept/0005-artifact-check.ts");
-    await writeFeatureArtifacts(root, "0006-orphan", false);
+    await writeFeatureArtifacts(root, "0006-orphan", "active", false);
     const unrelated: Entity = {
       id: "work.unrelated",
       kind: "work_item",
@@ -210,27 +252,25 @@ describe("canonical work lifecycle", () => {
     expect(diagnostics.some((item) => item.code === "feature.source.contents")).toBeTrue();
   });
 
-  test("rejects lifecycle-dependent plan prose and directories", async () => {
+  test("rejects lifecycle-dependent plan prose while allowing lifecycle directories", async () => {
     const root = await mkdtemp(join("/tmp", "semantic-lifecycle-plan-"));
     temporaryRoots.push(root);
     const featureId = "0005-plan-drift";
     await writeFeatureArtifacts(root, featureId);
     await writeText(
       root,
-      `plans/${featureId}.md`,
+      `plans/active/${featureId}.md`,
       `# Plan ${featureId}: active fixture\n\nStatus: in_progress\n\n## Work\n`,
     );
-    await mkdir(join(root, "plans", "active"), { recursive: true });
     const diagnostics = await runBun(
       validateFeatureRepository(project(root, [entity(root, featureId, "ready")]), root),
     );
     expect(diagnostics.some((item) => item.code === "feature.plan.heading")).toBeTrue();
     expect(diagnostics.some((item) => item.code === "feature.plan.status")).toBeTrue();
-    expect(diagnostics.some((item) => item.code === "feature.lifecycle.path")).toBeTrue();
 
     await writeText(
       root,
-      `plans/${featureId}.md`,
+      `plans/active/${featureId}.md`,
       `# Plan ${featureId}: neutral fixture\n\n__Status__: in_progress\n\n## Work\n`,
     );
     const emphasized = await runBun(
@@ -238,23 +278,87 @@ describe("canonical work lifecycle", () => {
     );
     expect(emphasized.some((item) => item.code === "feature.plan.status")).toBeTrue();
 
-    await writeText(root, `plans/${featureId}.md`, `Plan ${featureId}\n=================\n`);
+    await writeText(
+      root,
+      `plans/active/${featureId}.md`,
+      `Plan ${featureId}\n=================\n`,
+    );
     const setext = await runBun(
       validateFeatureRepository(project(root, [entity(root, featureId, "ready")]), root),
     );
     expect(setext.some((item) => item.code === "feature.plan.heading")).toBeTrue();
   });
 
+  test("reports missing, wrong-directory, root-level, and orphan plan custody", async () => {
+    const root = await mkdtemp(join("/tmp", "semantic-lifecycle-custody-"));
+    temporaryRoots.push(root);
+    const missingId = "0005-missing-plan";
+    const wrongId = "0006-wrong-directory";
+    const rootId = "0007-root-plan";
+    const missing = entity(root, missingId, "in_progress");
+    const wrong = entity(root, wrongId, "ready");
+    const rootRecord = entity(root, rootId, "ready");
+    await writeFeatureArtifacts(root, missingId);
+    await rm(join(root, `plans/active/${missingId}.md`));
+    await writeFeatureArtifacts(root, wrongId, "completed");
+    await writeFeatureArtifacts(root, rootId);
+    await writeText(root, `plans/${rootId}.md`, `# Plan ${rootId}: fixture\n`);
+    await writeText(
+      root,
+      "plans/superseded/0008-orphan-plan.md",
+      "# Plan 0008-orphan-plan: fixture\n",
+    );
+
+    const diagnostics = await runBun(
+      validateFeatureRepository(project(root, [missing, wrong, rootRecord]), root),
+    );
+    expect(
+      diagnostics.some(
+        (item) =>
+          item.code === "feature.artifact.missing" &&
+          item.featureId === missingId &&
+          item.path === `plans/active/${missingId}.md`,
+      ),
+    ).toBeTrue();
+    expect(
+      diagnostics.some(
+        (item) =>
+          item.code === "feature.plan.path" &&
+          item.featureId === wrongId &&
+          item.path === `plans/completed/${wrongId}.md`,
+      ),
+    ).toBeTrue();
+    expect(
+      diagnostics.some(
+        (item) =>
+          item.code === "feature.plan.root" &&
+          item.featureId === rootId &&
+          item.path === `plans/${rootId}.md`,
+      ),
+    ).toBeTrue();
+    expect(
+      diagnostics.some(
+        (item) =>
+          item.code === "feature.orphan.plan" &&
+          item.path === "plans/superseded/0008-orphan-plan.md",
+      ),
+    ).toBeTrue();
+  });
+
   test("renders lifecycle sections and remains invariant under graph insertion order", () => {
     const root = "/fixture";
     const active = entity(root, "0005-active", "ready");
     const complete = entity(root, "0006-complete", "complete", { completion });
-    const first = renderFeatureLifecycle(project(root, [complete, active]));
-    const second = renderFeatureLifecycle(project(root, [active, complete]));
+    const superseded = entity(root, "0007-superseded", "superseded", {
+      replacement: { target: "0005-active", reason: "superseded by the active feature" },
+    });
+    const first = renderFeatureLifecycle(project(root, [superseded, complete, active]));
+    const second = renderFeatureLifecycle(project(root, [active, complete, superseded]));
     expect(first).toBe(second);
     expect(first.indexOf("## Active")).toBeLessThan(first.indexOf("## Completed"));
     expect(first).toContain("../model/work/features/0005-active.json");
-    expect(first).toContain("../plans/0006-complete.md");
+    expect(first).toContain("../plans/completed/0006-complete.md");
+    expect(first).toContain("../plans/superseded/0007-superseded.md");
   });
 
   test("keeps diagnostic and artifact unions explicit for release callers", () => {

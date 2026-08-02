@@ -1,7 +1,7 @@
 # Plan 0019-normalized-core-format: normalized core format
 
 Canonical frozen contract:
-[`design-specs/0019-normalized-core-format.md`](../design-specs/0019-normalized-core-format.md).
+[`design-specs/0019-normalized-core-format.md`](../../design-specs/0019-normalized-core-format.md).
 This mutable record cannot change that contract.
 
 Owner: primary Semantic Systems language lane

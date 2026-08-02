@@ -22,7 +22,7 @@
               "method": "runtime_validation",
               "source": {
                 "kind": "repository_artifact",
-                "path": "plans/0012-minimal-actor-runtime.md"
+                "path": "plans/completed/0012-minimal-actor-runtime.md"
               },
               "claim": "feature_acceptance: runtime_validation"
             },
@@ -32,7 +32,7 @@
               "method": "test_and_static_analysis",
               "source": {
                 "kind": "repository_artifact",
-                "path": "plans/0012-minimal-actor-runtime.md"
+                "path": "plans/completed/0012-minimal-actor-runtime.md"
               },
               "claim": "integration_gate: test_and_static_analysis"
             },
@@ -42,7 +42,7 @@
               "method": "test_and_static_analysis",
               "source": {
                 "kind": "repository_artifact",
-                "path": "plans/0012-minimal-actor-runtime.md"
+                "path": "plans/completed/0012-minimal-actor-runtime.md"
               },
               "claim": "integration_gate: test_and_static_analysis"
             },

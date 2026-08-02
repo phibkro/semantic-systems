@@ -3,7 +3,7 @@
 ## Contract
 
 The frozen contract is
-[`design-specs/0020-agent-facing-kernel-json.md`](../design-specs/0020-agent-facing-kernel-json.md).
+[`design-specs/0020-agent-facing-kernel-json.md`](../../design-specs/0020-agent-facing-kernel-json.md).
 
 This plan recuts the earlier 0020 S-expression checkpoint by operator
 decision. The prior design is preserved, not erased: its full checkpoint is

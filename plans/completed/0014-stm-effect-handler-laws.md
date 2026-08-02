@@ -1,7 +1,7 @@
 # Plan 0014-stm-effect-handler-laws: STM effect and handler laws
 
 Canonical frozen contract:
-[`design-specs/0014-stm-effect-handler-laws.md`](../design-specs/0014-stm-effect-handler-laws.md).
+[`design-specs/0014-stm-effect-handler-laws.md`](../../design-specs/0014-stm-effect-handler-laws.md).
 This mutable execution record cannot redefine that contract.
 
 Owner: main research and integration agent
@@ -28,7 +28,7 @@ Owner: main research and integration agent
 ## Owned paths
 
 - `design-specs/0014-stm-effect-handler-laws.md`
-- `plans/0014-stm-effect-handler-laws.md`
+- `plans/completed/0014-stm-effect-handler-laws.md`
 - `scripts/accept/0014-stm-effect-handler-laws.ts`
 - `src/stm/**`
 - `tests/stm-laws.test.ts`

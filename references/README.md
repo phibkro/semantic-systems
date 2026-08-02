@@ -36,7 +36,7 @@ references/sources.toml
 
 The custody contract is frozen in
 `design-specs/0004-reference-source-custody.md`; its stable execution record is
-`plans/0004-reference-source-custody.md` and its canonical feature lifecycle
+`plans/completed/0004-reference-source-custody.md` and its canonical feature lifecycle
 record is `model/work/features/0004-reference-source-custody.json`. The catalog
 may queue an unpinned candidate; an unpinned candidate cannot support an
 accepted claim.

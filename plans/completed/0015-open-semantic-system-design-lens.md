@@ -1,7 +1,7 @@
 # Plan 0015-open-semantic-system-design-lens: open semantic system design lens
 
 Canonical frozen contract:
-[`design-specs/0015-open-semantic-system-design-lens.md`](../design-specs/0015-open-semantic-system-design-lens.md).
+[`design-specs/0015-open-semantic-system-design-lens.md`](../../design-specs/0015-open-semantic-system-design-lens.md).
 This mutable execution record cannot redefine that contract.
 
 Owner: primary Semantic Systems lead
@@ -32,7 +32,7 @@ Owner: primary Semantic Systems lead
 ## Owned paths
 
 - `design-specs/0015-open-semantic-system-design-lens.md`
-- `plans/0015-open-semantic-system-design-lens.md`
+- `plans/completed/0015-open-semantic-system-design-lens.md`
 - `scripts/accept/0015-open-semantic-system-design-lens.ts`
 - `docs/open-semantic-system-design.md`
 - `design-specs/TEMPLATE.md`

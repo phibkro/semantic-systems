@@ -23,7 +23,7 @@
               "method": "runtime_validation",
               "source": {
                 "kind": "repository_artifact",
-                "path": "plans/0022-kernel-reference-interpreter.md"
+                "path": "plans/completed/0022-kernel-reference-interpreter.md"
               },
               "claim": "feature_acceptance: runtime_validation"
             },
@@ -33,7 +33,7 @@
               "method": "test_and_static_analysis",
               "source": {
                 "kind": "repository_artifact",
-                "path": "plans/0022-kernel-reference-interpreter.md"
+                "path": "plans/completed/0022-kernel-reference-interpreter.md"
               },
               "claim": "integration_gate: test_and_static_analysis"
             },
@@ -43,7 +43,7 @@
               "method": "test_and_static_analysis",
               "source": {
                 "kind": "repository_artifact",
-                "path": "plans/0022-kernel-reference-interpreter.md"
+                "path": "plans/completed/0022-kernel-reference-interpreter.md"
               },
               "claim": "integration_gate: test_and_static_analysis"
             },

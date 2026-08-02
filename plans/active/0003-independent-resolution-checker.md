@@ -1,7 +1,7 @@
 # Plan 0003-independent-resolution-checker: independent resolution-result checker
 
 Canonical problem contract:
-[`design-specs/0003-independent-resolution-checker.md`](../design-specs/0003-independent-resolution-checker.md).
+[`design-specs/0003-independent-resolution-checker.md](../../design-specs/0003-independent-resolution-checker.md).
 This mutable execution record must not redefine the frozen contract.
 
 ## Semantic claim

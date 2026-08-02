@@ -1,7 +1,7 @@
 # Plan 0051-kernel-finite-sums: kernel finite sums and case
 
 Canonical frozen contract:
-[`design-specs/0051-kernel-finite-sums.md`](../design-specs/0051-kernel-finite-sums.md).
+[`design-specs/0051-kernel-finite-sums.md`](../../design-specs/0051-kernel-finite-sums.md).
 This mutable plan records execution state and cannot redefine that contract.
 
 Feature base: `c6ce0615eab168ce7c8800b70270737709f6167d`
@@ -59,7 +59,7 @@ The implementing lead must not modify:
 - `spec/kernel-json/kernel-json-v1.schema.json`;
 - any 0018, 0019, 0020, or 0022 design spec or completed plan;
 - `design-specs/0051-kernel-finite-sums.md` without an explicit lead-owned contract correction;
-- `plans/0051-kernel-finite-sums.md`;
+- `plans/completed/0051-kernel-finite-sums.md`;
 - model records or generated project views;
 - packages or dependencies;
 - STM, actor, inventory, resolver, project-model, or Control Room sources; or

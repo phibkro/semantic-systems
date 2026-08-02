@@ -30,9 +30,9 @@ const goldenExamples = [
 
 const contractArtifacts = [
   "design-specs/0020-agent-facing-kernel-json.md",
-  "plans/0020-agent-facing-kernel-json.md",
+  "plans/completed/0020-agent-facing-kernel-json.md",
   "design-specs/0020-lossless-kernel-source.md",
-  "plans/0020-lossless-kernel-source.md",
+  "plans/superseded/0020-lossless-kernel-source.md",
   "tests/kernel-json-observation-bounds.test.ts",
   schemaArtifact,
   ...goldenExamples.map(([path]) => path),

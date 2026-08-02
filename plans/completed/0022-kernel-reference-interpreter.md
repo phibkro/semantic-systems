@@ -1,7 +1,7 @@
 # Plan 0022-kernel-reference-interpreter: kernel reference interpreter
 
 Canonical frozen contract:
-[`design-specs/0022-kernel-reference-interpreter.md`](../design-specs/0022-kernel-reference-interpreter.md).
+[`design-specs/0022-kernel-reference-interpreter.md`](../../design-specs/0022-kernel-reference-interpreter.md).
 This execution record cannot redefine that contract.
 
 Owner: primary Semantic Systems language lead

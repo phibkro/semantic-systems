@@ -1,7 +1,7 @@
 # Plan 0007-reuse-first-engineering: reuse-first engineering assignments
 
 Canonical contract:
-[`design-specs/0007-reuse-first-engineering.md`](../design-specs/0007-reuse-first-engineering.md).
+[`design-specs/0007-reuse-first-engineering.md`](../../design-specs/0007-reuse-first-engineering.md).
 
 ## Claim and scope
 

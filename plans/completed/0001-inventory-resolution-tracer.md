@@ -1,7 +1,7 @@
 # Plan 0001-inventory-resolution-tracer: inventory realization resolution tracer
 
 Canonical problem contract:
-[`design-specs/0001-inventory-resolution-tracer.md`](../design-specs/0001-inventory-resolution-tracer.md).
+[`design-specs/0001-inventory-resolution-tracer.md`](../../design-specs/0001-inventory-resolution-tracer.md).
 This file is the mutable execution record; it must not redefine that contract.
 
 ## Semantic claim and user-visible scenario

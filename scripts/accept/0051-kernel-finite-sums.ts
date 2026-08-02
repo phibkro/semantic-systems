@@ -14,7 +14,7 @@ const v1SchemaDigest = "43760534c0c08a3ab9626f624cd1789c3803002d26f3bb73a6c048b5
 
 const requiredArtifacts = [
   "design-specs/0051-kernel-finite-sums.md",
-  "plans/0051-kernel-finite-sums.md",
+  "plans/completed/0051-kernel-finite-sums.md",
   "model/work/features/0051-kernel-finite-sums.json",
   "model/work/work.json",
   "src/kernel-json/schema-data-v2.ts",

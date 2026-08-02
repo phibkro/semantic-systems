@@ -23,7 +23,7 @@
               "method": "authored_completion_state",
               "source": {
                 "kind": "repository_artifact",
-                "path": "plans/0021-pbk-portfolio-control-room.md"
+                "path": "plans/completed/0021-pbk-portfolio-control-room.md"
               },
               "claim": "Status: complete; implementation integrated and locally accepted."
             }

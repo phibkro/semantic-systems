@@ -1,7 +1,7 @@
 # Plan 0004-reference-source-custody: reference-source custody
 
 Canonical problem contract:
-[`design-specs/0004-reference-source-custody.md`](../design-specs/0004-reference-source-custody.md).
+[`design-specs/0004-reference-source-custody.md`](../../design-specs/0004-reference-source-custody.md).
 This mutable execution record must not redefine the frozen contract.
 
 ## Semantic claim

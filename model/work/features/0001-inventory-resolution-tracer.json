@@ -37,7 +37,7 @@
               "method": "authored_completion_state",
               "source": {
                 "kind": "repository_artifact",
-                "path": "plans/0001-inventory-resolution-tracer.md"
+                "path": "plans/completed/0001-inventory-resolution-tracer.md"
               },
               "claim": "Complete. The next exposed uncertainty is alpha-equivalent binder identity in `theory-norm-v1`; it remains recorded in `uncertainties/0001-theory-normalization-binders.md`."
             }

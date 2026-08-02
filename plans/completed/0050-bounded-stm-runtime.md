@@ -1,7 +1,7 @@
 # Plan 0050-bounded-stm-runtime: bounded STM runtime
 
 Canonical frozen contract:
-[`design-specs/0050-bounded-stm-runtime.md`](../design-specs/0050-bounded-stm-runtime.md).
+[`design-specs/0050-bounded-stm-runtime.md`](../../design-specs/0050-bounded-stm-runtime.md).
 This mutable plan records execution state and cannot redefine that contract.
 
 Feature base: `8ad791db932d0fda93083dce3074a3149b438bbf`
@@ -32,7 +32,7 @@ Owner: primary Semantic Systems lead
 The implementing lead owns:
 
 - `design-specs/0050-bounded-stm-runtime.md` only for an explicit reviewed contract correction;
-- `plans/0050-bounded-stm-runtime.md`;
+- `plans/completed/0050-bounded-stm-runtime.md`;
 - `model/work/features/0050-bounded-stm-runtime.json`;
 - the `work.stm-runtime` entity and its existing relations in `model/work/work.json`;
 - deterministic generated lifecycle and roadmap projections;

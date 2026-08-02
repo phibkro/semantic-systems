@@ -1,7 +1,7 @@
 # Plan 0016-executable-semantic-system-kernel: executable semantic system kernel
 
 Canonical frozen contract:
-[`design-specs/0016-executable-semantic-system-kernel.md`](../design-specs/0016-executable-semantic-system-kernel.md).
+[`design-specs/0016-executable-semantic-system-kernel.md`](../../design-specs/0016-executable-semantic-system-kernel.md).
 This mutable execution record cannot redefine that contract.
 
 Owner: primary Semantic Systems lead
