@@ -77,7 +77,6 @@ const containsAsync = (
       if (alias === undefined || visiting.has(type.name)) return false;
       visiting.add(type.name);
       const result = containsAsync(alias, typeAliases, visiting);
-      visiting.delete(type.name);
       return result;
     }
     default:

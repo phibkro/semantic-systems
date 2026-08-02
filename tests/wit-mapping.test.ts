@@ -187,6 +187,34 @@ describe("semantic.wit-mapping/v1", () => {
       )?.projection,
     ).toBe("operational_async_shape");
   });
+  test("classifies shared alias graphs without exponential expansion", async () => {
+    const input = structuredClone(fixture) as JsonRecord;
+    const inventory = inventoryInterface(input);
+    const types = inventory.types as JsonRecord[];
+    for (let index = 20; index >= 0; index -= 1)
+      types.push({
+        kind: "type",
+        name: `alias${index}`,
+        semantic_path: `theory.inventory/type/alias${index}`,
+        type:
+          index === 20
+            ? "string"
+            : {
+                kind: "tuple",
+                elements: [`alias${index + 1}`, `alias${index + 1}`],
+              },
+      });
+    inventoryFunction(input, "watch").result = "alias0";
+    const decoded = decodePortableBoundary(input);
+    expect(decoded.status).toBe("decoded");
+    if (decoded.status === "rejected") throw new Error(JSON.stringify(decoded.diagnostics));
+    const artifact = await generate(decoded.value);
+    expect(
+      artifact.manifest.mappings.find(
+        (row) => row.wit_path === "interface/inventory/function/watch",
+      )?.projection,
+    ).toBe("shape");
+  });
   test("rejects empty semantic paths for operations, declarations, constructors, and cases", () => {
     const mutations: ReadonlyArray<(input: JsonRecord) => void> = [
       (input) => {
