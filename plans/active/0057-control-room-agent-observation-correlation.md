@@ -39,7 +39,7 @@ Deliver one executable, bounded, vendor-neutral tracer bullet. It decodes one of
 
 - Telemetry is observation, never work or evidence authority.
 - Attempt identities remain `observed_only` until a canonical attempt registry exists.
-- One capture owns one vendor, vendor-project, trace, digest, interval, and row limit.
+- The same capture yields byte-identical report bytes. Row permutation preserves normalized trace and correlation while changing the source digest.
 - A complete capture is a single validated tree. An incomplete capture is an inspectable forest with diagnostics.
 - Correlation uses only the five frozen explicit attributes.
 - Report bytes are deterministic under input row permutation.

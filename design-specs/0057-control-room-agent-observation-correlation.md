@@ -30,12 +30,12 @@ A missing root, an unconsumed cursor, an unknown work identity, and a false comp
 
 ## Storage and platform decision
 
-| Option | Strong fit | Material cost or risk | Decision |
-| --- | --- | --- | --- |
-| Langfuse with ClickHouse | Agent traces, sessions, observations, public read API, JSON or JSONL export | Full self-host stack; retention policy can require a commercial license; internal ClickHouse schema is unstable | Supported read adapter |
-| ClickStack | OTLP traces, generic logs and metrics, ClickHouse queries, open component licenses | No PBK goal or evidence model; deployment TTL and schema vary | Supported read adapter |
-| Direct custom ClickHouse store | Maximum query control | We would own ingestion, schema, retention, and operational UI | Rejected for this feature |
-| New Control Room telemetry database | Local semantic customization | Duplicates mature ingestion and storage systems | Rejected |
+| Option                              | Strong fit                                                                         | Material cost or risk                                                                                           | Decision                  |
+| ----------------------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| Langfuse with ClickHouse            | Agent traces, sessions, observations, public read API, JSON or JSONL export        | Full self-host stack; retention policy can require a commercial license; internal ClickHouse schema is unstable | Supported read adapter    |
+| ClickStack                          | OTLP traces, generic logs and metrics, ClickHouse queries, open component licenses | No PBK goal or evidence model; deployment TTL and schema vary                                                   | Supported read adapter    |
+| Direct custom ClickHouse store      | Maximum query control                                                              | We would own ingestion, schema, retention, and operational UI                                                   | Rejected for this feature |
+| New Control Room telemetry database | Local semantic customization                                                       | Duplicates mature ingestion and storage systems                                                                 | Rejected                  |
 
 The first slice uses bounded offline exports. It does not deploy either platform. This preserves a vendor-neutral semantic seam before an operator selects infrastructure.
 
@@ -179,7 +179,7 @@ The interface accepts one unknown value. It hides strict envelope and vendor dec
 
 1. A bounded Langfuse capture with explicit valid bindings returns `matched` and one deterministic trace tree.
 2. A bounded ClickStack capture with the same explicit PBK identities returns the same PBK correlation, not equal vendor identity.
-3. A permuted capture yields byte-identical canonical report bytes.
+3. A permuted capture yields the same normalized trace and correlations while retaining its different source digest.
 4. A remaining Langfuse cursor rejects `complete: true`.
 5. A ClickStack truncation marker rejects `complete: true`.
 6. A missing root is visible and cannot support completeness.
@@ -195,23 +195,23 @@ A future `just accept 0057-control-room-agent-observation-correlation` must:
 1. run focused decoder, normalization, correlation, and canonical-report tests;
 2. exercise one bounded Langfuse fixture and one bounded ClickStack fixture;
 3. show one match, one explicit incomplete capture, and each typed rejection above;
-4. show byte-identical output under row permutation;
+4. show byte-identical output for the same capture and equal normalized trace and correlations under row permutation;
 5. show that the Control Room projection has no write or status-transition path;
 6. run project-model validation and generated-view checks; and
 7. print source digests, bounds, unsupported claims, and checks that did not run.
 
 ## Source custody
 
-| Claim used by this design | Source |
-| --- | --- |
-| Langfuse accepts OTLP over HTTP and does not support gRPC | [Langfuse OpenTelemetry integration](https://langfuse.com/integrations/native/opentelemetry#L63-L75) |
-| Langfuse v2 observations are rows that callers group by `traceId` | [Langfuse Observations API](https://langfuse.com/docs/api-and-data-platform/features/observations-api#L23-L33) |
-| Langfuse internal ClickHouse schema is not a stable interface | [Langfuse ClickHouse infrastructure](https://langfuse.com/self-hosting/deployment/infrastructure/clickhouse#L98-L108) |
-| Langfuse self-hosting uses Web, Worker, Postgres, Redis, ClickHouse, and blob storage | [Langfuse self-hosting](https://langfuse.com/self-hosting#L49-L68) |
-| ClickStack receives OTLP HTTP and gRPC | [ClickStack OpenTelemetry ingestion](https://clickhouse.com/docs/clickstack/ingesting-data/opentelemetry#L52-L59) |
-| ClickStack trace rows expose trace, span, parent, service, attributes, duration, and status | [ClickStack trace schema](https://clickhouse.com/docs/clickstack/ingesting-data/schemas#L70-L109) |
-| ClickStack retention is table-level and deployment-specific | [ClickStack TTL](https://clickhouse.com/docs/clickstack/managing/ttl#L24-L26) |
-| OTel trace and span IDs have fixed byte and hex forms | [OpenTelemetry SpanContext](https://opentelemetry.io/docs/specs/otel/trace/api/#spancontext) |
+| Claim used by this design                                                                   | Source                                                                                                                |
+| ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Langfuse accepts OTLP over HTTP and does not support gRPC                                   | [Langfuse OpenTelemetry integration](https://langfuse.com/integrations/native/opentelemetry#L63-L75)                  |
+| Langfuse v2 observations are rows that callers group by `traceId`                           | [Langfuse Observations API](https://langfuse.com/docs/api-and-data-platform/features/observations-api#L23-L33)        |
+| Langfuse internal ClickHouse schema is not a stable interface                               | [Langfuse ClickHouse infrastructure](https://langfuse.com/self-hosting/deployment/infrastructure/clickhouse#L98-L108) |
+| Langfuse self-hosting uses Web, Worker, Postgres, Redis, ClickHouse, and blob storage       | [Langfuse self-hosting](https://langfuse.com/self-hosting#L49-L68)                                                    |
+| ClickStack receives OTLP HTTP and gRPC                                                      | [ClickStack OpenTelemetry ingestion](https://clickhouse.com/docs/clickstack/ingesting-data/opentelemetry#L52-L59)     |
+| ClickStack trace rows expose trace, span, parent, service, attributes, duration, and status | [ClickStack trace schema](https://clickhouse.com/docs/clickstack/ingesting-data/schemas#L70-L109)                     |
+| ClickStack retention is table-level and deployment-specific                                 | [ClickStack TTL](https://clickhouse.com/docs/clickstack/managing/ttl#L24-L26)                                         |
+| OTel trace and span IDs have fixed byte and hex forms                                       | [OpenTelemetry SpanContext](https://opentelemetry.io/docs/specs/otel/trace/api/#spancontext)                          |
 
 ## Freeze record
 
