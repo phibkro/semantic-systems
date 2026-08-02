@@ -1,4 +1,4 @@
-# Active plan 0020: agent-facing kernel JSON
+# Completed plan 0020: agent-facing kernel JSON
 
 ## Contract
 

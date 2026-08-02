@@ -1,10 +1,10 @@
-# Active plan 0046: Effect Graph execution index
+# Completed plan 0046: Effect Graph execution index
 
 Canonical frozen contract:
 [`design-specs/0046-effect-graph-execution-index.md`](../../design-specs/0046-effect-graph-execution-index.md).
 This execution record cannot redefine that contract.
 
-Status: implementation accepted locally; exact-head review and integration pending
+Status: complete; accepted, independently reviewed, and integrated.
 
 Owner: Semantic Systems portfolio-model engineer
 
@@ -17,7 +17,7 @@ Owner: Semantic Systems portfolio-model engineer
 ## Owned paths
 
 - `design-specs/0046-effect-graph-execution-index.md`
-- `plans/active/0046-effect-graph-execution-index.md`
+- `plans/completed/0046-effect-graph-execution-index.md`
 - `model/work/effect-graph-execution-index.json`
 - `src/portfolio-model/graph-index.ts`
 - minimal edits in `src/portfolio-model/project.ts`
@@ -70,3 +70,8 @@ bun scripts/accept/0046-effect-graph-execution-index.ts
   Effect diagnostics, Oxlint, Oxfmt, strict model validation, deterministic
   generated views, and the complete repository suite with 885 passes, one
   configured external-oracle skip, zero failures, and 20,689 assertions.
+- 2026-08-02: the capability was integrated at Semantic primary
+  `8902ba7cd468063ec28385265befdfc45607e5c2`. Exact acceptance and the
+  repository gate replayed green. Independent port review returned READY
+  after verifying that the integrated implementation was byte-identical to
+  the accepted source and that recursive cycle/depth mechanics were absent.

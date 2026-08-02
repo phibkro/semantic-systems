@@ -1,10 +1,10 @@
-# Active plan 0016: executable semantic system kernel
+# Completed plan 0016: executable semantic system kernel
 
 Canonical frozen contract:
 [`design-specs/0016-executable-semantic-system-kernel.md`](../../design-specs/0016-executable-semantic-system-kernel.md).
 This mutable execution record cannot redefine that contract.
 
-Status: integrated and independently accepted on the accepted 0015 base
+Status: complete; integrated and independently accepted on the accepted 0015 base
 
 Owner: primary Semantic Systems lead
 
@@ -39,7 +39,7 @@ integrated 0015 head `02547b02a0ec9f0dbd8d6851eb8e99b5ec82ccca`.
 ## Owned paths
 
 - `design-specs/0016-executable-semantic-system-kernel.md`
-- `plans/active/0016-executable-semantic-system-kernel.md`
+- `plans/completed/0016-executable-semantic-system-kernel.md`
 - `scripts/accept/0016-executable-semantic-system-kernel.ts`
 - `src/semantic-system/**`
 - `tests/semantic-system-*.test.ts`

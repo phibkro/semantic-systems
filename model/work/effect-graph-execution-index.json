@@ -11,7 +11,7 @@
         "phase": "implementation",
         "effort": 3,
         "design_spec": "design-specs/0046-effect-graph-execution-index.md",
-        "plan": "plans/active/0046-effect-graph-execution-index.md",
+        "plan": "plans/completed/0046-effect-graph-execution-index.md",
         "acceptance": [
           "Stable work and relation IDs remain the only public identities",
           "Code-unit-sorted construction makes projections permutation invariant",

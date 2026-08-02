@@ -18,7 +18,7 @@
         "phase": "implementation",
         "effort": 8,
         "design_spec": "design-specs/0031-control-room-interactive-skill-tree.md",
-        "plan": "plans/active/0031-control-room-interactive-skill-tree.md",
+        "plan": "plans/completed/0031-control-room-interactive-skill-tree.md",
         "acceptance": [
           "Dependency depth and arrows derive only from authored requires relations",
           "Graph and Mosaic consume one equal identity set",

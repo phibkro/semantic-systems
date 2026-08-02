@@ -1,4 +1,4 @@
-# Active plan 0022: kernel reference interpreter
+# Completed plan 0022: kernel reference interpreter
 
 Canonical frozen contract:
 [`design-specs/0022-kernel-reference-interpreter.md`](../../design-specs/0022-kernel-reference-interpreter.md).

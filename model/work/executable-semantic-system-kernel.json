@@ -11,7 +11,7 @@
         "phase": "validation",
         "effort": 13,
         "design_spec": "design-specs/0016-executable-semantic-system-kernel.md",
-        "plan": "plans/active/0016-executable-semantic-system-kernel.md",
+        "plan": "plans/completed/0016-executable-semantic-system-kernel.md",
         "acceptance": [
           "Semantic input and output categories remain distinct and schema-backed",
           "Effect requests remain protocol data until an exact registered interpreter handles them",

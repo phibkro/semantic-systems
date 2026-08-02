@@ -1,10 +1,10 @@
-# Active plan 0031: Control Room interactive skill tree
+# Completed plan 0031: Control Room interactive skill tree
 
 Canonical frozen contract:
 [`design-specs/0031-control-room-interactive-skill-tree.md`](../../design-specs/0031-control-room-interactive-skill-tree.md).
 This execution record cannot redefine that contract.
 
-Status: accepted on exact local head; publication pending
+Status: complete; accepted and integrated locally. Public deployment remains unobserved and is not completion evidence.
 
 Owner: primary Semantic Systems and PBK Technologies portfolio lead
 
@@ -24,7 +24,7 @@ work and unprivileged static-artifact CI remain unblocked.
 ## Owned paths
 
 - `design-specs/0031-control-room-interactive-skill-tree.md`
-- `plans/active/0031-control-room-interactive-skill-tree.md`
+- `plans/completed/0031-control-room-interactive-skill-tree.md`
 - `model/work/control-room-interactive-skill-tree.json`
 - bounded current-state additions in `portfolio/**`
 - `apps/control-room/src/roadmap-model.ts`
@@ -116,6 +116,12 @@ bun scripts/accept/0031-control-room-interactive-skill-tree.ts
   failure, walks prerequisite and unlock directions independently, speaks the
   relation, derives the bounded graph iteratively, requires equal traversal
   declarations, and was approved with no release-relevant findings.
+- 2026-08-02: the capability was integrated at Semantic primary
+  `8902ba7cd468063ec28385265befdfc45607e5c2`. Exact acceptance and the
+  repository gate replayed green, and independent port review returned READY
+  after verifying the integrated source against the accepted capability.
+  Public deployment remains unavailable because provider authentication was
+  rejected; no deployment claim is inferred from local acceptance.
 
 ## Review disposition
 
