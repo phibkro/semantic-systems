@@ -90,6 +90,7 @@ describe("canonical work lifecycle", () => {
     expect(isFeatureDiagnostic(resolved)).toBeFalse();
     if (isFeatureDiagnostic(resolved)) return;
     expect(resolved.lifecycle).toBe("active");
+    expect(resolved.planPath).toBe("plans/active/0005-managed-feature.md");
     expect(resolved.acceptance).toEqual({
       kind: "runnable",
       path: "scripts/accept/0005-managed-feature.ts",
@@ -98,7 +99,7 @@ describe("canonical work lifecycle", () => {
       featuresForChangedPaths(graph, [
         "model/work/features/0005-managed-feature.json",
         "design-specs/0005-managed-feature.md",
-        "plans/0005-managed-feature.md",
+        "plans/active/0005-managed-feature.md",
         "scripts/accept/0005-managed-feature.ts",
       ]),
     ).toEqual(["0005-managed-feature"]);
