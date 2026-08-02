@@ -4,7 +4,6 @@ Canonical frozen contract:
 [`design-specs/0031-control-room-interactive-skill-tree.md`](../design-specs/0031-control-room-interactive-skill-tree.md).
 This execution record cannot redefine that contract.
 
-
 Owner: primary Semantic Systems and PBK Technologies portfolio lead
 
 ## Dependencies

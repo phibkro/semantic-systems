@@ -4,7 +4,6 @@ Canonical frozen contract:
 [`design-specs/0017-control-room-reconstruction.md`](../design-specs/0017-control-room-reconstruction.md).
 This mutable execution record cannot redefine that contract.
 
-
 Owner: primary Semantic Systems lead
 
 ## Dependencies

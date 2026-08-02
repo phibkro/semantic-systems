@@ -180,5 +180,6 @@ machinery, reject the expansion and recut to the data-level seams.
 Complete. The next exposed uncertainty is alpha-equivalent binder identity in
 `theory-norm-v1`; it remains recorded in
 `uncertainties/0001-theory-normalization-binders.md`.
+
 - 2026-08-02: Historical lifecycle heading migrated verbatim from the pre-migration plan:
   # Completed plan 0001: inventory realization resolution tracer

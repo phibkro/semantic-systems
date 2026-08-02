@@ -69,10 +69,11 @@ const program = Effect.gen(function* () {
       message: `package.json must pin effect exactly to ${expectedEffect}`,
     });
   }
-  const lock = (yield* Effect.tryPromise({
-    try: () => Bun.file(resolve(root, "bun.lock")).json(),
+  const lockModule = (yield* Effect.tryPromise({
+    try: () => import("../../bun.lock"),
     catch: (cause) => new AcceptanceFailure({ message: `cannot load bun.lock: ${String(cause)}` }),
-  })) as { workspaces?: { ""?: { dependencies?: Record<string, string> } } };
+  })) as { default: { workspaces?: { ""?: { dependencies?: Record<string, string> } } } };
+  const lock = lockModule.default;
   if (lock.workspaces?.[""]?.dependencies?.effect !== expectedEffect) {
     return yield* new AcceptanceFailure({
       message: `bun.lock root workspace must pin effect exactly to ${expectedEffect}`,

@@ -4,7 +4,6 @@ Canonical frozen contract:
 [`design-specs/0018-minimal-kernel-calculus.md`](../design-specs/0018-minimal-kernel-calculus.md).
 This mutable record cannot change that contract.
 
-
 Owner: primary Semantic Systems lead
 
 ## Dependencies

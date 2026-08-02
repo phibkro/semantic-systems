@@ -268,5 +268,6 @@ completion feedback, and cleanup.
 Open. Complete only after one real feature is accepted and merged through the
 new loop, operator feedback is delivered, cleanup is verified, and the first
 cybernetic evaluation is recorded.
+
 - 2026-08-02: Historical lifecycle heading migrated verbatim from the pre-migration plan:
   # Active plan 0005: autonomous development control loop

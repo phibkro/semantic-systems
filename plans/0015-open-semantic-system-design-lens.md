@@ -4,7 +4,6 @@ Canonical frozen contract:
 [`design-specs/0015-open-semantic-system-design-lens.md`](../design-specs/0015-open-semantic-system-design-lens.md).
 This mutable execution record cannot redefine that contract.
 
-
 Owner: primary Semantic Systems lead
 
 ## Discovery evidence
@@ -387,6 +386,7 @@ bun scripts/accept/0015-open-semantic-system-design-lens.ts
 ```
 
 Missing required artifacts or tools fail.
+
 - 2026-08-02: Historical leading status migrated verbatim from the pre-migration plan:
   Status: thirteenth independent-review counterexamples corrected; exact-head
   acceptance and full integration pass; clean-head custody and Fable re-review

@@ -52,5 +52,6 @@ current operator-owned Actions credential; no deployment success is claimed.
 Implementation, local product verification, independent correction review,
 and contract recut are complete. Protected exact-head checks and merge remain
 the integration boundary.
+
 - 2026-08-02: Historical lifecycle heading migrated verbatim from the pre-migration plan:
   # Completed plan 0048: PBK Control Room acceptance reconciliation

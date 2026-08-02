@@ -4,7 +4,6 @@ Canonical frozen contract:
 [`design-specs/0022-kernel-reference-interpreter.md`](../design-specs/0022-kernel-reference-interpreter.md).
 This execution record cannot redefine that contract.
 
-
 Owner: primary Semantic Systems language lead
 
 ## Dependencies

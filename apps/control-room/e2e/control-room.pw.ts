@@ -200,7 +200,7 @@ test("N to N+1 applies atomically and an older version cannot roll back", async 
     await writeFile(versionPath, canonical(nextVersion));
     await page.getByRole("button", { name: "Refresh snapshot" }).click();
     await expect(page.getByText("Update available", { exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "Apply" }).click();
+    await page.getByRole("button", { name: "Apply", exact: true }).click();
     await expect(page.getByText(observedAt, { exact: true })).toBeVisible();
 
     await writeFile(versionPath, originalVersionText);

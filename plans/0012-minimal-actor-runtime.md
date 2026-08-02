@@ -4,7 +4,6 @@ Canonical problem contract:
 [`design-specs/0012-minimal-actor-runtime.md`](../design-specs/0012-minimal-actor-runtime.md).
 This mutable execution record must not redefine the frozen contract.
 
-
 Owner: main integration agent
 
 ## Current state

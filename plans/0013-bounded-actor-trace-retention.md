@@ -4,7 +4,6 @@ Canonical frozen contract:
 [`design-specs/0013-bounded-actor-trace-retention.md`](../design-specs/0013-bounded-actor-trace-retention.md).
 This mutable plan records execution state and cannot redefine that contract.
 
-
 Owner: main research and integration agent
 
 ## Discovery evidence

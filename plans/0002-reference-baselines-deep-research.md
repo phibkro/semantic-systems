@@ -207,6 +207,7 @@ Research-specific acceptance is the checklist in design spec 0002.
 Open. Complete only after source-backed artifacts, independent verification,
 canonical graph integration, generated views, and the next adoption experiment
 are accepted.
+
 - 2026-07-29: The structured Fable-led control workflow completed 14/14 child
   tasks with zero child errors, 17 cited project cards, 119 typed claims, 12
   accepted method candidates, and 12 ranked experiments. The workflow took

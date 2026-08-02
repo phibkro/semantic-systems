@@ -4,13 +4,11 @@ Canonical frozen contract:
 [`design-specs/0016-executable-semantic-system-kernel.md`](../design-specs/0016-executable-semantic-system-kernel.md).
 This mutable execution record cannot redefine that contract.
 
-
 Owner: primary Semantic Systems lead
 
 ## Dependency
 
-Feature 0016 depends on the accepted meaning and authoring worksheet of feature
-0015. The final candidate was reconstructed on independently accepted and
+Feature 0016 depends on the accepted meaning and authoring worksheet of feature 0015. The final candidate was reconstructed on independently accepted and
 integrated 0015 head `02547b02a0ec9f0dbd8d6851eb8e99b5ec82ccca`.
 
 ## Discovery evidence

@@ -1,6 +1,5 @@
 # Plan 0020-lossless-kernel-source: lossless kernel source
 
-
 ## Contract
 
 The superseded contract is

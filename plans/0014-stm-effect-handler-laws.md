@@ -4,7 +4,6 @@ Canonical frozen contract:
 [`design-specs/0014-stm-effect-handler-laws.md`](../design-specs/0014-stm-effect-handler-laws.md).
 This mutable execution record cannot redefine that contract.
 
-
 Owner: main research and integration agent
 
 ## Discovery evidence

@@ -2,7 +2,6 @@
 
 Design: `design-specs/0010-typescript-effect-v4-runtime.md`
 
-
 Owner: main integration agent
 
 ## Current state

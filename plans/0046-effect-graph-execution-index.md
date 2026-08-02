@@ -4,7 +4,6 @@ Canonical frozen contract:
 [`design-specs/0046-effect-graph-execution-index.md`](../design-specs/0046-effect-graph-execution-index.md).
 This execution record cannot redefine that contract.
 
-
 Owner: Semantic Systems portfolio-model engineer
 
 ## Dependencies

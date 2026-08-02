@@ -536,5 +536,6 @@ negative result are complete, but the production checker is not. Resume only
 after an explicit reviewed design revision replaces the incompatible 70%
 size/trust claim or freezes a materially different architecture. Do not reopen
 incremental checker implementation against the current contract.
+
 - 2026-08-02: Historical lifecycle heading migrated verbatim from the pre-migration plan:
   # Active plan 0003: independent resolution-result checker
