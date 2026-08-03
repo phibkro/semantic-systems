@@ -241,16 +241,29 @@ are accepted.
   `recorded_complete` behavior across 12 tests. Observed wiring elapsed 56
   minutes, below the two-day kill threshold. This establishes behavior only
   relative to the recorded graph plus supplied register.
-- 2026-08-02: Feature closure remains blocked on broader source custody and an independent review of the integrated portfolio. RX3 is the next runnable experiment.
+- 2026-08-02: Feature closure remains blocked on broader source custody and
+  independent review of the integrated portfolio. RX4 is the next runnable
+  experiment.
 - 2026-08-02: RX5 hit its frozen N/A criterion. The current tracer emits
   human-readable evidence summaries but persists no `evidence_result_v1`
   artifact across a process boundary. A fresh Bun demo process left a
   temporary nine-file inventory tree byte-identical and emitted no serialized
   evidence artifact. The experiment did not manufacture persistence.
 - 2026-08-03: Implemented the RX3 ambient-capability wall. The canonical
-  source inventory now checks an exact, owner-bearing 21-entry runtime-adapter
-  register and rejects portable-to-adapter imports. The configured plugin
-  covers runtime imports and globals, console, clock, entropy, timer, fetch,
-  raw JSON, and the existing project-model total-function boundary. Static
-  string member paths are recognized; aliases, reflection, dynamic property
-  names, and package trees outside canonical `src/` remain explicit limits.
+  source inventory checks an exact, owner-bearing 21-entry runtime-adapter
+  register. It rejects runtime-bearing portable imports and
+  portable-to-adapter imports. The plugin covers static module forms, named
+  runtime globals, console, clock, entropy, timers, fetch, Effect execution,
+  and the documented JSON and total-function scopes.
+- 2026-08-03: Independent review of the first exact-head candidate found
+  runtime-loader, `globalThis`, reproducibility, scope-disclosure, and hot-path
+  gaps. The correction uses Node's maintained builtin classifier, covers
+  re-exports and string-literal loaders, avoids unconditional scope walks, and
+  adds `scripts/experiments/0002-capability-wall.ts`. Aliases, reflection,
+  dynamic non-literal names, and package trees outside canonical `src/` remain
+  explicit limits.
+- 2026-08-03: The canonical `just accept
+0002-reference-baselines-deep-research` runner reported this historical
+  feature as pre-loop and non-runnable. RX3 therefore relies on its committed
+  experiment, focused rule tests, repository gates, and independent review.
+  It has no feature-loop acceptance-program claim.

@@ -1,4 +1,5 @@
 import { isAbsolute, relative, resolve, sep } from "node:path";
+import { isBuiltin } from "node:module";
 import { AST, Diagnostic, Plugin, Rule, RuleContext, Visitor } from "effect-oxlint";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
@@ -9,6 +10,21 @@ export const semanticSourceExtensions = Object.freeze([".ts", ".tsx", ".mts", ".
 
 const isTypeScriptSourcePath = (path: string): boolean =>
   semanticSourceExtensions.some((extension) => path.endsWith(extension));
+
+const isPackageOrSubpath = (specifier: string, packageName: string): boolean =>
+  specifier === packageName || specifier.startsWith(`${packageName}/`);
+
+export const isRuntimeModuleSpecifier = (specifier: string): boolean =>
+  isBuiltin(specifier) ||
+  specifier === "bun" ||
+  specifier.startsWith("bun:") ||
+  isPackageOrSubpath(specifier, "@effect/platform-bun") ||
+  isPackageOrSubpath(specifier, "@effect/platform-node");
+
+const stringLiteralValue = (
+  node: { readonly type: string; readonly value?: unknown } | null | undefined,
+): string | undefined =>
+  node?.type === "Literal" && typeof node.value === "string" ? node.value : undefined;
 
 export type AdapterException = Readonly<{
   readonly pathPattern: string;
@@ -187,7 +203,7 @@ const schemaBoundaryProgram = (filename: string): boolean => {
   const normalized = sourcePath(filename);
   return (
     schemaBoundaryRoots.some((root) => normalized.startsWith(root)) &&
-    adapterExceptionFor(filename) === undefined
+    adapterExceptionForPath(normalized) === undefined
   );
 };
 
@@ -234,14 +250,7 @@ type StaticMemberExpression = Parameters<typeof AST.memberPath>[0];
 
 const staticPropertyName = (node: StaticMemberExpression): string | undefined => {
   if (!node.computed && node.property.type === "Identifier") return node.property.name;
-  if (
-    node.computed &&
-    node.property.type === "Literal" &&
-    typeof node.property.value === "string"
-  ) {
-    return node.property.value;
-  }
-  return undefined;
+  return node.computed ? stringLiteralValue(node.property) : undefined;
 };
 
 const staticMemberPath = (node: StaticMemberExpression): ReadonlyArray<string> | undefined => {
@@ -264,6 +273,13 @@ const ambientTimerNames = ["setTimeout", "setInterval", "setImmediate", "queueMi
 const isAmbientTimerName = (name: string): boolean =>
   ambientTimerNames.some((timerName) => timerName === name);
 
+const isAmbientNondeterminismRoot = (name: string): boolean =>
+  name === "Date" ||
+  name === "Math" ||
+  name === "crypto" ||
+  name === "performance" ||
+  name === "globalThis";
+
 export const portableRuntimeImports = Rule.define({
   name: "portable-runtime-imports",
   meta: Rule.meta({
@@ -272,46 +288,68 @@ export const portableRuntimeImports = Rule.define({
   }),
   create: function* () {
     const ctx = yield* RuleContext;
+    const runtimeModuleReport = (node: Parameters<typeof Diagnostic.make>[0]["node"]) =>
+      report(
+        ctx,
+        node,
+        normalizedCoreProgram(ctx.filename)
+          ? "Normalized core has no runtime-adapter exemption; request portable Effect services only"
+          : "Portable semantic code must request Effect services; provide Bun or Node layers only in main entrypoints",
+      );
+    const runtimeModuleSourceReport = (
+      node: Parameters<typeof Diagnostic.make>[0]["node"],
+      sourceNode: { readonly type: string; readonly value?: unknown } | null | undefined,
+    ) => {
+      const source = stringLiteralValue(sourceNode);
+      return source !== undefined && isRuntimeModuleSpecifier(source)
+        ? runtimeModuleReport(node)
+        : Effect.void;
+    };
     return yield* Visitor.filter(
       portableSemanticProgram,
       Visitor.merge(
-        Visitor.on("ImportDeclaration", (node) =>
-          Option.isSome(
-            AST.matchImport(
-              node,
-              (source) =>
-                source.startsWith("node:") ||
-                source === "bun" ||
-                source.startsWith("@effect/platform-bun") ||
-                source.startsWith("@effect/platform-node"),
-            ),
-          )
-            ? report(
-                ctx,
-                node,
-                normalizedCoreProgram(ctx.filename)
-                  ? "Normalized core has no runtime-adapter exemption; request portable Effect services only"
-                  : "Portable semantic code must request Effect services; provide Bun or Node layers only in main entrypoints",
-              )
-            : Effect.void,
+        Visitor.on("ImportDeclaration", (node) => runtimeModuleSourceReport(node, node.source)),
+        Visitor.on("ExportNamedDeclaration", (node) =>
+          runtimeModuleSourceReport(node, node.source),
         ),
+        Visitor.on("ExportAllDeclaration", (node) => runtimeModuleSourceReport(node, node.source)),
+        Visitor.on("ImportExpression", (node) => runtimeModuleSourceReport(node, node.source)),
+        Visitor.on("CallExpression", (node) => {
+          const argument = node.arguments[0];
+          const source = stringLiteralValue(argument);
+          return node.callee.type === "Identifier" &&
+            node.callee.name === "require" &&
+            source !== undefined &&
+            isRuntimeModuleSpecifier(source) &&
+            isAmbientReference(ctx, node.callee)
+            ? runtimeModuleReport(node)
+            : Effect.void;
+        }),
         Visitor.on("MemberExpression", (node) => {
-          const ambientRuntimeMember =
+          if (
             node.object.type === "Identifier" &&
             (node.object.name === "Bun" || node.object.name === "process") &&
-            isAmbientReference(ctx, node.object);
+            isAmbientReference(ctx, node.object)
+          ) {
+            return report(
+              ctx,
+              node,
+              "Portable semantic code must not use runtime globals directly",
+            );
+          }
+          const memberRoot = memberRootIdentifier(node);
+          if (memberRoot?.name !== "globalThis") return Effect.void;
           const path = staticMemberPath(node);
           const extendedByParent =
             node.parent?.type === "MemberExpression" && node.parent.object === node;
-          const memberRoot = memberRootIdentifier(node);
-          const globalRuntime =
-            memberRoot !== undefined &&
-            isAmbientReference(ctx, memberRoot) &&
-            path !== undefined &&
-            path[0] === "globalThis" &&
-            (path[1] === "Bun" || path[1] === "process") &&
-            (path.length === 3 || (path.length === 2 && !extendedByParent));
-          return ambientRuntimeMember || globalRuntime
+          if (
+            path === undefined ||
+            (path[1] !== "Bun" && path[1] !== "process") ||
+            (path.length !== 3 && (path.length !== 2 || extendedByParent))
+          ) {
+            return Effect.void;
+          }
+          return isAmbientReference(ctx, memberRoot)
             ? report(ctx, node, "Portable semantic code must not use runtime globals directly")
             : Effect.void;
         }),
@@ -329,11 +367,11 @@ export const ambientConsole = Rule.define({
   create: function* () {
     const ctx = yield* RuleContext;
     const importsEffect = yield* Ref.make(false);
-    const ambientReferences = yield* Ref.make<
-      ReadonlyArray<Parameters<typeof Diagnostic.make>[0]["node"]>
-    >([]);
+    const ambientReferences: Array<Parameters<typeof Diagnostic.make>[0]["node"]> = [];
     const remember = (node: Parameters<typeof Diagnostic.make>[0]["node"]) =>
-      Ref.update(ambientReferences, (nodes) => [...nodes, node]);
+      Effect.sync(() => {
+        ambientReferences.push(node);
+      });
 
     return Visitor.merge(
       Visitor.on("ImportDeclaration", (node) =>
@@ -363,7 +401,7 @@ export const ambientConsole = Rule.define({
       Visitor.on("Program:exit", () =>
         Effect.gen(function* () {
           if (!(yield* Ref.get(importsEffect)) && !portableSemanticProgram(ctx.filename)) return;
-          for (const node of yield* Ref.get(ambientReferences)) {
+          for (const node of ambientReferences) {
             yield* report(
               ctx,
               node,
@@ -466,75 +504,82 @@ export const ambientNondeterminism = Rule.define({
       portableSemanticProgram,
       Visitor.merge(
         Visitor.on("CallExpression", (node) => {
-          const memberRoot =
-            node.callee.type === "MemberExpression" ? memberRootIdentifier(node.callee) : undefined;
-          const ambientMemberRoot = memberRoot !== undefined && isAmbientReference(ctx, memberRoot);
-          const memberPath =
-            node.callee.type === "MemberExpression" ? staticMemberPath(node.callee) : undefined;
-          const directAmbientNondeterminism =
-            ambientMemberRoot &&
-            memberPath?.length === 2 &&
-            ((memberPath[0] === "Date" && memberPath[1] === "now") ||
-              (memberPath[0] === "Math" && memberPath[1] === "random") ||
-              (memberPath[0] === "crypto" &&
-                (memberPath[1] === "randomUUID" || memberPath[1] === "getRandomValues")) ||
-              (memberPath[0] === "performance" && memberPath[1] === "now"));
-          if (directAmbientNondeterminism) {
-            return report(
-              ctx,
-              node,
-              "Use Effect Clock, Random, or Crypto services instead of ambient nondeterminism",
-            );
+          if (node.callee.type === "Identifier") {
+            if (isAmbientTimerName(node.callee.name) && isAmbientReference(ctx, node.callee)) {
+              return report(ctx, node, "Use Effect Clock instead of ambient timer scheduling");
+            }
+            if (node.callee.name === "fetch" && isAmbientReference(ctx, node.callee)) {
+              return report(
+                ctx,
+                node,
+                "Use Effect HttpClient instead of the ambient fetch capability",
+              );
+            }
+            return Effect.void;
           }
+          if (node.callee.type !== "MemberExpression") return Effect.void;
+          const memberRoot = memberRootIdentifier(node.callee);
+          if (memberRoot === undefined || !isAmbientNondeterminismRoot(memberRoot.name)) {
+            return Effect.void;
+          }
+          const memberPath = staticMemberPath(node.callee);
+          if (memberPath === undefined) return Effect.void;
+          const offset = memberPath[0] === "globalThis" ? 1 : 0;
+          const capability = memberPath[offset];
+          const operation = memberPath[offset + 1];
+          const normalizedLength = memberPath.length - offset;
+          let message: string | undefined;
           if (
-            ambientMemberRoot &&
-            memberPath?.length === 3 &&
-            memberPath[0] === "globalThis" &&
-            memberPath[1] === "crypto" &&
-            (memberPath[2] === "randomUUID" || memberPath[2] === "getRandomValues")
+            normalizedLength === 2 &&
+            ((capability === "Date" && operation === "now") ||
+              (capability === "Math" && operation === "random") ||
+              (capability === "crypto" &&
+                (operation === "randomUUID" || operation === "getRandomValues")) ||
+              (capability === "performance" && operation === "now"))
+          ) {
+            message =
+              "Use Effect Clock, Random, or Crypto services instead of ambient nondeterminism";
+          } else if (
+            normalizedLength === 1 &&
+            memberRoot.name === "globalThis" &&
+            capability !== undefined &&
+            isAmbientTimerName(capability)
+          ) {
+            message = "Use Effect Clock instead of ambient timer scheduling";
+          } else if (
+            normalizedLength === 1 &&
+            memberRoot.name === "globalThis" &&
+            capability === "fetch"
+          ) {
+            message = "Use Effect HttpClient instead of the ambient fetch capability";
+          }
+          return message !== undefined && isAmbientReference(ctx, memberRoot)
+            ? report(ctx, node, message)
+            : Effect.void;
+        }),
+        Visitor.on("NewExpression", (node) => {
+          if (node.arguments.length !== 0) return Effect.void;
+          if (
+            node.callee.type === "Identifier" &&
+            node.callee.name === "Date" &&
+            isAmbientReference(ctx, node.callee)
           ) {
             return report(
               ctx,
               node,
-              "Use Effect Crypto instead of the ambient Web Crypto capability",
+              "Use Effect Clock instead of constructing the ambient current time",
             );
           }
-          const ambientTimer =
-            (node.callee.type === "Identifier" &&
-              isAmbientTimerName(node.callee.name) &&
-              isAmbientReference(ctx, node.callee)) ||
-            (ambientMemberRoot &&
-              memberPath?.length === 2 &&
-              memberPath[0] === "globalThis" &&
-              isAmbientTimerName(memberPath[1] ?? ""));
-          if (ambientTimer) {
-            return report(ctx, node, "Use Effect Clock instead of ambient timer scheduling");
-          }
-          const ambientFetch =
-            (node.callee.type === "Identifier" &&
-              node.callee.name === "fetch" &&
-              isAmbientReference(ctx, node.callee)) ||
-            (ambientMemberRoot &&
-              memberPath?.length === 2 &&
-              memberPath[0] === "globalThis" &&
-              memberPath[1] === "fetch");
-          if (ambientFetch) {
-            return report(
-              ctx,
-              node,
-              "Use Effect HttpClient instead of the ambient fetch capability",
-            );
-          }
-          return Effect.void;
-        }),
-        Visitor.on("NewExpression", (node) =>
-          node.callee.type === "Identifier" &&
-          node.callee.name === "Date" &&
-          node.arguments.length === 0 &&
-          isAmbientReference(ctx, node.callee)
+          if (node.callee.type !== "MemberExpression") return Effect.void;
+          const memberRoot = memberRootIdentifier(node.callee);
+          const memberPath = staticMemberPath(node.callee);
+          return memberRoot?.name === "globalThis" &&
+            memberPath?.length === 2 &&
+            memberPath[1] === "Date" &&
+            isAmbientReference(ctx, memberRoot)
             ? report(ctx, node, "Use Effect Clock instead of constructing the ambient current time")
-            : Effect.void,
-        ),
+            : Effect.void;
+        }),
       ),
     );
   },

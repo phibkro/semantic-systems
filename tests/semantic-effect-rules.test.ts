@@ -9,6 +9,7 @@ import {
   ambientNondeterminism,
   classifySourcePath,
   effectRuntimeBoundary,
+  isRuntimeModuleSpecifier,
   portableRuntimeImports,
   schemaJsonBoundary,
   semanticSourceExtensions,
@@ -62,22 +63,34 @@ const runAmbientConsole = (
   return diagnostics;
 };
 
-const runPortableRuntimeMembers = (nodes: ReadonlyArray<unknown>, localProcess = false) => {
+const runPortableRuntime = (
+  events: ReadonlyArray<readonly [visitor: string, node: unknown]>,
+  localNames: ReadonlyArray<string> = [],
+) => {
   const { context, diagnostics } = Testing.createMockContext({
     filename: portableReferences.filename,
   });
   Object.defineProperty(context.sourceCode, "isGlobalReference", {
-    value: () => !localProcess,
+    value: (node: { readonly name: string }) => !localNames.includes(node.name),
   });
-  if (localProcess) {
+  if (localNames.length > 0) {
     Object.defineProperty(context.sourceCode, "getScope", {
-      value: () => Testing.scope({ variables: [Testing.variable("process")] }),
+      value: () =>
+        Testing.scope({
+          variables: localNames.map((name) => Testing.variable(name)),
+        }),
     });
   }
   const visitors = portableRuntimeImports.create(context);
-  for (const node of nodes) visitors.MemberExpression?.(node as never);
+  for (const [visitor, node] of events) visitors[visitor]?.(node as never);
   return diagnostics;
 };
+
+const runPortableRuntimeMembers = (nodes: ReadonlyArray<unknown>, localProcess = false) =>
+  runPortableRuntime(
+    nodes.map((node) => ["MemberExpression", node] as const),
+    localProcess ? ["process"] : [],
+  );
 
 const runPortableRuntimeMember = (node: unknown, localProcess = false) =>
   runPortableRuntimeMembers([node], localProcess);
@@ -162,20 +175,75 @@ describe("Semantic Systems Effect Oxlint rules", () => {
   });
 
   test("runtime imports are forbidden in portable semantic programs", () => {
-    Testing.expectDiagnostics(
-      Testing.runRule(
-        portableRuntimeImports,
-        "ImportDeclaration",
-        Testing.importDecl("node:fs/promises"),
-        portable,
-      ),
+    const expected = [
+      {
+        message:
+          "Portable semantic code must request Effect services; provide Bun or Node layers only in main entrypoints",
+      },
+    ];
+    for (const source of [
+      "node:fs/promises",
+      "fs",
+      "fs/promises",
+      "bun",
+      "bun:sqlite",
+      "@effect/platform-node",
+    ]) {
+      Testing.expectDiagnostics(
+        Testing.runRule(
+          portableRuntimeImports,
+          "ImportDeclaration",
+          Testing.importDecl(source),
+          portable,
+        ),
+        expected,
+      );
+    }
+    for (const [visitor, node] of [
       [
+        "ImportExpression",
         {
-          message:
-            "Portable semantic code must request Effect services; provide Bun or Node layers only in main entrypoints",
+          type: "ImportExpression",
+          source: Testing.strLiteral("node:fs/promises"),
+          options: null,
         },
       ],
+      [
+        "ExportAllDeclaration",
+        {
+          type: "ExportAllDeclaration",
+          source: Testing.strLiteral("node:crypto"),
+          exported: null,
+          attributes: [],
+        },
+      ],
+      [
+        "ExportNamedDeclaration",
+        {
+          ...Testing.exportNamedDecl(),
+          source: Testing.strLiteral("node:path"),
+        },
+      ],
+      ["CallExpression", Testing.callExpr("require", [Testing.strLiteral("fs/promises")])],
+    ] as const) {
+      Testing.expectDiagnostics(runPortableRuntime([[visitor, node]]), expected);
+    }
+    Testing.expectNoDiagnostics(
+      runPortableRuntime(
+        [["CallExpression", Testing.callExpr("require", [Testing.strLiteral("fs")])]],
+        ["require"],
+      ),
     );
+    for (const source of ["effect", "@effect/platform", "@effect/platform-bunny"]) {
+      Testing.expectNoDiagnostics(
+        Testing.runRule(
+          portableRuntimeImports,
+          "ImportDeclaration",
+          Testing.importDecl(source),
+          portable,
+        ),
+      );
+    }
     Testing.expectNoDiagnostics(
       Testing.runRule(
         portableRuntimeImports,
@@ -191,12 +259,7 @@ describe("Semantic Systems Effect Oxlint rules", () => {
         Testing.importDecl("node:fs/promises"),
         portableTracer,
       ),
-      [
-        {
-          message:
-            "Portable semantic code must request Effect services; provide Bun or Node layers only in main entrypoints",
-        },
-      ],
+      expected,
     );
     Testing.expectNoDiagnostics(
       Testing.runRule(
@@ -587,8 +650,36 @@ describe("Semantic Systems Effect Oxlint rules", () => {
           callee: Testing.memberExpr("globalThis", "fetch"),
         },
       ],
+      [
+        "CallExpression",
+        {
+          ...Testing.callExpr("unused"),
+          callee: Testing.chainedMemberExpr("globalThis", "Date", "now"),
+        },
+      ],
+      [
+        "CallExpression",
+        {
+          ...Testing.callExpr("unused"),
+          callee: Testing.chainedMemberExpr("globalThis", "Math", "random"),
+        },
+      ],
+      [
+        "CallExpression",
+        {
+          ...Testing.callExpr("unused"),
+          callee: Testing.chainedMemberExpr("globalThis", "performance", "now"),
+        },
+      ],
+      [
+        "NewExpression",
+        {
+          ...Testing.newExpr("unused"),
+          callee: Testing.memberExpr("globalThis", "Date"),
+        },
+      ],
     ]);
-    expect(diagnostics).toHaveLength(3);
+    expect(diagnostics).toHaveLength(7);
   });
 
   test("portable modules reject ambient timer scheduling", () => {
@@ -620,6 +711,20 @@ describe("Semantic Systems Effect Oxlint rules", () => {
             {
               ...Testing.callExpr("unused"),
               callee: Testing.memberExpr("globalThis", "fetch"),
+            },
+          ],
+          [
+            "CallExpression",
+            {
+              ...Testing.callExpr("unused"),
+              callee: Testing.chainedMemberExpr("globalThis", "Date", "now"),
+            },
+          ],
+          [
+            "NewExpression",
+            {
+              ...Testing.newExpr("unused"),
+              callee: Testing.memberExpr("globalThis", "Date"),
             },
           ],
           ["CallExpression", Testing.callExpr("setTimeout")],
@@ -654,6 +759,43 @@ describe("Semantic Systems Effect Oxlint rules", () => {
         "CallExpression",
         {
           ...Testing.callExpr("unused"),
+          callee: {
+            ...Testing.memberExpr("unused", "now"),
+            object: computedStringMemberExpr("globalThis", "Date"),
+          },
+        },
+      ],
+      [
+        "CallExpression",
+        {
+          ...Testing.callExpr("unused"),
+          callee: {
+            ...Testing.memberExpr("unused", "random"),
+            object: computedStringMemberExpr("globalThis", "Math"),
+          },
+        },
+      ],
+      [
+        "CallExpression",
+        {
+          ...Testing.callExpr("unused"),
+          callee: {
+            ...Testing.memberExpr("unused", "now"),
+            object: computedStringMemberExpr("globalThis", "performance"),
+          },
+        },
+      ],
+      [
+        "NewExpression",
+        {
+          ...Testing.newExpr("unused"),
+          callee: computedStringMemberExpr("globalThis", "Date"),
+        },
+      ],
+      [
+        "CallExpression",
+        {
+          ...Testing.callExpr("unused"),
           callee: computedStringMemberExpr("globalThis", "fetch"),
         },
       ],
@@ -665,7 +807,7 @@ describe("Semantic Systems Effect Oxlint rules", () => {
         },
       ],
     ]);
-    expect(diagnostics).toHaveLength(3);
+    expect(diagnostics).toHaveLength(7);
   });
 
   test("nested global runtime access emits one diagnostic", () => {
@@ -735,11 +877,16 @@ describe("Semantic Systems Effect Oxlint rules", () => {
       if (classification === "portable") {
         const sourceFile = resolve(root, path);
         for (const imported of scanner.scanImports(readFileSync(sourceFile, "utf8"))) {
-          if (!imported.path.startsWith(".")) continue;
+          if (!imported.path.startsWith(".")) {
+            expect(isRuntimeModuleSpecifier(imported.path)).toBeFalse();
+            continue;
+          }
           const candidate = resolve(dirname(sourceFile), imported.path);
-          const importedFile = [candidate, `${candidate}.ts`, resolve(candidate, "index.ts")].find(
-            existsSync,
-          );
+          const importedFile = [
+            candidate,
+            ...semanticSourceExtensions.map((extension) => `${candidate}${extension}`),
+            ...semanticSourceExtensions.map((extension) => resolve(candidate, `index${extension}`)),
+          ].find(existsSync);
           expect(importedFile).toBeDefined();
           if (importedFile === undefined) continue;
           const importedPath = relative(root, importedFile).replaceAll("\\", "/");
