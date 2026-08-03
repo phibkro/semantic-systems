@@ -64,6 +64,34 @@ scripts/experiments/0002-generator-determinism.ts` ran six fresh runtime
 - Each invocation emits its runtime identity and selected Effect platform layer plus a real-graph register probe and a SHA-256 digest of the runtime-independent semantic observation.
 - Observation (2026-08-02): both runnable commands completed under Bun 1.3.13 with `@effect/platform-bun` and genuine Node v24.18.0 with `@effect/platform-node`. Both produced semantic digest `sha256:5abf050d55b4b7ed9da1b17176a53a0456e1531aa44a6563e5ecf92aa3acbff2`. The real-graph probe resolved all nine registered opaque primitives and emitted nine `known_opaque` markers. The positive fixture emitted one reachable assumption with `incomplete`; the permanent negative fixture emitted no assumptions with `recorded_complete`, preserving the tested clean-but-wrong mode. `bun test tests/project-model-assumptions.test.ts` passed 12 tests. The observed wiring interval from delegated implementation start through successful parent execution was 56 minutes, below the two-day kill threshold. These runtime checks and tests do not establish completeness beyond the recorded graph plus supplied register, external-tool correctness, or future behavior.
 
+### RX5 — evidence-artifact replay in a separate process (from cached E10)
+
+- Method: `sem.replay-the-artifact-not-the-build`. Boundary: B3/B5. Rung:
+  not applicable at the current tracer boundary.
+- Do: persist one tracer evidence-result artifact from a normal run; a
+  separate process (no shared memory with the producer) reloads and
+  re-validates identity bindings and result content; seeded bit-flip and
+  schema-drift fixtures. State in the job's description that it reuses
+  project validation code — independence from the run, not the
+  implementation.
+- Success: replay rejects 10/10 seeded corruptions and stays green on
+  clean artifacts.
+- Kill: if no evidence artifact is persisted across a process boundary in
+  the current tracer, mark N/A and record the finding; do not manufacture
+  persistence to adopt the method.
+- Assumptions: custody fixtures (spec 0004 tests) already cover the
+  reference-source half; this would extend the pattern to evidence results.
+- Observation (2026-08-02): the current CLI supports only `semantic-tracer
+demo` and emits human-readable evidence summaries. It does not emit or
+  persist an `evidence_result_v1` artifact. A fresh Bun process ran the demo
+  against a temporary copy of the nine-file inventory fixture with exit 0
+  and empty stderr. The complete input tree remained byte-identical at
+  `sha256:447b6fa72682fa1bd178365f828047e276d70db95d5c09b560ea3bf18286ce2c`;
+  no file appeared and stdout contained no serialized evidence-result
+  artifact. Source inspection found parsing and in-memory round-trip
+  validation, but no tracer evidence-result write boundary. RX5 is therefore
+  N/A under its frozen kill criterion. No persistence was manufactured.
+
 ## Runnable now
 
 ### RX3 — ambient-effect inventory and capability wall (from cached E2)
@@ -108,24 +136,6 @@ scripts/experiments/0002-generator-determinism.ts` ran six fresh runtime
 - Rationale: direct mechanization of the run's clearest lesson —
   enforcement claims cite artifacts, never prose.
 
-### RX5 — evidence-artifact replay in a separate process (from cached E10)
-
-- Method: `sem.replay-the-artifact-not-the-build`. Boundary: B3/B5. Rung:
-  tested.
-- Do: persist one tracer evidence-result artifact from a normal run; a
-  separate process (no shared memory with the producer) reloads and
-  re-validates identity bindings and result content; seeded bit-flip and
-  schema-drift fixtures. State in the job's description that it reuses
-  project validation code — independence from the run, not the
-  implementation.
-- Success: replay rejects 10/10 seeded corruptions and stays green on
-  clean artifacts.
-- Kill: if no evidence artifact is persisted across a process boundary in
-  the current tracer, mark N/A and record the finding; do not manufacture
-  persistence to adopt the method.
-- Assumptions: custody fixtures (spec 0004 tests) already cover the
-  reference-source half; this extends the pattern to evidence results.
-
 ## Mapped to existing frontiers (no new experiment)
 
 - Cached E9 (checked admission gate) **is** design spec 0003 / CLM-0002:
@@ -149,6 +159,6 @@ Preconditions recorded now so the deferral is falsifiable, not forgotten:
 
 ## Next experiment
 
-RX2. RX1 discharged the current determinism precondition, so the
-assumption-report experiment can now test whether recorded graph edges are
-semantically complete. RX3 is independent and may run concurrently.
+RX3. RX2 is complete and RX5 is N/A at the current tracer boundary. The
+capability-wall experiment can now test whether portable modules expose or
+reject ambient effects without claiming open effect rows.

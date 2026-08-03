@@ -234,5 +234,16 @@ are accepted.
   Bun and three genuine Node runtime trials, each with separate validation and
   generation processes, produced byte-identical ten-view trees and CLI streams.
   This machine check establishes the present determinism precondition only.
-- 2026-08-02: RX2 passed under Bun 1.3.13 and genuine Node v24.18.0 with distinct Effect platform layers and matching semantic observations. The real-graph probe emitted nine registered opaque markers; the positive and permanent negative fixtures preserved `incomplete` and clean-but-wrong `recorded_complete` behavior across 11 tests. Observed wiring elapsed 56 minutes, below the two-day kill threshold. This establishes behavior only relative to the recorded graph plus supplied register.
+- 2026-08-02: RX2 passed under Bun 1.3.13 and genuine Node v24.18.0 with
+  distinct Effect platform layers and matching semantic observations. The
+  real-graph probe emitted nine registered opaque markers; the positive and
+  permanent negative fixtures preserved `incomplete` and clean-but-wrong
+  `recorded_complete` behavior across 12 tests. Observed wiring elapsed 56
+  minutes, below the two-day kill threshold. This establishes behavior only
+  relative to the recorded graph plus supplied register.
 - 2026-08-02: Feature closure remains blocked on broader source custody and an independent review of the integrated portfolio. RX3 is the next runnable experiment.
+- 2026-08-02: RX5 hit its frozen N/A criterion. The current tracer emits
+  human-readable evidence summaries but persists no `evidence_result_v1`
+  artifact across a process boundary. A fresh Bun demo process left a
+  temporary nine-file inventory tree byte-identical and emitted no serialized
+  evidence artifact. The experiment did not manufacture persistence.
