@@ -24,7 +24,7 @@
 
 ### `0007-reuse-first-engineering` — Apply reuse-first engineering assignments
 
-- Status: `in_progress`
+- Status: `blocked`
 - Feature loop: `managed`
 - Model: [canonical record](../model/work/features/0007-reuse-first-engineering.json)
 - Design: [design contract](../design-specs/0007-reuse-first-engineering.md)

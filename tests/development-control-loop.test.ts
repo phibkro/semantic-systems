@@ -1,5 +1,6 @@
+import { createHash } from "node:crypto";
 import { afterEach, describe, expect, test } from "bun:test";
-import { chmod, cp, mkdir, mkdtemp, rm } from "node:fs/promises";
+import { chmod, cp, mkdir, mkdtemp, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -36,6 +37,8 @@ const run = (
 
 const text = (result: ReturnType<typeof run>): string =>
   `${result.stdout.toString()}${result.stderr.toString()}`;
+const digestOfText = (value: string): string =>
+  `sha256:${createHash("sha256").update(value, "utf8").digest("hex")}`;
 
 const git = (repo: string, ...args: ReadonlyArray<string>) => run(["git", ...args], { cwd: repo });
 
@@ -908,6 +911,101 @@ describe("autonomous development control loop", () => {
     expect(text(provenance).toLowerCase()).toContain("upstream");
   });
 
+  test("commit policy rejects paired materialized artifact and digest drift", async () => {
+    const root = await temporaryRoot("semantic-commit-paired-artifact-");
+    for (const path of [".githooks", "config", "scripts", "commitlint.config.ts", "package.json"]) {
+      await cp(join(ROOT, path), join(root, path), { recursive: true });
+    }
+    const hook = join(root, ".githooks", "commit-msg");
+    const changed = `${await Bun.file(hook).text()}\n# paired drift\n`;
+    await Bun.write(hook, changed);
+    const provenancePath = join(
+      root,
+      "config",
+      "clamor-blocks",
+      "conventional-commits.provenance.json",
+    );
+    const provenance = await Bun.file(provenancePath).json();
+    const claim = provenance.renderedClaims.find(
+      (item: { claimId: string }) => item.claimId === "githooks/commit-msg",
+    );
+    claim.contentDigest = digestOfText(changed);
+    await Bun.write(provenancePath, JSON.stringify(provenance));
+
+    const result = run(["bun", "run", "scripts/check-commit-policy.ts"], { cwd: root });
+    expect(result.exitCode).not.toBe(0);
+    expect(text(result).toLowerCase()).toContain("immutable expected declaration");
+  });
+
+  test("commit policy rejects paired package value and provenance drift", async () => {
+    const root = await temporaryRoot("semantic-commit-paired-package-");
+    for (const path of [".githooks", "config", "scripts", "commitlint.config.ts", "package.json"]) {
+      await cp(join(ROOT, path), join(root, path), { recursive: true });
+    }
+    const packagePath = join(root, "package.json");
+    const packageJson = await Bun.file(packagePath).json();
+    packageJson.scripts["check-commit-policy"] = "bun scripts/check-commit-policy-drift.ts";
+    await Bun.write(packagePath, JSON.stringify(packageJson));
+    const provenancePath = join(
+      root,
+      "config",
+      "clamor-blocks",
+      "conventional-commits.provenance.json",
+    );
+    const provenance = await Bun.file(provenancePath).json();
+    const claim = provenance.renderedClaims.find(
+      (item: { claimId: string }) => item.claimId === "package/scripts/check-commit-policy",
+    );
+    claim.value = packageJson.scripts["check-commit-policy"];
+    await Bun.write(provenancePath, JSON.stringify(provenance));
+
+    const result = run(["bun", "run", "scripts/check-commit-policy.ts"], { cwd: root });
+    expect(result.exitCode).not.toBe(0);
+    expect(text(result).toLowerCase()).toContain("immutable expected declaration");
+  });
+
+  test("commit policy rejects project-owned claim path and digest drift", async () => {
+    const root = await temporaryRoot("semantic-commit-project-claim-");
+    for (const path of [".githooks", "config", "scripts", "commitlint.config.ts", "package.json"]) {
+      await cp(join(ROOT, path), join(root, path), { recursive: true });
+    }
+    const provenancePath = join(
+      root,
+      "config",
+      "clamor-blocks",
+      "conventional-commits.provenance.json",
+    );
+    const provenance = await Bun.file(provenancePath).json();
+    const projectClaim = provenance.projectOwnedClaims[0];
+    const renderedClaim = provenance.renderedClaims.find(
+      (item: { claimId: string }) => item.claimId === "githooks/pre-commit",
+    );
+    projectClaim.path = renderedClaim.path;
+    projectClaim.contentDigest = renderedClaim.contentDigest;
+    await Bun.write(provenancePath, JSON.stringify(provenance));
+
+    const result = run(["bun", "run", "scripts/check-commit-policy.ts"], { cwd: root });
+    expect(result.exitCode).not.toBe(0);
+    expect(text(result).toLowerCase()).toContain("immutable expected declaration");
+  });
+
+  test("commit policy rejects a symlinked claimed artifact before reading its target", async () => {
+    const root = await temporaryRoot("semantic-commit-symlinked-claim-");
+    for (const path of [".githooks", "config", "scripts", "commitlint.config.ts", "package.json"]) {
+      await cp(join(ROOT, path), join(root, path), { recursive: true });
+    }
+    const outside = await temporaryRoot("semantic-commit-symlink-target-");
+    const target = join(outside, "commit-msg");
+    await Bun.write(target, await Bun.file(join(root, ".githooks", "commit-msg")).text());
+    const claimed = join(root, ".githooks", "commit-msg");
+    await rm(claimed);
+    await symlink(target, claimed);
+
+    const result = run(["bun", "run", "scripts/check-commit-policy.ts"], { cwd: root });
+    expect(result.exitCode).not.toBe(0);
+    expect(text(result).toLowerCase()).toContain("symlinked path component");
+  });
+
   test("pre-push removes repository-local Git state before entering Nix", async () => {
     const root = await temporaryRoot("semantic-hook-environment-");
     const repository = join(root, "outer");
@@ -952,7 +1050,7 @@ await Bun.write(
     }
   });
 
-  test("fresh-checkout setup installs advisory hooks", async () => {
+  test("fresh-checkout setup installs hooks idempotently", async () => {
     const root = await temporaryRoot("semantic-hook-install-");
     const repository = join(root, "repo");
     await mkdir(join(repository, "scripts"), { recursive: true });
@@ -961,8 +1059,10 @@ await Bun.write(
       join(repository, "scripts", "install-git-hooks.ts"),
     );
     expect(git(repository, "init", "-q").exitCode).toBe(0);
-    const result = run(["bun", "scripts/install-git-hooks.ts"], { cwd: repository });
-    expect(result.exitCode).toBe(0);
+    const first = run(["bun", "scripts/install-git-hooks.ts"], { cwd: repository });
+    expect(first.exitCode).toBe(0);
+    const second = run(["bun", "scripts/install-git-hooks.ts"], { cwd: repository });
+    expect(second.exitCode).toBe(0);
     expect(git(repository, "config", "--get", "core.hooksPath").stdout.toString().trim()).toBe(
       ".githooks",
     );
@@ -971,6 +1071,70 @@ await Bun.write(
     const hooks = "bun run hooks:install";
     expect(contributing.indexOf(install)).toBeGreaterThanOrEqual(0);
     expect(contributing.indexOf(hooks)).toBeGreaterThan(contributing.indexOf(install));
+  });
+
+  test("hook setup preserves a custom local core.hooksPath", async () => {
+    const root = await temporaryRoot("semantic-hook-custom-path-");
+    const repository = join(root, "repo");
+    await mkdir(join(repository, "scripts"), { recursive: true });
+    await cp(
+      join(ROOT, "scripts", "install-git-hooks.ts"),
+      join(repository, "scripts", "install-git-hooks.ts"),
+    );
+    expect(git(repository, "init", "-q").exitCode).toBe(0);
+    expect(git(repository, "config", "--local", "core.hooksPath", "custom-hooks").exitCode).toBe(0);
+
+    const result = run(["bun", "scripts/install-git-hooks.ts"], { cwd: repository });
+    expect(result.exitCode).not.toBe(0);
+    expect(text(result).toLowerCase()).toContain("refusing");
+    expect(
+      git(repository, "config", "--local", "--get", "core.hooksPath").stdout.toString().trim(),
+    ).toBe("custom-hooks");
+  });
+
+  test("hook setup reports a deterministic Git config failure", async () => {
+    const root = await temporaryRoot("semantic-hook-config-failure-");
+    const repository = join(root, "repo");
+    const fakeBin = join(root, "bin");
+    await mkdir(join(repository, "scripts"), { recursive: true });
+    await mkdir(fakeBin);
+    await cp(
+      join(ROOT, "scripts", "install-git-hooks.ts"),
+      join(repository, "scripts", "install-git-hooks.ts"),
+    );
+    expect(git(repository, "init", "-q").exitCode).toBe(0);
+    const fakeGit = join(fakeBin, "git");
+    await Bun.write(
+      fakeGit,
+      `#!/usr/bin/env bun
+if (Bun.argv.includes("--get-all")) process.exit(1);
+console.error("simulated config write failure");
+process.exit(2);
+`,
+    );
+    await chmod(fakeGit, 0o755);
+
+    const result = run(["bun", "scripts/install-git-hooks.ts"], {
+      cwd: repository,
+      env: {
+        ...process.env,
+        PATH: `${fakeBin}:${process.env.PATH ?? ""}`,
+      },
+    });
+    expect(result.exitCode).not.toBe(0);
+    expect(text(result).toLowerCase()).toContain("unable to set local core.hookspath");
+  });
+
+  test("hook setup is a no-op outside a Git source checkout", async () => {
+    const root = await temporaryRoot("semantic-hook-no-git-");
+    await mkdir(join(root, "scripts"), { recursive: true });
+    await cp(
+      join(ROOT, "scripts", "install-git-hooks.ts"),
+      join(root, "scripts", "install-git-hooks.ts"),
+    );
+
+    const result = run(["bun", "scripts/install-git-hooks.ts"], { cwd: root });
+    expect(result.exitCode).toBe(0);
   });
 
   test("active gates fail closed and Nix filters noncanonical roots", async () => {
@@ -995,9 +1159,17 @@ await Bun.write(
       ".ruff_cache",
       "build",
       "dist",
+      ".alchemy",
+      ".omp",
+      "test-results",
+      "playwright-report",
     ]) {
       expect(flake).toContain(`name == "${directory}"`);
     }
+    expect(flake).toContain('pkgs.lib.hasSuffix ".egg-info" name');
+    expect(flake).toContain('baseNameOf (builtins.dirOf path) == "public"');
+    expect(flake).toContain('name == "data"');
+    expect(flake).not.toContain('|| name == "data"');
     expect(flake).toContain("for directory in src tests scripts; do");
     expect(flake).toContain('test -d "$directory"');
     expect(flake).toContain(')" || exit 1');

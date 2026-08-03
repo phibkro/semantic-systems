@@ -5,12 +5,12 @@
       "kind": "work_item",
       "name": "Apply reuse-first engineering assignments",
       "summary": "Make bounded implementation assignments reuse established tools and patterns before new infrastructure is written.",
-      "status": "in_progress",
+      "status": "blocked",
       "tags": ["governance", "engineering", "reuse"],
       "attributes": {
         "feature_id": "0007-reuse-first-engineering",
         "feature_loop": "managed",
-        "phase": "implementation",
+        "phase": "validation",
         "effort": 3,
         "acceptance": [
           "Every developer and engineer assignment carries the five frozen reuse-first clauses",

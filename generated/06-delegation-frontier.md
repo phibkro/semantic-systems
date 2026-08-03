@@ -2,7 +2,7 @@
 
 <!-- Generated. Edit model sources, not this file. -->
 
-Ready parallel work items: **11**.
+Ready parallel work items: **9**.
 
 | Work item | Phase | Status | Ready | Score | Recommendation | Blockers |
 |---|---|---|---:|---:|---|---|
@@ -38,11 +38,11 @@ Ready parallel work items: **11**.
 | Reconcile PBK Control Room acceptance lineage | validation | complete | no | 83 | delegate with review |  |
 | Build PBK Technologies portfolio Control Room | validation | complete | no | 72 | delegate with review |  |
 | Generate schema-backed project JSON tooling | validation | complete | no | 87 | delegate directly |  |
-| Research reference baselines for deep research | research | in_progress | yes | 86 | delegate with review |  |
+| Research reference baselines for deep research | validation | complete | no | 86 | delegate with review |  |
 | Establish reference-source custody | validation | complete | no | 87 | delegate with review |  |
 | Define relational fact export | validation | complete | no | 84 | delegate with review |  |
 | Recut the independent resolution checker | design | complete | no | 83 | delegate with review |  |
-| Apply reuse-first engineering assignments | implementation | in_progress | yes | 94 | delegate with review |  |
+| Apply reuse-first engineering assignments | validation | blocked | no | 94 | delegate with review |  |
 | RX1: cross-runtime generator determinism | validation | complete | no | 93 | delegate directly |  |
 | RX2: assumptions(artifact) over recorded edges | validation | complete | no | 74 | delegate with review |  |
 | Specify semantic attestation profile | design | ready | no | 87 | delegate with review | Define normalized theory identity |

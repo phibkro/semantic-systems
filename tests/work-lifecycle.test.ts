@@ -146,6 +146,45 @@ describe("canonical work lifecycle", () => {
       ]),
     ).toEqual(["0005-active", "0006-complete", "0007-superseded"]);
   });
+  test("maps every canonical artifact path for a deleted feature", () => {
+    const deletedId = "0008-deleted-feature";
+    expect(
+      featuresForChangedPaths(project("/fixture", []), [
+        `model/work/features/${deletedId}.json`,
+        `design-specs/${deletedId}.md`,
+        `plans/active/${deletedId}.md`,
+        `plans/completed/${deletedId}.md`,
+        `plans/superseded/${deletedId}.md`,
+        `scripts/accept/${deletedId}.ts`,
+      ]),
+    ).toEqual([deletedId]);
+  });
+
+  test("unions deleted canonical IDs with surviving graph owners deterministically", () => {
+    const survivingId = "0005-surviving-feature";
+    const deletedId = "0008-deleted-feature";
+    const graph = project("/fixture", [entity("/fixture", survivingId, "ready")]);
+    expect(
+      featuresForChangedPaths(graph, [
+        `scripts/accept/${deletedId}.ts`,
+        `design-specs/${survivingId}.md`,
+        `model/work/features/${deletedId}.json`,
+      ]),
+    ).toEqual([survivingId, deletedId]);
+  });
+
+  test("ignores malformed IDs and similarly named noncanonical paths", () => {
+    expect(
+      featuresForChangedPaths(project("/fixture", []), [
+        "model/work/features/0008-invalid_id.json",
+        "model/work/features/0008-invalid.json.bak",
+        "model/work/features-extra/0008-deleted-feature.json",
+        "design-specs/0008-deleted-feature/notes.md",
+        "plans/archived/0008-deleted-feature.md",
+        "scripts/acceptance/0008-deleted-feature.ts",
+      ]),
+    ).toEqual([]);
+  });
 
   test("returns typed diagnostics for invalid status, duplicate owners, and unknown IDs", () => {
     const root = "/fixture";
@@ -250,6 +289,49 @@ describe("canonical work lifecycle", () => {
     expect(diagnostics.some((item) => item.code === "feature.acceptance.executable")).toBeTrue();
     expect(diagnostics.some((item) => item.code === "feature.orphan.acceptance")).toBeTrue();
     expect(diagnostics.some((item) => item.code === "feature.source.contents")).toBeTrue();
+  });
+  test("rejects acceptance scripts owned by pre-loop and superseded features", async () => {
+    const root = await mkdtemp(join("/tmp", "semantic-lifecycle-acceptance-"));
+    temporaryRoots.push(root);
+    const preLoopId = "0001-inventory-resolution-tracer";
+    const supersededId = "0008-superseded-feature";
+    const runnableId = "0009-runnable-feature";
+    const preLoop = entity(root, preLoopId, "ready", { feature_loop: "pre_loop" });
+    const superseded = entity(root, supersededId, "superseded", {
+      replacement: {
+        target: preLoopId,
+        reason: "the pre-loop tracer supersedes this fixture",
+      },
+    });
+    const runnable = entity(root, runnableId, "ready");
+    await writeFeatureArtifacts(root, preLoopId);
+    await writeFeatureArtifacts(root, supersededId, "superseded");
+    await writeFeatureArtifacts(root, runnableId);
+
+    const diagnostics = await runBun(
+      validateFeatureRepository(project(root, [preLoop, superseded, runnable]), root),
+    );
+    const nonRunnable = diagnostics
+      .filter((item) => item.code === "feature.acceptance.non-runnable")
+      .map((item) => ({ featureId: item.featureId, path: item.path, message: item.message }));
+    expect(nonRunnable).toEqual([
+      {
+        featureId: preLoopId,
+        path: `scripts/accept/${preLoopId}.ts`,
+        message: `acceptance program is present for non-runnable pre_loop feature: scripts/accept/${preLoopId}.ts`,
+      },
+      {
+        featureId: supersededId,
+        path: `scripts/accept/${supersededId}.ts`,
+        message: `acceptance program is present for non-runnable superseded feature: scripts/accept/${supersededId}.ts`,
+      },
+    ]);
+    expect(
+      diagnostics.some(
+        (item) => item.code === "feature.acceptance.non-runnable" && item.featureId === runnableId,
+      ),
+    ).toBeFalse();
+    expect(diagnostics.some((item) => item.code === "feature.orphan.acceptance")).toBeFalse();
   });
 
   test("rejects lifecycle-dependent plan prose while allowing lifecycle directories", async () => {

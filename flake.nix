@@ -31,10 +31,9 @@
               pkgs.git
               pkgs.jq
               pkgs.just
-              # `node`, not just `bun`: the materialized .githooks/* scripts
-              # are byte-identical to Clamor's ConventionalCommits block,
-              # which hardcodes `#!/usr/bin/env node` shebangs for
-              # ./node_modules/.bin/{commitlint,oxfmt,oxlint}.
+              # `node` is available for source tools that still resolve a
+              # Node runtime; the adapted Bun hooks are not byte-identical to
+              # Clamor's private materialization and do not claim Node shebangs.
               pkgs.nodejs
               pkgs.playwright-test
               pkgs.wasm-tools
@@ -70,7 +69,7 @@
             path = ./.;
             name = "semantic-systems-src";
             filter =
-              path: _type:
+              path: type:
               let
                 name = baseNameOf path;
               in
@@ -87,6 +86,16 @@
                 || name == "build"
                 || name == "dist"
                 || pkgs.lib.hasPrefix "bun-debug-" name
+                || (type == "directory" && name == ".alchemy")
+                || (type == "directory" && name == ".omp")
+                || (type == "directory" && name == "test-results")
+                || (type == "directory" && name == "playwright-report")
+                || (type == "directory" && pkgs.lib.hasSuffix ".egg-info" name)
+                || (
+                  type == "directory"
+                  && name == "data"
+                  && baseNameOf (builtins.dirOf path) == "public"
+                )
               );
           };
         in

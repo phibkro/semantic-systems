@@ -661,6 +661,32 @@ const normalizeRepositoryPath = (value: string): RepositoryRelativePath | undefi
   return segments.length === 0 ? undefined : segments.join("/");
 };
 
+const featureIdFromPath = (value: string, extension: string): string | undefined => {
+  const basename = value.replaceAll("\\", "/").split("/").pop();
+  if (basename === undefined || !basename.endsWith(extension)) return undefined;
+  const featureId = basename.slice(0, -extension.length);
+  return FEATURE_ID_PATTERN.test(featureId) ? featureId : undefined;
+};
+
+const CANONICAL_FEATURE_EXTENSIONS: Readonly<Record<string, string>> = {
+  "model/work/features/": ".json",
+  "design-specs/": ".md",
+  "plans/active/": ".md",
+  "plans/completed/": ".md",
+  "plans/superseded/": ".md",
+  "scripts/accept/": ".ts",
+};
+
+const featureIdFromCanonicalPath = (value: RepositoryRelativePath): FeatureId | undefined => {
+  for (const [prefix, extension] of Object.entries(CANONICAL_FEATURE_EXTENSIONS)) {
+    if (!value.startsWith(prefix)) continue;
+    const relative = value.slice(prefix.length);
+    if (relative.includes("/")) return undefined;
+    return featureIdFromPath(relative, extension);
+  }
+  return undefined;
+};
+
 const isFeatureArtifact = (
   value: FeatureArtifacts | FeatureDiagnostic,
 ): value is FeatureArtifacts => !isFeatureDiagnostic(value);
@@ -686,6 +712,8 @@ export const featuresForChangedPaths = (
   for (const changedPath of changedPaths) {
     const normalized = normalizeRepositoryPath(changedPath);
     if (normalized === undefined) continue;
+    const derivedFeatureId = featureIdFromCanonicalPath(normalized);
+    if (derivedFeatureId !== undefined) selected.add(derivedFeatureId);
     for (const featureId of owners.get(normalized) ?? []) selected.add(featureId);
   }
   return [...selected].sort(compareText);
@@ -857,7 +885,7 @@ const inspectLifecycleDirectories = (
     for (const file of rootPlans) {
       const relative = normalizeRepositoryPath(path.join("plans", file));
       if (relative === undefined) continue;
-      const featureId = featureIdFromPath(path, file, ".md");
+      const featureId = featureIdFromPath(file, ".md");
       issues.push(
         issue(
           "feature.plan.root",
@@ -874,7 +902,7 @@ const inspectLifecycleDirectories = (
       for (const file of files) {
         const relative = normalizeRepositoryPath(path.join(`plans/${lifecycle}`, file));
         if (relative === undefined) continue;
-        const featureId = featureIdFromPath(path, file, ".md");
+        const featureId = featureIdFromPath(file, ".md");
         if (featureId === undefined || !candidates.has(featureId)) {
           issues.push(
             issue("feature.orphan.plan", `plan has no canonical feature owner: ${relative}`, {
@@ -907,21 +935,11 @@ const inspectLifecycleDirectories = (
     }
   });
 
-const featureIdFromPath = (
-  path: Path.Path,
-  value: string,
-  extension: string,
-): string | undefined => {
-  const basename = path.basename(value);
-  if (!basename.endsWith(extension)) return undefined;
-  const featureId = basename.slice(0, -extension.length);
-  return FEATURE_ID_PATTERN.test(featureId) ? featureId : undefined;
-};
-
 const inspectStableOrphans = (
   fs: FileSystem.FileSystem,
   path: Path.Path,
   root: string,
+  features: ReadonlyMap<FeatureId, FeatureArtifacts>,
   candidates: ReadonlyMap<FeatureId, ReadonlyArray<DecodedWorkRecord>>,
   issues: Array<FeatureDiagnostic>,
 ) =>
@@ -931,7 +949,7 @@ const inspectStableOrphans = (
 
     const modelFiles = yield* globRelative(fs, modelRoot, "*.json", issues);
     for (const file of modelFiles) {
-      const featureId = featureIdFromPath(path, file, ".json");
+      const featureId = featureIdFromPath(file, ".json");
       if (featureId === undefined || !candidates.has(featureId)) {
         const relative = normalizeRepositoryPath(path.relative(root, path.join(modelRoot, file)));
         if (relative !== undefined) {
@@ -946,7 +964,7 @@ const inspectStableOrphans = (
 
     const acceptance = yield* globRelative(fs, acceptanceRoot, "*.ts", issues);
     for (const file of acceptance) {
-      const featureId = featureIdFromPath(path, file, ".ts");
+      const featureId = featureIdFromPath(file, ".ts");
       const relative = normalizeRepositoryPath(path.join("scripts/accept", file));
       if (relative === undefined) continue;
       if (featureId === undefined || !candidates.has(featureId)) {
@@ -955,6 +973,17 @@ const inspectStableOrphans = (
             "feature.orphan.acceptance",
             `acceptance program has no canonical feature owner: ${relative}`,
             { path: relative },
+          ),
+        );
+        continue;
+      }
+      const feature = features.get(featureId);
+      if (feature !== undefined && feature.acceptance.kind !== "runnable") {
+        issues.push(
+          issue(
+            "feature.acceptance.non-runnable",
+            `acceptance program is present for non-runnable ${feature.acceptance.kind} feature: ${relative}`,
+            { featureId, path: relative },
           ),
         );
       }
@@ -1100,7 +1129,7 @@ export const validateFeatureRepository = (
     const expectedPlans = new Map<FeatureId, FeatureArtifacts>();
     for (const feature of validFeatures) expectedPlans.set(feature.featureId, feature);
     yield* inspectLifecycleDirectories(fs, path, root, expectedPlans, candidates, issues);
-    yield* inspectStableOrphans(fs, path, root, candidates, issues);
+    yield* inspectStableOrphans(fs, path, root, expectedPlans, candidates, issues);
     return sortDiagnostics(issues);
   });
 

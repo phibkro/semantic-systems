@@ -148,13 +148,16 @@ integration loop and replayed acceptance 0005, but the commit-policy sensor
 false-rejected GitHub-generated squash prose over an inherited 100-character
 body limit; this is a recorded false rejection, not successful completion.
 
-Repair PR #2 passed `fast + integration (nix)`, `feature contract + acceptance`,
-and `commit message + PR title policy` on its exact head and squash-merged as
-`e00e8f9`. This is `runtime_validation` for the protected repair-PR checks and
-merge result. The separate post-repair main-push replay `30485774751` then
-passed all three required contexts on the exact post-repair `main` head,
-including a real acceptance-0005 replay and the commit-policy range check;
-this is separate `runtime_validation` for the post-repair replay.
+Repair PR #2's exact-head protected check execution passed `fast + integration
+(nix)`, `feature contract + acceptance`, and `commit message + PR title
+policy`. This is `runtime_validation` for those observed protected-check runs.
+The provider reports that repair PR #2 squash-merged as `e00e8f9`; that is an
+`assertion` about external merge state, not `runtime_validation`. The separate
+post-repair main-push replay `30485774751` then passed all three required
+contexts on the exact post-repair `main` head, including a real acceptance-0005
+replay and the commit-policy range check; this is separate
+`runtime_validation` for the observed replay, while its provider delivery and
+head association remain `assertion` evidence.
 
 The active-session operator completion notice separately named both PRs, their
 merge and repair commits, the preview command, exact checks, evidence
@@ -166,24 +169,33 @@ integrated removal; local feature branches were retained as history. This is
 an `assertion` about external session/host cleanup.
 
 No separate GitHub PR review was requested for either merged PR
-(`reviewDecision` empty, zero reviews on both); the independent process review
-used by the pilot was the main agent's own documented counterexample rounds.
-These are `assertion` observations about provider state and process review;
-they do not establish reviewer independence.
+(`reviewDecision` empty, zero reviews on both); the pilot's process review
+consisted of the main agent's own documented counterexample rounds. These are
+`assertion` observations about provider state and process review, not evidence
+of independent review.
 
 The current-history audit found closure commit `7ab468d` stranded: parent
 `e00e8f9` is in current history, but `7ab468d` is not an ancestor of correction
 head `a5184fc95b59fb18832d2586456b5092c503e7e4`. This is `static_analysis` of
 repository history, not new pilot execution.
 
-At exact correction head `a5184fc95b59fb18832d2586456b5092c503e7e4`, exact
-`0005` acceptance passed 28 tests/303 assertions, Actionlint, commit policy,
-and contract checks. Exact 0048 acceptance at the same head included the full
-`just check`, which passed 676 tests/17,200 assertions. This is
-`runtime_validation` supplied by the integrating lead; it does not establish
+At correction checkout `a5184fc95b59fb18832d2586456b5092c503e7e4`, the local
+acceptance and check commands printed that HEAD SHA, but the checkout contained
+tracked dirt, including sources read by tests. `0005` acceptance then passed 28
+tests/303 assertions, Actionlint, commit policy, and contract checks. 0048
+acceptance at the same dirty checkout included the full `just check`,
+which passed 676 tests/17,200 assertions. This is dirty-tree
+`runtime_validation` of those observed commands, not validation attributable
+to exact commit content; it does not establish exact-head acceptance. A clean
+integration-head rerun is required. These observations also do not establish
 successful review, protection, push, or merge for the correction. The pilot
 remains one observation, and uncertainty 0003's three-feature comparison
 remains open.
+
+The repository-local checker and workflow are trusted-base assumptions governed
+by review and branch policy. Their in-repository digests pin checked artifacts,
+but cannot make the checker self-authenticating against adversarial
+co-modification; no in-repository digest solves checker self-integrity.
 
 The feature record remains `in_progress` pending correction integration and
 rereview. This bounded evidence does not establish the independent-review

@@ -37,8 +37,9 @@ limits, semantic diff, and kill criteria are frozen in design spec 0005.
   post-repair main-push replay `30485774751` passed all three required contexts
   on the exact post-repair `main` head, including acceptance 0005 replay.
 - The operator completion notice and cleanup observations are recorded in the
-  progress log below. This closure correction remains `in_progress`, pending
-  integration and rereview.
+  progress log below. The correction source is integrated in the current base
+  ancestry, but this closure remains `in_progress` pending independent rereview
+  and the final integration gate.
 
 ## Implementation slices
 
@@ -275,14 +276,24 @@ completion feedback, and cleanup.
   ancestor of correction head
   `a5184fc95b59fb18832d2586456b5092c503e7e4`. This is `static_analysis` of
   repository history.
-- 2026-08-02: At exact correction head
-  `a5184fc95b59fb18832d2586456b5092c503e7e4`, `0005` acceptance passed 28
-  tests/303 assertions, Actionlint, commit policy, and contract checks. Exact
-  0048 acceptance at the same head included the full `just check`, which
-  passed 676 tests/17,200 assertions. This is `runtime_validation`; static
-  rereview returned `CHANGES_REQUIRED` because this plan had dropped the
-  reviewer-independence limit. No protection, push, merge, or successful
-  review is claimed for the correction.
+- 2026-08-02: With HEAD at
+  `a5184fc95b59fb18832d2586456b5092c503e7e4`, local `0005` acceptance passed
+  28 tests/303 assertions, Actionlint, commit policy, and contract checks. Local
+  0048 acceptance at the same HEAD ref included `just check`, which passed 676
+  tests/17,200 assertions. The checkout was dirty, so these are
+  `runtime_validation` observations of the working tree, not exact-commit
+  evidence. Static rereview returned `CHANGES_REQUIRED` because this plan had
+  dropped the reviewer-independence limit. No protection, push, merge, or
+  successful review is claimed for the correction.
+- 2026-08-03: With HEAD at
+  `df2d51e12b8c1ae9f1902df45f3d9f66ea1e8dbe`, local feature acceptance for
+  0005 passed 28 tests/303 assertions, Actionlint, and commit-policy conformance
+  while tracked files differed from HEAD. This is `runtime_validation` of the
+  dirty working tree, not exact-base acceptance evidence. Independent rereview
+  found additional acceptance-attribution, feature-custody, provenance,
+  environment, and workflow-observation defects. Clean integration-head
+  acceptance, successful independent review, and the final integration gate
+  remain pending.
 
 ## Decisions and deviations
 
@@ -306,10 +317,16 @@ completion feedback, and cleanup.
 
 ## Completion state
 
-`in_progress`: the historical pilot evidence is harvested in this stable
-record, but this correction remains pending integration and rereview. The
-historical pilot evidence does not establish that this correction was reviewed,
-protected, pushed, or merged.
+`in_progress`: the correction source is integrated in the current base ancestry,
+but local validation at HEAD refs
+`a5184fc95b59fb18832d2586456b5092c503e7e4` and
+`df2d51e12b8c1ae9f1902df45f3d9f66ea1e8dbe` ran with tracked working-tree
+changes and does not establish exact-commit acceptance. Independent rereview
+found additional acceptance-attribution, feature-custody, provenance,
+environment, and workflow-observation defects. Clean integration-head
+acceptance, successful independent review, and the final integration gate
+remain pending. The historical pilot evidence does not establish independent
+review, and the correction is not claimed as protected, pushed, or merged.
 
 - 2026-08-02: Historical lifecycle heading migrated verbatim from the pre-migration plan:
   # Active plan 0005: autonomous development control loop

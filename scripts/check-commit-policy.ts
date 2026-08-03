@@ -9,11 +9,12 @@
  * upstream was queried during this run.
  */
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, statSync } from "node:fs";
-import { resolve, sep } from "node:path";
+import { existsSync, lstatSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { join, relative, resolve, sep } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
 const provenancePath = resolve(root, "config/clamor-blocks/conventional-commits.provenance.json");
+const canonicalRoot = realpathSync(root);
 
 type ExclusivePathClaim = {
   claimId: string;
@@ -90,42 +91,126 @@ const REQUIRED_SOURCE_GLOBS = [
   "*.mts",
   "*.cts",
 ];
-const REQUIRED_RENDERED_CLAIMS = new Set([
-  "githooks/commit-msg",
-  "githooks/pre-commit",
-  "commitlint-config",
-  "install-git-hooks",
-  "package/devDependencies/@commitlint/cli",
-  "package/devDependencies/@commitlint/config-conventional",
-  "package/scripts/prepare",
-  "package/scripts/commitlint",
-]);
-const EXPECTED_EXCLUSIVE_PATHS = new Map([
-  ["githooks/commit-msg", [".githooks/commit-msg", true] as const],
-  ["githooks/pre-commit", [".githooks/pre-commit", true] as const],
-  ["commitlint-config", ["commitlint.config.ts", false] as const],
-  ["install-git-hooks", ["scripts/install-git-hooks.ts", false] as const],
-]);
-const EXPECTED_SEMANTIC_KEYS = new Map([
+type ExpectedExclusivePathClaim = Readonly<{
+  kind: "exclusive_path";
+  path: string;
+  executable: boolean;
+  contentDigest: string;
+}>;
+type ExpectedSemanticKeyClaim = Readonly<{
+  kind: "semantic_key";
+  path: string;
+  key: readonly string[];
+  value: unknown;
+}>;
+type ExpectedClaim = ExpectedExclusivePathClaim | ExpectedSemanticKeyClaim;
+
+const EXPECTED_RENDERED_CLAIMS: ReadonlyMap<string, ExpectedClaim> = new Map<string, ExpectedClaim>(
   [
-    "package/devDependencies/@commitlint/cli",
-    ["package.json", ["devDependencies", "@commitlint/cli"]] as const,
+    [
+      "githooks/commit-msg",
+      {
+        kind: "exclusive_path",
+        path: ".githooks/commit-msg",
+        executable: true,
+        contentDigest: "sha256:e5d969a4651e7145f7472d9d4c41262095649004ceb8b4fd800e1aa527e4dd2c",
+      },
+    ],
+    [
+      "githooks/pre-commit",
+      {
+        kind: "exclusive_path",
+        path: ".githooks/pre-commit",
+        executable: true,
+        contentDigest: "sha256:7e1fbf459999cc4f47445c867e4c44069f9c1d17e9a8b37caf231a557de44f24",
+      },
+    ],
+    [
+      "commitlint-config",
+      {
+        kind: "exclusive_path",
+        path: "commitlint.config.ts",
+        executable: false,
+        contentDigest: "sha256:319841d1099f113064933a9723a03eff5bb10a7d02d4a5cd7d6b1f4abfdacd28",
+      },
+    ],
+    [
+      "install-git-hooks",
+      {
+        kind: "exclusive_path",
+        path: "scripts/install-git-hooks.ts",
+        executable: false,
+        contentDigest: "sha256:0cd600f4138e049f3b67131e612604a224030fd8a04aba0b2d8bb93909fab094",
+      },
+    ],
+    [
+      "package/devDependencies/@commitlint/cli",
+      {
+        kind: "semantic_key",
+        path: "package.json",
+        key: ["devDependencies", "@commitlint/cli"],
+        value: "21.2.1",
+      },
+    ],
+    [
+      "package/devDependencies/@commitlint/config-conventional",
+      {
+        kind: "semantic_key",
+        path: "package.json",
+        key: ["devDependencies", "@commitlint/config-conventional"],
+        value: "21.2.0",
+      },
+    ],
+    [
+      "package/scripts/prepare",
+      {
+        kind: "semantic_key",
+        path: "package.json",
+        key: ["scripts", "prepare"],
+        value: "bun scripts/install-git-hooks.ts",
+      },
+    ],
+    [
+      "package/scripts/commitlint",
+      {
+        kind: "semantic_key",
+        path: "package.json",
+        key: ["scripts", "commitlint"],
+        value: "commitlint",
+      },
+    ],
+    [
+      "package/scripts/check-commit-policy",
+      {
+        kind: "semantic_key",
+        path: "package.json",
+        key: ["scripts", "check-commit-policy"],
+        value: "bun scripts/check-commit-policy.ts",
+      },
+    ],
   ],
+);
+const EXPECTED_PROJECT_CLAIMS: ReadonlyMap<string, ExpectedClaim> = new Map<string, ExpectedClaim>([
   [
-    "package/devDependencies/@commitlint/config-conventional",
-    ["package.json", ["devDependencies", "@commitlint/config-conventional"]] as const,
+    "project/githooks/pre-push",
+    {
+      kind: "exclusive_path",
+      path: ".githooks/pre-push",
+      executable: true,
+      contentDigest: "sha256:360e81283a596d99d8c1866afed76fcf6224f6396ca6b40c7ea45f559eba8ef8",
+    },
   ],
-  ["package/scripts/prepare", ["package.json", ["scripts", "prepare"]] as const],
-  ["package/scripts/commitlint", ["package.json", ["scripts", "commitlint"]] as const],
 ]);
+const REQUIRED_RENDERED_CLAIMS = new Set(EXPECTED_RENDERED_CLAIMS.keys());
+const REQUIRED_PROJECT_CLAIMS = new Set(EXPECTED_PROJECT_CLAIMS.keys());
 const EXPECTED_ADAPTATIONS = new Map([
   ["commit-msg-bun-runtime", [".githooks/commit-msg", "githooks/commit-msg"] as const],
   ["commitlint-default-ignores-disabled", ["commitlint.config.ts", "commitlint-config"] as const],
   ["commitlint-squash-body-prose", ["commitlint.config.ts", "commitlint-config"] as const],
   ["pre-commit-bun-fast-loop", [".githooks/pre-commit", "githooks/pre-commit"] as const],
   ["pre-push-bun-integration", [".githooks/pre-push", undefined] as const],
+  ["install-git-hooks-fail-closed", ["scripts/install-git-hooks.ts", "install-git-hooks"] as const],
 ]);
-const REQUIRED_PROJECT_CLAIMS = new Set(["project/githooks/pre-push"]);
 
 const digestOfText = (text: string): string =>
   `sha256:${createHash("sha256").update(text, "utf8").digest("hex")}`;
@@ -183,16 +268,6 @@ if (!sameJson(provenance.configuration?.sourceGlobs, REQUIRED_SOURCE_GLOBS)) {
   problems.push(`configuration.sourceGlobs does not match the required ordered materialization.`);
 }
 
-const preCommitPath = resolve(root, ".githooks/pre-commit");
-if (existsSync(preCommitPath)) {
-  const materializedPattern = REQUIRED_SOURCE_GLOBS.join("|");
-  if (!readFileSync(preCommitPath, "utf8").includes(materializedPattern)) {
-    problems.push(
-      `configuration.sourceGlobs is not materialized in .githooks/pre-commit as ${materializedPattern}.`,
-    );
-  }
-}
-
 const renderedClaims = Array.isArray(provenance.renderedClaims) ? provenance.renderedClaims : [];
 const renderedClaimIds = new Set(renderedClaims.map((claim) => claim.claimId));
 if (
@@ -226,13 +301,30 @@ for (const adaptation of adaptations) {
   }
 }
 
-let packageJson: Record<string, unknown> | undefined;
-const readPackageJson = (): Record<string, unknown> => {
-  packageJson ??= JSON.parse(readFileSync(resolve(root, "package.json"), "utf8")) as Record<
-    string,
-    unknown
-  >;
-  return packageJson;
+const packageJsonByPath = new Map<string, Record<string, unknown>>();
+const readPackageJson = (
+  artifactPath: string,
+  claimId: string,
+): Record<string, unknown> | undefined => {
+  const cached = packageJsonByPath.get(artifactPath);
+  if (cached !== undefined) {
+    return cached;
+  }
+  try {
+    const parsed = JSON.parse(readFileSync(artifactPath, "utf8")) as unknown;
+    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+      problems.push(`claim "${claimId}" names ${artifactPath}, which is not a JSON object.`);
+      return undefined;
+    }
+    const record = parsed as Record<string, unknown>;
+    packageJsonByPath.set(artifactPath, record);
+    return record;
+  } catch (error) {
+    problems.push(
+      `claim "${claimId}" could not parse ${artifactPath}: ${error instanceof Error ? error.message : String(error)}.`,
+    );
+    return undefined;
+  }
 };
 
 const readKeyPath = (obj: Record<string, unknown>, key: string[]): unknown => {
@@ -244,6 +336,53 @@ const readKeyPath = (obj: Record<string, unknown>, key: string[]): unknown => {
     cursor = (cursor as Record<string, unknown>)[segment];
   }
   return cursor;
+};
+
+const resolveClaimPath = (claimId: string, claimPath: unknown): string | undefined => {
+  if (typeof claimPath !== "string") {
+    problems.push(`claim "${claimId}" path is malformed.`);
+    return undefined;
+  }
+  const lexicalPath = resolve(root, claimPath);
+  if (lexicalPath !== root && !lexicalPath.startsWith(`${root}${sep}`)) {
+    problems.push(`claim "${claimId}" escapes the repository root.`);
+    return undefined;
+  }
+
+  const relativePath = relative(root, lexicalPath);
+  const components = relativePath === "" ? [] : relativePath.split(sep);
+  let currentPath = root;
+  for (const component of components) {
+    currentPath = join(currentPath, component);
+    let entry;
+    try {
+      entry = lstatSync(currentPath);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      problems.push(`claim "${claimId}" names ${claimPath}, which does not exist: ${detail}.`);
+      return undefined;
+    }
+    if (entry.isSymbolicLink()) {
+      problems.push(
+        `claim "${claimId}" uses a symlinked path component at ${relative(root, currentPath)}.`,
+      );
+      return undefined;
+    }
+  }
+
+  let canonicalPath: string;
+  try {
+    canonicalPath = realpathSync(lexicalPath);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    problems.push(`claim "${claimId}" could not be canonically resolved: ${detail}.`);
+    return undefined;
+  }
+  if (canonicalPath !== canonicalRoot && !canonicalPath.startsWith(`${canonicalRoot}${sep}`)) {
+    problems.push(`claim "${claimId}" resolves outside the repository root.`);
+    return undefined;
+  }
+  return canonicalPath;
 };
 
 const projectOwnedClaims = Array.isArray(provenance.projectOwnedClaims)
@@ -268,59 +407,105 @@ for (const claim of allClaims) {
     continue;
   }
   seenClaimIds.add(claim.claimId);
-  if (REQUIRED_RENDERED_CLAIMS.has(claim.claimId)) {
-    if (claim.kind === "exclusive_path") {
-      const expected = EXPECTED_EXCLUSIVE_PATHS.get(claim.claimId);
-      if (
-        expected === undefined ||
-        claim.path !== expected[0] ||
-        claim.executable !== expected[1]
-      ) {
-        problems.push(`claim "${claim.claimId}" path or executable declaration is malformed.`);
-      }
-    } else {
-      const expected = EXPECTED_SEMANTIC_KEYS.get(claim.claimId);
-      if (
-        expected === undefined ||
-        claim.path !== expected[0] ||
-        !sameJson(claim.key, expected[1])
-      ) {
-        problems.push(`claim "${claim.claimId}" semantic path or key is malformed.`);
-      }
-    }
+}
+
+const validateClaim = (
+  claim: ExclusivePathClaim | SemanticKeyClaim,
+  expectedClaims: ReadonlyMap<string, ExpectedClaim>,
+  category: "rendered" | "project-owned",
+): void => {
+  const expected = expectedClaims.get(claim.claimId);
+  if (expected === undefined) {
+    problems.push(`${category} claim "${claim.claimId}" is not an allowed pinned claim.`);
+    return;
   }
-  const artifactPath = resolve(root, claim.path);
-  if (artifactPath !== root && !artifactPath.startsWith(`${root}${sep}`)) {
-    problems.push(`claim "${claim.claimId}" escapes the repository root.`);
-    continue;
+  if (claim.kind !== expected.kind) {
+    problems.push(
+      `${category} claim "${claim.claimId}" does not match its immutable expected declaration.`,
+    );
+    return;
   }
-  if (!existsSync(artifactPath)) {
-    problems.push(`claim "${claim.claimId}" names ${claim.path}, which does not exist.`);
-    continue;
+  if (
+    claim.kind === "exclusive_path" &&
+    expected.kind === "exclusive_path" &&
+    (claim.path !== expected.path ||
+      claim.executable !== expected.executable ||
+      claim.contentDigest !== expected.contentDigest)
+  ) {
+    problems.push(
+      `${category} claim "${claim.claimId}" does not match its immutable expected declaration.`,
+    );
+  }
+  if (
+    claim.kind === "semantic_key" &&
+    expected.kind === "semantic_key" &&
+    (claim.path !== expected.path ||
+      !sameJson(claim.key, expected.key) ||
+      !sameJson(claim.value, expected.value))
+  ) {
+    problems.push(
+      `${category} claim "${claim.claimId}" does not match its immutable expected declaration.`,
+    );
+  }
+
+  const artifactPath = resolveClaimPath(claim.claimId, claim.path);
+  if (artifactPath === undefined) {
+    return;
   }
 
   if (claim.kind === "exclusive_path") {
-    const actual = digestOfText(readFileSync(artifactPath, "utf8"));
+    let actual: string;
+    try {
+      actual = digestOfText(readFileSync(artifactPath, "utf8"));
+    } catch (error) {
+      problems.push(
+        `claim "${claim.claimId}" at ${claim.path} could not be read: ${error instanceof Error ? error.message : String(error)}.`,
+      );
+      return;
+    }
     if (actual !== claim.contentDigest) {
       problems.push(
         `claim "${claim.claimId}" at ${claim.path} has drifted: recorded ${claim.contentDigest}, actual ${actual}.`,
       );
     }
-    const executable = (statSync(artifactPath).mode & 0o111) !== 0;
+    let executable: boolean;
+    try {
+      executable = (statSync(artifactPath).mode & 0o111) !== 0;
+    } catch (error) {
+      problems.push(
+        `claim "${claim.claimId}" at ${claim.path} could not be inspected: ${error instanceof Error ? error.message : String(error)}.`,
+      );
+      return;
+    }
     if (executable !== claim.executable) {
       problems.push(
         `claim "${claim.claimId}" executable mode drifted: recorded ${claim.executable}, actual ${executable}.`,
       );
     }
-    continue;
+    return;
   }
 
-  const actualValue = readKeyPath(readPackageJson(), claim.key);
+  if (!Array.isArray(claim.key) || !claim.key.every((segment) => typeof segment === "string")) {
+    problems.push(`claim "${claim.claimId}" semantic key is malformed.`);
+    return;
+  }
+  const packageJson = readPackageJson(artifactPath, claim.claimId);
+  if (packageJson === undefined) {
+    return;
+  }
+  const actualValue = readKeyPath(packageJson, claim.key);
   if (!sameJson(actualValue, claim.value)) {
     problems.push(
       `claim "${claim.claimId}" expects ${claim.path}#${claim.key.join(".")} = ${JSON.stringify(claim.value)}, found ${JSON.stringify(actualValue)}.`,
     );
   }
+};
+
+for (const claim of renderedClaims) {
+  validateClaim(claim, EXPECTED_RENDERED_CLAIMS, "rendered");
+}
+for (const claim of projectOwnedClaims) {
+  validateClaim(claim, EXPECTED_PROJECT_CLAIMS, "project-owned");
 }
 
 if (problems.length > 0) {

@@ -63,7 +63,7 @@
       "path": "scripts/install-git-hooks.ts",
       "kind": "exclusive_path",
       "executable": false,
-      "contentDigest": "sha256:1584a918cc48a38e51e83b5567ed04709d32c6e64ac879eeac1a570e18bcf3e1"
+      "contentDigest": "sha256:0cd600f4138e049f3b67131e612604a224030fd8a04aba0b2d8bb93909fab094"
     },
     {
       "claimId": "package/devDependencies/@commitlint/cli",
@@ -92,6 +92,13 @@
       "kind": "semantic_key",
       "key": ["scripts", "commitlint"],
       "value": "commitlint"
+    },
+    {
+      "claimId": "package/scripts/check-commit-policy",
+      "path": "package.json",
+      "kind": "semantic_key",
+      "key": ["scripts", "check-commit-policy"],
+      "value": "bun scripts/check-commit-policy.ts"
     }
   ],
   "projectOwnedClaims": [
@@ -132,11 +139,18 @@
       "id": "pre-push-bun-integration",
       "path": ".githooks/pre-push",
       "rationale": "The project-owned Bun hook clears Git hook-local repository variables before invoking the pinned Nix integration gate; this path is absent from the upstream block."
+    },
+    {
+      "id": "install-git-hooks-fail-closed",
+      "path": "scripts/install-git-hooks.ts",
+      "upstreamClaimId": "install-git-hooks",
+      "rationale": "The project installer preserves an existing custom local core.hooksPath and fails closed when Git cannot apply the .githooks configuration."
     }
   ],
   "deviationsFromBlock": [
     "commitlint.config.ts and the commit-msg/pre-commit hooks begin from upstream renders but are intentionally adapted to the Bun runtime and hardened as recorded, so they are not claimed byte-identical to Clamor.",
     ".githooks/pre-push is a project-owned Bun lifecycle hook, not an upstream block claim.",
+    "scripts/install-git-hooks.ts is intentionally hardened to preserve custom local hook configuration and fail closed when Git cannot apply the project path, so it is not claimed byte-identical to Clamor.",
     "The package also pins Bun, Oxfmt, Oxlint, and stable TypeScript 7 for this repository; those choices are outside the upstream block's claim set."
   ],
   "conformance": {
