@@ -205,10 +205,9 @@ Research-specific acceptance is the checklist in design spec 0002.
 
 ## Completion state
 
-Open. Complete only after source-backed artifacts and custody, RX1–RX4
-acceptance, RX5's bounded N/A observation, explicit D1–D4 deferrals,
-independent review, canonical graph integration, and generated views are
-accepted.
+Complete. Source-backed artifacts and custody, RX1–RX4 acceptance, RX5's
+bounded N/A observation, explicit D1–D4 deferrals, independent review,
+canonical graph integration, and generated views are accepted.
 
 - 2026-07-29: The structured Fable-led control workflow completed 14/14 child
   tasks with zero child errors, 17 cited project cards, 119 typed claims, 12
@@ -313,3 +312,15 @@ accepted.
   conflict, weak Salsa provenance, and stale lifecycle prose. The corrected
   portfolio retains the historical ledger, records the direct-read scope and
   conflicts, and awaits independent rereview before completion.
+- 2026-08-03: Two independent read-only rereviews returned READY after
+  verifying the portfolio/evidence corrections and the remote-hydration
+  corrections in the live tree. The accepted implementation head is
+  `4686c6edd385eafe1e7e4ae26fbf71c5f4584339`.
+- 2026-08-03: Final acceptance observed 37 focused feature tests with 2,113
+  assertions plus seven adopted-source lock checks; the reference-custody
+  suite observed 148 tests with 625 assertions; `just check` observed 798
+  tests with 18,780 assertions; and `nix flake check` built both configured
+  checks after Garnix cache HTTP 502 fallbacks. The existing unsupported
+  kernel-safety claim and the plan's D1–D4 deferrals remain explicit. These
+  results are test, static-analysis, runtime-validation, and independent
+  assertion evidence, not proof or legal advice.

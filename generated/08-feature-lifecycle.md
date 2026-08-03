@@ -4,15 +4,6 @@
 
 ## Active
 
-### `0002-reference-baselines-deep-research` — Research reference baselines for deep research
-
-- Status: `in_progress`
-- Feature loop: `managed`
-- Model: [canonical record](../model/work/features/0002-reference-baselines-deep-research.json)
-- Design: [design contract](../design-specs/0002-reference-baselines-deep-research.md)
-- Plan: [execution ledger](../plans/active/0002-reference-baselines-deep-research.md)
-- Acceptance: [runnable program](../scripts/accept/0002-reference-baselines-deep-research.ts)
-
 ### `0003-independent-resolution-checker` — Implement the independent resolution-result checker
 
 - Status: `blocked`
@@ -50,6 +41,15 @@
 - Design: [design contract](../design-specs/0001-inventory-resolution-tracer.md)
 - Plan: [execution ledger](../plans/completed/0001-inventory-resolution-tracer.md)
 - Acceptance: non-runnable (`pre_loop`; no feature-loop program)
+
+### `0002-reference-baselines-deep-research` — Research reference baselines for deep research
+
+- Status: `complete`
+- Feature loop: `managed`
+- Model: [canonical record](../model/work/features/0002-reference-baselines-deep-research.json)
+- Design: [design contract](../design-specs/0002-reference-baselines-deep-research.md)
+- Plan: [execution ledger](../plans/completed/0002-reference-baselines-deep-research.md)
+- Acceptance: [runnable program](../scripts/accept/0002-reference-baselines-deep-research.ts)
 
 ### `0004-reference-source-custody` — Establish reference-source custody
 
