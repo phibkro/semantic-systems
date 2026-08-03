@@ -1,10 +1,28 @@
 #!/usr/bin/env bun
 import { statSync } from "node:fs";
+const childExitCode = (
+  command: ReadonlyArray<string>,
+  result: { readonly exitCode: number | null; readonly signalCode?: string | null },
+): number => {
+  if (result.signalCode !== undefined && result.signalCode !== null) {
+    console.error(
+      `commit-msg: ${command.join(" ")} was terminated by signal ${result.signalCode}.`,
+    );
+    return 1;
+  }
+  if (result.exitCode === null) {
+    console.error(`commit-msg: ${command.join(" ")} terminated without an exit code.`);
+    return 1;
+  }
+  return result.exitCode;
+};
 
-const rootResult = Bun.spawnSync(["git", "rev-parse", "--show-toplevel"]);
-if (rootResult.exitCode !== 0) {
+const rootCommand = ["git", "rev-parse", "--show-toplevel"];
+const rootResult = Bun.spawnSync(rootCommand);
+const rootExitCode = childExitCode(rootCommand, rootResult);
+if (rootExitCode !== 0) {
   process.stderr.write(rootResult.stderr);
-  process.exit(rootResult.exitCode);
+  process.exit(rootExitCode);
 }
 const root = rootResult.stdout.toString().trim();
 const commitlint = `${root}/node_modules/.bin/commitlint`;
@@ -17,11 +35,12 @@ try {
   process.exit(1);
 }
 
+const commitlintCommand = [commitlint, "--edit", Bun.argv[2] ?? ""];
 const result = Bun.spawnSync({
-  cmd: [commitlint, "--edit", Bun.argv[2] ?? ""],
+  cmd: commitlintCommand,
   cwd: root,
   stdin: "inherit",
   stdout: "inherit",
   stderr: "inherit",
 });
-process.exit(result.exitCode);
+process.exit(childExitCode(commitlintCommand, result));

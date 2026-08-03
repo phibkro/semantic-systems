@@ -287,6 +287,15 @@ describe("autonomous development control loop", () => {
     expect(empty.exitCode).not.toBe(0);
     expect(text(empty).toLowerCase()).toContain("semantic diff");
 
+    payload.pull_request.body = validPrBody("0005-fixture").replace(
+      "## Semantic diff\nThe fixture adds one bounded process feature.",
+      "## Semantic diff\nTBD",
+    );
+    await Bun.write(fixture.event, JSON.stringify(payload));
+    const placeholder = runFeatureTool(FEATURE_POLICY, fixture.repo, "--event", fixture.event);
+    expect(placeholder.exitCode).not.toBe(0);
+    expect(text(placeholder).toLowerCase()).toContain("placeholder-only");
+
     payload.pull_request.body = validPrBody("0005-fixture");
     await Bun.write(fixture.event, JSON.stringify(payload));
     const acceptance = join(fixture.repo, "scripts", "accept", "0005-fixture.ts");
@@ -751,6 +760,54 @@ describe("autonomous development control loop", () => {
     expect(text(release)).toContain("non-runnable=0");
     expect(text(release)).toContain("failed=1");
   });
+  test("rejects a tracked-dirty checkout before dispatching acceptance", async () => {
+    const fixture = await featureFixture();
+    await Bun.write(join(fixture.repo, "README.md"), "dirty tracked checkout\n");
+
+    const result = runFeatureTool(
+      FEATURE_RUNNER,
+      fixture.repo,
+      "--mode",
+      "pr",
+      "--event",
+      fixture.event,
+    );
+    expect(result.exitCode).not.toBe(0);
+    expect(text(result)).toContain("tracked working tree is dirty");
+    expect(text(result)).toContain("README.md");
+    expect(text(result)).not.toContain("fixture accepted");
+    expect(text(result)).not.toContain("runnable=1; non-runnable=0; failed=0.");
+  });
+
+  test("fails after acceptance mutates a tracked file and omits the success summary", async () => {
+    const fixture = await featureFixture();
+    const acceptance = join(fixture.repo, "scripts", "accept", "0005-fixture.ts");
+    await Bun.write(
+      acceptance,
+      `#!/usr/bin/env bun
+await Bun.write("README.md", "mutated by acceptance\\n");
+console.log("acceptance mutated tracked file");
+`,
+    );
+    const head = commit(fixture.repo, "test: exercise acceptance mutation guard");
+    const payload = await Bun.file(fixture.event).json();
+    payload.pull_request.head.sha = head;
+    await Bun.write(fixture.event, JSON.stringify(payload));
+
+    const result = runFeatureTool(
+      FEATURE_RUNNER,
+      fixture.repo,
+      "--mode",
+      "pr",
+      "--event",
+      fixture.event,
+    );
+    expect(result.exitCode).not.toBe(0);
+    expect(text(result)).toContain("acceptance mutated tracked file");
+    expect(text(result)).toContain("tracked working tree is dirty");
+    expect(text(result)).toContain("README.md");
+    expect(text(result)).not.toContain("runnable=1; non-runnable=0; failed=0.");
+  });
 
   test("direct acceptance dispatch rejects shell-shaped feature input", async () => {
     const fixture = await featureFixture();
@@ -859,6 +916,11 @@ describe("autonomous development control loop", () => {
     ]) {
       expect(workflow).toContain(observation);
     }
+    expect(workflow).toContain(
+      "group: check-${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}",
+    );
+    expect(workflow).toContain("cancel-in-progress: ${{ github.event_name == 'pull_request' }}");
+    expect(workflow).not.toContain("cancel-in-progress: true");
     expect(workflow).not.toContain("pull_request_target");
   });
 
@@ -1048,6 +1110,69 @@ await Bun.write(
     for (const variable of ["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"]) {
       expect(captured).not.toContain(`${variable}=`);
     }
+  });
+  test("pre-push treats a signal-terminated Nix prerequisite as hook failure", async () => {
+    const root = await temporaryRoot("semantic-hook-pre-push-signal-");
+    const repository = join(root, "repo");
+    const fakeBin = join(root, "bin");
+    await mkdir(repository);
+    await mkdir(fakeBin);
+    expect(git(repository, "init", "-q").exitCode).toBe(0);
+    const fakeNix = join(fakeBin, "nix");
+    await Bun.write(fakeNix, '#!/usr/bin/env bun\nprocess.kill(process.pid, "SIGTERM");\n');
+    await chmod(fakeNix, 0o755);
+
+    const result = run([join(ROOT, ".githooks", "pre-push")], {
+      cwd: repository,
+      env: {
+        ...process.env,
+        PATH: `${fakeBin}:${process.env.PATH ?? ""}`,
+      },
+    });
+    expect(result.exitCode).not.toBe(0);
+    expect(text(result)).toContain("nix develop --command bun scripts/check.ts");
+    expect(text(result)).toContain("SIGTERM");
+  });
+
+  test("pre-commit treats a signal-terminated formatter as hook failure", async () => {
+    const root = await temporaryRoot("semantic-hook-pre-commit-signal-");
+    const repository = join(root, "repo");
+    const bin = join(repository, "node_modules", ".bin");
+    await mkdir(bin, { recursive: true });
+    expect(git(repository, "init", "-q").exitCode).toBe(0);
+    await Bun.write(join(repository, "tracked.ts"), "export const tracked = true;\n");
+    expect(git(repository, "add", "tracked.ts").exitCode).toBe(0);
+    const oxfmt = join(bin, "oxfmt");
+    const oxlint = join(bin, "oxlint");
+    await Bun.write(oxfmt, '#!/usr/bin/env bun\nprocess.kill(process.pid, "SIGTERM");\n');
+    await Bun.write(oxlint, "#!/usr/bin/env bun\nprocess.exit(0);\n");
+    await chmod(oxfmt, 0o755);
+    await chmod(oxlint, 0o755);
+
+    const result = run([join(ROOT, ".githooks", "pre-commit")], { cwd: repository });
+    expect(result.exitCode).not.toBe(0);
+    expect(text(result)).toContain("oxfmt");
+    expect(text(result)).toContain("SIGTERM");
+  });
+
+  test("commit-msg treats a signal-terminated commitlint child as hook failure", async () => {
+    const root = await temporaryRoot("semantic-hook-commit-msg-signal-");
+    const repository = join(root, "repo");
+    const bin = join(repository, "node_modules", ".bin");
+    await mkdir(bin, { recursive: true });
+    expect(git(repository, "init", "-q").exitCode).toBe(0);
+    const commitlint = join(bin, "commitlint");
+    await Bun.write(commitlint, '#!/usr/bin/env bun\nprocess.kill(process.pid, "SIGTERM");\n');
+    await chmod(commitlint, 0o755);
+    const message = join(repository, "COMMIT_EDITMSG");
+    await Bun.write(message, "feat: signal fixture\n");
+
+    const result = run([join(ROOT, ".githooks", "commit-msg"), message], {
+      cwd: repository,
+    });
+    expect(result.exitCode).not.toBe(0);
+    expect(text(result)).toContain("commitlint");
+    expect(text(result)).toContain("SIGTERM");
   });
 
   test("fresh-checkout setup installs hooks idempotently", async () => {

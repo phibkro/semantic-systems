@@ -1,14 +1,35 @@
 #!/usr/bin/env bun
-const rootResult = Bun.spawnSync(["git", "rev-parse", "--show-toplevel"]);
-if (rootResult.exitCode !== 0) {
+const childExitCode = (
+  command: ReadonlyArray<string>,
+  result: { readonly exitCode: number | null; readonly signalCode?: string | null },
+): number => {
+  if (result.signalCode !== undefined && result.signalCode !== null) {
+    console.error(
+      `pre-push: ${command.join(" ")} was terminated by signal ${result.signalCode}.`,
+    );
+    return 1;
+  }
+  if (result.exitCode === null) {
+    console.error(`pre-push: ${command.join(" ")} terminated without an exit code.`);
+    return 1;
+  }
+  return result.exitCode;
+};
+
+const rootCommand = ["git", "rev-parse", "--show-toplevel"];
+const rootResult = Bun.spawnSync(rootCommand);
+const rootExitCode = childExitCode(rootCommand, rootResult);
+if (rootExitCode !== 0) {
   process.stderr.write(rootResult.stderr);
-  process.exit(rootResult.exitCode);
+  process.exit(rootExitCode);
 }
 const root = rootResult.stdout.toString().trim();
-const localVariables = Bun.spawnSync(["git", "rev-parse", "--local-env-vars"]);
-if (localVariables.exitCode !== 0) {
+const localVariablesCommand = ["git", "rev-parse", "--local-env-vars"];
+const localVariables = Bun.spawnSync(localVariablesCommand);
+const localVariablesExitCode = childExitCode(localVariablesCommand, localVariables);
+if (localVariablesExitCode !== 0) {
   process.stderr.write(localVariables.stderr);
-  process.exit(localVariables.exitCode);
+  process.exit(localVariablesExitCode);
 }
 const environment = { ...process.env };
 for (const name of localVariables.stdout.toString().split(/\s+/).filter(Boolean)) {
@@ -19,12 +40,13 @@ if (Bun.which("nix") === null) {
   process.exit(1);
 }
 
+const checkCommand = ["nix", "develop", "--command", "bun", "scripts/check.ts"];
 const result = Bun.spawnSync({
-  cmd: ["nix", "develop", "--command", "bun", "scripts/check.ts"],
+  cmd: checkCommand,
   cwd: root,
   env: environment,
   stdin: "inherit",
   stdout: "inherit",
   stderr: "inherit",
 });
-process.exit(result.exitCode);
+process.exit(childExitCode(checkCommand, result));

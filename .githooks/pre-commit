@@ -1,6 +1,22 @@
 #!/usr/bin/env bun
 import { statSync } from "node:fs";
 
+const childExitCode = (
+  command: ReadonlyArray<string>,
+  result: { readonly exitCode: number | null; readonly signalCode?: string | null },
+): number => {
+  if (result.signalCode !== undefined && result.signalCode !== null) {
+    console.error(
+      `pre-commit: ${command.join(" ")} was terminated by signal ${result.signalCode}.`,
+    );
+    return 1;
+  }
+  if (result.exitCode === null) {
+    console.error(`pre-commit: ${command.join(" ")} terminated without an exit code.`);
+    return 1;
+  }
+  return result.exitCode;
+};
 const run = (
   command: ReadonlyArray<string>,
   options: { readonly cwd?: string; readonly capture?: boolean } = {},
@@ -13,10 +29,12 @@ const run = (
     stderr: options.capture ? "pipe" : "inherit",
   });
 
-const rootResult = run(["git", "rev-parse", "--show-toplevel"], { capture: true });
-if (rootResult.exitCode !== 0) {
+const rootCommand = ["git", "rev-parse", "--show-toplevel"];
+const rootResult = run(rootCommand, { capture: true });
+const rootExitCode = childExitCode(rootCommand, rootResult);
+if (rootExitCode !== 0) {
   process.stderr.write(rootResult.stderr);
-  process.exit(rootResult.exitCode);
+  process.exit(rootExitCode);
 }
 const root = rootResult.stdout.toString().trim();
 const oxfmt = `${root}/node_modules/.bin/oxfmt`;
@@ -32,13 +50,15 @@ try {
   process.exit(1);
 }
 
-const names = run(["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR", "-z"], {
+const namesCommand = ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR", "-z"];
+const names = run(namesCommand, {
   cwd: root,
   capture: true,
 });
-if (names.exitCode !== 0) {
+const namesExitCode = childExitCode(namesCommand, names);
+if (namesExitCode !== 0) {
   process.stderr.write(names.stderr);
-  process.exit(names.exitCode);
+  process.exit(namesExitCode);
 }
 const files = names.stdout
   .toString()
@@ -50,10 +70,17 @@ const scriptPattern = /\.(?:js|jsx|ts|tsx|mjs|cjs|mts|cts)$/;
 const dataPattern = /\.(?:json|jsonc|css|scss)$/;
 // Clamor configuration materialization: *.js|*.jsx|*.ts|*.tsx|*.mjs|*.cjs|*.mts|*.cts
 for (const file of files) {
-  if (run(["git", "diff", "--quiet", "--", file], { cwd: root }).exitCode !== 0) {
-    console.error(`pre-commit: ${file} has both staged and unstaged changes.`);
-    console.error("Stage the exact artifact to validate, then commit again.");
-    process.exit(1);
+  const diffCommand = ["git", "diff", "--quiet", "--", file];
+  const diffResult = run(diffCommand, { cwd: root });
+  const diffExitCode = childExitCode(diffCommand, diffResult);
+  if (diffExitCode !== 0) {
+    if (diffResult.exitCode === 1) {
+      console.error(`pre-commit: ${file} has both staged and unstaged changes.`);
+      console.error("Stage the exact artifact to validate, then commit again.");
+    } else if (diffResult.stderr.length > 0) {
+      process.stderr.write(diffResult.stderr);
+    }
+    process.exit(diffExitCode);
   }
   if (scriptPattern.test(file)) {
     formatFiles.push(file);
@@ -69,5 +96,6 @@ for (const command of [
   ["bun", "scripts/check-fast.ts"],
 ]) {
   const result = run(command, { cwd: root });
-  if (result.exitCode !== 0) process.exit(result.exitCode);
+  const exitCode = childExitCode(command, result);
+  if (exitCode !== 0) process.exit(exitCode);
 }

@@ -42,14 +42,14 @@
       "path": ".githooks/commit-msg",
       "kind": "exclusive_path",
       "executable": true,
-      "contentDigest": "sha256:e5d969a4651e7145f7472d9d4c41262095649004ceb8b4fd800e1aa527e4dd2c"
+      "contentDigest": "sha256:796f9f4848f084aeea9ae146c000675e824bdc1aaefffb31dabcf4b4bcc0f8bf"
     },
     {
       "claimId": "githooks/pre-commit",
       "path": ".githooks/pre-commit",
       "kind": "exclusive_path",
       "executable": true,
-      "contentDigest": "sha256:7e1fbf459999cc4f47445c867e4c44069f9c1d17e9a8b37caf231a557de44f24"
+      "contentDigest": "sha256:4b6ec95888f63d669073b6ca3928d9b711f67245960b59953f08b4d63bc09e70"
     },
     {
       "claimId": "commitlint-config",
@@ -107,7 +107,7 @@
       "path": ".githooks/pre-push",
       "kind": "exclusive_path",
       "executable": true,
-      "contentDigest": "sha256:360e81283a596d99d8c1866afed76fcf6224f6396ca6b40c7ea45f559eba8ef8"
+      "contentDigest": "sha256:6976b2ba268ea85b3332250a252fc5df46e67ffcae9dbcd7def9fcebb3ab44dc"
     }
   ],
   "adaptations": [

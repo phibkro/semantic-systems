@@ -466,7 +466,7 @@ const validateRequiredSections = (body: string): void => {
     const start = (heading.index ?? 0) + heading[0].length;
     const next = headings.find((candidate) => (candidate.index ?? 0) > start);
     const end = next?.index ?? body.length;
-    if (visibleSectionContent(body.slice(start, end)).length === 0) {
+    if (isPlaceholderOnly(visibleSectionContent(body.slice(start, end)))) {
       throw new Error(`PR report section "${required}" is empty or placeholder-only`);
     }
   }

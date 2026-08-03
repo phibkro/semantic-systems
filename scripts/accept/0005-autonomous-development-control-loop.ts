@@ -17,17 +17,8 @@ const program = Effect.gen(function* () {
   ] as const) {
     yield* runCommand(command, { cwd: root, env: environment });
   }
-  const head = Bun.spawnSync({
-    cmd: ["git", "rev-parse", "HEAD"],
-    cwd: root,
-    stdout: "pipe",
-    stderr: "inherit",
-  });
-  if (head.exitCode !== 0) {
-    return yield* runCommand(["git", "rev-parse", "HEAD"], { cwd: root, env: environment });
-  }
   yield* Console.log(
-    `accept/0005: commit ${head.stdout.toString().trim()}; feature-contract fixtures, Actionlint, and policy conformance passed.`,
+    "accept/0005: feature-contract fixtures, Actionlint, and policy conformance passed.",
   );
 });
 

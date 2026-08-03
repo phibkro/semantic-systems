@@ -80,6 +80,10 @@ const assertCheckedOutHead = (
     if (expected !== undefined && actual !== expected) {
       throw new Error(`checked-out HEAD ${actual} does not match acceptance head ${expected}`);
     }
+    const trackedStatus = runGit(root, ["status", "--porcelain", "--untracked-files=no"]);
+    if (trackedStatus.length > 0) {
+      throw new Error(`tracked working tree is dirty: ${trackedStatus.replace(/\s*\n\s*/g, ", ")}`);
+    }
     return actual;
   });
 
@@ -179,6 +183,7 @@ const dispatchFeatures = (root: string, head: string, features: ReadonlyArray<Fe
         `feature-acceptance: commit ${head}; ${feature.featureId}; non-runnable: ${reason}`,
       );
     }
+    yield* assertCheckedOutHead(root, head);
     yield* Console.log(
       `feature-acceptance: commit ${head}; runnable=${runnable}; non-runnable=${nonRunnable}; failed=${failures.length}.`,
     );
