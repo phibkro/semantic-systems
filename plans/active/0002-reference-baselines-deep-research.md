@@ -65,21 +65,20 @@ experiment backlog.
 4. Fable synthesis into a ranked adoption portfolio.
 5. Main-agent source verification, integration, and acceptance.
 
-## Delegated work
+## Delegated work record
 
-- Fable 5 workflow lead: running in Herdr tab
-  `semantic-reference-fable`; its custom workflow is the sequential control
-  established before the concurrency clarification.
-- Native `/deep-research` comparison lane: completed in
-  `semantic-deep-research-fable`; 109 inherited Fable 5/high agents.
-- Controlled routed treatment: running in `semantic-deep-research-fable` as
-  workflow `wf_a3592134-285`, task `wj3mrs8y3`. Its script is byte-identical
-  to the native workflow except metadata and five explicit model/effort
-  options: Fable/high scope, Opus/medium search, Sonnet/medium fetch,
-  Sonnet/medium verification, and Fable/high synthesis.
-- Workflow Sonnet/Opus children: running under explicit model routing in the
-  custom lane.
-- Independent main-agent verification: pending synthesis.
+- The Fable 5 workflow lead completed the sequential structured control run;
+  its accepted artifacts and defects are recorded below.
+- The native `/deep-research` comparison completed in
+  `semantic-deep-research-fable` with 109 inherited Fable 5/high agents.
+- The controlled routed treatment completed as workflow `wf_a3592134-285`,
+  task `wj3mrs8y3`. Its script differed from the native workflow only in
+  metadata and explicit stage routing: Fable/high scope, Opus/medium search,
+  Sonnet/medium fetch, Sonnet/medium verification, and Fable/high synthesis.
+- Sonnet/Opus children contributed under that routing. Their output remains
+  contributory evidence, not authority.
+- Main-agent integration and independent review results are recorded in the
+  completion ledger below. Live process or session state is not canonical here.
 
 ## Expected artifacts
 
@@ -92,6 +91,7 @@ experiment backlog.
 - `research/semantic-packages-patterns.md`
 - `references/sources.toml` plus a generated exact-commit lock
 - source/provenance records or cards chosen by the accepted workflow
+- `scripts/accept/0002-reference-baselines-deep-research.ts`
 - a reusable `.claude/workflows/` command only after the pilot script is
   inspected and proves useful
 - canonical graph entities for accepted references, decisions, uncertainties,
@@ -100,6 +100,7 @@ experiment backlog.
 ## Acceptance commands
 
 ```bash
+nix develop --command just accept 0002-reference-baselines-deep-research
 nix flake check
 nix develop --command just check
 bun run semproj -- validate
@@ -204,9 +205,10 @@ Research-specific acceptance is the checklist in design spec 0002.
 
 ## Completion state
 
-Open. Complete only after source-backed artifacts, independent verification,
-canonical graph integration, generated views, and the next adoption experiment
-are accepted.
+Open. Complete only after source-backed artifacts and custody, RX1–RX4
+acceptance, RX5's bounded N/A observation, explicit D1–D4 deferrals,
+independent review, canonical graph integration, and generated views are
+accepted.
 
 - 2026-07-29: The structured Fable-led control workflow completed 14/14 child
   tasks with zero child errors, 17 cited project cards, 119 typed claims, 12
@@ -291,3 +293,23 @@ are accepted.
   cleanup, and the full integration gate at 795 tests with 18,762 assertions.
   The existing unsupported-claim warning remains explicit. These checks are
   test, static, and runtime evidence, not proof.
+- 2026-08-03: The feature lifecycle moved from historical `pre_loop` to
+  `managed` validation and gained
+  `scripts/accept/0002-reference-baselines-deep-research.ts`. The runnable
+  feature acceptance now covers RX1–RX4, seven adopted source locks, model
+  validation, and generated-view drift. This supersedes the earlier
+  non-runnable observation without rewriting it.
+- 2026-08-03: Source custody now records twelve lock entries. Koka, Lean 4,
+  lean4checker, Rowan, Salsa, miette, and LSP — every remote repository that
+  supports an adopted method — have strict origin-verified commit, tree, and
+  license observations. Unlocked catalog entries are non-supporting inputs.
+- 2026-08-03: Remote cache hydration changed from per-blob lazy fetches to one
+  bounded no-filter fetch followed by transport-denied closure verification.
+  Independent review exposed annotated-tag ambiguity in online
+  materialization; peeled-ref precedence, movement-window coverage, and
+  end-to-end annotated-tag materialization corrected it.
+- 2026-08-03: The first integrated-portfolio closure review found stale claim
+  counts, an overstated Power of Ten c05 frequency, an unrecorded LSP license
+  conflict, weak Salsa provenance, and stale lifecycle prose. The corrected
+  portfolio retains the historical ledger, records the direct-read scope and
+  conflicts, and awaits independent rereview before completion.

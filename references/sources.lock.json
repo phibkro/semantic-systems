@@ -1,5 +1,5 @@
 {
-  "generator": "semantic_references/0.1.0",
+  "generator": "semantic-systems/0.0.0",
   "schema": "reference-lock-v1",
   "sources": {
     "agda": {
@@ -74,6 +74,92 @@
       "track": "v0.8.0",
       "tree": "7ada9585d271a90c40c12d65f1e7220b6aafc2a1"
     },
+    "koka": {
+      "acquisition": "remote",
+      "catalog_digest": "97fd887c808881c94b734780ea4c2196a0208b5e167df2c71dfe3a1f3fcc75c6",
+      "commit": "49dede749f9eb77c717077c00fe52039b3183b5f",
+      "licenses": {
+        "LICENSE": {
+          "mode": "100644",
+          "sha256": "79a88404457537217deca61082681cc87510bb890621b9b840f83c6b4866c5a5",
+          "size": 10459
+        }
+      },
+      "object_format": "sha1",
+      "origin": "https://github.com/koka-lang/koka.git",
+      "origin_verified": true,
+      "resolved_ref": "refs/tags/v3.2.3",
+      "retrieved_at": "2026-08-03T04:12:57Z",
+      "track": "v3.2.3",
+      "tree": "d9994ea25860d9e5d000ab7eb5cbfc5400411ae8"
+    },
+    "language-server-protocol": {
+      "acquisition": "remote",
+      "catalog_digest": "defce7ca1b3d156c373d49f6cd440d2ebd36bf6fab94aa53b3ea91cad7a448ff",
+      "commit": "b7f5132c95261c0898ae5124e7a91707abc48fcd",
+      "licenses": {
+        "License-code.txt": {
+          "mode": "100644",
+          "sha256": "18d3bb3458bb9dabcdf5e74dacf256a339b8a6486338ab09a97ba865d3214928",
+          "size": 1072
+        },
+        "License.txt": {
+          "mode": "100644",
+          "sha256": "95df2e9564862e51d69683a899b6dcc8218d577057bdf67322880769ff85f29e",
+          "size": 18649
+        },
+        "ThirdPartyNotices.txt": {
+          "mode": "100644",
+          "sha256": "1447b47744ab6c91da47eeed2f38d3f1e4e3f51c4304b4c20b644a6fb2849725",
+          "size": 4080
+        }
+      },
+      "object_format": "sha1",
+      "origin": "https://github.com/microsoft/language-server-protocol.git",
+      "origin_verified": true,
+      "resolved_ref": "refs/heads/gh-pages",
+      "retrieved_at": "2026-08-03T03:57:33Z",
+      "track": "HEAD",
+      "tree": "a52aa0d034e07e4d5307c0dc5f19b63734ce772d"
+    },
+    "lean4": {
+      "acquisition": "remote",
+      "catalog_digest": "058e2dd242c0f145db775adc0aa24409021dbb3cf30670e422572dc0a02c2242",
+      "commit": "7e01a1bf5c70fc6167d49c345d3bf80596e9a79b",
+      "licenses": {
+        "LICENSE": {
+          "mode": "100644",
+          "sha256": "8b28515ffffc5c0fe2807d8ae3735b00b324d9b7ce807dd63ff6ac8922fbce7e",
+          "size": 9160
+        }
+      },
+      "object_format": "sha1",
+      "origin": "https://github.com/leanprover/lean4.git",
+      "origin_verified": true,
+      "resolved_ref": "refs/tags/v4.28.0",
+      "retrieved_at": "2026-08-03T05:47:43Z",
+      "track": "refs/tags/v4.28.0",
+      "tree": "cf5ad85e74267e5699eca8e73d9cc7c9814f5797"
+    },
+    "lean4checker": {
+      "acquisition": "remote",
+      "catalog_digest": "d50d2356dd3285e6c1c4d7ac85bba14b3f40c13eb9a5a297626fa6e696bc312f",
+      "commit": "91a7f0e8e9dffe927089f5a6edcfeeb8a0e07709",
+      "licenses": {
+        "LICENSE": {
+          "mode": "100644",
+          "sha256": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1",
+          "size": 11357
+        }
+      },
+      "object_format": "sha1",
+      "origin": "https://github.com/leanprover/lean4checker.git",
+      "origin_verified": true,
+      "resolved_ref": "refs/heads/master",
+      "retrieved_at": "2026-08-03T04:13:20Z",
+      "track": "HEAD",
+      "tree": "66a569e3a3ccd04ec440b7934ca7a499e2493d24"
+    },
     "liquid-haskell": {
       "acquisition": "remote",
       "catalog_digest": "02f6fceed2c08a7e52d2107068643774c029e47cf360e6123b470e915d098247",
@@ -116,6 +202,73 @@
       "retrieved_at": "2026-07-29T18:50:00Z",
       "track": "HEAD",
       "tree": "2156309abd48d19e433af8b302238a8424c360ab"
+    },
+    "miette": {
+      "acquisition": "remote",
+      "catalog_digest": "c022e89da6f5232c77e0a0b2cba02a952b4ec01a298de1b859b458c320540510",
+      "commit": "907857058dc255caeae456e87146c629ce69cf5c",
+      "licenses": {
+        "LICENSE": {
+          "mode": "100644",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "size": 11358
+        }
+      },
+      "object_format": "sha1",
+      "origin": "https://github.com/zkat/miette.git",
+      "origin_verified": true,
+      "resolved_ref": "refs/tags/v7.6.0",
+      "retrieved_at": "2026-08-03T03:55:36Z",
+      "track": "v7.6.0",
+      "tree": "598ee0304a194f602c252abe7dec3a1645752c61"
+    },
+    "rowan": {
+      "acquisition": "remote",
+      "catalog_digest": "12d7f6f0e851b30415d8005ba012e2677080c41a1e747700a12f731c4336d7f5",
+      "commit": "e25dbdf9cb7f7757eb85c74a69c8a7d4a4fae67b",
+      "licenses": {
+        "LICENSE-APACHE": {
+          "mode": "100644",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+          "size": 10847
+        },
+        "LICENSE-MIT": {
+          "mode": "100644",
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+          "size": 1023
+        }
+      },
+      "object_format": "sha1",
+      "origin": "https://github.com/rust-analyzer/rowan.git",
+      "origin_verified": true,
+      "resolved_ref": "refs/tags/v0.16.1",
+      "retrieved_at": "2026-08-03T04:16:41Z",
+      "track": "v0.16.1",
+      "tree": "b95d6209d6031136f48aaef622b329b6d7c8bacc"
+    },
+    "salsa": {
+      "acquisition": "remote",
+      "catalog_digest": "57f0614be4eb7e12a9d39691e3ec1d5e9153f15ad9f057fa92930d234e03060f",
+      "commit": "dcbcc7082c3b90cd5ec30a200337ab9ab05eedfa",
+      "licenses": {
+        "LICENSE-APACHE": {
+          "mode": "100644",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+          "size": 10847
+        },
+        "LICENSE-MIT": {
+          "mode": "100644",
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+          "size": 1023
+        }
+      },
+      "object_format": "sha1",
+      "origin": "https://github.com/salsa-rs/salsa.git",
+      "origin_verified": true,
+      "resolved_ref": "refs/tags/salsa-v0.28.1",
+      "retrieved_at": "2026-08-03T04:16:19Z",
+      "track": "salsa-v0.28.1",
+      "tree": "70053b3173669f616e4b911f57da353f31ce7173"
     }
   }
 }

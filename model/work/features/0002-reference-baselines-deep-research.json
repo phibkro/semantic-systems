@@ -9,14 +9,11 @@
       "tags": ["research", "references", "workflow"],
       "attributes": {
         "feature_id": "0002-reference-baselines-deep-research",
-        "feature_loop": "pre_loop",
-        "phase": "research",
+        "feature_loop": "managed",
+        "phase": "validation",
         "effort": 8,
         "acceptance": [
-          "Every recommended method is backed by primary sources and an explicit evidence limit",
-          "Reference cards preserve provenance, licensing, trust boundaries, and project-owned authority",
-          "The routed workflow separates mechanical retrieval, comparative reasoning, and synthesis",
-          "Adoption recommendations include a smallest falsifiable experiment"
+          "Meet every criterion in design-specs/0002-reference-baselines-deep-research.md#acceptance"
         ],
         "delegation": {
           "specification_completeness": 5,

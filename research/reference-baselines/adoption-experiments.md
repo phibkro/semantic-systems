@@ -137,8 +137,6 @@ scripts/experiments/0002-capability-wall.ts` ran configured Oxlint against a
   result is static diagnostic evidence. It is not effect-row polymorphism or
   proof that all ambient capabilities are absent.
 
-## Runnable now
-
 ### RX4 — enforcement register, code registry, seeded gate failures (merges cached E8, E11, E12)
 
 - Methods: `disc.tool-normalized-formatting`,
@@ -173,8 +171,8 @@ scripts/experiments/0003-enforcement-register.ts`.
   with its exact diagnostic marker. Scoped release removed every fixture. The
   scanned repository tree remained byte-identical outside `.git`, `.omp`,
   `.references`, `.research-cache`, and `node_modules`.
-- The same run observed ten files under `generated/`, five entries in
-  `references/sources.lock.json`, and
+- The latest acceptance run observed ten files under `generated/`, twelve
+  entries in `references/sources.lock.json`, and
   `model/execution/inventory-tracer.json`. It found no positional `line`,
   `offset`, `address`, `position`, `ordinal`, or `span` field. This is a
   bounded observation over those canonical documents, not proof about future
@@ -210,6 +208,5 @@ Preconditions recorded now so the deferral is falsifiable, not forgotten:
 
 ## Next experiment
 
-RX4. RX1-RX3 are complete, and RX5 is N/A at the current tracer boundary.
-The enforcement-register experiment can now bind each repository claim to a
-generated, static, tested, runtime-checked, or review-only mechanism.
+RX1-RX4 are complete, and RX5 is N/A at the current tracer boundary. No
+experiment is runnable now: D1-D4 remain blocked on the B6 preconditions above.

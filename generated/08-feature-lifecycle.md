@@ -7,11 +7,11 @@
 ### `0002-reference-baselines-deep-research` — Research reference baselines for deep research
 
 - Status: `in_progress`
-- Feature loop: `pre_loop`
+- Feature loop: `managed`
 - Model: [canonical record](../model/work/features/0002-reference-baselines-deep-research.json)
 - Design: [design contract](../design-specs/0002-reference-baselines-deep-research.md)
 - Plan: [execution ledger](../plans/active/0002-reference-baselines-deep-research.md)
-- Acceptance: non-runnable (`pre_loop`; no feature-loop program)
+- Acceptance: [runnable program](../scripts/accept/0002-reference-baselines-deep-research.ts)
 
 ### `0003-independent-resolution-checker` — Implement the independent resolution-result checker
 

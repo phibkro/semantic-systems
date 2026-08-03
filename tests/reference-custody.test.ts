@@ -532,28 +532,34 @@ const buildLockJson = (
  */
 const CATALOG_DIGEST_GOLDEN: Readonly<Record<string, string>> = {
   agda: "28de33df5d6802a90e58592c5f3c51009a1f5bc8c296b59a26ab53dc225b2281",
+  ariadne: "f57e0d1c73b7b38c1bda738ebb0be0f2bba9dcd7f10382b6fa2429f267414778",
   cakeml: "ba5bef4251d9e45b66abb31f7f7539e9dc10c58314562aeb15bff367a2732992",
   compcert: "4d5d5a6d1037be541d8134b4ec36d3519e88392c5904e7d0935a5d1fcd05bb0e",
-  "elm-compiler": "46f96f49aae2ad2e4fa18543558bea4164df700104d39cddb628e4b6cc694a71",
+  "elm-compiler": "abd8e194ba5b26238c0b772e5f09ecd7f17766634ddbbae32a957f184fab48eb",
   flux: "7e36b62d59b12fb276d3f075aed65a9d746be60ebe4c867f1f961ce01f3be8ce",
   fstar: "450955d02b93bfd594f99d489557518694aeeec847cdf90d043a41900af446e4",
   ghc: "5a41ccca3b0c390b2660f63e34a283a01aeccce1f42cb8a2925898ad61aa8031",
   gleam: "2452b74ac0c9d73b8f7e2ad127b697e345cbd2bc8dc33638b191dd65dd0ec49b",
   idris2: "6529b4cd95576d1d1a2a8035ea8664b0b6d59744f864408304bbbbdba6bc064c",
   "k-framework": "000e7a224a0830d68ef04cc2002b75dd5d4ede6f61066b237a97f606aee1326e",
-  koka: "613e18ffa39ac04404bcd3c9342fca119a8664a0db7cbea99f2f8d745e6386df",
-  lean4: "e8cfb7d82b32a9aee2fdced9b0a39f33f9824e9523533b65d3caf37eae5b3d2a",
+  koka: "97fd887c808881c94b734780ea4c2196a0208b5e167df2c71dfe3a1f3fcc75c6",
+  "language-server-protocol": "defce7ca1b3d156c373d49f6cd440d2ebd36bf6fab94aa53b3ea91cad7a448ff",
+  lean4: "058e2dd242c0f145db775adc0aa24409021dbb3cf30670e422572dc0a02c2242",
+  lean4checker: "d50d2356dd3285e6c1c4d7ac85bba14b3f40c13eb9a5a297626fa6e696bc312f",
   lean4lean: "b7aa747ca7212a201d3c75e18027c58a032740a1c32cd8a1091e63888b7ceb9b",
   "liquid-haskell": "02f6fceed2c08a7e52d2107068643774c029e47cf360e6123b470e915d098247",
   llvm: "7c3e1f53745b5811f29e18d3d93fb90a1ed1386fcf16d2bcc1bbe8f7a7b3cc91",
   "local.lang-bang": "6005459a097d48bbff74d174c914267c9c71a282993c8de063c31b54b3161e59",
   "local.semantic-packages": "e859e404bb31c7ff693029b46d3744e455bee70dc43e581be136a35ec2d147ad",
-  oxc: "0b920b5de9225e599aaf0833cd048177038edc87d7713ae047a53b9c3e5b2d7d",
+  mathlib4: "9de7b51b212f736b26aca7ffbe26dd09e59ff7ac03d95ef979b6763b56f2765e",
+  miette: "c022e89da6f5232c77e0a0b2cba02a952b4ec01a298de1b859b458c320540510",
+  oxc: "02ff709a42f3df919911942e050217739b9149912313ae56f3515aa079abfc30",
   rocq: "f749b9eb96af3ec96823577a5c1254127ae1f8904687b68222232e5c230e8fb1",
-  rust: "f40ecb7091d18f5b3df3d1541e8a73a5b42e60650d1c62a67752c2ce07da41fc",
-  "rust-analyzer": "86e57a1aac0e8b95462257461d6736644333a4b6d03e5aff62899936c48b3a38",
-  salsa: "8c97690bbdeb47cc87f0cafcb108b2c2bbd8724c38fded2b30f3dbbc41190358",
-  tigerbeetle: "9fb65de5f759ee591563dd4013378bae7cbaaeb8b31b866054c8baafd8ec1b67",
+  rowan: "12d7f6f0e851b30415d8005ba012e2677080c41a1e747700a12f731c4336d7f5",
+  rust: "55d555d1141cfb715136931e010df289ae21fab9b6419e9572db30d05ca1eec5",
+  "rust-analyzer": "d54bd61bbbe92b1ccfeb66cb885fb85f488e730b4b054fcbf92c2c037bd86594",
+  salsa: "57f0614be4eb7e12a9d39691e3ec1d5e9153f15ad9f057fa92930d234e03060f",
+  tigerbeetle: "a31f71335fff85ca604b7cda12714e7d6628337942bfde86efb8c2b003de2095",
 };
 const BASE_CATALOG_DIGEST_GOLDEN =
   "4e95709df81eed8817eb5f8e4033c3a5e73d8383b4db6c39043454eca822f7d0";
@@ -3233,29 +3239,35 @@ describe("reference custody Effect v4 slice: CLI golden and cross-runtime observ
     expect(bun.stdout).toBe(
       [
         "agda: lockable",
+        "ariadne: lockable",
         "cakeml: queued (unlocked)",
         "compcert: queued (unlocked)",
-        "elm-compiler: queued (unlocked)",
+        "elm-compiler: lockable",
         "flux: lockable",
         "fstar: lockable",
         "ghc: lockable",
         "gleam: queued (unlocked)",
         "idris2: lockable",
         "k-framework: queued (unlocked)",
-        "koka: queued (unlocked)",
-        "lean4: queued (unlocked)",
+        "koka: lockable",
+        "language-server-protocol: lockable",
+        "lean4: lockable",
+        "lean4checker: lockable",
         "lean4lean: queued (unlocked)",
         "liquid-haskell: lockable",
         "llvm: queued (unlocked)",
         "local.lang-bang: lockable",
         "local.semantic-packages: queued (unlocked)",
-        "oxc: queued (unlocked)",
+        "mathlib4: lockable",
+        "miette: lockable",
+        "oxc: lockable",
         "rocq: queued (unlocked)",
-        "rust: queued (unlocked)",
-        "rust-analyzer: queued (unlocked)",
-        "salsa: queued (unlocked)",
-        "tigerbeetle: queued (unlocked)",
-        "23 source(s) validated",
+        "rowan: lockable",
+        "rust: lockable",
+        "rust-analyzer: lockable",
+        "salsa: lockable",
+        "tigerbeetle: lockable",
+        "29 source(s) validated",
         "",
       ].join("\n"),
     );
@@ -3288,10 +3300,10 @@ describe("reference custody Effect v4 slice: CLI golden and cross-runtime observ
     expect(
       reports.filter((report: { state: string }) => report.state === "locked_unmaterialized")
         .length,
-    ).toBe(5);
+    ).toBe(12);
     expect(
       reports.filter((report: { state: string }) => report.state === "queued_unlocked").length,
-    ).toBe(18);
+    ).toBe(17);
   });
 
   test("a locked, undrifted source reports the accepted locked_unmaterialized shape", async () => {
@@ -3458,6 +3470,54 @@ describe("reference custody Effect v4 slice: remote lock and materialization", (
       computeStatus(source, digest, lock, join(remote.project, ".references"), false),
     );
     expect(report.state).toBe("materialized_verified");
+  });
+
+  test("remote lock bulk-fetches the selected replay closure before offline verification", async () => {
+    const remote = await remoteOriginFixture();
+    const root = await mkdtemp(join(tmpdir(), "semantic-references-bulk-hydration-"));
+    temporaryRoots.push(root);
+    const marker = join(root, "bulk-fetch-complete");
+    const bin = join(root, "bin");
+    await mkdir(bin);
+    const helper = join(bin, "git");
+    await writeFile(
+      helper,
+      `#!${NODE_EXECUTABLE}\n` +
+        'const fs = require("node:fs");\n' +
+        'const { spawnSync } = require("node:child_process");\n' +
+        "const args = process.argv.slice(2);\n" +
+        `if (args.includes("fetch") && args.includes("--refetch") && args.includes("--no-filter")) {\n` +
+        `  fs.writeFileSync(${JSON.stringify(marker)}, "complete\\n");\n` +
+        "}\n" +
+        `if (args.includes("cat-file") && args.includes("--batch-check") && !fs.existsSync(${JSON.stringify(marker)})) {\n` +
+        '  process.stderr.write("replay closure was not bulk-fetched before verification\\n");\n' +
+        "  process.exit(97);\n" +
+        "}\n" +
+        `const result = spawnSync(${JSON.stringify(GIT_EXECUTABLE)}, args, { stdio: "inherit" });\n` +
+        "process.exit(result.status ?? 1);\n",
+    );
+    await chmod(helper, 0o755);
+
+    await mkdir(join(remote.project, "references"));
+    await writeFile(
+      join(remote.project, "references", "sources.toml"),
+      remoteSourceText("remote.bulk-hydration", remote.origin),
+    );
+    const ProbeGitEnvironmentLayer = Layer.succeed(
+      GitEnvironment,
+      makeGitEnvironment({ ...process.env, PATH: `${bin}:${process.env.PATH ?? ""}` }),
+    );
+
+    const result = await Effect.runPromise(
+      lockRemoteSources(remote.project, ["remote.bulk-hydration"], "test/0.0.0").pipe(
+        Effect.provide([BunFileSystem.layer, BunPath.layer, BunCrypto.layer, BunTomlParser]),
+        Effect.provide([BunChildProcessLayer, CuratorProcessLayer, ProbeGitEnvironmentLayer]),
+      ),
+    );
+
+    expect(result.committed).toBeTrue();
+    expect(result.failures).toEqual([]);
+    expect(await Bun.file(marker).exists()).toBeTrue();
   });
 
   test("branch movement after locking cannot change materialized bytes; only an explicit re-lock selects the new commit", async () => {
@@ -4117,6 +4177,59 @@ describe("reference custody Effect v4 slice: remote lock and materialization", (
     expect(cacheExists).toBeFalse();
   });
 
+  test("selector movement during bulk hydration fails closed and publishes nothing", async () => {
+    const remote = await remoteOriginFixture();
+    const commitA = runCommand(["git", "rev-parse", "HEAD"], remote.origin);
+    await writeFile(join(remote.origin, "extra.txt"), "moved\n");
+    const commitB = commitAll(remote.origin, "move default branch");
+    runCommand(["git", "branch", "stable", commitA], remote.origin);
+
+    await mkdir(join(remote.project, "references"));
+    await writeFile(
+      join(remote.project, "references", "sources.toml"),
+      remoteSourceText("remote.hydration-movement", remote.origin, "stable"),
+    );
+    const bin = join(remote.project, "bin");
+    await mkdir(bin);
+    const helper = join(bin, "git");
+    await writeFile(
+      helper,
+      `#!${NODE_EXECUTABLE}\n` +
+        'const { spawnSync } = require("node:child_process");\n' +
+        "const args = process.argv.slice(2);\n" +
+        'if (args.includes("fetch") && args.includes("--refetch")) {\n' +
+        '  args[args.length - 1] = "refs/heads/main";\n' +
+        "}\n" +
+        `const result = spawnSync(${JSON.stringify(GIT_EXECUTABLE)}, args, { stdio: "inherit" });\n` +
+        "process.exit(result.status ?? 1);\n",
+    );
+    await chmod(helper, 0o755);
+    const FakeGitEnvironmentLayer = Layer.succeed(
+      GitEnvironment,
+      makeGitEnvironment({ ...process.env, PATH: `${bin}:${process.env.PATH ?? ""}` }),
+    );
+
+    const result = await Effect.runPromise(
+      lockRemoteSources(remote.project, ["remote.hydration-movement"], "test/0.0.0").pipe(
+        Effect.provide([BunFileSystem.layer, BunPath.layer, BunCrypto.layer, BunTomlParser]),
+        Effect.provide([BunChildProcessLayer, CuratorProcessLayer, FakeGitEnvironmentLayer]),
+      ),
+    );
+
+    expect(result.committed).toBeFalse();
+    expect(result.failures).toHaveLength(1);
+    expect(result.failures[0]?.error.message).toContain(
+      `moved from ${commitA} to ${commitB} before replay-cache hydration`,
+    );
+    const cacheExists = await stat(
+      join(remote.project, ".references", "remote.hydration-movement", ".git-cache"),
+    ).then(
+      () => true,
+      () => false,
+    );
+    expect(cacheExists).toBeFalse();
+  });
+
   test("an ambiguous selector fails closed without publishing a cache; an unambiguous tag records a concrete resolved_ref", async () => {
     const remote = await remoteOriginFixture();
     const commitA = runCommand(["git", "rev-parse", "HEAD"], remote.origin);
@@ -4155,6 +4268,37 @@ describe("reference custody Effect v4 slice: remote lock and materialization", (
     const entry = tagOnly.locked.get("remote.tag-only");
     expect(entry?.commit).toBe(commitA);
     expect(entry?.resolvedRef).toBe("refs/tags/v1");
+  });
+
+  test("an annotated tag locks the peeled commit while retaining the concrete tag ref", async () => {
+    const remote = await remoteOriginFixture();
+    const commit = runCommand(["git", "rev-parse", "HEAD"], remote.origin);
+    runCommand(
+      ["git", "tag", "-a", "v-annotated", "-m", "annotated release", commit],
+      remote.origin,
+    );
+
+    await mkdir(join(remote.project, "references"));
+    await writeFile(
+      join(remote.project, "references", "sources.toml"),
+      remoteSourceText("remote.annotated-tag", remote.origin, "v-annotated"),
+    );
+
+    const result = await runBun(
+      lockRemoteSources(remote.project, ["remote.annotated-tag"], "test/0.0.0"),
+    );
+    expect(result.committed).toBeTrue();
+    const entry = result.locked.get("remote.annotated-tag");
+    expect(entry?.commit).toBe(commit);
+    expect(entry?.resolvedRef).toBe("refs/tags/v-annotated");
+
+    const materialized = await runBun(
+      materializeRemoteSources(remote.project, ["remote.annotated-tag"], false),
+    );
+    expect(materialized.failures).toEqual([]);
+    const checkout = materialized.materialized.get("remote.annotated-tag");
+    if (checkout === undefined) throw new Error("annotated tag did not materialize");
+    expect(runCommand(["git", "rev-parse", "HEAD"], checkout)).toBe(commit);
   });
 
   test("online acquisition rejects a custom remote helper without executing it", async () => {

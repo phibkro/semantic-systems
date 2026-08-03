@@ -23,7 +23,7 @@ import {
 import {
   cloneRemoteBare,
   fetchShallowBlobless,
-  hydrateReplayObjects,
+  hydrateRemoteReplayObjects,
   objectFormat,
   observeConcreteRef,
   prepareReplayRefs,
@@ -118,11 +118,9 @@ export const lockRemoteSource = (
     yield* requireFullObjectId(format, "resolved commit", commit);
     const tree = yield* treeOfCommit(temporaryDirectory, commit);
     yield* requireFullObjectId(format, "resolved tree", tree);
-    // The fetch was blob-filtered, so hashing the declared license blobs
-    // legitimately needs the transport this online path already opened.
-    const licenses = yield* hashLicenses(temporaryDirectory, source, commit, format, true);
     const resolvedRef = yield* observeConcreteRef(source.origin, track, commit, true);
-    yield* hydrateReplayObjects(temporaryDirectory, commit);
+    yield* hydrateRemoteReplayObjects(temporaryDirectory, source.origin, resolvedRef, commit);
+    const licenses = yield* hashLicenses(temporaryDirectory, source, commit, format, false);
     // Advertise only refs backed by the complete selected object closure,
     // so an offline clone never traverses a partially cached default ref.
     yield* prepareReplayRefs(temporaryDirectory, resolvedRef, commit);

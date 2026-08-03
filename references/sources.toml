@@ -34,6 +34,8 @@ questions = [
 id = "koka"
 kind = "git"
 origin = "https://github.com/koka-lang/koka.git"
+track = "v3.2.3"
+license_paths = ["LICENSE"]
 classes = ["effects", "semantics", "memory"]
 questions = ["Effect-row semantics", "handler lowering", "Perceus and reuse analysis"]
 
@@ -41,6 +43,8 @@ questions = ["Effect-row semantics", "handler lowering", "Perceus and reuse anal
 id = "lean4"
 kind = "git"
 origin = "https://github.com/leanprover/lean4.git"
+track = "refs/tags/v4.28.0"
+license_paths = ["LICENSE"]
 classes = ["proof", "dependent-types", "compiler"]
 questions = ["Small-kernel boundary", "elaboration versus checking", "diagnostics"]
 
@@ -136,6 +140,8 @@ questions = ["Quantitative type theory", "elaboration", "erasure and code genera
 id = "rust"
 kind = "git"
 origin = "https://github.com/rust-lang/rust.git"
+track = "HEAD"
+license_paths = ["COPYRIGHT"]
 classes = ["compiler", "arenas", "queries", "ir", "diagnostics"]
 questions = ["Arena and interning strategy", "query invalidation", "MIR", "structured diagnostics"]
 
@@ -143,6 +149,8 @@ questions = ["Arena and interning strategy", "query invalidation", "MIR", "struc
 id = "rust-analyzer"
 kind = "git"
 origin = "https://github.com/rust-lang/rust-analyzer.git"
+track = "HEAD"
+license_paths = ["LICENSE-APACHE", "LICENSE-MIT"]
 classes = ["incremental", "lossless-tree", "ide", "diagnostics"]
 questions = ["Rowan trees", "incremental architecture", "analysis/IDE separation"]
 
@@ -150,6 +158,8 @@ questions = ["Rowan trees", "incremental architecture", "analysis/IDE separation
 id = "salsa"
 kind = "git"
 origin = "https://github.com/salsa-rs/salsa.git"
+track = "salsa-v0.28.1"
+license_paths = ["LICENSE-APACHE", "LICENSE-MIT"]
 classes = ["incremental", "dependency-graph", "memoization"]
 questions = ["Tracked dependency semantics", "durability", "cancellation"]
 
@@ -157,6 +167,8 @@ questions = ["Tracked dependency semantics", "durability", "cancellation"]
 id = "oxc"
 kind = "git"
 origin = "https://github.com/oxc-project/oxc.git"
+track = "HEAD"
+license_paths = ["LICENSE"]
 classes = ["compiler", "data-oriented-design", "arenas", "diagnostics"]
 questions = ["AST layout", "allocator lifetimes", "passes", "benchmark discipline"]
 
@@ -171,6 +183,8 @@ questions = ["Bump allocation", "provenance through IR", "diagnostic infrastruct
 id = "tigerbeetle"
 kind = "git"
 origin = "https://github.com/tigerbeetle/tigerbeetle.git"
+track = "HEAD"
+license_paths = ["LICENSE"]
 classes = ["engineering-discipline", "data-oriented-design", "testing", "distributed-systems"]
 questions = ["TigerStyle enforceability", "static versus convention rules", "simulation testing"]
 
@@ -178,6 +192,8 @@ questions = ["TigerStyle enforceability", "static versus convention rules", "sim
 id = "elm-compiler"
 kind = "git"
 origin = "https://github.com/elm/compiler.git"
+track = "HEAD"
+license_paths = ["LICENSE"]
 classes = ["diagnostics", "compiler"]
 questions = ["Error taxonomy", "contextual suggestions", "message testing"]
 
@@ -194,3 +210,58 @@ kind = "git"
 origin = "https://github.com/runtimeverification/k.git"
 classes = ["executable-semantics", "model-checking"]
 questions = ["Executable definition workflow", "proof/search boundary", "tooling cost"]
+
+
+[[source]]
+id = "lean4checker"
+kind = "git"
+origin = "https://github.com/leanprover/lean4checker.git"
+track = "HEAD"
+license_paths = ["LICENSE"]
+classes = ["proof", "trusted-checking"]
+questions = ["Independent rechecking", "kernel conformance", "environment limitations"]
+
+[[source]]
+id = "mathlib4"
+kind = "git"
+origin = "https://github.com/leanprover-community/mathlib4.git"
+track = "HEAD"
+license_paths = ["LICENSE"]
+classes = ["proof", "trust-boundary"]
+questions = ["Kernel trust boundary", "axiom visibility", "library versus checker authority"]
+
+[[source]]
+id = "miette"
+kind = "git"
+origin = "https://github.com/zkat/miette.git"
+track = "v7.6.0"
+license_paths = ["LICENSE"]
+classes = ["diagnostics", "rendering"]
+questions = ["Structured diagnostic protocol", "provenance fields", "renderer separation"]
+
+[[source]]
+id = "ariadne"
+kind = "git"
+origin = "https://github.com/zesterer/ariadne.git"
+track = "HEAD"
+license_paths = ["LICENSE"]
+classes = ["diagnostics", "rendering"]
+questions = ["Labeled source spans", "renderer boundary", "license provenance"]
+
+[[source]]
+id = "rowan"
+kind = "git"
+origin = "https://github.com/rust-analyzer/rowan.git"
+track = "v0.16.1"
+license_paths = ["LICENSE-APACHE", "LICENSE-MIT"]
+classes = ["lossless-tree", "incremental", "compiler"]
+questions = ["Green-red tree structure", "identity and reuse", "immutable syntax storage"]
+
+[[source]]
+id = "language-server-protocol"
+kind = "git"
+origin = "https://github.com/microsoft/language-server-protocol.git"
+track = "HEAD"
+license_paths = ["License.txt", "License-code.txt", "ThirdPartyNotices.txt"]
+classes = ["diagnostics", "protocol", "provenance"]
+questions = ["Diagnostic data model", "push and pull lifecycle", "specification licensing"]

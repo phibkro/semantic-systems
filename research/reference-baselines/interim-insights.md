@@ -1,7 +1,8 @@
 # Interim reference-baseline insights
 
-Status: provisional pending completion and main-agent verification of the
-custom routed workflows.
+Status: historical snapshot as of 2026-07-29. Superseded by `portfolio.md`,
+`enforcement-ladder.md`, `adoption-experiments.md`, and the checked-in
+refinement packet; retained without rewriting its point-in-time claims.
 
 ## Development implications
 

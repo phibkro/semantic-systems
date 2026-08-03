@@ -19,7 +19,7 @@ The structured Fable-led control workflow completed all 14 child tasks:
 - 245 tool calls;
 - zero child errors.
 
-The result contains 17 project cards across all eight required clusters, 119
+The result contains 17 project cards across all six workflow-defined clusters, 119
 typed claims (95 fact, 20 unverified, 3 inference, 1 refuted), 31 candidate
 methods, 12 accepted methods, 12 ranked experiments, 133 counterexamples, 17
 unresolved questions, and 8 rejected patterns.
@@ -51,20 +51,20 @@ silently fill boundaries after the fact.
 
 These are research recommendations, not project decisions.
 
-| Method ID | Rung | Reusable method | Important limit |
-|---|---|---|---|
-| `sem.per-artifact-assumption-query` | generated | Derive an artifact's assumptions by walking the same recorded dependency edges that produced it. | Opaque primitives remain invisible and require an explicit register. |
-| `sem.small-kernel-rechecks-untrusted-producer` | static | Only a small checker can construct an admitted type; scope trust claims by producer failures, property, escapes, and version. | Generating producer and checker from one decision implementation destroys redundancy. |
-| `sem.replay-the-artifact-not-the-build` | tested | Persist the consumer-facing artifact and revalidate it in a separate process with seeded corruptions. | Independent from the producing run, not necessarily from checker defects. |
-| `sem.effect-rows-in-function-types` | static | Thread ambient effects through explicit capabilities and deny bypasses statically. | A closed capability discipline is weaker than Koka-style open effect rows. |
-| `dod.demand-driven-memoized-query-graph` | tested | Record query dependencies and compare incremental results with from-scratch evaluation. | Purity and invalidation granularity remain explicit preconditions. |
-| `dod.result-identity-short-circuit` | tested | Backdate equal recomputed results and assert named recomputation truncation in CI. | Requires canonical deterministic outputs. |
-| `dod.diagnostics-as-data-side-channel` | static | Keep diagnostics out of memoized result identity while testing delivery and span-only edits. | Applies at memoization boundaries, not necessarily everywhere. |
-| `dod.structured-diagnostic-record-with-provenance` | static | Stable typed diagnostic records feed multiple renderers and carry producer/code/documentation/confidence fields. | Call-site spans and confidence can still be wrong. |
-| `dod.green-red-lossless-syntax-tree` | tested | Separate immutable offset-free shared syntax from derived positions; test round-trip identity and fuzz it. | Losslessness is not established by the representation alone. |
-| `dod.stable-ids-over-addresses-and-offsets` | static | Use closed newtype IDs across revisions/wire boundaries; forbid offset constructors. | Within-revision storage may still share by pointer. |
-| `disc.tool-normalized-formatting` | generated | Generate canonical formatting and gate drift; map every claimed rule to its enforcing artifact. | The checked-versus-review-only register remains maintained knowledge. |
-| `disc.zero-warning-tool-gate` | static | Treat selected analyzers and warnings as merge-blocking; seed a warning to prove the gate can fail. | Warning-free is not defect-free and analyzer coverage is chosen. |
+| Method ID                                          | Rung      | Reusable method                                                                                                               | Important limit                                                                       |
+| -------------------------------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `sem.per-artifact-assumption-query`                | generated | Derive an artifact's assumptions by walking the same recorded dependency edges that produced it.                              | Opaque primitives remain invisible and require an explicit register.                  |
+| `sem.small-kernel-rechecks-untrusted-producer`     | static    | Only a small checker can construct an admitted type; scope trust claims by producer failures, property, escapes, and version. | Generating producer and checker from one decision implementation destroys redundancy. |
+| `sem.replay-the-artifact-not-the-build`            | tested    | Persist the consumer-facing artifact and revalidate it in a separate process with seeded corruptions.                         | Independent from the producing run, not necessarily from checker defects.             |
+| `sem.effect-rows-in-function-types`                | static    | Thread ambient effects through explicit capabilities and deny bypasses statically.                                            | A closed capability discipline is weaker than Koka-style open effect rows.            |
+| `dod.demand-driven-memoized-query-graph`           | tested    | Record query dependencies and compare incremental results with from-scratch evaluation.                                       | Purity and invalidation granularity remain explicit preconditions.                    |
+| `dod.result-identity-short-circuit`                | tested    | Backdate equal recomputed results and assert named recomputation truncation in CI.                                            | Requires canonical deterministic outputs.                                             |
+| `dod.diagnostics-as-data-side-channel`             | static    | Keep diagnostics out of memoized result identity while testing delivery and span-only edits.                                  | Applies at memoization boundaries, not necessarily everywhere.                        |
+| `dod.structured-diagnostic-record-with-provenance` | static    | Stable typed diagnostic records feed multiple renderers and carry producer/code/documentation/confidence fields.              | Call-site spans and confidence can still be wrong.                                    |
+| `dod.green-red-lossless-syntax-tree`               | tested    | Separate immutable offset-free shared syntax from derived positions; test round-trip identity and fuzz it.                    | Losslessness is not established by the representation alone.                          |
+| `dod.stable-ids-over-addresses-and-offsets`        | static    | Use closed newtype IDs across revisions/wire boundaries; forbid offset constructors.                                          | Within-revision storage may still share by pointer.                                   |
+| `disc.tool-normalized-formatting`                  | generated | Generate canonical formatting and gate drift; map every claimed rule to its enforcing artifact.                               | The checked-versus-review-only register remains maintained knowledge.                 |
+| `disc.zero-warning-tool-gate`                      | static    | Treat selected analyzers and warnings as merge-blocking; seed a warning to prove the gate can fail.                           | Warning-free is not defect-free and analyzer coverage is chosen.                      |
 
 ## Ranked experiments
 

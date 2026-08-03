@@ -26,12 +26,17 @@ defaults, and every `target_boundary` in the payload is a forced
 - **adds** the separately verified six-card type-system refinement packet;
 - **re-derives** boundary mapping, enforceability rungs, reuse classes,
   ranking, and adoption decisions against the current repository;
-- **performs no source retrieval in this integration** and upgrades no evidence
-  category.
+- **adds later custody evidence** from exact repository locks and two
+  main-agent primary-PDF reads without rewriting the historical packet;
+  Power of Ten c02–c04 and Meadows c08 gain direct support, while c05's
+  frequency is corrected from "every build" to "daily".
 
 Claim ids below (`cluster.card.cNN`) refer to the cached claim ledger; each
 carries URL, version-or-commit, content locator, access date 2026-07-29, and
-a per-claim verdict in the payload.
+a per-claim verdict in the payload. Its `fact`, `inference`, `unverified`, and
+`refuted` values are historical workflow claim dispositions, not Semantic
+evidence kinds. A `fact` means source-verified assertion; it is not proof,
+static analysis, model checking, testing, or runtime validation.
 
 ## The shape premise, discharged
 
@@ -67,14 +72,14 @@ Project-owned boundaries used for mapping (all current-repository seams):
 The checked-in packets contain 23 representative project entries across all
 six frozen corpus areas:
 
-| Corpus area                        | Representative projects                                           |
-| ---------------------------------- | ----------------------------------------------------------------- |
-| Semantics and effects              | Koka; Perceus                                                     |
-| Proof and trusted checking         | Lean 4; Mathlib trust boundary; lean4checker                      |
-| Type-system refinement ladder      | GHC Core/System FC; Liquid Haskell; Flux; F*; Agda; Idris 2       |
-| Compiler data and incrementality   | rustc; Salsa; rust-analyzer; Rowan; Oxc                           |
-| Diagnostics and observability      | rustc diagnostics; Elm; miette and ariadne; LSP diagnostics       |
-| Engineering and systems discipline | TigerBeetle and TigerStyle; Power of Ten; Meadows leverage points |
+| Corpus area                        | Representative projects                                                                                      |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Semantics and effects              | Koka; Perceus                                                                                                |
+| Proof and trusted checking         | Lean 4; Mathlib trust boundary; lean4checker                                                                 |
+| Type-system refinement ladder      | GHC Core/System FC; Liquid Haskell; Flux; F*; Agda; Idris 2 (coverage-only cards; four schema fields absent) |
+| Compiler data and incrementality   | rustc; Salsa; rust-analyzer; Rowan; Oxc                                                                      |
+| Diagnostics and observability      | rustc diagnostics; Elm; miette and ariadne; LSP diagnostics                                                  |
+| Engineering and systems discipline | TigerBeetle and TigerStyle; Power of Ten; Meadows leverage points                                            |
 
 The refinement entries live in `refinement-ladder-packet.md`. They preserve
 their own pin, license, trust-boundary, implementation-path, and unresolved
@@ -121,22 +126,28 @@ remains hypothesis here, consistent with `docs/technology-portfolio.md`.
 
 ## License and provenance table
 
-From the cached license verification pass (all 17 cards checked):
+Cached license verification plus the 2026-08-03 exact-lock corrections:
 
-| Reference                     | SPDX                                                          | Confirmation                                                                     |
-| ----------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| Koka, Perceus impl.           | Apache-2.0                                                    | Confirmed from raw LICENSE (Microsoft Research copyright header)                 |
-| Lean 4, Mathlib, lean4checker | Apache-2.0                                                    | Confirmed from raw LICENSE files                                                 |
-| rustc, rustc diagnostics      | MIT OR Apache-2.0                                             | Confirmed from COPYRIGHT file                                                    |
-| Salsa                         | Apache-2.0 OR MIT                                             | Confirmed from Cargo.toml manifest                                               |
-| rust-analyzer, Rowan          | MIT OR Apache-2.0                                             | Confirmed (repo files / crate metadata)                                          |
-| Oxc                           | MIT                                                           | Confirmed from LICENSE; vendored third-party code carries separate licenses      |
-| Elm compiler                  | BSD-3-Clause                                                  | Confirmed from raw LICENSE                                                       |
-| miette / ariadne              | Apache-2.0 / MIT                                              | miette confirmed from LICENSE; ariadne secondary-sourced (docs.rs metadata only) |
-| LSP specification             | CC-BY-3.0-US posture per verifier note; card recorded unknown | Partially resolved; attribution required if spec text is reproduced              |
-| TigerBeetle                   | Apache-2.0                                                    | Confirmed; copyright holder line absent from fetched text                        |
-| Power of Ten (IEEE 2006)      | none — all rights reserved presumed                           | Rights statement unextractable from hosted PDF                                   |
-| Meadows leverage points       | none — all rights reserved                                    | "© 1996-2026 The Academy for Systems Change"                                     |
+| Reference                     | SPDX                                | Confirmation                                                                     |
+| ----------------------------- | ----------------------------------- | -------------------------------------------------------------------------------- |
+| Koka, Perceus impl.           | Apache-2.0                          | Exact Koka v3.2.3 lock; Perceus paper is non-supporting residue                  |
+| Lean 4, Mathlib, lean4checker | Apache-2.0                          | Exact Lean 4.28.0 and lean4checker locks; Mathlib is a non-supporting comparison |
+| rustc, rustc diagnostics      | MIT OR Apache-2.0                   | Cached license observation; non-supporting comparison card                       |
+| Salsa                         | Apache-2.0 OR MIT                   | Exact Salsa 0.28.1 lock records both license files                               |
+| rust-analyzer, Rowan          | MIT OR Apache-2.0                   | Exact Rowan 0.16.1 lock; rust-analyzer remains a non-supporting comparison card  |
+| Oxc                           | MIT                                 | Cached MIT LICENSE; vendored terms remain separate; non-supporting               |
+| Elm compiler                  | BSD-3-Clause                        | Cached license observation; non-supporting comparison card                       |
+| miette / ariadne              | Apache-2.0 / MIT                    | Exact miette license; vendored mixed terms and ariadne badge conflict remain     |
+| LSP specification and code    | CC-BY-4.0 / MIT                     | Exact lock plus a direct read of the locked license files                        |
+| TigerBeetle                   | Apache-2.0                          | Cached license observation; project RX4 supplies the accepted gate evidence      |
+| Power of Ten (IEEE 2006)      | none — all rights reserved presumed | Rights statement unextractable from hosted PDF                                   |
+| Meadows leverage points       | none — all rights reserved          | "© 1996-2026 The Academy for Systems Change"                                     |
+
+The locked LSP `License.txt` begins `Attribution 4.0 International`;
+`License-code.txt` carries the MIT grant. The 2026-08-03 direct read, not the
+digests alone, supports the SPDX row and supersedes the cached 3.0-US reading.
+The ariadne SPDX value remains secondary manifest metadata; a README badge
+claiming MIT/Apache-2.0 remains an unresolved non-supporting conflict.
 
 The refinement packet records GHC, Liquid Haskell, and Idris 2 as
 BSD-3-Clause; Flux as MIT; F* as Apache-2.0; and Agda as MIT-shaped text with
@@ -149,13 +160,14 @@ discipline prose derived from them; no reference code is copied in any
 adoption below (methods only), so copyright-level exposure is nil and patent
 posture remains unexamined (recorded, unresolved).
 
-`references/refs.bib` remains intentionally empty: no paper body achieved
-full primary verification in the cached run (Perceus PLDI'21 and the
-ICFP'21 evidence-passing paper were blocked at abstracts by ACM 403 and PDF
-tooling; the Elm essay body and Power of Ten canonical text were never
-readable). Adding bibliography entries for papers whose bodies were not read
-would upgrade evidence by aggregation. They enter `refs.bib` when a
-verified-body fetch lands.
+`references/refs.bib` now records the Power of Ten paper and Meadows report.
+On 2026-08-03 the main agent read both primary PDFs. The Power of Ten read
+directly supports c02–c04 and Rule 10's zero-warning lineage, but corrects
+c05's analyzer frequency from `every build` to `daily`. The Meadows read
+supports its 1999 publication metadata and provisional-ranking caveat. The
+cached routed packet remains unchanged as a point-in-time workflow artifact.
+Perceus PLDI'21, the ICFP'21 evidence-passing paper, and the Elm essay body
+remain unread and support no accepted method.
 
 ## Accepted methods, boundary-mapped
 
@@ -166,20 +178,27 @@ synthesis blocked on a plane that does not exist yet). Rungs, why-not-higher
 detail, and the full experiment contracts live in `enforcement-ladder.md`
 and `adoption-experiments.md`; this table is the decision record.
 
-| Method (provenance)                                                                          | Class                                   | Boundary                                 | Rung here                                                    | Experiment                  |
-| -------------------------------------------------------------------------------------------- | --------------------------------------- | ---------------------------------------- | ------------------------------------------------------------ | --------------------------- |
-| `sem.per-artifact-assumption-query` (Lean `#print axioms` shape; lean4-kernel.c02/c03/c06)   | adapt                                   | B1/B3                                    | generated                                                    | RX2                         |
-| `sem.small-kernel-rechecks-untrusted-producer` (Lean kernel + lean4checker; c01/c02/c03)     | adapt                                   | B4                                       | tested (static at B6)                                        | maps to spec 0003, CLM-0002 |
-| `sem.replay-the-artifact-not-the-build` (lean4checker.c01/c02/c04)                           | as-is                                   | B5, extend to B3                         | tested                                                       | CLM-0003 gates + RX5        |
-| `sem.effect-rows-in-function-types` (Koka.c01/c02; closed-capability adaptation)             | adapt                                   | TypeScript Effect services now; B8 later | static (service/lint wall) + convention (exception register) | RX3                         |
-| `dod.demand-driven-memoized-query-graph` (rustc.c05/c07, salsa.c02, rust-analyzer.c04)       | defer                                   | B6                                       | tested when built                                            | D2 (deferred)               |
-| `dod.result-identity-short-circuit` (salsa.c04, rustc.c08)                                   | adapt precondition now; defer mechanism | B1 now; B6 later                         | tested                                                       | RX1 passed; D2 later        |
-| `dod.diagnostics-as-data-side-channel` (salsa.c04/c07, rust-analyzer.c07)                    | defer                                   | B6                                       | static when built                                            | D3 (deferred)               |
-| `dod.structured-diagnostic-record-with-provenance` (rustc-diag.c01/c02, miette.c01, lsp.c01) | adapt                                   | B2/B3                                    | static (typed record) + tested (registry)                    | RX4                         |
-| `dod.green-red-lossless-syntax-tree` (rust-analyzer.c01/c02, rowan.c01)                      | defer                                   | B6 frontend                              | tested when built                                            | D1 (deferred)               |
-| `dod.stable-ids-over-addresses-and-offsets` (rust-analyzer.c03/c05, rustc.c06)               | as-is                                   | B1–B5 (already practice)                 | static-partial (schema)                                      | audit folded into RX4       |
-| `disc.tool-normalized-formatting` (TigerBeetle build.zig/tidy.zig via O4 verdicts)           | as-is                                   | repo gates                               | generated (formatter) + convention (register)                | RX4                         |
-| `disc.zero-warning-tool-gate` (O3 inference; TigerBeetle CI precedent)                       | as-is                                   | repo gates                               | static                                                       | RX4                         |
+| Method (provenance)                                                                                                                 | Class                                   | Boundary                                 | Rung here                                                    | Experiment                  |
+| ----------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- | ---------------------------------------- | ------------------------------------------------------------ | --------------------------- |
+| `sem.per-artifact-assumption-query` (Lean `#print axioms` shape; lean4-kernel.c02/c03)                                              | adapt                                   | B1/B3                                    | generated                                                    | RX2                         |
+| `sem.small-kernel-rechecks-untrusted-producer` (lean4-kernel.c01/c02/c03; lean4checker.c01/c02/c03)                                 | adapt                                   | B4                                       | tested (static at B6)                                        | maps to spec 0003, CLM-0002 |
+| `sem.replay-the-artifact-not-the-build` (lean4checker.c01/c02/c04)                                                                  | as-is                                   | B5, extend to B3                         | tested                                                       | CLM-0003 gates + RX5        |
+| `sem.effect-rows-in-function-types` (Koka.c01/c02; closed-capability adaptation)                                                    | adapt                                   | TypeScript Effect services now; B8 later | static (service/lint wall) + convention (exception register) | RX3                         |
+| `dod.demand-driven-memoized-query-graph` (salsa.c01/c03; c02 revision context)                                                      | defer                                   | B6                                       | tested when built                                            | D2 (deferred)               |
+| `dod.result-identity-short-circuit` (salsa.c04)                                                                                     | adapt precondition now; defer mechanism | B1 now; B6 later                         | tested                                                       | RX1 passed; D2 later        |
+| `dod.diagnostics-as-data-side-channel` (salsa.c04/c07)                                                                              | defer                                   | B6                                       | static when built                                            | D3 (deferred)               |
+| `dod.structured-diagnostic-record-with-provenance` (miette.c01, lsp.c01, project `ValidationIssue`)                                 | adapt                                   | B2/B3                                    | static (typed record) + tested (registry)                    | RX4                         |
+| `dod.green-red-lossless-syntax-tree` (rowan.c01)                                                                                    | defer                                   | B6 frontend                              | tested when built                                            | D1 (deferred)               |
+| `dod.stable-ids-over-addresses-and-offsets` (Salsa 0.28.1 `Id` primary observation in packet review; project branded ids and locks) | as-is                                   | B1–B5 (already practice)                 | static-partial (schema)                                      | audit folded into RX4       |
+| `disc.tool-normalized-formatting` (project `oxfmt` gate and RX4 seeded failure)                                                     | as-is                                   | repo gates                               | generated (formatter) + convention (register)                | RX4                         |
+| `disc.zero-warning-tool-gate` (Power of Ten Rule 10 corrected primary observation; project RX4 seeded failures)                     | as-is                                   | repo gates                               | static                                                       | RX4                         |
+
+Only the provenance named in this table supports these decisions. Cached method
+rows that cite unverified `lean4-kernel.c04`, unverified
+`mathlib-trust-boundary.c04`, or refuted `tigerbeetle-tigerstyle.c08` are
+excluded. Power of Ten c05 remains historically `unverified`: the primary PDF
+supports the zero-warning method but refutes its cached `every build`
+frequency in favor of `daily`.
 
 Notes on the three deferred methods: each is _accepted as a design
 constraint on B6_, not adopted now. The pilot's central forced triad —
@@ -209,21 +228,25 @@ derived from prose alone.
 
 ## Unresolved and unverified (visible residue)
 
-1. The custody lock covers 5 of 23 catalog sources. The remaining cards carry
-   observed URLs and version descriptions but do not have current
-   origin-verified lock entries. They are not provenance-final and cannot close
-   design-spec acceptance.
-2. `refs.bib` is empty (see above); Perceus, evidence-passing, Elm, and Power of
-   Ten bodies remain unread.
-3. Ten claims remain unverified and three were not sampled in the original
-   ledger. They support no recommendation without a visible dependency.
-4. Version debt remains: the Lean cluster is rolling-latest, Meadows
-   publication history is unresolved, and current Salsa terminology is not
-   reverified.
-5. The refinement packet closes the missing corpus-area count, but bundled
-   license terms, toolchain versions, and several soundness caveats remain
-   explicit uncertainties.
+1. The catalog now names 29 sources; 12 have exact lock records. Every remote
+   repository that supports an adopted method is locked. Unlocked sources are
+   non-supporting comparison or discovery inputs and cannot support accepted
+   claims.
+2. `refs.bib` contains verified Power of Ten and Meadows primary-PDF entries.
+   Perceus, evidence-passing, and Elm bodies remain unread and support no
+   adopted method.
+3. The historical packet retains 95 facts, three inferences, 20 unverified
+   claims, and one refuted claim. Supplemental primary reads support Power of
+   Ten c02–c04, correct c05, and clarify Meadows c08 without rewriting that
+   ledger; all remaining non-facts stay visible and support no adopted
+   semantic claim.
+4. Exact locks now bind the accepted Koka, Lean 4, lean4checker, Rowan, Salsa,
+   miette, and LSP repository dependencies. Rolling rustc, rust-analyzer, and
+   Oxc observations remain non-supporting comparison inputs.
+5. The refinement packet closes the missing corpus-area count. Unaccepted
+   sources still carry toolchain, bundled-license, and soundness uncertainty.
 6. Patent posture of Apache-2.0 and MIT method adaptations is unexamined.
-7. The original F2 ranking was the only unchallenged synthesis. This integration
-   re-derives it against current boundaries; an independent review of this
-   integrated artifact is still required before feature closure.
+7. The historical F2 ranking had no independent challenge. This portfolio
+   re-derived the boundary mapping against the current repository; an
+   independent review of this integrated artifact remains required before
+   feature closure.

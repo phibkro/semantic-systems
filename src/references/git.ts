@@ -1076,7 +1076,7 @@ interface RemoteRefs {
 
 const lsRemoteRefs = (
   location: string,
-  pattern: string,
+  patterns: ReadonlyArray<string>,
   allowTransport = false,
 ): Effect.Effect<
   RemoteRefs,
@@ -1086,7 +1086,7 @@ const lsRemoteRefs = (
   Effect.scoped(
     Effect.gen(function* () {
       yield* requireAllowedLocation(location, allowTransport);
-      yield* rejectOptionLike("ref", pattern);
+      for (const pattern of patterns) yield* rejectOptionLike("ref", pattern);
       const fs = yield* FileSystem.FileSystem;
       const paths = yield* Path.Path;
       const scratch = yield* fs
@@ -1110,7 +1110,7 @@ const lsRemoteRefs = (
             }),
         ),
       );
-      const result = yield* runGit(["ls-remote", "--symref", location, pattern], {
+      const result = yield* runGit(["ls-remote", "--symref", location, ...patterns], {
         cwd,
         repositoryCeiling: scratch,
         allowTransport,
@@ -1130,6 +1130,7 @@ const lsRemoteRefs = (
   );
 
 const undereference = (ref: string): string => (ref.endsWith("^{}") ? ref.slice(0, -3) : ref);
+const refAndPeeledPatterns = (ref: string): ReadonlyArray<string> => [ref, `${ref}^{}`];
 
 export const observeConcreteRef = (
   location: string,
@@ -1142,7 +1143,7 @@ export const observeConcreteRef = (
   ChildProcessSpawner.ChildProcessSpawner | FileSystem.FileSystem | GitEnvironment | Path.Path
 > =>
   Effect.gen(function* () {
-    const observed = yield* lsRemoteRefs(location, track, allowTransport);
+    const observed = yield* lsRemoteRefs(location, [track], allowTransport);
     const symrefTargets = new Set(
       observed.symrefs.filter(([queried]) => queried === track).map(([, target]) => target),
     );
@@ -1166,7 +1167,11 @@ export const observeConcreteRef = (
         message: `selector ${JSON.stringify(track)} resolved to non-concrete ref ${JSON.stringify(concrete)}`,
       });
     }
-    const confirmation = yield* lsRemoteRefs(location, concrete, allowTransport);
+    const confirmation = yield* lsRemoteRefs(
+      location,
+      refAndPeeledPatterns(concrete),
+      allowTransport,
+    );
     const matching = new Set(
       confirmation.refs.filter(([, ref]) => undereference(ref) === concrete).map(([oid]) => oid),
     );
@@ -1207,10 +1212,14 @@ export const resolveRemoteRefTarget = (
         message: `refusing to resolve a non-concrete ref ${JSON.stringify(ref)}`,
       });
     }
-    const observed = yield* lsRemoteRefs(location, ref, allowTransport);
-    const matching = new Set(
-      observed.refs.filter(([, candidate]) => undereference(candidate) === ref).map(([oid]) => oid),
+    const observed = yield* lsRemoteRefs(location, refAndPeeledPatterns(ref), allowTransport);
+    const peeled = new Set(
+      observed.refs.filter(([, candidate]) => candidate === `${ref}^{}`).map(([oid]) => oid),
     );
+    const matching =
+      peeled.size > 0
+        ? peeled
+        : new Set(observed.refs.filter(([, candidate]) => candidate === ref).map(([oid]) => oid));
     if (matching.size === 0) return null;
     if (matching.size !== 1) {
       return yield* new AcquisitionError({
@@ -1433,7 +1442,7 @@ export const hydrateReplayObjects = (
   Effect.gen(function* () {
     yield* rejectOptionLike("commit", commit);
     const objects = yield* runGit(["-C", repository, "rev-list", "--objects", commit], {
-      allowTransport: true,
+      allowTransport: false,
     });
     const objectIds = text(objects)
       .split("\n")
@@ -1445,7 +1454,7 @@ export const hydrateReplayObjects = (
       });
     }
     const checked = yield* runGit(["-C", repository, "cat-file", "--batch-check"], {
-      allowTransport: true,
+      allowTransport: false,
       input: new TextEncoder().encode(`${objectIds.join("\n")}\n`),
     });
     if (
@@ -1470,6 +1479,40 @@ export const hydrateReplayObjects = (
         message: `commit ${commit} replay cache is incomplete: ${missingLines.length} object(s) missing`,
       });
     }
+  });
+
+/**
+ * Fetch the selected shallow commit's complete closure in one request, then
+ * verify it with transport disabled. This avoids one lazy fetch per missing
+ * blob while preserving the exact selected-ref boundary.
+ */
+export const hydrateRemoteReplayObjects = (
+  repository: string,
+  url: string,
+  ref: string,
+  commit: string,
+): Effect.Effect<
+  void,
+  AcquisitionError,
+  ChildProcessSpawner.ChildProcessSpawner | GitEnvironment
+> =>
+  Effect.gen(function* () {
+    yield* rejectOptionLike("url", url);
+    yield* rejectOptionLike("ref", ref);
+    yield* rejectOptionLike("commit", commit);
+    yield* requireAllowedLocation(url, true);
+    yield* runGit(["-C", repository, "fetch", "--refetch", "--no-filter", "--no-tags", url, ref], {
+      allowTransport: true,
+    });
+    const fetchedCommit = yield* resolveCommit(repository, "FETCH_HEAD");
+    if (fetchedCommit !== commit) {
+      return yield* new AcquisitionError({
+        message:
+          `selector ${JSON.stringify(ref)} moved from ${commit} to ${fetchedCommit} ` +
+          "before replay-cache hydration",
+      });
+    }
+    yield* hydrateReplayObjects(repository, commit);
   });
 
 const setBranch = (
@@ -1503,7 +1546,11 @@ const setRef = (
     Effect.asVoid,
   );
 
-/** Retain only refs that name the complete selected replay closure. */
+/**
+ * Retain only refs that name the complete selected replay closure. An
+ * annotated-tag ref is intentionally a replay alias for its peeled commit;
+ * tag-object identity is not part of the custody claim.
+ */
 export const prepareReplayRefs = (
   repository: string,
   resolvedRef: string,

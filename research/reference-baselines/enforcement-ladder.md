@@ -29,30 +29,33 @@ can fail.
 
 ### generated
 
-**`sem.per-artifact-assumption-query`** — B1/B3, target `generated`; RX2 is
-planned. The query must walk the same canonical relations that produce an
-artifact, so the report and the recorded graph have one source. Why no higher
-rung exists: no rung detects an opaque primitive that records no edge (the
-Lean `reduceBool` incident shape, `lean4-kernel.c06`). RX2 therefore includes
-an enumerated opaque-adapter register and a deliberate negative fixture.
-The graph premise exists today in `model/**`; the query does not, so this
-method is not yet an implemented project capability.
+**`sem.per-artifact-assumption-query`** — B1/B3, target `generated`; RX2
+implements and executes the query as an experiment. It walks the same canonical
+relations that produce an artifact, so the report and the recorded graph have
+one source. Why no higher rung exists: no rung detects an opaque primitive that
+records no edge. The unverified Lean `reduceBool` incident shape
+(`lean4-kernel.c06`) is retained only as a non-supporting counterexample; RX2
+independently includes an enumerated opaque-adapter register and a deliberate
+negative fixture. No stable end-user query surface exists yet.
 
 **`disc.tool-normalized-formatting`** (formatter half) — repository gates,
 implemented. `oxfmt --check` runs from `scripts/check-fast.ts` through
 `just fast`; the pinned Nix shell treats a missing tool or mismatch as failure.
 Why not higher: formatting is generated from source text, but the register of
-tool-checked versus review-only rules is still a maintained convention. RX4
-must bind every claimed rule to its enforcing artifact and one seeded failure.
+tool-checked versus review-only rules remains a maintained convention. RX4
+binds each claimed rule to its enforcing artifact and a seeded failure.
 
 ### static
 
 **`disc.zero-warning-tool-gate`** — repository gates, implemented. Oxlint,
 Effect-aware TypeScript diagnostics, and related checks fail the fast loop on
 diagnostics. Why not higher: a gate is a build predicate, not a derived
-artifact; its configured scope can omit a file or rule. RX4's seeded failures
-must show that each named gate can fail. Power of Ten is motivating lineage
-only; its strongest prose is not verified.
+artifact; its configured scope can omit a file or rule. RX4 demonstrates that
+each named gate can fail. The Power of Ten primary PDF requires compiler
+warnings from the first day and daily static-analyzer checks with zero
+warnings. It motivates the method but contradicts the cached `every build`
+frequency; this repository's seeded gate failures are the implementation
+evidence.
 
 **`dod.structured-diagnostic-record-with-provenance`** (record half) — B2/B3.
 `ValidationIssue` and the current subsystem errors are typed data with codes,
