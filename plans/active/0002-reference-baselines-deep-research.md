@@ -247,3 +247,10 @@ are accepted.
   artifact across a process boundary. A fresh Bun demo process left a
   temporary nine-file inventory tree byte-identical and emitted no serialized
   evidence artifact. The experiment did not manufacture persistence.
+- 2026-08-03: Implemented the RX3 ambient-capability wall. The canonical
+  source inventory now checks an exact, owner-bearing 21-entry runtime-adapter
+  register and rejects portable-to-adapter imports. The configured plugin
+  covers runtime imports and globals, console, clock, entropy, timer, fetch,
+  raw JSON, and the existing project-model total-function boundary. Static
+  string member paths are recognized; aliases, reflection, dynamic property
+  names, and package trees outside canonical `src/` remain explicit limits.

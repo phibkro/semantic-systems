@@ -112,6 +112,20 @@ demo` and emits human-readable evidence summaries. It does not emit or
   convention rather than pretending to implement open effect rows.
 - Assumptions: the Effect-aware Oxlint plugin continues to inspect the pinned
   TypeScript AST. The gate does not establish Koka-style row polymorphism.
+- Observation (2026-08-03): the configured plugin now classifies each current
+  TypeScript source under the canonical `src/` tree as portable or as one of
+  21 registered runtime adapters. Each adapter record owns one exact path and
+  names its capability owner and reason. A repository inventory test fails if
+  a portable module imports a registered adapter. The wall rejects Node, Bun,
+  and platform imports; direct and statically named `globalThis` runtime
+  globals; ambient console, current-time, entropy, timer, and fetch calls; raw
+  JSON boundaries; and throws in the project-model total-function slice.
+  A configured-linter smoke fixture produced five expected diagnostics. The
+  two STM runtime adapters passed as controls. Dynamic property names,
+  aliased globals, reflection, and dependencies outside the canonical source
+  tree remain outside this static wall. The result is static diagnostic
+  evidence. It is not effect-row polymorphism or proof that all ambient
+  capabilities are absent.
 
 ### RX4 — enforcement register, code registry, seeded gate failures (merges cached E8, E11, E12)
 

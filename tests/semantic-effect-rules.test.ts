@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { readdirSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { dirname, relative, resolve } from "node:path";
 import * as Testing from "effect-oxlint/testing";
 import {
   adapterExceptionFor,
@@ -11,29 +11,35 @@ import {
   effectRuntimeBoundary,
   portableRuntimeImports,
   schemaJsonBoundary,
+  semanticSourceExtensions,
   typedFailureBoundary,
 } from "../scripts/oxlint/semantic-effect-rules.ts";
 
-const portable = { filename: "/repo/src/project-model/loader.ts" };
-const bunMain = { filename: "/repo/src/project-model/main-bun.ts" };
-const portableTracer = { filename: "/repo/src/tracer/loader.ts" };
-const tracerBunMain = { filename: "/repo/src/tracer/main-bun.ts" };
-const portableReferences = { filename: "/repo/src/references/verify.ts" };
-const referencesBunMain = { filename: "/repo/src/references/main-bun.ts" };
-const referencesBunToml = { filename: "/repo/src/references/toml-bun.ts" };
-const referencesCuratorHolder = { filename: "/repo/src/references/curator-holder.ts" };
-const portableStm = { filename: "/repo/src/stm/model.ts" };
-const stmBunMain = { filename: "/repo/src/stm/main-bun.ts" };
-const portableSemanticSystem = { filename: "/repo/src/semantic-system/kernel.ts" };
-const portableKernelCalculus = { filename: "/repo/src/kernel-calculus/machine.ts" };
-const portableNormalizedCore = { filename: "/repo/src/normalized-core/normalize.ts" };
-const normalizedCoreBunMain = { filename: "/repo/src/normalized-core/main-bun.ts" };
-const normalizedCoreNodeMain = { filename: "/repo/src/normalized-core/main-node.ts" };
+const portable = { filename: "src/project-model/loader.ts" };
+const bunMain = { filename: "src/project-model/main-bun.ts" };
+const portableTracer = { filename: "src/tracer/loader.ts" };
+const tracerBunMain = { filename: "src/tracer/main-bun.ts" };
+const portableReferences = { filename: "src/references/verify.ts" };
+const referencesBunMain = { filename: "src/references/main-bun.ts" };
+const referencesBunToml = { filename: "src/references/toml-bun.ts" };
+const referencesCuratorHolder = { filename: "src/references/curator-holder.ts" };
+const portableStm = { filename: "src/stm/model.ts" };
+const stmBunMain = { filename: "src/stm/main-bun.ts" };
+const portableSemanticSystem = { filename: "src/semantic-system/kernel.ts" };
+const portableKernelCalculus = { filename: "src/kernel-calculus/machine.ts" };
+const portableNormalizedCore = { filename: "src/normalized-core/normalize.ts" };
+const normalizedCoreBunMain = { filename: "src/normalized-core/main-bun.ts" };
+const normalizedCoreNodeMain = { filename: "src/normalized-core/main-node.ts" };
+
+const computedStringMemberExpr = (object: string, property: string) => ({
+  ...Testing.computedMemberExpr(object, property),
+  property: Testing.strLiteral(property),
+});
 
 const runAmbientConsole = (
   events: ReadonlyArray<readonly [visitor: string, node: unknown]>,
   referenceKind: "global" | "unresolved" | "shadowed" = "global",
-  filename = "/repo/unrelated.ts",
+  filename = "unrelated.ts",
 ) => {
   const { context, diagnostics } = Testing.createMockContext({ filename });
   Object.defineProperty(context.sourceCode, "isGlobalReference", {
@@ -56,7 +62,7 @@ const runAmbientConsole = (
   return diagnostics;
 };
 
-const runPortableRuntimeMember = (node: unknown, localProcess = false) => {
+const runPortableRuntimeMembers = (nodes: ReadonlyArray<unknown>, localProcess = false) => {
   const { context, diagnostics } = Testing.createMockContext({
     filename: portableReferences.filename,
   });
@@ -69,9 +75,12 @@ const runPortableRuntimeMember = (node: unknown, localProcess = false) => {
     });
   }
   const visitors = portableRuntimeImports.create(context);
-  visitors.MemberExpression?.(node as never);
+  for (const node of nodes) visitors.MemberExpression?.(node as never);
   return diagnostics;
 };
+
+const runPortableRuntimeMember = (node: unknown, localProcess = false) =>
+  runPortableRuntimeMembers([node], localProcess);
 
 const runAmbientNondeterminism = (
   events: ReadonlyArray<readonly [visitor: string, node: unknown]>,
@@ -91,6 +100,7 @@ const runAmbientNondeterminism = (
             Testing.variable("Math"),
             Testing.variable("crypto"),
             Testing.variable("fetch"),
+            Testing.variable("globalThis"),
             Testing.variable("performance"),
             Testing.variable("setTimeout"),
             Testing.variable("setInterval"),
@@ -577,15 +587,16 @@ describe("Semantic Systems Effect Oxlint rules", () => {
           callee: Testing.memberExpr("globalThis", "fetch"),
         },
       ],
-      ["CallExpression", Testing.callOfMember("Bun", "fetch")],
     ]);
-    expect(diagnostics).toHaveLength(4);
+    expect(diagnostics).toHaveLength(3);
   });
 
   test("portable modules reject ambient timer scheduling", () => {
     const diagnostics = runAmbientNondeterminism([
       ["CallExpression", Testing.callExpr("setTimeout")],
       ["CallExpression", Testing.callExpr("setInterval")],
+      ["CallExpression", Testing.callExpr("setImmediate")],
+      ["CallExpression", Testing.callExpr("queueMicrotask")],
       [
         "CallExpression",
         {
@@ -594,7 +605,7 @@ describe("Semantic Systems Effect Oxlint rules", () => {
         },
       ],
     ]);
-    expect(diagnostics).toHaveLength(3);
+    expect(diagnostics).toHaveLength(5);
   });
 
   test("local capability services do not match ambient global rules", () => {
@@ -604,6 +615,13 @@ describe("Semantic Systems Effect Oxlint rules", () => {
           ["CallExpression", Testing.callOfMember("crypto", "randomUUID")],
           ["CallExpression", Testing.callOfMember("performance", "now")],
           ["CallExpression", Testing.callExpr("fetch")],
+          [
+            "CallExpression",
+            {
+              ...Testing.callExpr("unused"),
+              callee: Testing.memberExpr("globalThis", "fetch"),
+            },
+          ],
           ["CallExpression", Testing.callExpr("setTimeout")],
           ["NewExpression", Testing.newExpr("Date")],
         ],
@@ -612,11 +630,63 @@ describe("Semantic Systems Effect Oxlint rules", () => {
     );
   });
 
+  test("computed string globalThis paths remain ambient capabilities", () => {
+    const computedProcessMember = {
+      ...Testing.memberExpr("unused", "env"),
+      object: computedStringMemberExpr("globalThis", "process"),
+    };
+    Testing.expectDiagnostics(runPortableRuntimeMember(computedProcessMember), [
+      { message: "Portable semantic code must not use runtime globals directly" },
+    ]);
+
+    const diagnostics = runAmbientNondeterminism([
+      [
+        "CallExpression",
+        {
+          ...Testing.callExpr("unused"),
+          callee: {
+            ...Testing.memberExpr("unused", "randomUUID"),
+            object: computedStringMemberExpr("globalThis", "crypto"),
+          },
+        },
+      ],
+      [
+        "CallExpression",
+        {
+          ...Testing.callExpr("unused"),
+          callee: computedStringMemberExpr("globalThis", "fetch"),
+        },
+      ],
+      [
+        "CallExpression",
+        {
+          ...Testing.callExpr("unused"),
+          callee: computedStringMemberExpr("globalThis", "setTimeout"),
+        },
+      ],
+    ]);
+    expect(diagnostics).toHaveLength(3);
+  });
+
+  test("nested global runtime access emits one diagnostic", () => {
+    const inner = Testing.memberExpr("globalThis", "process");
+    const outer = {
+      ...Testing.memberExpr("unused", "env"),
+      object: inner,
+    };
+    Object.defineProperty(inner, "parent", { value: outer });
+    expect(runPortableRuntimeMembers([inner, outer])).toHaveLength(1);
+  });
+
   test("the portable boundary excludes nested package source trees", () => {
-    expect(classifySourcePath("/repo/src/project-model/loader.ts")).toBe("portable");
+    expect(classifySourcePath("src/project-model/loader.ts")).toBe("portable");
     expect(
       classifySourcePath(resolve(import.meta.dirname, "../apps/control-room/src/snapshot.ts")),
     ).toBe("outside-src");
+    expect(classifySourcePath("apps/control-room/src/snapshot.ts")).toBe("outside-src");
+    for (const extension of semanticSourceExtensions) {
+      expect(classifySourcePath(`src/project-model/loader${extension}`)).toBe("portable");
+    }
   });
 
   test("filesystem inventory classifies every current TypeScript source exactly once", () => {
@@ -628,7 +698,10 @@ describe("Semantic Systems Effect Oxlint rules", () => {
         const path = resolve(directory, entry.name);
         if (entry.isDirectory()) {
           visit(path);
-        } else if (entry.isFile() && path.endsWith(".ts")) {
+        } else if (
+          entry.isFile() &&
+          semanticSourceExtensions.some((extension) => path.endsWith(extension))
+        ) {
           sourcePaths.push(path.slice(root.length + 1).replaceAll("\\", "/"));
         }
       }
@@ -640,6 +713,10 @@ describe("Semantic Systems Effect Oxlint rules", () => {
     expect(new Set(sourcePaths).size).toBe(sourcePaths.length);
 
     const sourceSet = new Set(sourcePaths);
+    const adapterPaths = new Set(
+      adapterExceptionRegister.map((exception) => exception.pathPattern),
+    );
+    const scanner = new Bun.Transpiler({ loader: "ts" });
     for (const exception of adapterExceptionRegister) {
       expect(sourceSet.has(exception.pathPattern)).toBeTrue();
       expect(exception.capabilityOwner.trim().length).toBeGreaterThan(0);
@@ -655,6 +732,20 @@ describe("Semantic Systems Effect Oxlint rules", () => {
       expect(["portable", "adapter"]).toContain(classification);
       expect(matches).toHaveLength(classification === "adapter" ? 1 : 0);
       expect(adapterExceptionFor(path)).toEqual(matches[0]);
+      if (classification === "portable") {
+        const sourceFile = resolve(root, path);
+        for (const imported of scanner.scanImports(readFileSync(sourceFile, "utf8"))) {
+          if (!imported.path.startsWith(".")) continue;
+          const candidate = resolve(dirname(sourceFile), imported.path);
+          const importedFile = [candidate, `${candidate}.ts`, resolve(candidate, "index.ts")].find(
+            existsSync,
+          );
+          expect(importedFile).toBeDefined();
+          if (importedFile === undefined) continue;
+          const importedPath = relative(root, importedFile).replaceAll("\\", "/");
+          expect(adapterPaths.has(importedPath)).toBeFalse();
+        }
+      }
     }
 
     expect(sourcePaths.filter((path) => classifySourcePath(path) === "adapter")).toHaveLength(
