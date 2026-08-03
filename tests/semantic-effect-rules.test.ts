@@ -1,10 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { readdirSync } from "node:fs";
+import { resolve } from "node:path";
 import * as Testing from "effect-oxlint/testing";
 import {
+  adapterExceptionFor,
+  adapterExceptionRegister,
   ambientConsole,
   ambientNondeterminism,
+  classifySourcePath,
   effectRuntimeBoundary,
   portableRuntimeImports,
   schemaJsonBoundary,
@@ -49,6 +52,53 @@ const runAmbientConsole = (
     });
   }
   const visitors = ambientConsole.create(context);
+  for (const [visitor, node] of events) visitors[visitor]?.(node as never);
+  return diagnostics;
+};
+
+const runPortableRuntimeMember = (node: unknown, localProcess = false) => {
+  const { context, diagnostics } = Testing.createMockContext({
+    filename: portableReferences.filename,
+  });
+  Object.defineProperty(context.sourceCode, "isGlobalReference", {
+    value: () => !localProcess,
+  });
+  if (localProcess) {
+    Object.defineProperty(context.sourceCode, "getScope", {
+      value: () => Testing.scope({ variables: [Testing.variable("process")] }),
+    });
+  }
+  const visitors = portableRuntimeImports.create(context);
+  visitors.MemberExpression?.(node as never);
+  return diagnostics;
+};
+
+const runAmbientNondeterminism = (
+  events: ReadonlyArray<readonly [visitor: string, node: unknown]>,
+  referenceKind: "global" | "shadowed" = "global",
+  filename = portable.filename,
+) => {
+  const { context, diagnostics } = Testing.createMockContext({ filename });
+  Object.defineProperty(context.sourceCode, "isGlobalReference", {
+    value: () => referenceKind === "global",
+  });
+  if (referenceKind === "shadowed") {
+    Object.defineProperty(context.sourceCode, "getScope", {
+      value: () =>
+        Testing.scope({
+          variables: [
+            Testing.variable("Date"),
+            Testing.variable("Math"),
+            Testing.variable("crypto"),
+            Testing.variable("fetch"),
+            Testing.variable("performance"),
+            Testing.variable("setTimeout"),
+            Testing.variable("setInterval"),
+          ],
+        }),
+    });
+  }
+  const visitors = ambientNondeterminism.create(context);
   for (const [visitor, node] of events) visitors[visitor]?.(node as never);
   return diagnostics;
 };
@@ -148,6 +198,24 @@ describe("Semantic Systems Effect Oxlint rules", () => {
     );
   });
 
+  test("portable modules reject ambient process and Bun capabilities without banning service fields", () => {
+    for (const node of [
+      Testing.memberExpr("process", "env"),
+      Testing.memberExpr("process", "argv"),
+      Testing.memberExpr("Bun", "env"),
+      Testing.memberExpr("Bun", "file"),
+      Testing.chainedMemberExpr("globalThis", "process", "env"),
+    ]) {
+      Testing.expectDiagnostics(runPortableRuntimeMember(node), [
+        { message: "Portable semantic code must not use runtime globals directly" },
+      ]);
+    }
+
+    Testing.expectNoDiagnostics(
+      runPortableRuntimeMember(Testing.memberExpr("process", "flockExecutable"), true),
+    );
+  });
+
   test("STM implementation is a portable Effect lint domain with only explicit mains exempted", () => {
     Testing.expectDiagnostics(
       Testing.runRule(
@@ -172,11 +240,10 @@ describe("Semantic Systems Effect Oxlint rules", () => {
       ),
     );
     Testing.expectDiagnostics(
-      Testing.runRule(
-        ambientNondeterminism,
-        "CallExpression",
-        Testing.callOfMember("Math", "random"),
-        portableStm,
+      runAmbientNondeterminism(
+        [["CallExpression", Testing.callOfMember("Math", "random")]],
+        "global",
+        portableStm.filename,
       ),
       [
         {
@@ -264,11 +331,10 @@ describe("Semantic Systems Effect Oxlint rules", () => {
       ],
     );
     Testing.expectDiagnostics(
-      Testing.runRule(
-        ambientNondeterminism,
-        "CallExpression",
-        Testing.callOfMember("crypto", "randomUUID"),
-        portableReferences,
+      runAmbientNondeterminism(
+        [["CallExpression", Testing.callOfMember("crypto", "randomUUID")]],
+        "global",
+        portableReferences.filename,
       ),
       [
         {
@@ -294,11 +360,10 @@ describe("Semantic Systems Effect Oxlint rules", () => {
       ],
     );
     Testing.expectDiagnostics(
-      Testing.runRule(
-        ambientNondeterminism,
-        "CallExpression",
-        Testing.callOfMember("Math", "random"),
-        portableSemanticSystem,
+      runAmbientNondeterminism(
+        [["CallExpression", Testing.callOfMember("Math", "random")]],
+        "global",
+        portableSemanticSystem.filename,
       ),
       [
         {
@@ -338,11 +403,10 @@ describe("Semantic Systems Effect Oxlint rules", () => {
       ],
     );
     Testing.expectDiagnostics(
-      Testing.runRule(
-        ambientNondeterminism,
-        "CallExpression",
-        Testing.callOfMember("Math", "random"),
-        portableKernelCalculus,
+      runAmbientNondeterminism(
+        [["CallExpression", Testing.callOfMember("Math", "random")]],
+        "global",
+        portableKernelCalculus.filename,
       ),
       [
         {
@@ -368,11 +432,10 @@ describe("Semantic Systems Effect Oxlint rules", () => {
       ],
     );
     Testing.expectDiagnostics(
-      Testing.runRule(
-        ambientNondeterminism,
-        "CallExpression",
-        Testing.callOfMember("crypto", "randomUUID"),
-        portableNormalizedCore,
+      runAmbientNondeterminism(
+        [["CallExpression", Testing.callOfMember("crypto", "randomUUID")]],
+        "global",
+        portableNormalizedCore.filename,
       ),
       [
         {
@@ -479,76 +542,123 @@ describe("Semantic Systems Effect Oxlint rules", () => {
   });
 
   test("ambient clock, random, crypto, and fetch capabilities are rejected", () => {
-    const diagnostics = Testing.runRuleMulti(
-      ambientNondeterminism,
+    const diagnostics = runAmbientNondeterminism([
+      ["CallExpression", Testing.callOfMember("Date", "now")],
+      ["CallExpression", Testing.callOfMember("Math", "random")],
+      ["CallExpression", Testing.callOfMember("crypto", "randomUUID")],
       [
-        ["CallExpression", Testing.callOfMember("Date", "now")],
-        ["CallExpression", Testing.callOfMember("Math", "random")],
-        ["CallExpression", Testing.callOfMember("crypto", "randomUUID")],
-        [
-          "CallExpression",
-          {
-            ...Testing.callExpr("unused"),
-            callee: Testing.chainedMemberExpr("globalThis", "crypto", "randomUUID"),
-          },
-        ],
-        ["CallExpression", Testing.callExpr("fetch")],
-        ["NewExpression", Testing.newExpr("Date")],
+        "CallExpression",
+        {
+          ...Testing.callExpr("unused"),
+          callee: Testing.chainedMemberExpr("globalThis", "crypto", "randomUUID"),
+        },
       ],
-      portable,
-    );
+      ["CallExpression", Testing.callExpr("fetch")],
+      ["NewExpression", Testing.newExpr("Date")],
+    ]);
     expect(diagnostics).toHaveLength(6);
     Testing.expectNoDiagnostics(
-      Testing.runRule(
-        ambientNondeterminism,
-        "NewExpression",
-        { ...Testing.newExpr("Date"), arguments: [Testing.numLiteral(0)] },
-        portableReferences,
+      runAmbientNondeterminism(
+        [["NewExpression", { ...Testing.newExpr("Date"), arguments: [Testing.numLiteral(0)] }]],
+        "global",
+        portableReferences.filename,
       ),
     );
   });
 
-  test("the semantic-system transitive import closure reaches no runtime-specific adapter", () => {
+  test("the ambient wall covers performance time, Web Crypto entropy, and global fetch forms", () => {
+    const diagnostics = runAmbientNondeterminism([
+      ["CallExpression", Testing.callOfMember("performance", "now")],
+      ["CallExpression", Testing.callOfMember("crypto", "getRandomValues")],
+      [
+        "CallExpression",
+        {
+          ...Testing.callExpr("unused"),
+          callee: Testing.memberExpr("globalThis", "fetch"),
+        },
+      ],
+      ["CallExpression", Testing.callOfMember("Bun", "fetch")],
+    ]);
+    expect(diagnostics).toHaveLength(4);
+  });
+
+  test("portable modules reject ambient timer scheduling", () => {
+    const diagnostics = runAmbientNondeterminism([
+      ["CallExpression", Testing.callExpr("setTimeout")],
+      ["CallExpression", Testing.callExpr("setInterval")],
+      [
+        "CallExpression",
+        {
+          ...Testing.callExpr("unused"),
+          callee: Testing.memberExpr("globalThis", "setTimeout"),
+        },
+      ],
+    ]);
+    expect(diagnostics).toHaveLength(3);
+  });
+
+  test("local capability services do not match ambient global rules", () => {
+    Testing.expectNoDiagnostics(
+      runAmbientNondeterminism(
+        [
+          ["CallExpression", Testing.callOfMember("crypto", "randomUUID")],
+          ["CallExpression", Testing.callOfMember("performance", "now")],
+          ["CallExpression", Testing.callExpr("fetch")],
+          ["CallExpression", Testing.callExpr("setTimeout")],
+          ["NewExpression", Testing.newExpr("Date")],
+        ],
+        "shadowed",
+      ),
+    );
+  });
+
+  test("the portable boundary excludes nested package source trees", () => {
+    expect(classifySourcePath("/repo/src/project-model/loader.ts")).toBe("portable");
+    expect(
+      classifySourcePath(resolve(import.meta.dirname, "../apps/control-room/src/snapshot.ts")),
+    ).toBe("outside-src");
+  });
+
+  test("filesystem inventory classifies every current TypeScript source exactly once", () => {
     const root = resolve(import.meta.dirname, "..");
-    const entrypoint = resolve(root, "src/semantic-system/index.ts");
-    const scanner = new Bun.Transpiler({ loader: "ts" });
-    const visited = new Set<string>();
-    const bareImports = new Set<string>();
-    const visit = (path: string): void => {
-      if (visited.has(path)) return;
-      visited.add(path);
-      const source = readFileSync(path, "utf8");
-      for (const imported of scanner.scanImports(source)) {
-        if (!imported.path.startsWith(".")) {
-          bareImports.add(imported.path);
-          continue;
+    const sourceRoot = resolve(root, "src");
+    const sourcePaths: Array<string> = [];
+    const visit = (directory: string): void => {
+      for (const entry of readdirSync(directory, { withFileTypes: true })) {
+        const path = resolve(directory, entry.name);
+        if (entry.isDirectory()) {
+          visit(path);
+        } else if (entry.isFile() && path.endsWith(".ts")) {
+          sourcePaths.push(path.slice(root.length + 1).replaceAll("\\", "/"));
         }
-        const candidate = resolve(dirname(path), imported.path);
-        const resolved = existsSync(candidate)
-          ? candidate
-          : existsSync(`${candidate}.ts`)
-            ? `${candidate}.ts`
-            : resolve(candidate, "index.ts");
-        expect(existsSync(resolved)).toBeTrue();
-        visit(resolved);
       }
     };
+    visit(sourceRoot);
+    sourcePaths.sort();
 
-    visit(entrypoint);
+    expect(sourcePaths.length).toBeGreaterThan(0);
+    expect(new Set(sourcePaths).size).toBe(sourcePaths.length);
 
-    const forbiddenBare = [...bareImports].filter(
-      (specifier) =>
-        specifier === "bun" ||
-        specifier.startsWith("node:") ||
-        specifier.startsWith("@effect/platform-bun") ||
-        specifier.startsWith("@effect/platform-node"),
+    const sourceSet = new Set(sourcePaths);
+    for (const exception of adapterExceptionRegister) {
+      expect(sourceSet.has(exception.pathPattern)).toBeTrue();
+      expect(exception.capabilityOwner.trim().length).toBeGreaterThan(0);
+      expect(exception.reason.trim().length).toBeGreaterThan(0);
+      expect(
+        adapterExceptionRegister.filter(({ pathPattern }) => pathPattern === exception.pathPattern),
+      ).toHaveLength(1);
+    }
+
+    for (const path of sourcePaths) {
+      const matches = adapterExceptionRegister.filter(({ pathPattern }) => pathPattern === path);
+      const classification = classifySourcePath(path);
+      expect(["portable", "adapter"]).toContain(classification);
+      expect(matches).toHaveLength(classification === "adapter" ? 1 : 0);
+      expect(adapterExceptionFor(path)).toEqual(matches[0]);
+    }
+
+    expect(sourcePaths.filter((path) => classifySourcePath(path) === "adapter")).toHaveLength(
+      adapterExceptionRegister.length,
     );
-    const runtimeFiles = [...visited].filter((path) =>
-      /(?:main-(?:bun|node)|toml-(?:bun|node)|curator-holder)\.ts$/.test(path),
-    );
-    expect(forbiddenBare).toEqual([]);
-    expect(runtimeFiles).toEqual([]);
-    expect([...visited].some((path) => path.endsWith("/src/actor/runtime.ts"))).toBeTrue();
-    expect([...visited].some((path) => path.endsWith("/src/tracer/domain.ts"))).toBeTrue();
   });
 });
