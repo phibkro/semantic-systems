@@ -57,14 +57,21 @@ replace bounded implementation with an open-ended tooling search.
 - 2026-08-03: External PR #3 is OPEN, draft, DIRTY, and unmerged. Protected
   exact-head checks, merge, completion feedback, and cleanup are therefore not
   established.
+- 2026-08-03: Exact clean head
+  `d150d41fc6d4d16f8b22b759b34497ecf80ce4c4` passed local 0007
+  acceptance and reported all five reuse-first clauses present. Feature 0005
+  subsequently declared migration ownership of this lifecycle correction at
+  `627da7748ae306593275b61011b321c5d3a853b8`. These local
+  `runtime_validation` and contract-ownership observations do not establish
+  PR #3's protected checks, merge, completion feedback, or cleanup.
 
 ## Completion state
 
-Blocked by external PR #3: it remains OPEN, draft, DIRTY, and unmerged. The
-dirty-tree acceptance observation found all five clauses present, but does not
-establish exact-head or protected checks, merge, completion feedback, or
-cleanup. No completion evidence is recorded; keep the work nonterminal and do
-not move the active plan.
+Blocked by external PR #3: it remains OPEN, draft, DIRTY, and unmerged. Exact
+local acceptance found all five clauses present, and feature 0005 explicitly
+owns this lifecycle correction, but protected checks, merge, completion
+feedback, and cleanup remain unestablished. No completion evidence is
+recorded; keep the work nonterminal and do not move the active plan.
 
 - 2026-08-02: Historical lifecycle heading migrated verbatim from the pre-migration plan:
   # Active plan 0007: reuse-first engineering assignments

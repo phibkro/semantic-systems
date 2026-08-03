@@ -294,6 +294,26 @@ completion feedback, and cleanup.
   environment, and workflow-observation defects. Clean integration-head
   acceptance, successful independent review, and the final integration gate
   remain pending.
+- 2026-08-03: Exact clean head
+  `d150d41fc6d4d16f8b22b759b34497ecf80ce4c4` passed local 0005
+  acceptance (40 tests/373 assertions, Actionlint, and commit-policy
+  conformance), `just check` (814 tests/18,856 assertions), both
+  `nix flake check path:.` derivations, and the project report. Independent
+  read-only review found that the full correction range also changed feature
+  0007 lifecycle records without declaring migration ownership, so the
+  required PR-range feature-contract gate would reject that head.
+- 2026-08-03: Exact clean head
+  `627da7748ae306593275b61011b321c5d3a853b8` declares feature 0005's
+  migration ownership of the feature 0007 lifecycle correction. A synthetic
+  PR event over
+  `df2d51e12b8c1ae9f1902df45f3d9f66ea1e8dbe..627da7748ae306593275b61011b321c5d3a853b8`
+  validated 21 changed paths and the 0007 migration; PR-mode acceptance passed
+  40 tests/374 assertions, Actionlint, and commit-policy conformance. `just
+  check` passed 814 tests/18,857 assertions, and both `nix flake check path:.`
+  derivations built after transient Garnix HTTP 502 responses. Independent
+  read-only review returned `READY` with no Critical or Important finding.
+  These are local `runtime_validation` and `static_analysis` observations, not
+  protected remote checks, merge, or completion feedback.
 
 ## Decisions and deviations
 
@@ -317,16 +337,13 @@ completion feedback, and cleanup.
 
 ## Completion state
 
-`in_progress`: the correction source is integrated in the current base ancestry,
-but local validation at HEAD refs
-`a5184fc95b59fb18832d2586456b5092c503e7e4` and
-`df2d51e12b8c1ae9f1902df45f3d9f66ea1e8dbe` ran with tracked working-tree
-changes and does not establish exact-commit acceptance. Independent rereview
-found additional acceptance-attribution, feature-custody, provenance,
-environment, and workflow-observation defects. Clean integration-head
-acceptance, successful independent review, and the final integration gate
-remain pending. The historical pilot evidence does not establish independent
-review, and the correction is not claimed as protected, pushed, or merged.
+`in_progress`: the correction source is integrated in the current base ancestry.
+Exact local PR-range validation, feature acceptance, integration checks, Nix
+checks, and independent read-only review are established at
+`627da7748ae306593275b61011b321c5d3a853b8`. The historical pilot evidence
+still does not establish independent review. Protected exact-head checks,
+push, PR review resolution, merge, operator completion feedback, and cleanup
+remain external lifecycle gates; none is claimed here.
 
 - 2026-08-02: Historical lifecycle heading migrated verbatim from the pre-migration plan:
   # Active plan 0005: autonomous development control loop
