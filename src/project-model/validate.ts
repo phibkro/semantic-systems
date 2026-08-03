@@ -8,11 +8,30 @@ import {
   type ProjectGraph,
 } from "./types.ts";
 
+/** Stable, finite codes emitted by `validateProject`. */
+export const VALIDATION_ISSUE_CODE = {
+  entityKind: "entity.kind",
+  entityId: "entity.id",
+  workPhase: "work.phase",
+  workAcceptance: "work.acceptance",
+  workDelegation: "work.delegation",
+  evidenceType: "evidence.type",
+  relationKind: "relation.kind",
+  relationSource: "relation.source",
+  relationTarget: "relation.target",
+  containmentCycle: "containment.cycle",
+  workCycle: "work.cycle",
+  claimUnsupported: "claim.unsupported",
+} as const;
+
+export type ValidationIssueCode =
+  (typeof VALIDATION_ISSUE_CODE)[keyof typeof VALIDATION_ISSUE_CODE];
+
 export type Severity = "error" | "warning";
 
 export interface ValidationIssue {
   readonly severity: Severity;
-  readonly code: string;
+  readonly code: ValidationIssueCode;
   readonly message: string;
   readonly entityId?: string;
 }
@@ -52,7 +71,7 @@ export const validateProject = (project: ProjectGraph): ReadonlyArray<Validation
     if (!ENTITY_KINDS.has(entity.kind)) {
       issues.push({
         severity: "error",
-        code: "entity.kind",
+        code: VALIDATION_ISSUE_CODE.entityKind,
         message: `unsupported kind ${entity.kind}`,
         entityId: entity.id,
       });
@@ -60,7 +79,7 @@ export const validateProject = (project: ProjectGraph): ReadonlyArray<Validation
     if (entity.id.length === 0 || /\s/.test(entity.id)) {
       issues.push({
         severity: "error",
-        code: "entity.id",
+        code: VALIDATION_ISSUE_CODE.entityId,
         message: "ID contains whitespace",
         entityId: entity.id,
       });
@@ -70,7 +89,7 @@ export const validateProject = (project: ProjectGraph): ReadonlyArray<Validation
       if (typeof phase !== "string" || !phases.has(phase)) {
         issues.push({
           severity: "error",
-          code: "work.phase",
+          code: VALIDATION_ISSUE_CODE.workPhase,
           message: `invalid phase ${JSON.stringify(phase)}`,
           entityId: entity.id,
         });
@@ -78,7 +97,7 @@ export const validateProject = (project: ProjectGraph): ReadonlyArray<Validation
       if (listOfStrings(entity, "acceptance").length === 0) {
         issues.push({
           severity: "error",
-          code: "work.acceptance",
+          code: VALIDATION_ISSUE_CODE.workAcceptance,
           message: "missing acceptance criteria",
           entityId: entity.id,
         });
@@ -87,7 +106,7 @@ export const validateProject = (project: ProjectGraph): ReadonlyArray<Validation
       if (delegation === null || typeof delegation !== "object" || Array.isArray(delegation)) {
         issues.push({
           severity: "error",
-          code: "work.delegation",
+          code: VALIDATION_ISSUE_CODE.workDelegation,
           message: "missing delegation metadata",
           entityId: entity.id,
         });
@@ -100,7 +119,7 @@ export const validateProject = (project: ProjectGraph): ReadonlyArray<Validation
     ) {
       issues.push({
         severity: "error",
-        code: "evidence.type",
+        code: VALIDATION_ISSUE_CODE.evidenceType,
         message: `invalid evidence type ${JSON.stringify(entity.attributes.evidence_type)}`,
         entityId: entity.id,
       });
@@ -111,21 +130,21 @@ export const validateProject = (project: ProjectGraph): ReadonlyArray<Validation
     if (!RELATION_KINDS.has(relation.kind)) {
       issues.push({
         severity: "error",
-        code: "relation.kind",
+        code: VALIDATION_ISSUE_CODE.relationKind,
         message: `unsupported kind ${relation.kind}`,
       });
     }
     if (!project.entities.has(relation.sourceId)) {
       issues.push({
         severity: "error",
-        code: "relation.source",
+        code: VALIDATION_ISSUE_CODE.relationSource,
         message: `missing source ${relation.sourceId}`,
       });
     }
     if (!project.entities.has(relation.targetId)) {
       issues.push({
         severity: "error",
-        code: "relation.target",
+        code: VALIDATION_ISSUE_CODE.relationTarget,
         message: `missing target ${relation.targetId}`,
       });
     }
@@ -143,7 +162,7 @@ export const validateProject = (project: ProjectGraph): ReadonlyArray<Validation
   if (containmentCycle !== undefined) {
     issues.push({
       severity: "error",
-      code: "containment.cycle",
+      code: VALIDATION_ISSUE_CODE.containmentCycle,
       message: containmentCycle.join(" -> "),
     });
   }
@@ -161,7 +180,7 @@ export const validateProject = (project: ProjectGraph): ReadonlyArray<Validation
   if (workCycle !== undefined) {
     issues.push({
       severity: "error",
-      code: "work.cycle",
+      code: VALIDATION_ISSUE_CODE.workCycle,
       message: workCycle.join(" -> "),
     });
   }
@@ -170,7 +189,7 @@ export const validateProject = (project: ProjectGraph): ReadonlyArray<Validation
     if (incoming(project, claim.id, new Set(["supports", "discharges"])).length === 0) {
       issues.push({
         severity: "warning",
-        code: "claim.unsupported",
+        code: VALIDATION_ISSUE_CODE.claimUnsupported,
         message: "claim has no evidence",
         entityId: claim.id,
       });

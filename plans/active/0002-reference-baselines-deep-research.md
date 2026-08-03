@@ -267,3 +267,27 @@ are accepted.
   feature as pre-loop and non-runnable. RX3 therefore relies on its committed
   experiment, focused rule tests, repository gates, and independent review.
   It has no feature-loop acceptance-program claim.
+- 2026-08-03: Implemented RX4 in the bounded owned paths. The typed
+  enforcement register inventories AGENTS.md invariants, CONTRIBUTING gates,
+  package scripts, and all active `scripts/check*.ts` command surfaces,
+  distinguishing artifact-backed enforcement from explicit `review-only`
+  entries.
+- 2026-08-03: `ValidationIssue.code` now uses one finite exported registry.
+  `tests/enforcement-register.test.ts` derives fixture mutations from the
+  loaded canonical graph and checks both directions: no emitted code is
+  undocumented, and every registered code has a producing fixture.
+- 2026-08-03: `scripts/experiments/0003-enforcement-register.ts` seeds isolated
+  Oxfmt, Oxlint warning, invalid-model, and generated-view-drift failures,
+  checks the expected non-zero observations, audits generated files plus the
+  two canonical lock documents for positional identity fields, and verifies
+  scoped cleanup plus byte identity across the declared repository scan. The
+  ignored roots and the identity audit's named scope remain explicit; neither
+  observation is proof about future schemas, dynamic values, or unscanned
+  consumers.
+- 2026-08-03: Parent validation observed six focused register tests with 996
+  assertions, all four seeded gates exiting `1` with the intended diagnostic,
+  ten generated files, five locked sources, no positional field in the bounded
+  audit, byte-identical state across the declared repository scan after scoped
+  cleanup, and the full integration gate at 795 tests with 18,762 assertions.
+  The existing unsupported-claim warning remains explicit. These checks are
+  test, static, and runtime evidence, not proof.

@@ -161,6 +161,31 @@ scripts/experiments/0002-capability-wall.ts` ran configured Oxlint against a
   artifact, tag it `review-only` visibly rather than inventing tooling.
 - Rationale: direct mechanization of the run's clearest lesson —
   enforcement claims cite artifacts, never prose.
+- Runnable Bun command (parent validation): `nix develop --command bun
+scripts/experiments/0003-enforcement-register.ts`.
+- Observation (2026-08-03): the isolated Bun experiment copied only the
+  configured source, model, generated, application, test, documentation, and
+  gate-support paths into four fresh temporary repositories. It reused the
+  pinned `node_modules` tree through a directory symlink; seeded writes stayed
+  inside each temporary fixture. The run seeded one Oxfmt formatting failure,
+  one unused-disable Oxlint warning, one invalid `work.phase` model
+  entity, and one generated `README.md` drift. Every pinned command exited `1`
+  with its exact diagnostic marker. Scoped release removed every fixture. The
+  scanned repository tree remained byte-identical outside `.git`, `.omp`,
+  `.references`, `.research-cache`, and `node_modules`.
+- The same run observed ten files under `generated/`, five entries in
+  `references/sources.lock.json`, and
+  `model/execution/inventory-tracer.json`. It found no positional `line`,
+  `offset`, `address`, `position`, `ordinal`, or `span` field. This is a
+  bounded observation over those canonical documents, not proof about future
+  schemas, dynamic values, or unscanned consumers.
+- The exported `ValidationIssue` registry contains twelve finite codes. The
+  fixture-driven test derives each negative case from the loaded canonical
+  project graph, observes that emitted codes are registered, and observes that
+  every registry row has a producing fixture. The register contains
+  artifact-backed entries and explicit `review-only` entries where prose has no
+  plausible enforcing artifact; it does not upgrade tests, static diagnostics,
+  or runtime checks to proof.
 
 ## Mapped to existing frontiers (no new experiment)
 
