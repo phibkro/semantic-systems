@@ -122,7 +122,7 @@ const EXPECTED_RENDERED_CLAIMS: ReadonlyMap<string, ExpectedClaim> = new Map<str
         kind: "exclusive_path",
         path: ".githooks/pre-commit",
         executable: true,
-        contentDigest: "sha256:4b6ec95888f63d669073b6ca3928d9b711f67245960b59953f08b4d63bc09e70",
+        contentDigest: "sha256:3413f511294165176a19cb354185a8b9dc6847b6bddddce32d1c5befa657575f",
       },
     ],
     [
@@ -266,6 +266,16 @@ if (!sameJson(provenance.configuration?.allowedTypes, REQUIRED_ALLOWED_TYPES)) {
 }
 if (!sameJson(provenance.configuration?.sourceGlobs, REQUIRED_SOURCE_GLOBS)) {
   problems.push(`configuration.sourceGlobs does not match the required ordered materialization.`);
+}
+
+const preCommitPath = resolve(root, ".githooks/pre-commit");
+if (existsSync(preCommitPath)) {
+  const materializedPattern = `const scriptPattern = /\\.(?:${REQUIRED_SOURCE_GLOBS.map((glob) => glob.slice(2)).join("|")})$/;`;
+  if (!readFileSync(preCommitPath, "utf8").includes(materializedPattern)) {
+    problems.push(
+      `configuration.sourceGlobs is not materialized by .githooks/pre-commit as ${materializedPattern}.`,
+    );
+  }
 }
 
 const renderedClaims = Array.isArray(provenance.renderedClaims) ? provenance.renderedClaims : [];

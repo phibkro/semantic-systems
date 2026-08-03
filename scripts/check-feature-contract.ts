@@ -126,6 +126,17 @@ const runGit = (root: string, args: string[]): string => {
   return result.stdout;
 };
 
+const assertCleanCheckedOutHead = (root: string, expected: string): void => {
+  const actual = runGit(root, ["rev-parse", "HEAD"]).trim();
+  if (actual !== expected) {
+    throw new Error(`checked-out HEAD ${actual} does not match feature-contract head ${expected}`);
+  }
+  const trackedStatus = runGit(root, ["status", "--porcelain", "--untracked-files=no"]).trim();
+  if (trackedStatus.length > 0) {
+    throw new Error(`tracked working tree is dirty: ${trackedStatus.replace(/\s*\n\s*/g, ", ")}`);
+  }
+};
+
 export const changedPathsForRange = (
   root: string,
   base: string,
@@ -610,6 +621,7 @@ export const validatePullRequestEvent = (root: string, eventPath: string) =>
       return { base, head, body, featureId };
     });
     const { base, head, featureId } = parsed;
+    yield* attempt(() => assertCleanCheckedOutHead(root, head));
     const changedPaths = yield* changedPathsForRange(root, base, head, "pr");
 
     if (featureId === "trivial") {
@@ -690,6 +702,7 @@ if (import.meta.main) {
       });
     }
     const selection = yield* validatePullRequestEvent(root, resolve(eventPath));
+    yield* attempt(() => assertCleanCheckedOutHead(root, selection.head));
     const migrations =
       selection.contractMigrations === undefined || selection.contractMigrations.length === 0
         ? ""

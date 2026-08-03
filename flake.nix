@@ -87,7 +87,6 @@
                 || name == "dist"
                 || pkgs.lib.hasPrefix "bun-debug-" name
                 || (type == "directory" && name == ".alchemy")
-                || (type == "directory" && name == ".omp")
                 || (type == "directory" && name == "test-results")
                 || (type == "directory" && name == "playwright-report")
                 || (type == "directory" && pkgs.lib.hasSuffix ".egg-info" name)

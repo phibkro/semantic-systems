@@ -49,7 +49,7 @@
       "path": ".githooks/pre-commit",
       "kind": "exclusive_path",
       "executable": true,
-      "contentDigest": "sha256:4b6ec95888f63d669073b6ca3928d9b711f67245960b59953f08b4d63bc09e70"
+      "contentDigest": "sha256:3413f511294165176a19cb354185a8b9dc6847b6bddddce32d1c5befa657575f"
     },
     {
       "claimId": "commitlint-config",

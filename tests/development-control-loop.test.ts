@@ -300,6 +300,8 @@ describe("autonomous development control loop", () => {
     await Bun.write(fixture.event, JSON.stringify(payload));
     const acceptance = join(fixture.repo, "scripts", "accept", "0005-fixture.ts");
     await Bun.spawn(["chmod", "0644", acceptance]).exited;
+    payload.pull_request.head.sha = commit(fixture.repo, "test: make acceptance non-executable");
+    await Bun.write(fixture.event, JSON.stringify(payload));
     const mode = runFeatureTool(FEATURE_POLICY, fixture.repo, "--event", fixture.event);
     expect(mode.exitCode).not.toBe(0);
     expect(text(mode).toLowerCase()).toContain("executable");
@@ -763,6 +765,10 @@ describe("autonomous development control loop", () => {
   test("rejects a tracked-dirty checkout before dispatching acceptance", async () => {
     const fixture = await featureFixture();
     await Bun.write(join(fixture.repo, "README.md"), "dirty tracked checkout\n");
+    const contract = runFeatureTool(FEATURE_POLICY, fixture.repo, "--event", fixture.event);
+    expect(contract.exitCode).not.toBe(0);
+    expect(text(contract)).toContain("tracked working tree is dirty");
+    expect(text(contract)).toContain("README.md");
 
     const result = runFeatureTool(
       FEATURE_RUNNER,
@@ -1285,7 +1291,6 @@ process.exit(2);
       "build",
       "dist",
       ".alchemy",
-      ".omp",
       "test-results",
       "playwright-report",
     ]) {

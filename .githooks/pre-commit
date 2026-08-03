@@ -77,8 +77,6 @@ for (const file of files) {
     if (diffResult.exitCode === 1) {
       console.error(`pre-commit: ${file} has both staged and unstaged changes.`);
       console.error("Stage the exact artifact to validate, then commit again.");
-    } else if (diffResult.stderr.length > 0) {
-      process.stderr.write(diffResult.stderr);
     }
     process.exit(diffExitCode);
   }

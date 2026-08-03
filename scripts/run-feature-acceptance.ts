@@ -172,6 +172,7 @@ const dispatchFeatures = (root: string, head: string, features: ReadonlyArray<Fe
         );
         const failure = runAcceptance(root, feature.featureId, feature.acceptance.path);
         if (failure !== undefined) failures.push(failure);
+        yield* assertCheckedOutHead(root, head);
         continue;
       }
       nonRunnable += 1;
