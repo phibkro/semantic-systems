@@ -31,6 +31,7 @@ const portableKernelCalculus = { filename: "src/kernel-calculus/machine.ts" };
 const portableNormalizedCore = { filename: "src/normalized-core/normalize.ts" };
 const normalizedCoreBunMain = { filename: "src/normalized-core/main-bun.ts" };
 const normalizedCoreNodeMain = { filename: "src/normalized-core/main-node.ts" };
+const javascriptSourceExtensions = [".js", ".jsx", ".mjs", ".cjs"] as const;
 
 const computedStringMemberExpr = (object: string, property: string) => ({
   ...Testing.computedMemberExpr(object, property),
@@ -183,6 +184,7 @@ describe("Semantic Systems Effect Oxlint rules", () => {
     ];
     for (const source of [
       "node:fs/promises",
+      "node:future-runtime",
       "fs",
       "fs/promises",
       "bun",
@@ -224,6 +226,27 @@ describe("Semantic Systems Effect Oxlint rules", () => {
           source: Testing.strLiteral("node:path"),
         },
       ],
+      [
+        "CallExpression",
+        {
+          ...Testing.callExpr("unused", [Testing.strLiteral("node:fs")]),
+          callee: Testing.memberExpr("globalThis", "require"),
+        },
+      ],
+      [
+        "CallExpression",
+        {
+          ...Testing.callExpr("unused", [Testing.strLiteral("node:fs")]),
+          callee: {
+            ...Testing.memberExpr("unused", "require"),
+            object: {
+              type: "MetaProperty",
+              meta: Testing.id("import"),
+              property: Testing.id("meta"),
+            },
+          },
+        },
+      ],
       ["CallExpression", Testing.callExpr("require", [Testing.strLiteral("fs/promises")])],
     ] as const) {
       Testing.expectDiagnostics(runPortableRuntime([[visitor, node]]), expected);
@@ -232,6 +255,20 @@ describe("Semantic Systems Effect Oxlint rules", () => {
       runPortableRuntime(
         [["CallExpression", Testing.callExpr("require", [Testing.strLiteral("fs")])]],
         ["require"],
+      ),
+    );
+    Testing.expectNoDiagnostics(
+      runPortableRuntime(
+        [
+          [
+            "CallExpression",
+            {
+              ...Testing.callExpr("unused", [Testing.strLiteral("fs")]),
+              callee: Testing.memberExpr("globalThis", "require"),
+            },
+          ],
+        ],
+        ["globalThis"],
       ),
     );
     for (const source of ["effect", "@effect/platform", "@effect/platform-bunny"]) {
@@ -678,8 +715,16 @@ describe("Semantic Systems Effect Oxlint rules", () => {
           callee: Testing.memberExpr("globalThis", "Date"),
         },
       ],
+      ["CallExpression", Testing.callExpr("Date")],
+      [
+        "CallExpression",
+        {
+          ...Testing.callExpr("unused"),
+          callee: Testing.memberExpr("globalThis", "Date"),
+        },
+      ],
     ]);
-    expect(diagnostics).toHaveLength(7);
+    expect(diagnostics).toHaveLength(9);
   });
 
   test("portable modules reject ambient timer scheduling", () => {
@@ -724,6 +769,14 @@ describe("Semantic Systems Effect Oxlint rules", () => {
             "NewExpression",
             {
               ...Testing.newExpr("unused"),
+              callee: Testing.memberExpr("globalThis", "Date"),
+            },
+          ],
+          ["CallExpression", Testing.callExpr("Date")],
+          [
+            "CallExpression",
+            {
+              ...Testing.callExpr("unused"),
               callee: Testing.memberExpr("globalThis", "Date"),
             },
           ],
@@ -835,16 +888,19 @@ describe("Semantic Systems Effect Oxlint rules", () => {
     const root = resolve(import.meta.dirname, "..");
     const sourceRoot = resolve(root, "src");
     const sourcePaths: Array<string> = [];
+    const javascriptSourcePaths: Array<string> = [];
     const visit = (directory: string): void => {
       for (const entry of readdirSync(directory, { withFileTypes: true })) {
         const path = resolve(directory, entry.name);
         if (entry.isDirectory()) {
           visit(path);
-        } else if (
-          entry.isFile() &&
-          semanticSourceExtensions.some((extension) => path.endsWith(extension))
-        ) {
-          sourcePaths.push(path.slice(root.length + 1).replaceAll("\\", "/"));
+        } else if (entry.isFile()) {
+          const repositoryPath = path.slice(root.length + 1).replaceAll("\\", "/");
+          if (semanticSourceExtensions.some((extension) => path.endsWith(extension))) {
+            sourcePaths.push(repositoryPath);
+          } else if (javascriptSourceExtensions.some((extension) => path.endsWith(extension))) {
+            javascriptSourcePaths.push(repositoryPath);
+          }
         }
       }
     };
@@ -853,6 +909,7 @@ describe("Semantic Systems Effect Oxlint rules", () => {
 
     expect(sourcePaths.length).toBeGreaterThan(0);
     expect(new Set(sourcePaths).size).toBe(sourcePaths.length);
+    expect(javascriptSourcePaths).toEqual([]);
 
     const sourceSet = new Set(sourcePaths);
     const adapterPaths = new Set(
@@ -868,6 +925,7 @@ describe("Semantic Systems Effect Oxlint rules", () => {
       ).toHaveLength(1);
     }
 
+    let scannedImportCount = 0;
     for (const path of sourcePaths) {
       const matches = adapterExceptionRegister.filter(({ pathPattern }) => pathPattern === path);
       const classification = classifySourcePath(path);
@@ -877,6 +935,7 @@ describe("Semantic Systems Effect Oxlint rules", () => {
       if (classification === "portable") {
         const sourceFile = resolve(root, path);
         for (const imported of scanner.scanImports(readFileSync(sourceFile, "utf8"))) {
+          scannedImportCount += 1;
           if (!imported.path.startsWith(".")) {
             expect(isRuntimeModuleSpecifier(imported.path)).toBeFalse();
             continue;
@@ -894,6 +953,7 @@ describe("Semantic Systems Effect Oxlint rules", () => {
         }
       }
     }
+    expect(scannedImportCount).toBeGreaterThan(0);
 
     expect(sourcePaths.filter((path) => classifySourcePath(path) === "adapter")).toHaveLength(
       adapterExceptionRegister.length,

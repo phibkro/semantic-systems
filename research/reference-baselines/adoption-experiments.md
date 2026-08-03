@@ -128,7 +128,7 @@ demo` and emits human-readable evidence summaries. It does not emit or
   these two narrower rules.
 - `nix develop --command bun
 scripts/experiments/0002-capability-wall.ts` ran configured Oxlint against a
-  temporary canonical source fixture. It observed 17 expected diagnostics
+  temporary canonical source fixture. It observed 21 expected diagnostics
   across all six rules. A lexical-service fixture and both STM runtime
   adapters emitted no `semantic-effect` diagnostics. The script removed its
   fixture.
@@ -185,6 +185,6 @@ Preconditions recorded now so the deferral is falsifiable, not forgotten:
 
 ## Next experiment
 
-RX3. RX2 is complete and RX5 is N/A at the current tracer boundary. The
-capability-wall experiment can now test whether portable modules expose or
-reject ambient effects without claiming open effect rows.
+RX4. RX1-RX3 are complete, and RX5 is N/A at the current tracer boundary.
+The enforcement-register experiment can now bind each repository claim to a
+generated, static, tested, runtime-checked, or review-only mechanism.

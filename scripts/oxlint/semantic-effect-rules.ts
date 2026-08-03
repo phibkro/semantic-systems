@@ -15,6 +15,7 @@ const isPackageOrSubpath = (specifier: string, packageName: string): boolean =>
   specifier === packageName || specifier.startsWith(`${packageName}/`);
 
 export const isRuntimeModuleSpecifier = (specifier: string): boolean =>
+  specifier.startsWith("node:") ||
   isBuiltin(specifier) ||
   specifier === "bun" ||
   specifier.startsWith("bun:") ||
@@ -305,6 +306,24 @@ export const portableRuntimeImports = Rule.define({
         ? runtimeModuleReport(node)
         : Effect.void;
     };
+    const isAmbientRequireCall = (
+      callee: Parameters<typeof AST.matchCallOf>[0]["callee"],
+    ): boolean => {
+      if (callee.type === "Identifier") {
+        return callee.name === "require" && isAmbientReference(ctx, callee);
+      }
+      if (callee.type !== "MemberExpression" || staticPropertyName(callee) !== "require") {
+        return false;
+      }
+      if (callee.object.type === "MetaProperty") {
+        return callee.object.meta.name === "import" && callee.object.property.name === "meta";
+      }
+      return (
+        callee.object.type === "Identifier" &&
+        callee.object.name === "globalThis" &&
+        isAmbientReference(ctx, callee.object)
+      );
+    };
     return yield* Visitor.filter(
       portableSemanticProgram,
       Visitor.merge(
@@ -317,11 +336,9 @@ export const portableRuntimeImports = Rule.define({
         Visitor.on("CallExpression", (node) => {
           const argument = node.arguments[0];
           const source = stringLiteralValue(argument);
-          return node.callee.type === "Identifier" &&
-            node.callee.name === "require" &&
-            source !== undefined &&
+          return source !== undefined &&
             isRuntimeModuleSpecifier(source) &&
-            isAmbientReference(ctx, node.callee)
+            isAmbientRequireCall(node.callee)
             ? runtimeModuleReport(node)
             : Effect.void;
         }),
@@ -505,6 +522,13 @@ export const ambientNondeterminism = Rule.define({
       Visitor.merge(
         Visitor.on("CallExpression", (node) => {
           if (node.callee.type === "Identifier") {
+            if (node.callee.name === "Date" && isAmbientReference(ctx, node.callee)) {
+              return report(
+                ctx,
+                node,
+                "Use Effect Clock instead of constructing the ambient current time",
+              );
+            }
             if (isAmbientTimerName(node.callee.name) && isAmbientReference(ctx, node.callee)) {
               return report(ctx, node, "Use Effect Clock instead of ambient timer scheduling");
             }
@@ -539,6 +563,12 @@ export const ambientNondeterminism = Rule.define({
           ) {
             message =
               "Use Effect Clock, Random, or Crypto services instead of ambient nondeterminism";
+          } else if (
+            normalizedLength === 1 &&
+            memberRoot.name === "globalThis" &&
+            capability === "Date"
+          ) {
+            message = "Use Effect Clock instead of constructing the ambient current time";
           } else if (
             normalizedLength === 1 &&
             memberRoot.name === "globalThis" &&

@@ -22,9 +22,9 @@ const OxlintReportSchema = Schema.Struct({
 });
 
 const expectedRuleCounts = new Map<string, number>([
-  ["semantic-effect(portable-runtime-imports)", 6],
+  ["semantic-effect(portable-runtime-imports)", 8],
   ["semantic-effect(ambient-console)", 1],
-  ["semantic-effect(ambient-nondeterminism)", 7],
+  ["semantic-effect(ambient-nondeterminism)", 9],
   ["semantic-effect(effect-runtime-boundary)", 1],
   ["semantic-effect(schema-json-boundary)", 1],
   ["semantic-effect(typed-failure-boundary)", 1],
@@ -38,8 +38,12 @@ export { sep } from "node:path";
 
 void import("node:child_process");
 void require("bun:sqlite");
+void globalThis["require"]("node:fs");
+void import.meta.require("node:fs");
 console.log(globalThis["process"].env["HOME"]);
 void globalThis["Date"].now();
+void Date();
+void globalThis["Date"]();
 void globalThis["Math"].random();
 void globalThis["performance"].now();
 void new globalThis["Date"]();
@@ -54,7 +58,10 @@ throw new Error("never executed");
 
 const controlSource = `type LocalServices = {
   readonly process: { readonly env: Readonly<Record<string, string>> };
-  readonly globalThis: { readonly Date: { readonly now: () => number } };
+  readonly globalThis: {
+    readonly Date: { readonly now: () => number };
+    readonly require: (specifier: string) => unknown;
+  };
   readonly require: (specifier: string) => unknown;
   readonly console: { readonly log: (value: unknown) => void };
 };
@@ -63,6 +70,7 @@ export const useLocalServices = (services: LocalServices): unknown => {
   const { process, globalThis, require, console } = services;
   console.log(process.env["HOME"]);
   void globalThis.Date.now();
+  void globalThis.require("fs");
   return require("fs");
 };
 `;
