@@ -1296,6 +1296,7 @@ process.exit(2);
     ]) {
       expect(flake).toContain(`name == "${directory}"`);
     }
+    expect(flake).not.toContain('name == ".omp"');
     expect(flake).toContain('pkgs.lib.hasSuffix ".egg-info" name');
     expect(flake).toContain('baseNameOf (builtins.dirOf path) == "public"');
     expect(flake).toContain('name == "data"');

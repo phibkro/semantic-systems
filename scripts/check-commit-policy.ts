@@ -269,7 +269,11 @@ if (!sameJson(provenance.configuration?.sourceGlobs, REQUIRED_SOURCE_GLOBS)) {
 }
 
 const preCommitPath = resolve(root, ".githooks/pre-commit");
-if (existsSync(preCommitPath)) {
+if (!existsSync(preCommitPath)) {
+  problems.push(
+    `configuration.sourceGlobs cannot be materialized: .githooks/pre-commit is missing.`,
+  );
+} else {
   const materializedPattern = `const scriptPattern = /\\.(?:${REQUIRED_SOURCE_GLOBS.map((glob) => glob.slice(2)).join("|")})$/;`;
   if (!readFileSync(preCommitPath, "utf8").includes(materializedPattern)) {
     problems.push(

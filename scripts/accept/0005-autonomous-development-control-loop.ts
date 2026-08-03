@@ -9,7 +9,7 @@ const cacheRoot = resolve(process.env.TMPDIR ?? "/tmp", "semantic-systems-accept
 const environment = { ...process.env, XDG_CACHE_HOME: cacheRoot };
 
 const program = Effect.gen(function* () {
-  for (const tool of ["actionlint", "bun", "git"]) yield* requireTool(label, tool);
+  for (const tool of ["actionlint", "bun"]) yield* requireTool(label, tool);
   for (const command of [
     ["bun", "test", "tests/development-control-loop.test.ts"],
     ["actionlint", ".github/workflows/check.yml"],

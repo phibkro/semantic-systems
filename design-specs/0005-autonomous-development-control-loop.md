@@ -9,6 +9,8 @@ operator feedback
 
 Design-Lens-Version: open-semantic-system-v1
 
+Migrates-Feature-IDs: 0007-reuse-first-engineering
+
 ## User journey
 
 The operator delegates an outcome and can observe its contract and progress
