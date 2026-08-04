@@ -9,8 +9,8 @@ setup:
 check:
     bun scripts/check.ts check
 
-verify:
-    bun scripts/check.ts verify
+verify feature="":
+    bun scripts/check.ts verify "$feature"
 
 start feature:
     bun scripts/check.ts start "$1"

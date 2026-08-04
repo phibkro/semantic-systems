@@ -95,6 +95,7 @@ export const RepairPolicySchema = Schema.Struct({
   allowed_effects: Schema.Array(RepairEffectSchema),
   oxfmt_output_paths: AffectedPathsSchema,
   oxlint_output_paths: AffectedPathsSchema,
+  generated_view_input_paths: AffectedPathsSchema,
   generated_view_output_paths: AffectedPathsSchema,
   max_attempts: Schema.optionalKey(attemptNumber),
 });
@@ -386,14 +387,21 @@ const asReceipt = ({
   if (idempotent !== undefined) return Object.freeze({ ...base, idempotent });
   return Object.freeze(base);
 };
+const pathMatches = (path: string, root: string): boolean =>
+  path === root || path.startsWith(`${root}/`);
+
+const pathsIntersect = (
+  left: ReadonlyArray<string>,
+  right: ReadonlyArray<string>,
+): boolean =>
+  left.some((candidate) =>
+    right.some((affected) => pathMatches(candidate, affected) || pathMatches(affected, candidate)),
+  );
 
 const hasUnknownAffectedPath = (
   affectedPaths: ReadonlyArray<string>,
   knownPaths: ReadonlyArray<string>,
-): boolean => {
-  const known = new Set(knownPaths);
-  return affectedPaths.some((path) => !known.has(path));
-};
+): boolean => !affectedPaths.every((path) => knownPaths.some((known) => pathMatches(path, known)));
 
 const mergeChecks = (
   checks: ReadonlyArray<ImpactCheck>,
@@ -430,6 +438,32 @@ const repairOutputPaths = (effect: RepairEffect, policy: RepairPolicy): Readonly
   }
 };
 
+/**
+ * Selects the bounded output set for one repair effect.
+ *
+ * Generated projections are different from ordinary fixers: a canonical input
+ * change may affect any declared projection, even when no projection is dirty
+ * yet. The policy's explicit input allowlist is the only trigger for that
+ * expansion; unrelated paths can select only already-dirty declared outputs.
+ */
+export const selectRepairOutputPaths = (
+  effect: RepairEffect,
+  affectedPaths: ReadonlyArray<string>,
+  policy: RepairPolicy,
+): ReadonlyArray<string> => {
+  const declared = repairOutputPaths(effect, policy);
+  if (effect === "generated_view_regeneration") {
+    const generatedInputChanged = pathsIntersect(
+      policy.generated_view_input_paths,
+      affectedPaths,
+    );
+    const generatedOutputChanged = pathsIntersect(declared, affectedPaths);
+    if (generatedInputChanged || generatedOutputChanged) return freezePaths(declared);
+    return [];
+  }
+  return freezePaths(declared.filter((path) => affectedPaths.includes(path)));
+};
+
 const repairCommand = (effect: RepairEffect): { readonly id: string; readonly command: string } => {
   switch (effect) {
     case "oxfmt_write":
@@ -452,8 +486,7 @@ const buildRepairPlans = (
   const allowed = new Set(policy.allowed_effects);
   for (const effect of ["oxfmt_write", "oxlint_safe_fix", "generated_view_regeneration"] as const) {
     if (!allowed.has(effect)) continue;
-    const declared = repairOutputPaths(effect, policy);
-    const selected = declared.filter((path) => affectedPaths.includes(path));
+    const selected = selectRepairOutputPaths(effect, affectedPaths, policy);
     if (selected.length === 0) continue;
     const command = repairCommand(effect);
     plans.push(asCommandPlan(command.id, command.command, "repair", effect, selected, selected));
@@ -655,16 +688,15 @@ const evaluateSetup = (input: SetupInput): Effect.Effect<WorkflowReceipt, Workfl
 const evaluateCheck = (input: CheckInput): Effect.Effect<WorkflowReceipt, WorkflowError> =>
   Effect.gen(function* () {
     const affectedPaths = uniqueSorted([...input.affected_paths, ...input.tree.changed_paths]);
-    const unknownAffectedPath = hasUnknownAffectedPath(
-      affectedPaths,
-      input.impact_graph.known_paths,
-    );
+    const unknownAffectedPath =
+      !input.tree.tracked ||
+      hasUnknownAffectedPath(affectedPaths, input.impact_graph.known_paths);
     const selectedChecks = yield* mergeChecks([
       ...input.impact_graph.always_checks,
       ...(unknownAffectedPath
         ? input.impact_graph.full_checks
         : input.impact_graph.affected_checks.filter((check) =>
-            check.paths.some((path) => affectedPaths.includes(path)),
+            pathsIntersect(check.paths, affectedPaths),
           )),
     ]);
     const checkPlans = selectedChecks.map((check) =>
@@ -803,24 +835,24 @@ const evaluateStart = (input: StartInput): Effect.Effect<WorkflowReceipt, Workfl
         `git branch ${input.requested_branch} ${input.requested_base}`,
         "mutate",
         "create_branch",
-        [],
-        [],
+        [`.git/refs/heads/${input.requested_branch}`],
+        [`.git/refs/heads/${input.requested_branch}`],
       ),
       asCommandPlan(
         "start:lease",
         `acquire local lease ${input.requested_lease}`,
         "mutate",
         "acquire_lease",
-        [],
-        [],
+        [input.requested_lease],
+        [input.requested_lease],
       ),
       asCommandPlan(
         "start:worktree",
         `git worktree add ${input.requested_worktree} ${input.requested_branch}`,
         "mutate",
         "create_worktree",
-        [],
-        [],
+        [input.requested_worktree],
+        [input.requested_worktree],
       ),
     ].sort((left, right) => compareText(left.id, right.id));
     if (input.command_observations.length === 0) {

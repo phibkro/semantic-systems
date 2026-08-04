@@ -7,10 +7,13 @@ class WorkflowCommandError extends Data.TaggedError("WorkflowCommandError")<{
 }> {}
 
 const requested = Bun.argv[2] ?? "check";
-const featureId = Bun.argv[3];
+const featureId = Bun.argv[3] === "" ? undefined : Bun.argv[3];
 const program =
   requested === "setup" || requested === "check" || requested === "verify" || requested === "start"
-    ? runWorkflow(requested, requested === "start" ? featureId : undefined)
+    ? runWorkflow(
+        requested,
+        requested === "start" || requested === "verify" ? featureId : undefined,
+      )
     : Effect.fail(new WorkflowCommandError({ message: `unknown workflow command ${requested}` }));
 
 runMain(`workflow:${requested}`, program);
