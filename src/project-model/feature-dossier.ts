@@ -545,13 +545,8 @@ const verifyArtifactContentHashes = (
     }
   });
 
-const lastPathSegment = (path: string): string => {
-  const segments = path.split("/");
-  return segments[segments.length - 1] ?? "";
-};
-
-const directoryIdentity = (directory: string): string =>
-  lastPathSegment(directory.replace(/\/$/, ""));
+const artifactPathBelongsToDirectory = (path: string, directory: string): boolean =>
+  path.startsWith(`${directory}/`) && path.length > directory.length + 1;
 
 const artifactKey = (kind: ArtifactKind, path: string): string => `${kind}\u0000${path}`;
 
@@ -588,7 +583,6 @@ const expectedArtifactKind = (transition: TransitionKind): ArtifactKind | undefi
 };
 
 const roleAllowed = (transition: TransitionKind, role: AuthorityRole): boolean => {
-  if (role === "operator") return true;
   switch (transition) {
     case "proposal_accepted":
     case "research_accepted":
@@ -858,6 +852,29 @@ const sourceForArtifactKind = (
   kind: ArtifactKind,
 ): ReadonlyArray<SourceIdentity> =>
   sortSources(artifacts.filter((artifact) => artifact.kind === kind).map(sourceArtifact));
+const providerObservationMatchesRequest = (
+  request: ProviderRequest,
+  observation: ProviderObservation,
+  candidateRevision: string | undefined,
+): boolean => {
+  if (
+    observation.outcome !== "success" ||
+    observation.request_id !== request.request_id ||
+    observation.feature_id !== request.feature_id ||
+    observation.action !== request.action
+  ) {
+    return false;
+  }
+  if (
+    request.revision !== undefined &&
+    candidateRevision !== undefined &&
+    request.revision !== candidateRevision
+  ) {
+    return false;
+  }
+  const expectedRevision = request.revision ?? candidateRevision;
+  return expectedRevision === undefined || observation.revision === expectedRevision;
+};
 
 const deriveLifecycle = (
   artifacts: ReadonlyArray<DossierArtifact>,
@@ -966,13 +983,31 @@ const deriveLifecycle = (
     git.candidate_revision === undefined ||
     candidateRevision === undefined ||
     git.candidate_revision === candidateRevision;
-  const providerObservationByRequest = new Map(
-    providerObservations
-      .filter(
-        (observation) => observation.outcome === "success" && observation.request_id !== undefined,
+  const providerObservationByRequest = new Map<string, ProviderObservation>();
+  for (const request of providerRequests) {
+    const matchingObservation = providerObservations.find((observation) =>
+      providerObservationMatchesRequest(request, observation, candidateRevision),
+    );
+    if (matchingObservation !== undefined) {
+      providerObservationByRequest.set(request.request_id, matchingObservation);
+    }
+  }
+  for (const observation of providerObservations) {
+    if (
+      observation.outcome === "success" &&
+      !providerRequests.some((request) =>
+        providerObservationMatchesRequest(request, observation, candidateRevision),
       )
-      .map((observation) => [observation.request_id!, observation]),
-  );
+    ) {
+      diagnostics.push({
+        code: "provider.invalid_observation",
+        path: "/observations/provider/observations",
+        message:
+          "successful provider observation does not match a request by request ID, feature ID, action, and revision",
+        source: sourceProvider(observation),
+      });
+    }
+  }
   const providerRequestsComplete = providerRequests.every((request) =>
     providerObservationByRequest.has(request.request_id),
   );
@@ -1086,11 +1121,12 @@ const compileUnknown = (input: unknown): FeatureDossierArtifact | FeatureDossier
   if (decodedInput.error !== undefined || decodedInput.value === undefined)
     return decodedInput.error!;
   const value = decodedInput.value;
-  if (directoryIdentity(value.directory) !== value.feature_id) {
+  const expectedDirectory = `features/${value.feature_id}`;
+  if (value.directory !== expectedDirectory) {
     return error(
       "directory_identity_mismatch",
       "/directory",
-      `directory basename ${directoryIdentity(value.directory)} does not match feature ID ${value.feature_id}`,
+      `dossier directory must be exactly ${expectedDirectory}`,
     );
   }
 
@@ -1105,6 +1141,13 @@ const compileUnknown = (input: unknown): FeatureDossierArtifact | FeatureDossier
     );
     if (decoded.error !== undefined || decoded.value === undefined) return decoded.error!;
     const artifact = decoded.value;
+    if (!artifactPathBelongsToDirectory(artifact.path, expectedDirectory)) {
+      return error(
+        "invalid_artifact",
+        `/artifacts/${index}/path`,
+        `artifact path must remain under dossier directory ${expectedDirectory}`,
+      );
+    }
     if (artifact.metadata.feature_id !== value.feature_id) {
       return error(
         "feature_id_mismatch",
@@ -1159,10 +1202,7 @@ const compileUnknown = (input: unknown): FeatureDossierArtifact | FeatureDossier
         "historical import feature ID does not match the dossier feature ID",
       );
     }
-    if (
-      historical.approved_by.role !== "migration_operator" &&
-      historical.approved_by.role !== "operator"
-    ) {
+    if (historical.approved_by.role !== "migration_operator") {
       return error(
         "invalid_historical_import",
         `/historical_imports/${index}/approved_by/role`,

@@ -285,6 +285,28 @@ describe("feature dossier compiler", () => {
     ).toHaveLength(2);
   });
 
+  test("does not let operator authority bypass the transition-specific matrix", async () => {
+    const receipts = fullReceipts().map((value) =>
+      value.receipt_id === "r-candidate"
+        ? { ...value, issuer: { ...value.issuer, role: "operator" } }
+        : value,
+    );
+    const result = await run({ ...baseInput(), receipts });
+
+    expect(result.receipts.find((value) => value.receipt_id === "r-candidate")?.status).toBe(
+      "rejected",
+    );
+    expect(
+      result.diagnostics.some(
+        (value) =>
+          value.code === "receipt.unauthorized_role" &&
+          value.path === "/receipts/r-candidate",
+      ),
+    ).toBeTrue();
+    expect(result.lifecycle.phase.value).toBe("verification");
+    expect(result.lifecycle.readiness.value).toBe("implementation_review_ready");
+  });
+
   test("rejects unknown fields and bad versions at the schema boundary", async () => {
     const unknownFieldExit = await failure({ ...baseInput(), unexpected: true });
     expect(unknownFieldExit.code).toBe("invalid_input");
@@ -299,6 +321,43 @@ describe("feature dossier compiler", () => {
       ],
     });
     expect(badVersionExit.code).toBe("invalid_artifact");
+  });
+
+  test("requires the canonical dossier directory and rejects outside artifact paths", async () => {
+    const basenameOnly = await failure({
+      ...baseInput(),
+      directory: `archive/${featureId}`,
+    });
+    expect(basenameOnly.code).toBe("directory_identity_mismatch");
+
+    const trailingSlash = await failure({
+      ...baseInput(),
+      directory: `${directory}/`,
+    });
+    expect(trailingSlash.code).toBe("directory_identity_mismatch");
+
+    for (const path of [
+      `design-specs/${featureId}.md`,
+      `plans/active/${featureId}.md`,
+      `model/work/features/${featureId}.json`,
+      `scripts/accept/${featureId}.ts`,
+    ]) {
+      const outside = await failure({
+        ...baseInput(),
+        artifacts: artifacts.map((value, index) =>
+          index === 0 ? { ...value, path } : value,
+        ),
+      });
+      expect(outside.code).toBe("invalid_artifact");
+    }
+
+    const escaped = await failure({
+      ...baseInput(),
+      artifacts: artifacts.map((value, index) =>
+        index === 0 ? { ...value, path: `${directory}/../outside/proposal.md` } : value,
+      ),
+    });
+    expect(escaped.code).toBe("invalid_artifact");
   });
 
   test("preserves historical evidence without authorizing a transition", async () => {
@@ -336,6 +395,31 @@ describe("feature dossier compiler", () => {
     expect(result.historical_imports[0]?.unsupported_claims).toEqual([
       "legacy status was not independently reviewed",
     ]);
+    const operatorExit = await failure({
+      ...baseInput(),
+      receipts: [],
+      historical_imports: [
+        {
+          format: FEATURE_HISTORICAL_IMPORT_FORMAT,
+          import_id: "legacy-operator",
+          feature_id: featureId,
+          artifacts: [
+            {
+              path: "design-specs/legacy.md",
+              sha256: digest("2"),
+              status: "complete",
+              evidence_categories: ["analysis", "runtime_check"],
+              completion_evidence: ["legacy acceptance"],
+            },
+          ],
+          integration_revision: "legacy-main",
+          evidence_categories: ["analysis", "runtime_check"],
+          unsupported_claims: ["legacy status was not independently reviewed"],
+          approved_by: { identity: "operator", role: "operator" },
+        },
+      ],
+    });
+    expect(operatorExit.code).toBe("invalid_historical_import");
   });
 
   test("requires a replacement for supersession and preserves terminal delivery semantics", async () => {
@@ -436,6 +520,73 @@ describe("feature dossier compiler", () => {
     expect(
       result.diagnostics.some((value) => value.code === "provider.request_without_observation"),
     ).toBeTrue();
+  });
+
+  test("requires provider observations to match request identity before delivery", async () => {
+    const request = {
+      request_id: "check-request",
+      feature_id: featureId,
+      action: "check" as const,
+      revision: "candidate-1",
+    };
+    const observation = {
+      format: FEATURE_PROVIDER_OBSERVATION_FORMAT,
+      observation_id: "check-observation",
+      request_id: request.request_id,
+      feature_id: featureId,
+      action: request.action,
+      outcome: "success" as const,
+      revision: request.revision,
+      source: "provider.example/checks/1",
+      observed_at: "2026-08-04T00:00:00Z",
+      evidence_category: "runtime_check" as const,
+    };
+    const matching = await run({
+      ...baseInput(),
+      observations: {
+        git: gitObservation(),
+        provider: { requests: [request], observations: [observation] },
+      },
+    });
+    expect(matching.lifecycle.delivery.value).toBe("done");
+
+    const mismatches = [
+      { ...observation, observation_id: "wrong-request", request_id: "other-request" },
+      { ...observation, observation_id: "wrong-action", action: "review" as const },
+      { ...observation, observation_id: "wrong-revision", revision: "candidate-2" },
+    ];
+    for (const mismatchedObservation of mismatches) {
+      const result = await run({
+        ...baseInput(),
+        observations: {
+          git: gitObservation(),
+          provider: { requests: [request], observations: [mismatchedObservation] },
+        },
+      });
+      expect(result.lifecycle.delivery.value).toBe("unmerged");
+      expect(
+        result.diagnostics.some(
+          (value) =>
+            value.code === "provider.invalid_observation" &&
+            value.source?.id === mismatchedObservation.observation_id,
+        ),
+      ).toBeTrue();
+      expect(result.observation_overlay.provider.observations).toContainEqual(
+        mismatchedObservation,
+      );
+    }
+
+    const featureMismatch = await failure({
+      ...baseInput(),
+      observations: {
+        git: gitObservation(),
+        provider: {
+          requests: [request],
+          observations: [{ ...observation, feature_id: "0059-other-feature" }],
+        },
+      },
+    });
+    expect(featureMismatch.code).toBe("feature_id_mismatch");
   });
 
   test("emits deterministic tree-only IR independent of ordering and observations", async () => {
