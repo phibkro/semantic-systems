@@ -1,0 +1,41 @@
+{
+  "format": "semantic.feature-historical-import/v1",
+  "import_id": "historical-import-0058-0005-autonomous-development-control-loop",
+  "feature_id": "0005-autonomous-development-control-loop",
+  "artifacts": [
+    {
+      "path": "design-specs/0005-autonomous-development-control-loop.md",
+      "sha256": "8fd13131c4bf6fa9e8445130769df75c091a41d1a070064d60039794b6a06baa",
+      "status": "in_progress",
+      "evidence_categories": []
+    },
+    {
+      "path": "plans/active/0005-autonomous-development-control-loop.md",
+      "sha256": "39ac9c565c18083f6b75308a29ba25eb721183059a52cc2815ee8ea119d5fd49",
+      "status": "in_progress",
+      "evidence_categories": []
+    },
+    {
+      "path": "model/work/features/0005-autonomous-development-control-loop.json",
+      "sha256": "c6176a320975a56560a9c99cecfa0c2aae9fa33e208232cdc3140dd75a022fa0",
+      "status": "in_progress",
+      "evidence_categories": []
+    },
+    {
+      "path": "scripts/accept/0005-autonomous-development-control-loop.ts",
+      "sha256": "76905a73246ff043d7083a32293455330b04ce51fa1c059d5a45ffccc58c006a",
+      "status": "in_progress",
+      "evidence_categories": []
+    }
+  ],
+  "integration_revision": "0d99b81",
+  "evidence_categories": [],
+  "unsupported_claims": [
+    "Historical status and completion assertions are preserved for inspection only.",
+    "This import does not authorize a new lifecycle transition or establish current runtime, proof, review, merge, provider, or closure evidence."
+  ],
+  "approved_by": {
+    "identity": "operator-approved-migration-0058",
+    "role": "migration_operator"
+  }
+}

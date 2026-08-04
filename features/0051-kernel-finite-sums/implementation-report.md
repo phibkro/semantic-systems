@@ -1,0 +1,90 @@
+---
+format: semantic.feature-artifact/v1
+feature_id: 0051-kernel-finite-sums
+kind: implementation_report
+---
+# Historical source record: 0051-kernel-finite-sums
+
+The following JSON is the verbatim legacy model record retained as historical evidence. Its lifecycle status and completion assertions are not current authority and cannot authorize a transition.
+
+```json
+{
+  "entities": [
+    {
+      "id": "work.kernel-finite-sums",
+      "kind": "work_item",
+      "name": "Add kernel finite sums and case",
+      "summary": "Extend the active kernel pipeline with binary sum values, quantitative case elimination, and explicit version 2 artifacts.",
+      "status": "complete",
+      "tags": ["language", "kernel", "semantics", "interpreter"],
+      "attributes": {
+        "feature_id": "0051-kernel-finite-sums",
+        "feature_loop": "managed",
+        "phase": "validation",
+        "effort": 13,
+        "completion": {
+          "outcome": "positive",
+          "implementation_head": "cbbdda63ca530f9a2b1e7fc34f10a107fb886a40",
+          "integration_head": "cbbdda63ca530f9a2b1e7fc34f10a107fb886a40",
+          "evidence": [
+            {
+              "role": "feature_acceptance",
+              "category": "runtime_check",
+              "method": "runtime_validation",
+              "source": {
+                "kind": "repository_artifact",
+                "path": "plans/completed/0051-kernel-finite-sums.md"
+              },
+              "claim": "feature_acceptance: runtime_validation"
+            },
+            {
+              "role": "integration_test",
+              "category": "test",
+              "method": "test_and_static_analysis",
+              "source": {
+                "kind": "repository_artifact",
+                "path": "plans/completed/0051-kernel-finite-sums.md"
+              },
+              "claim": "integration_gate: test_and_static_analysis"
+            },
+            {
+              "role": "integration_analysis",
+              "category": "analysis",
+              "method": "test_and_static_analysis",
+              "source": {
+                "kind": "repository_artifact",
+                "path": "plans/completed/0051-kernel-finite-sums.md"
+              },
+              "claim": "integration_gate: test_and_static_analysis"
+            },
+            {
+              "role": "independent_review",
+              "category": "assertion",
+              "method": "assertion",
+              "source": { "kind": "authored_assertion" },
+              "claim": "independent_review: assertion"
+            }
+          ]
+        },
+        "acceptance": [
+          "Binary injections and exhaustive case are typed and executable",
+          "Mutually exclusive branch uses join without weakening sequential addition",
+          "All active canonical kernel formats carry exact version 2 identities",
+          "The historical version 1 JSON Schema remains byte-identical",
+          "Bun and Node emit identical checked, normalized, and run observations"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 4,
+          "testability": 5,
+          "reversibility": 3,
+          "integration_independence": 3,
+          "blast_radius": 5,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": []
+}
+```

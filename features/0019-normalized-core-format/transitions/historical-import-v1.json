@@ -1,0 +1,50 @@
+{
+  "format": "semantic.feature-historical-import/v1",
+  "import_id": "historical-import-0058-0019-normalized-core-format",
+  "feature_id": "0019-normalized-core-format",
+  "artifacts": [
+    {
+      "path": "design-specs/0019-normalized-core-format.md",
+      "sha256": "ccf7df4922e624605605fafd645583d60d8352651128b60fddcc0bacacf731e4",
+      "status": "complete",
+      "evidence_categories": ["analysis", "assertion", "runtime_check", "test"]
+    },
+    {
+      "path": "plans/completed/0019-normalized-core-format.md",
+      "sha256": "14b2861001e9967ab6be6a46a41cdc7be759ed0d33a46d0e452a9c117d00d952",
+      "status": "complete",
+      "evidence_categories": ["analysis", "assertion", "runtime_check", "test"]
+    },
+    {
+      "path": "model/work/features/0019-normalized-core-format.json",
+      "sha256": "94e970575970db8d29e8ad6b62ebff4eb3e8fe91758f149bff7b399b74304df0",
+      "status": "complete",
+      "evidence_categories": ["analysis", "assertion", "runtime_check", "test"],
+      "completion_evidence": [
+        "outcome: positive",
+        "implementation_head: a57d853db84e31a2e4ecccdd5506c030d84a59b5",
+        "integration_head: 2959681e01df2acc4ea1318b8ce634b9ccf7d10c",
+        "feature_acceptance: runtime_check; feature_acceptance: runtime_validation",
+        "integration_test: test; integration_gate: test_and_static_analysis",
+        "integration_analysis: analysis; integration_gate: test_and_static_analysis",
+        "independent_review: assertion; independent_review: assertion"
+      ]
+    },
+    {
+      "path": "scripts/accept/0019-normalized-core-format.ts",
+      "sha256": "fb3b7c553491d1bee9ef0441d975ef688ac944921fe1e082227616c62cf30874",
+      "status": "complete",
+      "evidence_categories": ["analysis", "assertion", "runtime_check", "test"]
+    }
+  ],
+  "integration_revision": "0d99b81",
+  "evidence_categories": ["analysis", "assertion", "runtime_check", "test"],
+  "unsupported_claims": [
+    "Historical status and completion assertions are preserved for inspection only.",
+    "This import does not authorize a new lifecycle transition or establish current runtime, proof, review, merge, provider, or closure evidence."
+  ],
+  "approved_by": {
+    "identity": "operator-approved-migration-0058",
+    "role": "migration_operator"
+  }
+}

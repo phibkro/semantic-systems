@@ -1,0 +1,39 @@
+{
+  "format": "semantic.feature-historical-import/v1",
+  "import_id": "historical-import-0058-0004-reference-source-custody",
+  "feature_id": "0004-reference-source-custody",
+  "artifacts": [
+    {
+      "path": "design-specs/0004-reference-source-custody.md",
+      "sha256": "affab6784a043215f9ac1d90ac9264f2f534738d374910bebdf0fc0d5c12583c",
+      "status": "complete",
+      "evidence_categories": ["assertion"]
+    },
+    {
+      "path": "plans/completed/0004-reference-source-custody.md",
+      "sha256": "26610057ce6bf1136865d33341e323338589a51b076ed0be6de726aecf1e2d07",
+      "status": "complete",
+      "evidence_categories": ["assertion"]
+    },
+    {
+      "path": "model/work/features/0004-reference-source-custody.json",
+      "sha256": "e7392d76c5594d0cdf9541200fb31cf5e0aec0873b413fb0f5d52ff31bb70580",
+      "status": "complete",
+      "evidence_categories": ["assertion"],
+      "completion_evidence": [
+        "outcome: positive",
+        "status_basis: assertion; Complete. Deterministic positive and adversarial fixtures, two independent counterexample rounds, the real offline `local.lang-bang` scenario, full repository validation, a generated exact lock, and explicit evidence limits are recorded."
+      ]
+    }
+  ],
+  "integration_revision": "0d99b81",
+  "evidence_categories": ["assertion"],
+  "unsupported_claims": [
+    "Historical status and completion assertions are preserved for inspection only.",
+    "This import does not authorize a new lifecycle transition or establish current runtime, proof, review, merge, provider, or closure evidence."
+  ],
+  "approved_by": {
+    "identity": "operator-approved-migration-0058",
+    "role": "migration_operator"
+  }
+}

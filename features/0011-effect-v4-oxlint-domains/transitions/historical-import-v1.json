@@ -1,0 +1,23 @@
+{
+  "format": "semantic.feature-historical-import/v1",
+  "import_id": "historical-import-0058-0011-effect-v4-oxlint-domains",
+  "feature_id": "0011-effect-v4-oxlint-domains",
+  "artifacts": [
+    {
+      "path": "design-specs/0011-effect-v4-oxlint-domains.md",
+      "sha256": "7d546f220e567c21393afe51456b099a74d6343ea4d6be8b8503185f5df65645",
+      "status": "unknown",
+      "evidence_categories": []
+    }
+  ],
+  "integration_revision": "0d99b81",
+  "evidence_categories": [],
+  "unsupported_claims": [
+    "Historical status and completion assertions are preserved for inspection only.",
+    "This import does not authorize a new lifecycle transition or establish current runtime, proof, review, merge, provider, or closure evidence."
+  ],
+  "approved_by": {
+    "identity": "operator-approved-migration-0058",
+    "role": "migration_operator"
+  }
+}

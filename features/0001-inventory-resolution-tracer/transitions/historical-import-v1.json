@@ -1,0 +1,39 @@
+{
+  "format": "semantic.feature-historical-import/v1",
+  "import_id": "historical-import-0058-0001-inventory-resolution-tracer",
+  "feature_id": "0001-inventory-resolution-tracer",
+  "artifacts": [
+    {
+      "path": "design-specs/0001-inventory-resolution-tracer.md",
+      "sha256": "811f750a44f78ec73124a5c00503c1033f84c3dfc9e6cb45e979bc3006a61b0d",
+      "status": "complete",
+      "evidence_categories": ["assertion"]
+    },
+    {
+      "path": "plans/completed/0001-inventory-resolution-tracer.md",
+      "sha256": "da074f6d15639be7d53335221ed72c96091af4df2b9a6db13d0a42de89bdebe9",
+      "status": "complete",
+      "evidence_categories": ["assertion"]
+    },
+    {
+      "path": "model/work/features/0001-inventory-resolution-tracer.json",
+      "sha256": "f73965826016e0cafbc859a22c364a460870d9a442e8ef10fdf080a7469e97f1",
+      "status": "complete",
+      "evidence_categories": ["assertion"],
+      "completion_evidence": [
+        "outcome: positive",
+        "status_basis: assertion; Complete. The next exposed uncertainty is alpha-equivalent binder identity in `theory-norm-v1`; it remains recorded in `uncertainties/0001-theory-normalization-binders.md`."
+      ]
+    }
+  ],
+  "integration_revision": "0d99b81",
+  "evidence_categories": ["assertion"],
+  "unsupported_claims": [
+    "Historical status and completion assertions are preserved for inspection only.",
+    "This import does not authorize a new lifecycle transition or establish current runtime, proof, review, merge, provider, or closure evidence."
+  ],
+  "approved_by": {
+    "identity": "operator-approved-migration-0058",
+    "role": "migration_operator"
+  }
+}

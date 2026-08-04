@@ -55,9 +55,6 @@ export const VALIDATION_ISSUE_CODE_REGISTRY: ReadonlyArray<ValidationIssueCodeEn
   Object.freeze([
     { code: VALIDATION_ISSUE_CODE.entityKind, severity: "error", producer: "validateProject" },
     { code: VALIDATION_ISSUE_CODE.entityId, severity: "error", producer: "validateProject" },
-    { code: VALIDATION_ISSUE_CODE.workPhase, severity: "error", producer: "validateProject" },
-    { code: VALIDATION_ISSUE_CODE.workAcceptance, severity: "error", producer: "validateProject" },
-    { code: VALIDATION_ISSUE_CODE.workDelegation, severity: "error", producer: "validateProject" },
     { code: VALIDATION_ISSUE_CODE.evidenceType, severity: "error", producer: "validateProject" },
     { code: VALIDATION_ISSUE_CODE.relationKind, severity: "error", producer: "validateProject" },
     { code: VALIDATION_ISSUE_CODE.relationSource, severity: "error", producer: "validateProject" },

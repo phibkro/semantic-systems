@@ -1,0 +1,47 @@
+{
+  "format": "semantic.feature-historical-import/v1",
+  "import_id": "historical-import-0058-0021-pbk-portfolio-control-room",
+  "feature_id": "0021-pbk-portfolio-control-room",
+  "artifacts": [
+    {
+      "path": "design-specs/0021-pbk-portfolio-control-room.md",
+      "sha256": "eb57e166c030354ef19f9c5fc16cf830a5b7b5d875cd2d3b8e71bedb62d6b03a",
+      "status": "complete",
+      "evidence_categories": ["assertion"]
+    },
+    {
+      "path": "plans/completed/0021-pbk-portfolio-control-room.md",
+      "sha256": "5f64605223965a853fa0d06cd56d6d4351ea7d9c6139276d5735b8e6c99c2bb5",
+      "status": "complete",
+      "evidence_categories": ["assertion"]
+    },
+    {
+      "path": "model/work/features/0021-pbk-portfolio-control-room.json",
+      "sha256": "65232aa7dc7147481a8074dbfacb4f3b3583a90a7e5e702ce0435dcc5922daee",
+      "status": "complete",
+      "evidence_categories": ["assertion"],
+      "completion_evidence": [
+        "outcome: positive",
+        "implementation_head: 835412b59b49ebd3c7bf362727f3a2da66c760f8",
+        "integration_head: 8902ba7cd468063ec28385265befdfc45607e5c2",
+        "status_basis: assertion; Status: complete; implementation integrated and locally accepted."
+      ]
+    },
+    {
+      "path": "scripts/accept/0021-pbk-portfolio-control-room.ts",
+      "sha256": "b8c8192a5986311916957c56f1dc2a385130cddbb94e1d2827ae6bcaa0654062",
+      "status": "complete",
+      "evidence_categories": ["assertion"]
+    }
+  ],
+  "integration_revision": "0d99b81",
+  "evidence_categories": ["assertion"],
+  "unsupported_claims": [
+    "Historical status and completion assertions are preserved for inspection only.",
+    "This import does not authorize a new lifecycle transition or establish current runtime, proof, review, merge, provider, or closure evidence."
+  ],
+  "approved_by": {
+    "identity": "operator-approved-migration-0058",
+    "role": "migration_operator"
+  }
+}

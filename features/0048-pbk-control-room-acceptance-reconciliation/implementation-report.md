@@ -1,0 +1,89 @@
+---
+format: semantic.feature-artifact/v1
+feature_id: 0048-pbk-control-room-acceptance-reconciliation
+kind: implementation_report
+---
+# Historical source record: 0048-pbk-control-room-acceptance-reconciliation
+
+The following JSON is the verbatim legacy model record retained as historical evidence. Its lifecycle status and completion assertions are not current authority and cannot authorize a transition.
+
+```json
+{
+  "entities": [
+    {
+      "id": "work.pbk-control-room-acceptance-reconciliation",
+      "kind": "work_item",
+      "name": "Reconcile PBK Control Room acceptance lineage",
+      "summary": "Correct the Roadmap hierarchy and containment projection while preserving frozen portfolio semantics and one acceptance definition.",
+      "status": "complete",
+      "tags": ["pbk-technologies", "control-room", "portfolio", "acceptance"],
+      "attributes": {
+        "feature_id": "0048-pbk-control-room-acceptance-reconciliation",
+        "feature_loop": "managed",
+        "phase": "validation",
+        "effort": 5,
+        "completion": {
+          "outcome": "positive",
+          "implementation_head": "67e6cbf6a1a87d6a49141471573d60ffdc9c055b",
+          "integration_head": "8902ba7cd468063ec28385265befdfc45607e5c2",
+          "evidence": [
+            {
+              "role": "feature_acceptance",
+              "category": "runtime_check",
+              "method": "runtime_validation",
+              "source": {
+                "kind": "repository_artifact",
+                "path": "plans/completed/0048-pbk-control-room-acceptance-reconciliation.md"
+              },
+              "claim": "feature_acceptance: runtime_validation"
+            },
+            {
+              "role": "integration_test",
+              "category": "test",
+              "method": "test_and_static_analysis",
+              "source": {
+                "kind": "repository_artifact",
+                "path": "plans/completed/0048-pbk-control-room-acceptance-reconciliation.md"
+              },
+              "claim": "integration_gate: test_and_static_analysis"
+            },
+            {
+              "role": "integration_analysis",
+              "category": "analysis",
+              "method": "test_and_static_analysis",
+              "source": {
+                "kind": "repository_artifact",
+                "path": "plans/completed/0048-pbk-control-room-acceptance-reconciliation.md"
+              },
+              "claim": "integration_gate: test_and_static_analysis"
+            },
+            {
+              "role": "independent_review",
+              "category": "assertion",
+              "method": "assertion",
+              "source": { "kind": "authored_assertion" },
+              "claim": "independent_review: assertion"
+            }
+          ]
+        },
+        "acceptance": [
+          "The default Roadmap renders project membership, milestone containment, and prerequisite families distinctly",
+          "One acceptance definition owns the inherited repository-wide gate",
+          "Independent review binds prerequisite direction, labels, accessible text, and authored requires metadata",
+          "Protected exact-head checks and merge remain explicit integration observations"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 5,
+          "testability": 5,
+          "reversibility": 4,
+          "integration_independence": 4,
+          "blast_radius": 3,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": []
+}
+```

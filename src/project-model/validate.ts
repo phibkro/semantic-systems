@@ -1,20 +1,10 @@
 import { adjacency, findCycle } from "./graph.ts";
-import {
-  byKind,
-  ENTITY_KINDS,
-  incoming,
-  RELATION_KINDS,
-  type Entity,
-  type ProjectGraph,
-} from "./types.ts";
+import { byKind, ENTITY_KINDS, incoming, RELATION_KINDS, type ProjectGraph } from "./types.ts";
 
 /** Stable, finite codes emitted by `validateProject`. */
 export const VALIDATION_ISSUE_CODE = {
   entityKind: "entity.kind",
   entityId: "entity.id",
-  workPhase: "work.phase",
-  workAcceptance: "work.acceptance",
-  workDelegation: "work.delegation",
   evidenceType: "evidence.type",
   relationKind: "relation.kind",
   relationSource: "relation.source",
@@ -36,23 +26,8 @@ export interface ValidationIssue {
   readonly entityId?: string;
 }
 
-const listOfStrings = (entity: Entity, key: string): ReadonlyArray<string> => {
-  const value = entity.attributes[key];
-  return Array.isArray(value) && value.every((item) => typeof item === "string")
-    ? (value as ReadonlyArray<string>)
-    : [];
-};
-
 export const validateProject = (project: ProjectGraph): ReadonlyArray<ValidationIssue> => {
   const issues: Array<ValidationIssue> = [];
-  const phases = new Set([
-    "research",
-    "design",
-    "implementation",
-    "validation",
-    "optimization",
-    "maintenance",
-  ]);
   const evidenceTypes = new Set([
     "proof",
     "derived",
@@ -83,34 +58,6 @@ export const validateProject = (project: ProjectGraph): ReadonlyArray<Validation
         message: "ID contains whitespace",
         entityId: entity.id,
       });
-    }
-    if (entity.kind === "work_item") {
-      const phase = entity.attributes.phase;
-      if (typeof phase !== "string" || !phases.has(phase)) {
-        issues.push({
-          severity: "error",
-          code: VALIDATION_ISSUE_CODE.workPhase,
-          message: `invalid phase ${JSON.stringify(phase)}`,
-          entityId: entity.id,
-        });
-      }
-      if (listOfStrings(entity, "acceptance").length === 0) {
-        issues.push({
-          severity: "error",
-          code: VALIDATION_ISSUE_CODE.workAcceptance,
-          message: "missing acceptance criteria",
-          entityId: entity.id,
-        });
-      }
-      const delegation = entity.attributes.delegation;
-      if (delegation === null || typeof delegation !== "object" || Array.isArray(delegation)) {
-        issues.push({
-          severity: "error",
-          code: VALIDATION_ISSUE_CODE.workDelegation,
-          message: "missing delegation metadata",
-          entityId: entity.id,
-        });
-      }
     }
     if (
       entity.kind === "evidence" &&

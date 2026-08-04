@@ -1,0 +1,50 @@
+{
+  "format": "semantic.feature-historical-import/v1",
+  "import_id": "historical-import-0058-0015-open-semantic-system-design-lens",
+  "feature_id": "0015-open-semantic-system-design-lens",
+  "artifacts": [
+    {
+      "path": "design-specs/0015-open-semantic-system-design-lens.md",
+      "sha256": "d89124a8b58a45bd94f172bac9a65f528b8be8f43c05956875e44d8cd4b59f29",
+      "status": "complete",
+      "evidence_categories": ["analysis", "assertion", "runtime_check", "test"]
+    },
+    {
+      "path": "plans/completed/0015-open-semantic-system-design-lens.md",
+      "sha256": "5e0bfa8d2e0ca15ffb3282dd1c653b424d4eef2dda6eb0b177317471d38dfcee",
+      "status": "complete",
+      "evidence_categories": ["analysis", "assertion", "runtime_check", "test"]
+    },
+    {
+      "path": "model/work/features/0015-open-semantic-system-design-lens.json",
+      "sha256": "a3acb96b285cc1c7964d638aebabc30ffef5634d55bba4e489ecefc8d5527281",
+      "status": "complete",
+      "evidence_categories": ["analysis", "assertion", "runtime_check", "test"],
+      "completion_evidence": [
+        "outcome: positive",
+        "implementation_head: 622e0f6b9af112722abdd3092bb884df02df0cd2",
+        "integration_head: 643b6f0fbe1a02be57d4ff75d202fd1e70c96939",
+        "feature_acceptance: runtime_check; feature_acceptance: runtime_validation",
+        "integration_test: test; integration_gate: test_and_static_analysis",
+        "integration_analysis: analysis; integration_gate: test_and_static_analysis",
+        "independent_review: assertion; independent_review: assertion"
+      ]
+    },
+    {
+      "path": "scripts/accept/0015-open-semantic-system-design-lens.ts",
+      "sha256": "1c154201b2c6b6a42567f843b2fa8c1aad3bb2377fddb4f497a8859385d272b0",
+      "status": "complete",
+      "evidence_categories": ["analysis", "assertion", "runtime_check", "test"]
+    }
+  ],
+  "integration_revision": "0d99b81",
+  "evidence_categories": ["analysis", "assertion", "runtime_check", "test"],
+  "unsupported_claims": [
+    "Historical status and completion assertions are preserved for inspection only.",
+    "This import does not authorize a new lifecycle transition or establish current runtime, proof, review, merge, provider, or closure evidence."
+  ],
+  "approved_by": {
+    "identity": "operator-approved-migration-0058",
+    "role": "migration_operator"
+  }
+}

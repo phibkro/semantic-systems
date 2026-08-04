@@ -1,0 +1,50 @@
+{
+  "format": "semantic.feature-historical-import/v1",
+  "import_id": "historical-import-0058-0048-pbk-control-room-acceptance-reconciliation",
+  "feature_id": "0048-pbk-control-room-acceptance-reconciliation",
+  "artifacts": [
+    {
+      "path": "design-specs/0048-pbk-control-room-acceptance-reconciliation.md",
+      "sha256": "029adbdc779a14a064cdb24901ce24440c94ffd33297b6fa14957dc4c2639540",
+      "status": "complete",
+      "evidence_categories": ["analysis", "assertion", "runtime_check", "test"]
+    },
+    {
+      "path": "plans/completed/0048-pbk-control-room-acceptance-reconciliation.md",
+      "sha256": "07ed7599019a723c2b54c7042a498eedc2c30d01b0d4289d50d9454430acc6f6",
+      "status": "complete",
+      "evidence_categories": ["analysis", "assertion", "runtime_check", "test"]
+    },
+    {
+      "path": "model/work/features/0048-pbk-control-room-acceptance-reconciliation.json",
+      "sha256": "63e09460c695058c0ce266d472243de3198f2f670885488541bed438177e9fc2",
+      "status": "complete",
+      "evidence_categories": ["analysis", "assertion", "runtime_check", "test"],
+      "completion_evidence": [
+        "outcome: positive",
+        "implementation_head: 67e6cbf6a1a87d6a49141471573d60ffdc9c055b",
+        "integration_head: 8902ba7cd468063ec28385265befdfc45607e5c2",
+        "feature_acceptance: runtime_check; feature_acceptance: runtime_validation",
+        "integration_test: test; integration_gate: test_and_static_analysis",
+        "integration_analysis: analysis; integration_gate: test_and_static_analysis",
+        "independent_review: assertion; independent_review: assertion"
+      ]
+    },
+    {
+      "path": "scripts/accept/0048-pbk-control-room-acceptance-reconciliation.ts",
+      "sha256": "4c1ddeaddc6b24ab105fdd40343c5861bc332e75c3b4b1e362f2fe8510858ca4",
+      "status": "complete",
+      "evidence_categories": ["analysis", "assertion", "runtime_check", "test"]
+    }
+  ],
+  "integration_revision": "0d99b81",
+  "evidence_categories": ["analysis", "assertion", "runtime_check", "test"],
+  "unsupported_claims": [
+    "Historical status and completion assertions are preserved for inspection only.",
+    "This import does not authorize a new lifecycle transition or establish current runtime, proof, review, merge, provider, or closure evidence."
+  ],
+  "approved_by": {
+    "identity": "operator-approved-migration-0058",
+    "role": "migration_operator"
+  }
+}

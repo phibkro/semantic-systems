@@ -1,0 +1,35 @@
+{
+  "format": "semantic.feature-historical-import/v1",
+  "import_id": "historical-import-0058-0020-lossless-kernel-source",
+  "feature_id": "0020-lossless-kernel-source",
+  "artifacts": [
+    {
+      "path": "design-specs/0020-lossless-kernel-source.md",
+      "sha256": "8baf918e9d16f327f7517ba81b528c7ce2ce5d5f4b6619cb064e32559ef6125d",
+      "status": "superseded",
+      "evidence_categories": []
+    },
+    {
+      "path": "plans/superseded/0020-lossless-kernel-source.md",
+      "sha256": "7a231164b81ee689bea33c64edb98116f7c9b765ada050951bb38afb0b9df4db",
+      "status": "superseded",
+      "evidence_categories": []
+    },
+    {
+      "path": "model/work/features/0020-lossless-kernel-source.json",
+      "sha256": "eaf18b26ea4d38d734c5520dcc07b796ba7ccd629432d6f37fc08024a72b195a",
+      "status": "superseded",
+      "evidence_categories": []
+    }
+  ],
+  "integration_revision": "0d99b81",
+  "evidence_categories": [],
+  "unsupported_claims": [
+    "Historical status and completion assertions are preserved for inspection only.",
+    "This import does not authorize a new lifecycle transition or establish current runtime, proof, review, merge, provider, or closure evidence."
+  ],
+  "approved_by": {
+    "identity": "operator-approved-migration-0058",
+    "role": "migration_operator"
+  }
+}

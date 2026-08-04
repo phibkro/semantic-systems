@@ -1,0 +1,35 @@
+{
+  "format": "semantic.feature-historical-import/v1",
+  "import_id": "historical-import-0058-0003-independent-resolution-checker",
+  "feature_id": "0003-independent-resolution-checker",
+  "artifacts": [
+    {
+      "path": "design-specs/0003-independent-resolution-checker.md",
+      "sha256": "0d739cea7b1e2c803c7d02266c0320bfa086ab68f2ba1cb13e9dfb81d9c8e2d8",
+      "status": "blocked",
+      "evidence_categories": []
+    },
+    {
+      "path": "plans/active/0003-independent-resolution-checker.md",
+      "sha256": "f33f128a09d1638c85cb856e672ef17c67221d104b486f1adbf8411e961b32f6",
+      "status": "blocked",
+      "evidence_categories": []
+    },
+    {
+      "path": "model/work/features/0003-independent-resolution-checker.json",
+      "sha256": "fb15d7fbb38da621f351b1f1cb3e49e63c322d0869c135f0e576ab5618376040",
+      "status": "blocked",
+      "evidence_categories": []
+    }
+  ],
+  "integration_revision": "0d99b81",
+  "evidence_categories": [],
+  "unsupported_claims": [
+    "Historical status and completion assertions are preserved for inspection only.",
+    "This import does not authorize a new lifecycle transition or establish current runtime, proof, review, merge, provider, or closure evidence."
+  ],
+  "approved_by": {
+    "identity": "operator-approved-migration-0058",
+    "role": "migration_operator"
+  }
+}

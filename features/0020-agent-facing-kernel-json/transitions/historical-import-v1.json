@@ -1,0 +1,50 @@
+{
+  "format": "semantic.feature-historical-import/v1",
+  "import_id": "historical-import-0058-0020-agent-facing-kernel-json",
+  "feature_id": "0020-agent-facing-kernel-json",
+  "artifacts": [
+    {
+      "path": "design-specs/0020-agent-facing-kernel-json.md",
+      "sha256": "8182af5521969682bdb81dae570bc3281a82a563671a7a55aa0995f261a4b3fd",
+      "status": "complete",
+      "evidence_categories": ["analysis", "assertion", "runtime_check", "test"]
+    },
+    {
+      "path": "plans/completed/0020-agent-facing-kernel-json.md",
+      "sha256": "558992e811922fdce25286fbcef0d23ff3fa9a7bb5169df1cd950817b0221b7b",
+      "status": "complete",
+      "evidence_categories": ["analysis", "assertion", "runtime_check", "test"]
+    },
+    {
+      "path": "model/work/features/0020-agent-facing-kernel-json.json",
+      "sha256": "289449dff8025d6f934eb13337b8016cd215a896841cf17ef6454aaa08f08f28",
+      "status": "complete",
+      "evidence_categories": ["analysis", "assertion", "runtime_check", "test"],
+      "completion_evidence": [
+        "outcome: positive",
+        "implementation_head: c660b657ee951a65328a485bbaf6762d90a07910",
+        "integration_head: c660b657ee951a65328a485bbaf6762d90a07910",
+        "feature_acceptance: runtime_check; feature_acceptance: runtime_validation",
+        "integration_test: test; integration_gate: test_and_static_analysis",
+        "integration_analysis: analysis; integration_gate: test_and_static_analysis",
+        "independent_review: assertion; independent_review: assertion"
+      ]
+    },
+    {
+      "path": "scripts/accept/0020-agent-facing-kernel-json.ts",
+      "sha256": "af03561b62951c36577ef6bfe6a1a4035cbfadbd0f3507f8b96327bf3a244d15",
+      "status": "complete",
+      "evidence_categories": ["analysis", "assertion", "runtime_check", "test"]
+    }
+  ],
+  "integration_revision": "0d99b81",
+  "evidence_categories": ["analysis", "assertion", "runtime_check", "test"],
+  "unsupported_claims": [
+    "Historical status and completion assertions are preserved for inspection only.",
+    "This import does not authorize a new lifecycle transition or establish current runtime, proof, review, merge, provider, or closure evidence."
+  ],
+  "approved_by": {
+    "identity": "operator-approved-migration-0058",
+    "role": "migration_operator"
+  }
+}

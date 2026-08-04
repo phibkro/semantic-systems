@@ -2,55 +2,55 @@
 
 <!-- Generated. Edit model sources, not this file. -->
 
-Ready parallel work items: **10**.
+Ready parallel work items: **28**.
 
 | Work item | Phase | Status | Ready | Score | Recommendation | Blockers |
 |---|---|---|---:|---:|---|---|
-| Implement minimal actor runtime | validation | complete | no | 75 | delegate with review |  |
-| Bound actor trace retention | implementation | complete | no | 83 | delegate with review |  |
-| Design agent-facing kernel JSON | validation | complete | no | 75 | delegate with review |  |
-| Establish the autonomous development control loop | implementation | in_progress | yes | 83 | delegate with review |  |
-| Canonicalize the project work lifecycle | implementation | superseded | no | 77 | delegate with review |  |
-| Implement agent observation correlation | validation | complete | no | 83 | delegate with review |  |
-| Render the PBK roadmap as an interactive skill tree | implementation | complete | no | 72 | delegate with review |  |
-| Reconstruct the Control Room on TypeScript and Effect v4 | validation | complete | no | 72 | delegate with review |  |
-| Implement core checker | implementation | planned | yes | 65 | delegate with review |  |
-| Design deterministic concurrency simulator | design | planned | yes | 68 | delegate with review |  |
-| Adopt Effect Graph as a portfolio execution index | implementation | complete | no | 90 | delegate with review |  |
-| Build the executable semantic system kernel | validation | complete | no | 72 | delegate with review |  |
+| 0012-minimal-actor-runtime | proposal | planned | yes | 0 | human-led design |  |
+| 0013-bounded-actor-trace-retention | proposal | planned | yes | 0 | human-led design |  |
+| 0020-agent-facing-kernel-json | proposal | planned | no | 0 | human-led design | 0019-normalized-core-format |
+| 0005-autonomous-development-control-loop | proposal | planned | yes | 0 | human-led design |  |
+| 0049-canonical-work-lifecycle | proposal | planned | yes | 0 | human-led design |  |
+| 0057-control-room-agent-observation-correlation | proposal | planned | yes | 0 | human-led design |  |
+| 0031-control-room-interactive-skill-tree | proposal | planned | yes | 0 | human-led design |  |
+| 0017-control-room-reconstruction | proposal | planned | yes | 0 | human-led design |  |
+| Implement core checker | implementation | planned | no | 65 | delegate with review | 0018-minimal-kernel-calculus |
+| Design deterministic concurrency simulator | design | planned | no | 68 | delegate with review | 0014-stm-effect-handler-laws |
+| 0046-effect-graph-execution-index | proposal | planned | yes | 0 | human-led design |  |
+| 0016-executable-semantic-system-kernel | proposal | planned | no | 0 | human-led design | 0012-minimal-actor-runtime |
 | Specify explorer query contract | design | ready | yes | 94 | delegate directly |  |
-| Implement the feature dossier workflow | implementation | in_progress | yes | 49 | bounded spike |  |
-| Implement the independent resolution-result checker | research | blocked | no | 72 | delegate with review |  |
-| Implement inventory actor realization | validation | complete | no | 94 | delegate directly |  |
+| 0058-feature-dossier-workflow | proposal | planned | yes | 0 | human-led design |  |
+| 0003-independent-resolution-checker | proposal | planned | yes | 0 | human-led design |  |
+| Implement inventory actor realization | validation | complete | no | 94 | delegate directly | 0012-minimal-actor-runtime |
 | Complete inventory domain contract | design | complete | no | 82 | delegate with review |  |
 | Prove inventory invariant | validation | planned | yes | 94 | delegate with review |  |
 | Implement pure inventory realization | implementation | complete | no | 97 | delegate directly |  |
-| Complete inventory evidence-resolution tracer | validation | complete | no | 87 | delegate with review |  |
-| Implement inventory STM realization | implementation | planned | yes | 94 | delegate directly |  |
-| Add kernel finite sums and case | validation | complete | no | 65 | delegate with review |  |
-| Establish the kernel reference interpreter | validation | complete | no | 87 | delegate with review |  |
-| Specify minimal kernel calculus | validation | complete | no | 53 | bounded spike |  |
-| Specify Lean evidence adapter | research | planned | yes | 60 | delegate with review |  |
-| Adopt lifecycle-derived plan layout | validation | complete | no | 65 | delegate with review |  |
-| Design lossless incremental frontend | design | superseded | no | 75 | delegate with review |  |
-| Specify normalized core artifact | validation | complete | no | 45 | bounded spike |  |
-| Apply the open semantic system design lens | implementation | complete | no | 80 | delegate with review |  |
+| 0001-inventory-resolution-tracer | proposal | planned | yes | 0 | human-led design |  |
+| Implement inventory STM realization | implementation | planned | no | 94 | delegate directly | 0050-bounded-stm-runtime |
+| 0051-kernel-finite-sums | proposal | planned | yes | 0 | human-led design |  |
+| 0022-kernel-reference-interpreter | proposal | planned | yes | 0 | human-led design |  |
+| 0018-minimal-kernel-calculus | proposal | planned | yes | 0 | human-led design |  |
+| Specify Lean evidence adapter | research | planned | no | 60 | delegate with review | 0019-normalized-core-format |
+| 0055-lifecycle-plan-layout | proposal | planned | yes | 0 | human-led design |  |
+| 0020-lossless-kernel-source | proposal | planned | no | 0 | human-led design | 0019-normalized-core-format |
+| 0019-normalized-core-format | proposal | planned | no | 0 | human-led design | 0018-minimal-kernel-calculus |
+| 0015-open-semantic-system-design-lens | proposal | planned | yes | 0 | human-led design |  |
 | Implement package and evidence resolver | implementation | in_progress | no | 72 | delegate with review | Define normalized theory identity |
-| Reconcile PBK Control Room acceptance lineage | validation | complete | no | 83 | delegate with review |  |
-| Build PBK Technologies portfolio Control Room | validation | complete | no | 72 | delegate with review |  |
-| Generate schema-backed project JSON tooling | validation | complete | no | 87 | delegate directly |  |
-| Research reference baselines for deep research | validation | complete | no | 86 | delegate with review |  |
-| Establish reference-source custody | validation | complete | no | 87 | delegate with review |  |
-| Define relational fact export | validation | complete | no | 84 | delegate with review |  |
+| 0048-pbk-control-room-acceptance-reconciliation | proposal | planned | yes | 0 | human-led design |  |
+| 0021-pbk-portfolio-control-room | proposal | planned | yes | 0 | human-led design |  |
+| 0056-project-json-language-tooling | proposal | planned | yes | 0 | human-led design |  |
+| 0002-reference-baselines-deep-research | proposal | planned | yes | 0 | human-led design |  |
+| 0004-reference-source-custody | proposal | planned | yes | 0 | human-led design |  |
+| 0053-relational-fact-export | proposal | planned | yes | 0 | human-led design |  |
 | Recut the independent resolution checker | design | complete | no | 83 | delegate with review |  |
-| Apply reuse-first engineering assignments | validation | blocked | no | 94 | delegate with review |  |
+| 0007-reuse-first-engineering | proposal | planned | yes | 0 | human-led design |  |
 | RX1: cross-runtime generator determinism | validation | complete | no | 93 | delegate directly |  |
 | RX2: assumptions(artifact) over recorded edges | validation | complete | no | 74 | delegate with review |  |
 | Specify semantic attestation profile | design | ready | no | 87 | delegate with review | Define normalized theory identity |
-| Specify STM effect and handler laws | validation | complete | no | 49 | bounded spike |  |
-| Model-check STM interleavings | validation | complete | no | 84 | delegate with review |  |
-| Implement minimal STM runtime | validation | complete | no | 80 | delegate with review |  |
+| 0014-stm-effect-handler-laws | proposal | planned | yes | 0 | human-led design |  |
+| 0052-stm-schedule-explorer | proposal | planned | no | 0 | human-led design | 0050-bounded-stm-runtime |
+| 0050-bounded-stm-runtime | proposal | planned | no | 0 | human-led design | 0014-stm-effect-handler-laws |
 | Define normalized theory identity | design | in_progress | yes | 41 | bounded spike |  |
-| Specify translation-validation seams | research | planned | yes | 45 | bounded spike |  |
-| Migrate the runtime to TypeScript, Bun, and Effect v4 | validation | complete | no | 77 | delegate with review |  |
-| Research semantic contracts to WIT mapping | validation | complete | no | 86 | delegate directly |  |
+| Specify translation-validation seams | research | planned | no | 45 | bounded spike | 0019-normalized-core-format |
+| 0010-typescript-effect-v4-runtime | proposal | planned | yes | 0 | human-led design |  |
+| 0054-semantic-contract-wit-mapping | proposal | planned | no | 0 | human-led design | 0019-normalized-core-format |

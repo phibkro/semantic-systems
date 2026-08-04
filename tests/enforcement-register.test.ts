@@ -139,30 +139,6 @@ const validationFixtures = (canonical: ProjectGraph): ReadonlyArray<Fixture> => 
     },
     { code: "entity.id", project: replaceEntityId(canonical) },
     {
-      code: "work.phase",
-      project: replaceEntity(
-        canonical,
-        (entity) => entity.id === work.id,
-        (entity) => withAttributes(entity, { ...entity.attributes, phase: "rx4-invalid-phase" }),
-      ),
-    },
-    {
-      code: "work.acceptance",
-      project: replaceEntity(
-        canonical,
-        (entity) => entity.id === work.id,
-        (entity) => withAttributes(entity, { ...entity.attributes, acceptance: [] }),
-      ),
-    },
-    {
-      code: "work.delegation",
-      project: replaceEntity(
-        canonical,
-        (entity) => entity.id === work.id,
-        (entity) => withAttributes(entity, { ...entity.attributes, delegation: null }),
-      ),
-    },
-    {
       code: "evidence.type",
       project: replaceEntity(
         canonical,

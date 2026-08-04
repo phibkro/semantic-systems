@@ -1,0 +1,41 @@
+{
+  "format": "semantic.feature-historical-import/v1",
+  "import_id": "historical-import-0058-0058-feature-dossier-workflow",
+  "feature_id": "0058-feature-dossier-workflow",
+  "artifacts": [
+    {
+      "path": "design-specs/0058-feature-dossier-workflow.md",
+      "sha256": "4ef45c878243d9cc5126ae1a0c542183c88dfeaed767973f666b90909169647c",
+      "status": "in_progress",
+      "evidence_categories": []
+    },
+    {
+      "path": "plans/active/0058-feature-dossier-workflow.md",
+      "sha256": "ee44451a32d0a9d722bffb04e370dda86c110db64d7fd4b5c1d012322441d209",
+      "status": "in_progress",
+      "evidence_categories": []
+    },
+    {
+      "path": "model/work/features/0058-feature-dossier-workflow.json",
+      "sha256": "50ee26712da8298e085ad96b4e2382a5a404bf73f6ca800f335dca697cc46f13",
+      "status": "in_progress",
+      "evidence_categories": []
+    },
+    {
+      "path": "scripts/accept/0058-feature-dossier-workflow.ts",
+      "sha256": "8d5ac35515dddff47b64c25bcba0095a6d1286a90319341f7a0eed385f958256",
+      "status": "in_progress",
+      "evidence_categories": []
+    }
+  ],
+  "integration_revision": "0d99b81",
+  "evidence_categories": [],
+  "unsupported_claims": [
+    "Historical status and completion assertions are preserved for inspection only.",
+    "This import does not authorize a new lifecycle transition or establish current runtime, proof, review, merge, provider, or closure evidence."
+  ],
+  "approved_by": {
+    "identity": "operator-approved-migration-0058",
+    "role": "migration_operator"
+  }
+}

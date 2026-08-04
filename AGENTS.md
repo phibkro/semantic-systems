@@ -36,39 +36,41 @@ platform, evidence, and trust policies.
 - `model/` — canonical project graph
 - `src/project-model/` — Bun/Effect v4 project graph tooling
 - `design-specs/` — frozen problem contracts
-- `design-specs/TEMPLATE.md` — required open-system worksheet for new or
-  changed contracts
-- `plans/active/` — mutable execution state linked to one design spec
+- `features/<id>/` — canonical authored feature dossiers
 - `examples/` — executable tracer bullets and fixtures
 - `generated/` — deterministic projections; never edit by hand
 
 ## Validate
 
-Enter the pinned environment with `nix develop`, then run the fast loop while
-iterating and the integration loop before opening or updating a pull request:
+Enter the pinned environment with `nix develop`, then use one of the four
+bounded repository workflow commands:
 
 ```bash
-bun install --frozen-lockfile --ignore-scripts
-bun run effect:setup
-bun run hooks:install
-just fast
+just setup
 just check
-bun run semproj -- report
+just verify
+just start <feature-id>
 ```
 
-For one frozen feature, run its exact acceptance script:
+`just check` may repair only Oxfmt output, Oxlint safe fixes, and deterministic
+generated views. It reports changed paths and fails on undeclared or
+non-idempotent repairs. `just verify` is observe-only, requires a clean tracked
+tree at an exact base and head, and never repairs evidence. Hooks and CI use
+observe-only execution.
+
+Validate one live dossier with its explicit feature lifecycle command:
 
 ```bash
-just accept <id>-<slug>
+bun run semproj -- feature validate --feature <feature-id>
 ```
 
-A missing required tool fails these gates; it is never downgraded to a
-warning. `nix flake check` runs repository-source invariants and commit-policy
-conformance as real sandboxed derivations. Commit
+Artifact hashes are checked against file contents, and every derived lifecycle
+dimension reports its source. A missing required tool fails its gate; it is
+never downgraded to a warning. `nix flake check` runs repository-source
+invariants and commit-policy conformance as real sandboxed derivations. Commit
 messages and pull-request titles follow the Conventional Commits policy in
-`commitlint.config.ts`; see `CONTRIBUTING.md` for the full loop and commit
-provenance. Targeted commands are documented in `CONTRIBUTING.md`. Report
-checks that were not run or unavailable; never infer success.
+`commitlint.config.ts`; see `CONTRIBUTING.md` for the full loop and provenance.
+Report checks that were not run or unavailable; never infer success.
 
 ## Current frontiers
 
@@ -76,7 +78,7 @@ Inventory resolution 0001 is complete. Active frozen contracts are reference
 research 0002, independent resolution checking 0003, reference-source custody
 0004, the autonomous development loop 0005, and the TypeScript/Effect Control
 Room reconstruction 0017. The executable semantic-system kernel 0016 is
-integrated and accepted. Active plans under `plans/active/` own mutable
+integrated and accepted. Active feature dossiers under `features/` own authored
 execution state. Binder equivalence remains uncertainty 0001; do not silently
 expand `theory-norm-v0`.
 

@@ -1,0 +1,100 @@
+---
+format: semantic.feature-artifact/v1
+feature_id: 0010-typescript-effect-v4-runtime
+kind: implementation_report
+---
+# Historical source record: 0010-typescript-effect-v4-runtime
+
+The following JSON is the verbatim legacy model record retained as historical evidence. Its lifecycle status and completion assertions are not current authority and cannot authorize a transition.
+
+```json
+{
+  "entities": [
+    {
+      "id": "work.typescript-effect-v4-runtime",
+      "kind": "work_item",
+      "name": "Migrate the runtime to TypeScript, Bun, and Effect v4",
+      "summary": "Move project-model, tracer, and governance execution onto the pinned TypeScript, Bun, and Effect v4 runtime while preserving semantic and evidence boundaries.",
+      "status": "complete",
+      "tags": ["typescript", "effect", "runtime", "migration"],
+      "attributes": {
+        "feature_id": "0010-typescript-effect-v4-runtime",
+        "feature_loop": "managed",
+        "phase": "validation",
+        "effort": 13,
+        "completion": {
+          "outcome": "positive",
+          "implementation_head": "7c49b7fef4f1463b00b873be9b5b222559a8fe45",
+          "integration_head": "7c49b7fef4f1463b00b873be9b5b222559a8fe45",
+          "evidence": [
+            {
+              "role": "feature_acceptance",
+              "category": "runtime_check",
+              "method": "runtime_validation",
+              "source": {
+                "kind": "repository_artifact",
+                "path": "plans/completed/0010-typescript-effect-v4-runtime.md"
+              },
+              "claim": "feature_acceptance: runtime_validation"
+            },
+            {
+              "role": "integration_test",
+              "category": "test",
+              "method": "test_and_static_analysis",
+              "source": {
+                "kind": "repository_artifact",
+                "path": "plans/completed/0010-typescript-effect-v4-runtime.md"
+              },
+              "claim": "integration_gate: test_and_static_analysis"
+            },
+            {
+              "role": "integration_analysis",
+              "category": "analysis",
+              "method": "test_and_static_analysis",
+              "source": {
+                "kind": "repository_artifact",
+                "path": "plans/completed/0010-typescript-effect-v4-runtime.md"
+              },
+              "claim": "integration_gate: test_and_static_analysis"
+            },
+            {
+              "role": "equivalence",
+              "category": "test",
+              "method": "differential_testing",
+              "source": {
+                "kind": "repository_artifact",
+                "path": "plans/completed/0010-typescript-effect-v4-runtime.md"
+              },
+              "claim": "Bun and Node catalog-check observations are byte-identical"
+            },
+            {
+              "role": "independent_review",
+              "category": "assertion",
+              "method": "assertion",
+              "source": { "kind": "authored_assertion" },
+              "claim": "independent_review: assertion"
+            }
+          ]
+        },
+        "acceptance": [
+          "The pinned Effect v4, TypeScript, Bun, and Node live layers preserve the declared runtime boundary",
+          "Untrusted JSON and TOML cross an Effect Schema boundary before entering the semantic core",
+          "Project-model, tracer, reference-custody, and governance tests run from TypeScript with no transitional runtime",
+          "Bun and Node live-layer observations remain equivalent for portable project-model programs",
+          "Existing CLI outcomes, reference-lock meaning, and evidence limits remain unchanged"
+        ],
+        "delegation": {
+          "specification_completeness": 5,
+          "context_locality": 5,
+          "testability": 5,
+          "reversibility": 4,
+          "integration_independence": 4,
+          "blast_radius": 5,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": []
+}
+```

@@ -154,3 +154,9 @@ export const loadProject = (
     }
     return { entities, relations, root: projectRoot };
   });
+export {
+  FeatureDossierLoadError,
+  loadFeatureDossier,
+  loadFeatureDossiers,
+  type FeatureDossierLoadOptions,
+} from "./feature-loader.ts";

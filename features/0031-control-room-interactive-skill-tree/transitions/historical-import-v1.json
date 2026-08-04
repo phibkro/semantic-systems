@@ -1,0 +1,47 @@
+{
+  "format": "semantic.feature-historical-import/v1",
+  "import_id": "historical-import-0058-0031-control-room-interactive-skill-tree",
+  "feature_id": "0031-control-room-interactive-skill-tree",
+  "artifacts": [
+    {
+      "path": "design-specs/0031-control-room-interactive-skill-tree.md",
+      "sha256": "bebdbc451a02169dc6d8a9bb9c560cc664aa366c227cc65d37128e8acd1f7c85",
+      "status": "complete",
+      "evidence_categories": ["assertion"]
+    },
+    {
+      "path": "plans/completed/0031-control-room-interactive-skill-tree.md",
+      "sha256": "ff355b9c2dba12b4e7dfa3e9bf51183cb4f224271880e70c393311d9343036e4",
+      "status": "complete",
+      "evidence_categories": ["assertion"]
+    },
+    {
+      "path": "model/work/features/0031-control-room-interactive-skill-tree.json",
+      "sha256": "815b17669efe83ff36d805cf8f6539b047c1f40f234693a196c01907f4fe2797",
+      "status": "complete",
+      "evidence_categories": ["assertion"],
+      "completion_evidence": [
+        "outcome: positive",
+        "implementation_head: 264e34e3685aaccbe10525540105a1b589343e5f",
+        "integration_head: 8902ba7cd468063ec28385265befdfc45607e5c2",
+        "status_basis: assertion; Status: complete; accepted and integrated locally. Public deployment remains unobserved and is not completion evidence."
+      ]
+    },
+    {
+      "path": "scripts/accept/0031-control-room-interactive-skill-tree.ts",
+      "sha256": "842a85916f7728010b7a64cd22005f2a825313f10091ea0e3a3bbf7186e33afa",
+      "status": "complete",
+      "evidence_categories": ["assertion"]
+    }
+  ],
+  "integration_revision": "0d99b81",
+  "evidence_categories": ["assertion"],
+  "unsupported_claims": [
+    "Historical status and completion assertions are preserved for inspection only.",
+    "This import does not authorize a new lifecycle transition or establish current runtime, proof, review, merge, provider, or closure evidence."
+  ],
+  "approved_by": {
+    "identity": "operator-approved-migration-0058",
+    "role": "migration_operator"
+  }
+}

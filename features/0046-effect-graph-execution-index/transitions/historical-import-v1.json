@@ -1,0 +1,47 @@
+{
+  "format": "semantic.feature-historical-import/v1",
+  "import_id": "historical-import-0058-0046-effect-graph-execution-index",
+  "feature_id": "0046-effect-graph-execution-index",
+  "artifacts": [
+    {
+      "path": "design-specs/0046-effect-graph-execution-index.md",
+      "sha256": "f21b556d89d49ee8fdf8c636e7d96e342e651ef46421a852a9b6a8247003eaff",
+      "status": "complete",
+      "evidence_categories": ["assertion"]
+    },
+    {
+      "path": "plans/completed/0046-effect-graph-execution-index.md",
+      "sha256": "b27fc96a240198e366df9f6b4eaf2c1838059772f710368c759f31dc7b88023f",
+      "status": "complete",
+      "evidence_categories": ["assertion"]
+    },
+    {
+      "path": "model/work/features/0046-effect-graph-execution-index.json",
+      "sha256": "58942e1d571dc03e45756a2de8fb875002eca6119281635fd6ce0a2ef00e7a80",
+      "status": "complete",
+      "evidence_categories": ["assertion"],
+      "completion_evidence": [
+        "outcome: positive",
+        "implementation_head: e6489be751e2cd027383858aa3f4a9a2c1ae23d9",
+        "integration_head: 8902ba7cd468063ec28385265befdfc45607e5c2",
+        "status_basis: assertion; Status: complete; accepted, independently reviewed, and integrated."
+      ]
+    },
+    {
+      "path": "scripts/accept/0046-effect-graph-execution-index.ts",
+      "sha256": "2a84375c7fbc5eff3ebcbf1ce7c756ec237127e71c35fc0a98f5e416e254349a",
+      "status": "complete",
+      "evidence_categories": ["assertion"]
+    }
+  ],
+  "integration_revision": "0d99b81",
+  "evidence_categories": ["assertion"],
+  "unsupported_claims": [
+    "Historical status and completion assertions are preserved for inspection only.",
+    "This import does not authorize a new lifecycle transition or establish current runtime, proof, review, merge, provider, or closure evidence."
+  ],
+  "approved_by": {
+    "identity": "operator-approved-migration-0058",
+    "role": "migration_operator"
+  }
+}

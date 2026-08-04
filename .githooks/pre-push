@@ -40,7 +40,7 @@ if (Bun.which("nix") === null) {
   process.exit(1);
 }
 
-const checkCommand = ["nix", "develop", "--command", "bun", "scripts/check.ts"];
+const checkCommand = ["nix", "develop", "--command", "bun", "scripts/check.ts", "verify"];
 const result = Bun.spawnSync({
   cmd: checkCommand,
   cwd: root,

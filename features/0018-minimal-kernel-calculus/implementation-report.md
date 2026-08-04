@@ -1,0 +1,89 @@
+---
+format: semantic.feature-artifact/v1
+feature_id: 0018-minimal-kernel-calculus
+kind: implementation_report
+---
+# Historical source record: 0018-minimal-kernel-calculus
+
+The following JSON is the verbatim legacy model record retained as historical evidence. Its lifecycle status and completion assertions are not current authority and cannot authorize a transition.
+
+```json
+{
+  "entities": [
+    {
+      "id": "work.kernel-spec",
+      "kind": "work_item",
+      "name": "Specify minimal kernel calculus",
+      "summary": "Run a finite CBPV-style calculus with usage, effects, handlers, and typed observations.",
+      "status": "complete",
+      "tags": ["kernel"],
+      "attributes": {
+        "feature_id": "0018-minimal-kernel-calculus",
+        "feature_loop": "managed",
+        "phase": "validation",
+        "effort": 8,
+        "completion": {
+          "outcome": "positive",
+          "implementation_head": "d436176d3b652b81b19ec81716dcde88dda848ca",
+          "integration_head": "f461cb38960493c044459c58374d6d1aa12bda3b",
+          "evidence": [
+            {
+              "role": "feature_acceptance",
+              "category": "runtime_check",
+              "method": "runtime_validation",
+              "source": {
+                "kind": "repository_artifact",
+                "path": "plans/completed/0018-minimal-kernel-calculus.md"
+              },
+              "claim": "feature_acceptance: runtime_validation"
+            },
+            {
+              "role": "integration_test",
+              "category": "test",
+              "method": "test_and_static_analysis",
+              "source": {
+                "kind": "repository_artifact",
+                "path": "plans/completed/0018-minimal-kernel-calculus.md"
+              },
+              "claim": "integration_gate: test_and_static_analysis"
+            },
+            {
+              "role": "integration_analysis",
+              "category": "analysis",
+              "method": "test_and_static_analysis",
+              "source": {
+                "kind": "repository_artifact",
+                "path": "plans/completed/0018-minimal-kernel-calculus.md"
+              },
+              "claim": "integration_gate: test_and_static_analysis"
+            },
+            {
+              "role": "independent_review",
+              "category": "assertion",
+              "method": "assertion",
+              "source": { "kind": "authored_assertion" },
+              "claim": "independent_review: assertion"
+            }
+          ]
+        },
+        "acceptance": [
+          "Judgments and syntax are explicit",
+          "Affine values and one-shot handlers reject duplicate use",
+          "Checked closed terms return, suspend, exhaust, or reject with typed observations",
+          "The reference evaluator agrees with pinned overlapping oracle fixtures"
+        ],
+        "delegation": {
+          "specification_completeness": 4,
+          "context_locality": 4,
+          "testability": 4,
+          "reversibility": 3,
+          "integration_independence": 2,
+          "blast_radius": 5,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": []
+}
+```

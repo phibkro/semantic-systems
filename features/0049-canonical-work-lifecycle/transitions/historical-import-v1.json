@@ -1,0 +1,35 @@
+{
+  "format": "semantic.feature-historical-import/v1",
+  "import_id": "historical-import-0058-0049-canonical-work-lifecycle",
+  "feature_id": "0049-canonical-work-lifecycle",
+  "artifacts": [
+    {
+      "path": "design-specs/0049-canonical-work-lifecycle.md",
+      "sha256": "1bf90709522e5e700c5d50d661e473b4affd9ef3a27d60cfdc8340473c8257b9",
+      "status": "superseded",
+      "evidence_categories": []
+    },
+    {
+      "path": "plans/superseded/0049-canonical-work-lifecycle.md",
+      "sha256": "fe6f1d3cc62d035ceee24b2ea8d6d028fc2b7c855335cf689a9f35a45347ebfc",
+      "status": "superseded",
+      "evidence_categories": []
+    },
+    {
+      "path": "model/work/features/0049-canonical-work-lifecycle.json",
+      "sha256": "e1c0210b39701c3ad4b92ff8f613645671f1be2add230cb66563aca7f0000a2d",
+      "status": "superseded",
+      "evidence_categories": []
+    }
+  ],
+  "integration_revision": "0d99b81",
+  "evidence_categories": [],
+  "unsupported_claims": [
+    "Historical status and completion assertions are preserved for inspection only.",
+    "This import does not authorize a new lifecycle transition or establish current runtime, proof, review, merge, provider, or closure evidence."
+  ],
+  "approved_by": {
+    "identity": "operator-approved-migration-0058",
+    "role": "migration_operator"
+  }
+}

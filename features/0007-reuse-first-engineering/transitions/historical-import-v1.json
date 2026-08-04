@@ -1,0 +1,41 @@
+{
+  "format": "semantic.feature-historical-import/v1",
+  "import_id": "historical-import-0058-0007-reuse-first-engineering",
+  "feature_id": "0007-reuse-first-engineering",
+  "artifacts": [
+    {
+      "path": "design-specs/0007-reuse-first-engineering.md",
+      "sha256": "20838a0a0d4673f380fbd529e0cb2eae27d9106aa141a38ac87bb4c6abc5c422",
+      "status": "blocked",
+      "evidence_categories": []
+    },
+    {
+      "path": "plans/active/0007-reuse-first-engineering.md",
+      "sha256": "ef21fdd7ee97be4a9a07a02c98651c9a7ea972627b6d8c178f62174eae8de917",
+      "status": "blocked",
+      "evidence_categories": []
+    },
+    {
+      "path": "model/work/features/0007-reuse-first-engineering.json",
+      "sha256": "888eb3bd0b9a3ac8312fafe0816477347739858d0468afab6703df159e93b502",
+      "status": "blocked",
+      "evidence_categories": []
+    },
+    {
+      "path": "scripts/accept/0007-reuse-first-engineering.ts",
+      "sha256": "bc70a8f0a42d0d236151c4895f1b4919207747c56579f50ecdc2b22fbd880dae",
+      "status": "blocked",
+      "evidence_categories": []
+    }
+  ],
+  "integration_revision": "0d99b81",
+  "evidence_categories": [],
+  "unsupported_claims": [
+    "Historical status and completion assertions are preserved for inspection only.",
+    "This import does not authorize a new lifecycle transition or establish current runtime, proof, review, merge, provider, or closure evidence."
+  ],
+  "approved_by": {
+    "identity": "operator-approved-migration-0058",
+    "role": "migration_operator"
+  }
+}

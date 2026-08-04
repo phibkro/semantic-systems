@@ -1,120 +1,62 @@
 # Contributing
 
-## Change the source, not generated views
+## Canonical feature dossiers
 
-Edit files under `model/`, then run:
+Author lifecycle state in one stable directory:
 
-```bash
-semproj validate
-semproj generate
+```text
+features/<feature-id>/
+├── proposal.md
+├── research.md? or research/
+├── design.md?
+├── spec.md
+├── plan.md
+├── implementation-report.md
+├── accept.ts
+├── verification/
+└── transitions/
 ```
 
-Commit model and generated-view changes together.
+Markdown artifacts use strict `semantic.feature-artifact/v1` frontmatter. Do not
+add lifecycle status fields or maintain a second model record. Generated views,
+including `generated/project-model/work-features.json`, are projections; never
+edit them by hand.
 
-## The development control loop
+## Four command families
 
-Design spec 0005 defines three nested gates. Each is executable in the pinned
-Nix environment (`nix develop`); a missing required tool fails the gate, it is
-never a warning.
+Run commands inside the pinned environment (`nix develop`). A missing required
+tool fails the command; it is never downgraded to a warning.
 
-Install the exact locked JavaScript tools once after entering the shell:
+| Command | Mode | Effect |
+| --- | --- | --- |
+| `just setup` | mutate | Install pinned dependencies, configure checked hooks, and write an ignored setup receipt. |
+| `just check` | repair | Apply only Oxfmt writes, Oxlint safe fixes, and deterministic generated-view regeneration, then validate. |
+| `just verify` | observe | Require a clean tracked tree at the exact base and head, and run checks without writing. |
+| `just start <feature-id>` | mutate | Bounded, idempotent branch/worktree/lease creation after dossier contract checks. |
 
-```bash
-bun install --frozen-lockfile --ignore-scripts
-bun run effect:setup
-bun run hooks:install
-```
+`just check` reports every changed path and fails if a repair changes an
+undeclared path or is not stable by its second bounded attempt. It never stages,
+commits, accepts snapshots, changes dependencies, or performs provider effects.
+`just verify` never repairs a dirty tree. Local receipts are evidence of the
+command run, not merge authority.
 
-The frozen install disables all package lifecycle scripts. The explicit,
-idempotent Effect TSGO setup attaches Effect diagnostics to the pinned native
-TypeScript 7 compiler and the checked hook installer sets
-`core.hooksPath=.githooks`; local hooks improve feedback latency but remain
-advisory and bypassable.
+Hooks and CI use observe-only checks. They do not invoke `just check` or any
+repairing fixer. Protected CI and merge authority remain external observations.
 
-| Loop        | Command                   | Latency      | Covers                                                                      |
-| ----------- | ------------------------- | ------------ | --------------------------------------------------------------------------- |
-| Fast        | `just fast`               | seconds      | format, lint, typecheck, model validate/generate, commit-policy conformance |
-| Integration | `just check`              | minutes      | frozen install + fast loop + the complete `bun test` corpus                 |
-| Feature     | `just accept <id>-<slug>` | tracer-sized | the exact Bun acceptance program for one frozen design spec                 |
+## Repository hygiene
 
-`bun run test` keeps each test bounded at 30 seconds. Several custody tests
-create clean Git repositories or perform a pinned offline build; Bun's
-five-second default can misclassify host scheduling contention as a semantic
-failure.
+Keep commits focused and preserve the exact head used for verification. Commit
+messages and pull-request titles follow Conventional Commits, checked against
+`commitlint.config.ts`. `bun run check-commit-policy` detects drift in the
+versioned hook and commit-policy provenance.
 
-`nix flake check` runs the hermetic repository-source invariants and the
-network-free commit-policy conformance script as real sandboxed derivations,
-not merely a devShell evaluation.
+Local hooks are bypassable (`git commit --no-verify` still works). Treat hook
+output as early feedback, not lifecycle authority. Do not claim that a review,
+merge, provider action, or cleanup occurred without a corresponding observation.
 
-Every commit message and pull-request title follows Conventional Commits,
-checked against `commitlint.config.ts`. Allowed types are the standard
-`config-conventional` set plus this project's `research`, `design`,
-`governance`, and `plans` types. The hook scaffolding
-(`.githooks/commit-msg`, `.githooks/pre-commit`, `commitlint.config.ts`,
-`scripts/install-git-hooks.ts`) is materialized from Clamor's versioned
-`ConventionalCommits` block; `config/clamor-blocks/conventional-commits.provenance.json`
-records the upstream commit, block version and digest, and this project's
-configured inputs. `bun run check-commit-policy` (also run by both loops)
-detects drift between that provenance record and the checked-in artifacts.
+## Quality evidence
 
-Local hooks are bypassable (`git commit --no-verify` still works): pre-commit
-runs staged-file checks plus the fast loop, while pre-push runs the pinned Nix
-integration loop. CI checks tracked artifacts remain unchanged; dependency and
-test caches are noncanonical ignored state. CI becomes authoritative only when
-external branch protection requires the stable check names and merge queue
-requires the prospective-tree result. Repository settings must also permit only
-a Conventional-Commit-preserving merge strategy (normally squash); that
-external prerequisite is not claimed active by this checkout.
-
-A nontrivial feature owns one feature ID shared by
-`design-specs/<feature_id>.md`, its lifecycle-derived plan ledger
-(`plans/active/<feature_id>.md`, `plans/completed/<feature_id>.md`, or
-`plans/superseded/<feature_id>.md`), `model/work/features/<feature_id>.json`, and
-`scripts/accept/<feature_id>.ts`, plus one feature branch and one pull request.
-The canonical work record owns status and completion evidence. To complete a
-feature, change that record from `in_progress` to `complete` with typed evidence
-and move its unchanged ledger to `plans/completed/`; do not edit its
-lifecycle-neutral heading or status prose.
-Trivial formatting, typo, generated-refresh, and mechanically equivalent
-maintenance may skip the feature loop but must still pass the fast and
-integration loops.
-
-See `AGENTS.md` and `design-specs/0005-autonomous-development-control-loop.md`
-for the full contract, including autonomous merge authority and completion
-feedback. The checked-in sensors cannot determine that independent findings
-were resolved or a finished Herdr tab/worktree was safely harvested; the main
-integration agent verifies those external gates against the committed artifact.
-
-## Quality gates
-
-```bash
-bun run test
-semproj validate
-semproj generate --check
-bun run semrefs -- catalog-check
-bun run format:check
-bun run lint
-bun run typecheck
-bun run check-commit-policy
-```
-
-## New semantic features
-
-A proposal should identify:
-
-- the semantic distinction;
-- whether it belongs in the kernel, standard abstractions, or syntax sugar;
-- interactions with effects, ownership, propositions, and polymorphism;
-- required runtime machinery;
-- evidence obligations;
-- one nontrivial tracer-bullet use.
-
-## New work items
-
-Every work item requires:
-
-- a phase;
-- acceptance criteria;
-- delegation metadata;
-- explicit blockers and decisions;
-- the components, theories, or evidence artifacts it changes.
+Use the command family that matches the desired effect. For a delivery claim,
+record the exact `just verify` revision-bound receipt. For a local repair claim,
+record the `just check` receipt and changed paths. Tests, analysis, assertions,
+assumptions, and runtime checks remain distinct evidence categories.

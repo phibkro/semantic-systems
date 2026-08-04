@@ -1,25 +1,16 @@
 #!/usr/bin/env bun
-/**
- * Integration loop (design spec 0005): frozen dependency install, fast loop,
- * and the complete Bun test corpus.
- */
-import { resolve } from "node:path";
-import { Effect } from "effect";
-import { requireTool, runCommand, runMain } from "./lib/command.ts";
+import { Data, Effect } from "effect";
+import { runMain } from "./lib/command.ts";
+import { runWorkflow } from "./workflow-adapter.ts";
+class WorkflowCommandError extends Data.TaggedError("WorkflowCommandError")<{
+  readonly message: string;
+}> {}
 
-const root = resolve(import.meta.dirname, "..");
-const label = "check";
+const requested = Bun.argv[2] ?? "check";
+const featureId = Bun.argv[3];
+const program =
+  requested === "setup" || requested === "check" || requested === "verify" || requested === "start"
+    ? runWorkflow(requested, requested === "start" ? featureId : undefined)
+    : Effect.fail(new WorkflowCommandError({ message: `unknown workflow command ${requested}` }));
 
-const program = Effect.gen(function* () {
-  yield* requireTool(label, "bun");
-  for (const command of [
-    ["bun", "install", "--frozen-lockfile", "--ignore-scripts"],
-    ["bun", "run", "effect:setup"],
-    ["bun", "scripts/check-fast.ts"],
-    ["bun", "run", "test"],
-  ] as const) {
-    yield* runCommand(command, { cwd: root });
-  }
-});
-
-runMain(label, program);
+runMain(`workflow:${requested}`, program);

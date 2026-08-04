@@ -3,7 +3,7 @@ import {
   DESIGN_LENS_HEADINGS,
   DESIGN_LENS_VERSION,
   validateDesignLensText,
-} from "../scripts/check-feature-contract.ts";
+} from "../src/project-model/design-lens-validation.ts";
 import { readFileSync } from "node:fs";
 
 const completeLens = (bodyFor = (heading: string) => `Domain-specific account for ${heading}.`) =>
@@ -32,8 +32,8 @@ const rejection = (text: string): string => {
 describe("open semantic system design-lens shape", () => {
   test("the selected and migrated production contracts satisfy their own lens", () => {
     for (const path of [
-      "design-specs/0015-open-semantic-system-design-lens.md",
-      "design-specs/0005-autonomous-development-control-loop.md",
+      "features/0015-open-semantic-system-design-lens/spec.md",
+      "features/0005-autonomous-development-control-loop/spec.md",
     ]) {
       expect(() => validateDesignLensText(readFileSync(path, "utf8"), path)).not.toThrow();
     }

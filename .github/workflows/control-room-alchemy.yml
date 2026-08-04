@@ -49,8 +49,8 @@ jobs:
         run: nix develop --command bun install --frozen-lockfile --ignore-scripts
       - name: Attach Effect diagnostics
         run: nix develop --command bun run effect:setup
-      - name: Validate repository
-        run: nix develop --command just check
+      - name: Observe exact head
+        run: nix develop --command just verify
       - name: Check and build Control Room
         run: nix develop --command bun run --cwd apps/control-room check
       - name: Exercise root-base mobile PWA

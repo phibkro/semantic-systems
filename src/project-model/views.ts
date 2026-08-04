@@ -1,6 +1,7 @@
 import { Data, Effect, FileSystem, Path } from "effect";
 import { assessWork, criticalPath } from "./schedule.ts";
-import { renderFeatureLifecycle } from "./work-lifecycle.ts";
+import { renderFeatureLifecycle, renderWorkFeatures } from "./work-lifecycle.ts";
+import type { FeatureDossierArtifact } from "./feature-dossier.ts";
 import {
   PROJECT_DOCUMENT_SCHEMA_PATH,
   projectDocumentJsonSchemaText,
@@ -180,11 +181,14 @@ const index = (project: ProjectGraph): string => {
   );
   return document(
     "Generated project views",
-    `${rows.join("\n")}\n\n- [System map](01-system-map.md)\n- [Theory-realization map](02-theory-realization.md)\n- [Concern matrix](03-concern-matrix.md)\n- [Evidence map](04-evidence-map.md)\n- [Work dependencies](05-work-dependencies.md)\n- [Delegation frontier](06-delegation-frontier.md)\n- [Runtime view](07-runtime-view.md)\n- [Feature lifecycle](08-feature-lifecycle.md)\n- [Project document JSON Schema](schema/project-document.schema.json)`,
+    `${rows.join("\n")}\n\n- [System map](01-system-map.md)\n- [Theory-realization map](02-theory-realization.md)\n- [Concern matrix](03-concern-matrix.md)\n- [Evidence map](04-evidence-map.md)\n- [Work dependencies](05-work-dependencies.md)\n- [Delegation frontier](06-delegation-frontier.md)\n- [Runtime view](07-runtime-view.md)\n- [Feature lifecycle](08-feature-lifecycle.md)\n- [Feature work IR](project-model/work-features.json)\n- [Project document JSON Schema](schema/project-document.schema.json)`,
   );
 };
 
-export const generateViews = (project: ProjectGraph): ReadonlyMap<string, string> =>
+export const generateViews = (
+  project: ProjectGraph,
+  dossiers: ReadonlyArray<FeatureDossierArtifact> = [],
+): ReadonlyMap<string, string> =>
   new Map([
     ["README.md", index(project)],
     ["01-system-map.md", systemMap(project)],
@@ -194,7 +198,8 @@ export const generateViews = (project: ProjectGraph): ReadonlyMap<string, string
     ["05-work-dependencies.md", workDependencies(project)],
     ["06-delegation-frontier.md", delegationFrontier(project)],
     ["07-runtime-view.md", runtimeView(project)],
-    ["08-feature-lifecycle.md", renderFeatureLifecycle(project)],
+    ["08-feature-lifecycle.md", renderFeatureLifecycle(dossiers)],
+    ["project-model/work-features.json", renderWorkFeatures(dossiers)],
     [PROJECT_DOCUMENT_SCHEMA_PATH.replace("generated/", ""), projectDocumentJsonSchemaText()],
   ]);
 

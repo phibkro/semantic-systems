@@ -36,4 +36,5 @@
 - [Delegation frontier](06-delegation-frontier.md)
 - [Runtime view](07-runtime-view.md)
 - [Feature lifecycle](08-feature-lifecycle.md)
+- [Feature work IR](project-model/work-features.json)
 - [Project document JSON Schema](schema/project-document.schema.json)

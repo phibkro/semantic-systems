@@ -9,48 +9,45 @@ flowchart LR
     decision_reference_method_adoption["Adopt reference methods by class behind project boundaries"]
     decision_stm_library["STM is a library effect"]
     decision_theory_identity["Laws participate in semantic identity"]
-    work_actor_runtime["Implement minimal actor runtime"]
-    work_agent_facing_kernel_json["Design agent-facing kernel JSON"]
-    work_autonomous_development_loop["Establish the autonomous development control loop"]
-    work_control_room_interactive_skill_tree["Render the PBK roadmap as an interactive skill tree"]
-    work_control_room_reconstruction["Reconstruct the Control Room on TypeScript and Effect v4"]
+    work_actor_runtime["0012-minimal-actor-runtime"]
+    work_agent_facing_kernel_json["0020-agent-facing-kernel-json"]
+    work_autonomous_development_loop["0005-autonomous-development-control-loop"]
+    work_control_room_interactive_skill_tree["0031-control-room-interactive-skill-tree"]
+    work_control_room_reconstruction["0017-control-room-reconstruction"]
     work_core_checker["Implement core checker"]
     work_deterministic_simulator_spec["Design deterministic concurrency simulator"]
-    work_effect_graph_execution_index["Adopt Effect Graph as a portfolio execution index"]
-    work_executable_semantic_system_kernel["Build the executable semantic system kernel"]
+    work_effect_graph_execution_index["0046-effect-graph-execution-index"]
+    work_executable_semantic_system_kernel["0016-executable-semantic-system-kernel"]
     work_explorer_query_contract["Specify explorer query contract"]
-    work_feature_dossier_workflow["Implement the feature dossier workflow"]
     work_inventory_actor["Implement inventory actor realization"]
     work_inventory_design["Complete inventory domain contract"]
     work_inventory_proof["Prove inventory invariant"]
     work_inventory_pure["Implement pure inventory realization"]
-    work_inventory_resolution_tracer["Complete inventory evidence-resolution tracer"]
+    work_inventory_resolution_tracer["0001-inventory-resolution-tracer"]
     work_inventory_stm["Implement inventory STM realization"]
-    work_kernel_finite_sums["Add kernel finite sums and case"]
-    work_kernel_reference_interpreter["Establish the kernel reference interpreter"]
-    work_kernel_spec["Specify minimal kernel calculus"]
+    work_kernel_finite_sums["0051-kernel-finite-sums"]
+    work_kernel_reference_interpreter["0022-kernel-reference-interpreter"]
+    work_kernel_spec["0018-minimal-kernel-calculus"]
     work_lean_evidence_adapter["Specify Lean evidence adapter"]
-    work_lifecycle_plan_layout["Adopt lifecycle-derived plan layout"]
-    work_lossless_frontend_spec["Design lossless incremental frontend"]
-    work_normalized_core_format["Specify normalized core artifact"]
+    work_lossless_frontend_spec["0020-lossless-kernel-source"]
+    work_normalized_core_format["0019-normalized-core-format"]
     work_package_resolver["Implement package and evidence resolver"]
-    work_pbk_portfolio_control_room["Build PBK Technologies portfolio Control Room"]
-    work_reference_baselines_deep_research["Research reference baselines for deep research"]
-    work_relational_fact_schema["Define relational fact export"]
+    work_pbk_portfolio_control_room["0021-pbk-portfolio-control-room"]
+    work_reference_baselines_deep_research["0002-reference-baselines-deep-research"]
+    work_relational_fact_schema["0053-relational-fact-export"]
     work_rx1_generator_determinism["RX1: cross-runtime generator determinism"]
     work_rx2_assumption_query["RX2: assumptions(artifact) over recorded edges"]
     work_semantic_attestation_profile["Specify semantic attestation profile"]
-    work_stm_laws["Specify STM effect and handler laws"]
-    work_stm_model_check["Model-check STM interleavings"]
-    work_stm_runtime["Implement minimal STM runtime"]
+    work_stm_laws["0014-stm-effect-handler-laws"]
+    work_stm_model_check["0052-stm-schedule-explorer"]
+    work_stm_runtime["0050-bounded-stm-runtime"]
     work_theory_identity["Define normalized theory identity"]
     work_translation_validation_spec["Specify translation-validation seams"]
-    work_wasm_contract_mapping["Research semantic contracts to WIT mapping"]
+    work_wasm_contract_mapping["0054-semantic-contract-wit-mapping"]
     work_control_room_interactive_skill_tree -->|requires| work_pbk_portfolio_control_room
     decision_gated_autonomous_merges -->|informs| work_autonomous_development_loop
     work_effect_graph_execution_index -->|requires| work_pbk_portfolio_control_room
     work_executable_semantic_system_kernel -->|blocks| work_actor_runtime
-    work_feature_dossier_workflow -->|requires| work_lifecycle_plan_layout
     work_inventory_resolution_tracer -->|requires| decision_theory_identity
     work_kernel_finite_sums -->|requires| work_kernel_spec
     work_kernel_reference_interpreter -->|requires| work_agent_facing_kernel_json
@@ -86,4 +83,4 @@ flowchart LR
 
 ## Weighted critical path
 
-Specify STM effect and handler laws → Implement minimal STM runtime → Model-check STM interleavings
+Define normalized theory identity → Implement package and evidence resolver

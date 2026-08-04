@@ -1,15 +1,18 @@
-import { Console, Effect, Path, type FileSystem } from "effect";
-import { loadProject } from "./loader.ts";
+/* oxlint-disable semantic-effect/portable-runtime-imports -- Git observation is a Bun CLI adapter, not portable semantic code */
+/* oxlint-disable semantic-effect/typed-failure-boundary -- Bun spawn failures are converted to the typed GitObservationError at this CLI boundary */
+import { Console, Data, Effect, Path, type Crypto, type FileSystem } from "effect";
+import { loadFeatureDossier, loadProject } from "./loader.ts";
 import {
   PROJECT_JSON_LANGUAGE_SERVER_CONFIG_PATH,
   projectJsonLanguageServerConfigText,
 } from "./project-json-schema.ts";
 import { assessWork, criticalPath } from "./schedule.ts";
-import { validateFeatureRepository, type FeatureDiagnostic } from "./work-lifecycle.ts";
+import { compileFeatureDossier, type FeatureDossierArtifact } from "./feature-dossier.ts";
 import { validateProject, type ValidationIssue } from "./validate.ts";
+import { compileFeatureDossiers, withFeatureDossiers } from "./work-lifecycle.ts";
 import { generateViews, writeGeneratedFiles } from "./views.ts";
 
-interface Command {
+interface ProjectCommand {
   readonly root: string;
   readonly name: "validate" | "report" | "generate";
   readonly output: string;
@@ -17,7 +20,16 @@ interface Command {
   readonly outputExplicit: boolean;
 }
 
-const usage = "usage: semproj [--root PATH] {validate,report,generate} [--output PATH] [--check]";
+interface FeatureValidateCommand {
+  readonly root: string;
+  readonly name: "feature-validate";
+  readonly featureId: string;
+}
+
+type Command = ProjectCommand | FeatureValidateCommand;
+
+const usage =
+  "usage: semproj [--root PATH] {feature validate --feature ID,validate,report,generate} [--output PATH] [--check]";
 
 const parseCommand = (arguments_: ReadonlyArray<string>): Command | undefined => {
   let root = ".";
@@ -29,6 +41,13 @@ const parseCommand = (arguments_: ReadonlyArray<string>): Command | undefined =>
     index += 2;
   }
   const name = arguments_[index++];
+  if (name === "feature") {
+    if (arguments_[index++] !== "validate" || arguments_[index++] !== "--feature") return undefined;
+    const featureId = arguments_[index++];
+    return featureId !== undefined && index === arguments_.length
+      ? { root, name: "feature-validate", featureId }
+      : undefined;
+  }
   if (name !== "validate" && name !== "report" && name !== "generate") return undefined;
   if (name !== "generate") {
     return index === arguments_.length
@@ -53,30 +72,111 @@ const parseCommand = (arguments_: ReadonlyArray<string>): Command | undefined =>
   return { root, name, output, outputExplicit, check };
 };
 
-type ProjectIssue = ValidationIssue | FeatureDiagnostic;
+type ProjectIssue = ValidationIssue;
+class GitObservationError extends Data.TaggedError("GitObservationError")<{
+  readonly message: string;
+  readonly cause?: unknown;
+}> {}
 
 const issueText = (issue: ProjectIssue): string => {
   const entity = issue.entityId === undefined ? "" : ` [${issue.entityId}]`;
-  const path = "path" in issue && issue.path !== undefined ? ` (${issue.path})` : "";
-  const source = "source" in issue && issue.source !== undefined ? ` (${issue.source})` : "";
-  return `${issue.severity}: ${issue.code}${entity}${path}${source}: ${issue.message}`;
+  return `${issue.severity}: ${issue.code}${entity}: ${issue.message}`;
 };
+
+const runGit = (
+  root: string,
+  arguments_: ReadonlyArray<string>,
+): Effect.Effect<string, GitObservationError> =>
+  Effect.try({
+    try: () => {
+      const result = Bun.spawnSync({
+        cmd: ["git", "-C", root, ...arguments_],
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      if (result.exitCode !== 0) {
+        throw new GitObservationError({
+          message: result.stderr.toString().trim() || "git command failed",
+        });
+      }
+      return result.stdout.toString().trim();
+    },
+    catch: (cause) =>
+      cause instanceof GitObservationError
+        ? cause
+        : new GitObservationError({ message: "cannot observe Git state", cause }),
+  });
+
+const observeGit = (
+  root: string,
+  featureId?: string,
+): Effect.Effect<Record<string, unknown>, never> =>
+  Effect.gen(function* () {
+    const head = yield* runGit(root, ["rev-parse", "HEAD"]).pipe(
+      Effect.orElseSucceed(() => "unobserved"),
+    );
+    const status = yield* runGit(root, ["status", "--porcelain", "--untracked-files=all"]).pipe(
+      Effect.orElseSucceed(() => "unobserved"),
+    );
+    const clean = status === "";
+    return {
+      format: "semantic.feature-git-observation/v1",
+      ...(featureId === undefined ? {} : { feature_id: featureId }),
+      head,
+      clean,
+    };
+  });
+
+const dossierText = (dossier: FeatureDossierArtifact): ReadonlyArray<string> => {
+  const lifecycle = dossier.lifecycle;
+  return [
+    `feature: ${dossier.feature_id}`,
+    `directory: ${dossier.directory}`,
+    `phase: ${lifecycle.phase.value} [${lifecycle.phase.sources.map((source) => `${source.kind}:${source.id}`).join(", ")}]`,
+    `readiness: ${lifecycle.readiness.value} [${lifecycle.readiness.sources.map((source) => `${source.kind}:${source.id}`).join(", ")}]`,
+    `condition: ${lifecycle.condition.value} [${lifecycle.condition.sources.map((source) => `${source.kind}:${source.id}`).join(", ")}]`,
+    `delivery: ${lifecycle.delivery.value} [${lifecycle.delivery.sources.map((source) => `${source.kind}:${source.id}`).join(", ")}]`,
+    `closure: ${lifecycle.closure.value} [${lifecycle.closure.sources.map((source) => `${source.kind}:${source.id}`).join(", ")}]`,
+    `diagnostics: ${dossier.diagnostics.length}`,
+  ];
+};
+
+const runFeatureValidation = (
+  root: string,
+  featureId: string,
+): Effect.Effect<number, never, FileSystem.FileSystem | Path.Path | Crypto.Crypto> =>
+  Effect.gen(function* () {
+    const git = yield* observeGit(root, featureId);
+    const input = yield* loadFeatureDossier(root, featureId, { git });
+    const dossier = yield* compileFeatureDossier(input);
+    for (const line of dossierText(dossier)) yield* Console.log(line);
+    for (const diagnostic of dossier.diagnostics) {
+      yield* Console.log(
+        `diagnostic: ${diagnostic.code} (${diagnostic.path}): ${diagnostic.message}`,
+      );
+    }
+    return dossier.diagnostics.some((diagnostic) => diagnostic.code.startsWith("receipt.")) ? 1 : 0;
+  }).pipe(
+    Effect.catch((error) =>
+      Console.error(error instanceof Error ? error.message : String(error)).pipe(Effect.as(1)),
+    ),
+  );
 
 export const runSemproj = (
   arguments_: ReadonlyArray<string>,
-): Effect.Effect<number, never, FileSystem.FileSystem | Path.Path> => {
+): Effect.Effect<number, never, FileSystem.FileSystem | Path.Path | Crypto.Crypto> => {
   const command = parseCommand(arguments_);
-  if (command === undefined) {
-    return Console.error(usage).pipe(Effect.as(2));
-  }
+  if (command === undefined) return Console.error(usage).pipe(Effect.as(2));
+  if (command.name === "feature-validate")
+    return runFeatureValidation(command.root, command.featureId);
 
   return Effect.gen(function* () {
     const pathService = yield* Path.Path;
-    const project = yield* loadProject(command.root);
-    const issues: ReadonlyArray<ProjectIssue> = [
-      ...validateProject(project),
-      ...(yield* validateFeatureRepository(project, project.root)),
-    ];
+    const loadedProject = yield* loadProject(command.root);
+    const git = yield* observeGit(loadedProject.root);
+    const dossiers = yield* compileFeatureDossiers(loadedProject.root, git);
+    const project = withFeatureDossiers(loadedProject, dossiers);
+    const issues = validateProject(project);
     if (command.name === "validate") {
       for (const issue of issues) yield* Console.log(issueText(issue));
       const errors = issues.filter((issue) => issue.severity === "error").length;
@@ -117,7 +217,7 @@ export const runSemproj = (
       return 0;
     }
 
-    const views = generateViews(project);
+    const views = generateViews(project, dossiers);
     const changedViews = yield* writeGeneratedFiles(
       pathService.resolve(project.root, command.output),
       views,
@@ -143,5 +243,9 @@ export const runSemproj = (
       `${command.check ? "checked" : "generated"} ${views.size} views and ${repositoryConfigurationCount} repository configurations`,
     );
     return 0;
-  }).pipe(Effect.catch((error) => Console.error(error.message).pipe(Effect.as(1))));
+  }).pipe(
+    Effect.catch((error) =>
+      Console.error(error instanceof Error ? error.message : String(error)).pipe(Effect.as(1)),
+    ),
+  );
 };

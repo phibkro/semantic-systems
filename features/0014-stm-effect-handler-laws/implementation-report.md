@@ -1,0 +1,88 @@
+---
+format: semantic.feature-artifact/v1
+feature_id: 0014-stm-effect-handler-laws
+kind: implementation_report
+---
+# Historical source record: 0014-stm-effect-handler-laws
+
+The following JSON is the verbatim legacy model record retained as historical evidence. Its lifecycle status and completion assertions are not current authority and cannot authorize a transition.
+
+```json
+{
+  "entities": [
+    {
+      "id": "work.stm-laws",
+      "kind": "work_item",
+      "name": "Specify STM effect and handler laws",
+      "summary": "Define retry, rollback, commit actions, and serializability.",
+      "status": "complete",
+      "tags": ["stm"],
+      "attributes": {
+        "feature_id": "0014-stm-effect-handler-laws",
+        "feature_loop": "managed",
+        "phase": "validation",
+        "effort": 8,
+        "completion": {
+          "outcome": "positive",
+          "implementation_head": "d677bbae5fa4348530cd179fbdf7fecf9f5bedd0",
+          "integration_head": "b51f375231e878e1d8b67b20068d0789eae4e339",
+          "evidence": [
+            {
+              "role": "feature_acceptance",
+              "category": "runtime_check",
+              "method": "runtime_validation",
+              "source": {
+                "kind": "repository_artifact",
+                "path": "plans/completed/0014-stm-effect-handler-laws.md"
+              },
+              "claim": "feature_acceptance: runtime_validation"
+            },
+            {
+              "role": "integration_test",
+              "category": "test",
+              "method": "test_and_static_analysis",
+              "source": {
+                "kind": "repository_artifact",
+                "path": "plans/completed/0014-stm-effect-handler-laws.md"
+              },
+              "claim": "integration_gate: test_and_static_analysis"
+            },
+            {
+              "role": "integration_analysis",
+              "category": "analysis",
+              "method": "test_and_static_analysis",
+              "source": {
+                "kind": "repository_artifact",
+                "path": "plans/completed/0014-stm-effect-handler-laws.md"
+              },
+              "claim": "integration_gate: test_and_static_analysis"
+            },
+            {
+              "role": "independent_review",
+              "category": "assertion",
+              "method": "assertion",
+              "source": { "kind": "authored_assertion" },
+              "claim": "independent_review: assertion"
+            }
+          ]
+        },
+        "acceptance": [
+          "Speculative and commit-only effects are separate",
+          "Affine capture restrictions are explicit",
+          "Executable model covers conflict and retry"
+        ],
+        "delegation": {
+          "specification_completeness": 3,
+          "context_locality": 4,
+          "testability": 4,
+          "reversibility": 3,
+          "integration_independence": 2,
+          "blast_radius": 5,
+          "human_review": true
+        }
+      }
+    }
+  ],
+  "relations": []
+}
+```

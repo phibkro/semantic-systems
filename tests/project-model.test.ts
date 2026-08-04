@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { BunFileSystem, BunPath } from "@effect/platform-bun";
-import { NodeFileSystem, NodePath } from "@effect/platform-node";
+import { BunCrypto, BunFileSystem, BunPath } from "@effect/platform-bun";
+import { NodeCrypto, NodeFileSystem, NodePath } from "@effect/platform-node";
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { Effect, Exit, type FileSystem, type Path } from "effect";
+import { Effect, Exit, type Crypto, type FileSystem, type Path } from "effect";
 import { runSemproj } from "../src/project-model/cli.ts";
 import { adjacency, longestPath, topologicalOrder } from "../src/project-model/graph.ts";
 import { loadProject } from "../src/project-model/loader.ts";
@@ -15,16 +15,26 @@ import { generateViews } from "../src/project-model/views.ts";
 const ROOT = resolve(import.meta.dir, "..");
 const temporaryRoots: Array<string> = [];
 
-const runBun = <A, E>(effect: Effect.Effect<A, E, FileSystem.FileSystem | Path.Path>): Promise<A> =>
-  Effect.runPromise(effect.pipe(Effect.provide([BunFileSystem.layer, BunPath.layer])));
+const runBun = <A, E>(
+  effect: Effect.Effect<A, E, Crypto.Crypto | FileSystem.FileSystem | Path.Path>,
+): Promise<A> =>
+  Effect.runPromise(
+    effect.pipe(Effect.provide([BunCrypto.layer, BunFileSystem.layer, BunPath.layer])),
+  );
 
-const runBunExit = <A, E>(effect: Effect.Effect<A, E, FileSystem.FileSystem | Path.Path>) =>
-  Effect.runPromiseExit(effect.pipe(Effect.provide([BunFileSystem.layer, BunPath.layer])));
+const runBunExit = <A, E>(
+  effect: Effect.Effect<A, E, Crypto.Crypto | FileSystem.FileSystem | Path.Path>,
+) =>
+  Effect.runPromiseExit(
+    effect.pipe(Effect.provide([BunCrypto.layer, BunFileSystem.layer, BunPath.layer])),
+  );
 
 const runNode = <A, E>(
-  effect: Effect.Effect<A, E, FileSystem.FileSystem | Path.Path>,
+  effect: Effect.Effect<A, E, Crypto.Crypto | FileSystem.FileSystem | Path.Path>,
 ): Promise<A> =>
-  Effect.runPromise(effect.pipe(Effect.provide([NodeFileSystem.layer, NodePath.layer])));
+  Effect.runPromise(
+    effect.pipe(Effect.provide([NodeCrypto.layer, NodeFileSystem.layer, NodePath.layer])),
+  );
 
 afterEach(async () => {
   await Promise.all(temporaryRoots.splice(0).map((path) => rm(path, { recursive: true })));

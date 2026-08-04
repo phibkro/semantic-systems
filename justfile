@@ -3,31 +3,14 @@ set positional-arguments
 default:
     @just --list
 
-install:
-    bun install --frozen-lockfile --ignore-scripts
-    bun run effect:setup
-    bun run hooks:install
-
-validate:
-    bun run semproj -- validate
-
-generate:
-    bun run semproj -- generate
-
-report:
-    bun run semproj -- report
-
-test:
-    bun run test
-
-fast:
-    bun scripts/check-fast.ts
+setup:
+    bun scripts/check.ts setup
 
 check:
-    bun scripts/check.ts
+    bun scripts/check.ts check
 
-references:
-    bun scripts/check-references.ts
+verify:
+    bun scripts/check.ts verify
 
-accept feature:
-    bun scripts/run-feature-acceptance.ts --mode direct --feature "$1"
+start feature:
+    bun scripts/check.ts start "$1"
