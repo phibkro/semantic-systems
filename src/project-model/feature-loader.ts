@@ -6,12 +6,10 @@ import { Crypto, Data, Effect, FileSystem, Path, Schema } from "effect";
 import {
   FEATURE_ARTIFACT_FORMAT,
   FEATURE_HISTORICAL_IMPORT_FORMAT,
+  FEATURE_ID_PATTERN,
   type FeatureDossierInput,
 } from "./feature-dossier.ts";
-import {
-  DesignLensValidationError,
-  validateDesignLensText,
-} from "./design-lens-validation.ts";
+import { DesignLensValidationError, validateDesignLensText } from "./design-lens-validation.ts";
 
 const FEATURE_DIRECTORY = "features";
 const MAX_ARTIFACT_BYTES = 2 * 1024 * 1024;
@@ -50,6 +48,7 @@ export interface FeatureDossierLoadOptions {
   readonly git: unknown;
   readonly provider?: unknown;
   readonly closure?: unknown;
+  readonly validate_design_lens?: boolean;
 }
 
 const loadError = (message: string, path?: string, cause?: unknown): FeatureDossierLoadError =>
@@ -244,6 +243,7 @@ const artifactFromFile = (
   featureId: string,
   directory: string,
   file: { readonly path: string; readonly content: string },
+  validateLens: boolean,
 ): {
   readonly kind: string;
   readonly path: string;
@@ -272,7 +272,7 @@ const artifactFromFile = (
       file.path,
     );
   }
-  if (file.path === "spec.md") {
+  if (validateLens && file.path === "spec.md") {
     validateSpecification(file.content, `${directory}/${file.path}`);
   }
   return { kind, path: `${directory}/${file.path}`, content: file.content, metadata };
@@ -331,7 +331,12 @@ export const loadFeatureDossier = (
         (transition.kind === "receipt" ? receipts : historicalImports).push(transition.value);
         continue;
       }
-      const artifact = artifactFromFile(featureId, directory, file);
+      const artifact = artifactFromFile(
+        featureId,
+        directory,
+        file,
+        options.validate_design_lens ?? false,
+      );
       artifacts.push({ ...artifact, sha256: yield* digestContent(file.content) });
     }
     return {

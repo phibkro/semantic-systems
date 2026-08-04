@@ -233,8 +233,8 @@ describe("feature dossier compiler", () => {
   test("requires an exact nonempty candidate revision for delivered candidates", async () => {
     const withoutReceiptRevision = fullReceipts().map((value) => {
       if (value.receipt_id !== "r-candidate") return value;
-      const copy = { ...value };
-      delete copy.candidate_revision;
+      const copy = structuredClone(value);
+      Reflect.deleteProperty(copy, "candidate_revision");
       return copy;
     });
     const missingReceiptRevision = await run({
@@ -243,8 +243,7 @@ describe("feature dossier compiler", () => {
     });
     expect(missingReceiptRevision.lifecycle.delivery.value).toBe("unmerged");
 
-    const gitWithoutRevision = { ...gitObservation() };
-    delete gitWithoutRevision.candidate_revision;
+    const { candidate_revision: _candidateRevision, ...gitWithoutRevision } = gitObservation();
     const missingGitRevision = await run({
       ...baseInput(),
       observations: { git: gitWithoutRevision },
@@ -345,7 +344,9 @@ describe("feature dossier compiler", () => {
   test("does not let operator authority bypass the transition-specific matrix", async () => {
     const receipts = fullReceipts().map((value) =>
       value.receipt_id === "r-candidate"
-        ? { ...value, issuer: { ...value.issuer, role: "operator" } }
+        ? Object.assign({}, value, {
+            issuer: Object.assign({}, value.issuer, { role: "operator" }),
+          })
         : value,
     );
     const result = await run({ ...baseInput(), receipts });
@@ -356,12 +357,11 @@ describe("feature dossier compiler", () => {
     expect(
       result.diagnostics.some(
         (value) =>
-          value.code === "receipt.unauthorized_role" &&
-          value.path === "/receipts/r-candidate",
+          value.code === "receipt.unauthorized_role" && value.path === "/receipts/r-candidate",
       ),
     ).toBeTrue();
-    expect(result.lifecycle.phase.value).toBe("verification");
-    expect(result.lifecycle.readiness.value).toBe("implementation_review_ready");
+    expect(result.lifecycle.phase.value).toBe("implementation");
+    expect(result.lifecycle.readiness.value).toBe("accepted");
   });
 
   test("rejects unknown fields and bad versions at the schema boundary", async () => {
@@ -401,9 +401,7 @@ describe("feature dossier compiler", () => {
     ]) {
       const outside = await failure({
         ...baseInput(),
-        artifacts: artifacts.map((value, index) =>
-          index === 0 ? { ...value, path } : value,
-        ),
+        artifacts: artifacts.map((value, index) => (index === 0 ? { ...value, path } : value)),
       });
       expect(outside.code).toBe("invalid_artifact");
     }

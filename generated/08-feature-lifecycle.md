@@ -33,7 +33,7 @@
 | 0052-stm-schedule-explorer | proposal | drafting | active | unmerged | open |
 | 0053-relational-fact-export | proposal | drafting | active | unmerged | open |
 | 0054-semantic-contract-wit-mapping | proposal | drafting | active | unmerged | open |
-| 0055-lifecycle-plan-layout | proposal | drafting | active | unmerged | open |
+| 0055-lifecycle-plan-layout | proposal | drafting | superseded | unmerged | open |
 | 0056-project-json-language-tooling | proposal | drafting | active | unmerged | open |
 | 0057-control-room-agent-observation-correlation | proposal | drafting | active | unmerged | open |
 | 0058-feature-dossier-workflow | proposal | drafting | active | unmerged | open |
@@ -274,7 +274,7 @@
 
 - **phase**: proposal (source: none)
 - **readiness**: drafting (source: none)
-- **condition**: active (source: none)
+- **condition**: superseded (source: transition_receipt:0055-superseded-by-0058)
 - **delivery**: unmerged (source: none)
 - **closure**: open (source: none)
 

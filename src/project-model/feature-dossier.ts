@@ -899,9 +899,9 @@ const deriveLifecycle = (
   const designAccepted = hasAccepted(receipts, "design_accepted");
   const specificationAccepted = hasAccepted(receipts, "specification_accepted");
   const candidateNominated = hasAccepted(receipts, "candidate_nominated");
-  const verificationAccepted = hasAccepted(receipts, "verification_accepted");
-  const reviewAccepted = hasAccepted(receipts, "review_accepted");
-  const checksAccepted = hasAccepted(receipts, "checks_accepted");
+  const verificationAccepted = candidateNominated && hasAccepted(receipts, "verification_accepted");
+  const reviewAccepted = candidateNominated && hasAccepted(receipts, "review_accepted");
+  const checksAccepted = candidateNominated && hasAccepted(receipts, "checks_accepted");
 
   let phase: FeaturePhase = "proposal";
   let phaseSources: ReadonlyArray<SourceIdentity> = sourceForArtifactKind(artifacts, "proposal");

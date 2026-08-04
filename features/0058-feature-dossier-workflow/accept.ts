@@ -95,6 +95,7 @@ const program = Effect.gen(function* () {
     ["bun", "run", "semproj", "--", "feature", "validate", "--feature", featureId],
     ["bun", "test", "tests/feature-dossier-workflow.test.ts"],
     ["bun", "test", "tests/repository-workflow.test.ts"],
+    ["bun", "test", "tests/project-model-integration.test.ts"],
     ["bun", "run", "semproj", "--", "validate"],
     ["bun", "run", "semproj", "--", "generate", "--check"],
     ["bun", "run", "typecheck"],

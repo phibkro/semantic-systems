@@ -2,7 +2,7 @@
 
 <!-- Generated. Edit model sources, not this file. -->
 
-Ready parallel work items: **28**.
+Ready parallel work items: **27**.
 
 | Work item | Phase | Status | Ready | Score | Recommendation | Blockers |
 |---|---|---|---:|---:|---|---|
@@ -31,7 +31,7 @@ Ready parallel work items: **28**.
 | 0022-kernel-reference-interpreter | proposal | planned | yes | 0 | human-led design |  |
 | 0018-minimal-kernel-calculus | proposal | planned | yes | 0 | human-led design |  |
 | Specify Lean evidence adapter | research | planned | no | 60 | delegate with review | 0019-normalized-core-format |
-| 0055-lifecycle-plan-layout | proposal | planned | yes | 0 | human-led design |  |
+| 0055-lifecycle-plan-layout | proposal | superseded | no | 0 | human-led design |  |
 | 0020-lossless-kernel-source | proposal | planned | no | 0 | human-led design | 0019-normalized-core-format |
 | 0019-normalized-core-format | proposal | planned | no | 0 | human-led design | 0018-minimal-kernel-calculus |
 | 0015-open-semantic-system-design-lens | proposal | planned | yes | 0 | human-led design |  |

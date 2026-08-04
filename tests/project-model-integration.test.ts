@@ -94,7 +94,7 @@ test("converts design-lens rejection into a typed loader failure", async () => {
   await Bun.write(`${repository}/features/${featureId}/spec.md`, invalid);
   let failure: unknown;
   try {
-    await run(loadFeatureDossier(repository, featureId, { git }));
+    await run(loadFeatureDossier(repository, featureId, { git, validate_design_lens: true }));
   } catch (error) {
     failure = error;
   }

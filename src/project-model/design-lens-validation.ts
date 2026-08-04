@@ -31,9 +31,8 @@ export class DesignLensValidationError extends Data.TaggedError("DesignLensValid
   readonly cause?: unknown;
 }> {}
 
-export const isDesignLensValidationError = (
-  value: unknown,
-): value is DesignLensValidationError => value instanceof DesignLensValidationError;
+export const isDesignLensValidationError = (value: unknown): value is DesignLensValidationError =>
+  value instanceof DesignLensValidationError;
 
 const PLACEHOLDER_WORDS = new Set([
   "todo",
@@ -271,8 +270,7 @@ export const validateDesignLensText = (content: string, path: string): void => {
     );
     const end = nextSectionBoundary?.childIndex ?? children.length;
     const levelThree = headings.filter(
-      (heading) =>
-        heading.level === 3 && heading.childIndex >= start && heading.childIndex < end,
+      (heading) => heading.level === 3 && heading.childIndex >= start && heading.childIndex < end,
     );
 
     for (const required of DESIGN_LENS_HEADINGS) {
@@ -288,7 +286,9 @@ export const validateDesignLensText = (content: string, path: string): void => {
       const sectionEnd = next?.childIndex ?? end;
       const visible = visibleDesignContent(content, children.slice(sectionStart, sectionEnd));
       if (isPlaceholderOnly(visible)) {
-        throw new Error(`${path} design-lens subsection "${required}" is empty or placeholder-only`);
+        throw new Error(
+          `${path} design-lens subsection "${required}" is empty or placeholder-only`,
+        );
       }
     }
   } catch (cause) {

@@ -38,6 +38,7 @@ const generatedPaths = [
   "generated/schema/project-document.schema.json",
   ".omp/lsp.json",
 ] as const;
+const generatedPathSet: ReadonlySet<string> = new Set(generatedPaths);
 const sourceRoots = [
   "src",
   "tests",
@@ -112,15 +113,23 @@ const gitOutput = (
           }),
         ),
   );
-
-const gitCommonDirectory = (): Effect.Effect<string, WorkflowAdapterError> =>
-  Effect.map(gitOutput(["rev-parse", "--git-common-dir"]), (directory) =>
-    resolve(root, directory),
+const commandSucceeded = (
+  command: ReadonlyArray<string>,
+): Effect.Effect<void, WorkflowAdapterError> =>
+  Effect.flatMap(spawn(command), (result) =>
+    result.exitCode === 0
+      ? Effect.void
+      : Effect.fail(
+          new WorkflowAdapterError({
+            message: `${command.join(" ")} failed with exit code ${result.exitCode}: ${result.stderr}`,
+          }),
+        ),
   );
 
-const ensureParentDirectory = (
-  filePath: string,
-): Effect.Effect<void, WorkflowAdapterError> =>
+const gitCommonDirectory = (): Effect.Effect<string, WorkflowAdapterError> =>
+  Effect.map(gitOutput(["rev-parse", "--git-common-dir"]), (directory) => resolve(root, directory));
+
+const ensureParentDirectory = (filePath: string): Effect.Effect<void, WorkflowAdapterError> =>
   Effect.tryPromise({
     try: () => mkdir(dirname(filePath), { recursive: true }).then(() => undefined),
     catch: (cause) =>
@@ -235,7 +244,7 @@ const repairPolicy = (paths: ReadonlyArray<string>): RepairPolicy => {
   const generatedInputChanged = generatedInputRoots.some((rootPath) =>
     paths.some((path) => pathWithin(path, rootPath)),
   );
-  const generatedOutputChanged = paths.some((path) => generatedPaths.includes(path));
+  const generatedOutputChanged = paths.some((path) => generatedPathSet.has(path));
   return {
     allowed_effects: ["oxfmt_write", "oxlint_safe_fix", "generated_view_regeneration"],
     oxfmt_output_paths: sourceFiles(paths),
@@ -311,17 +320,13 @@ const repairPlan = (
 
 const runRepairPass = (input: CheckInput): Effect.Effect<WorkflowReceipt, WorkflowAdapterError> =>
   Effect.gen(function* () {
-    const affectedPaths = [...new Set([...input.affected_paths, ...input.tree.changed_paths])].sort();
+    const affectedPaths = [
+      ...new Set([...input.affected_paths, ...input.tree.changed_paths]),
+    ].sort();
     const policy = input.repair_policy;
     const candidates: ReadonlyArray<readonly [RepairEffect, ReadonlyArray<string>]> = [
-      [
-        "oxfmt_write",
-        selectRepairOutputPaths("oxfmt_write", affectedPaths, policy),
-      ],
-      [
-        "oxlint_safe_fix",
-        selectRepairOutputPaths("oxlint_safe_fix", affectedPaths, policy),
-      ],
+      ["oxfmt_write", selectRepairOutputPaths("oxfmt_write", affectedPaths, policy)],
+      ["oxlint_safe_fix", selectRepairOutputPaths("oxlint_safe_fix", affectedPaths, policy)],
       [
         "generated_view_regeneration",
         selectRepairOutputPaths("generated_view_regeneration", affectedPaths, policy),
@@ -375,12 +380,13 @@ const runRepairPass = (input: CheckInput): Effect.Effect<WorkflowReceipt, Workfl
 
 const runChecks = (input: CheckInput): Effect.Effect<WorkflowReceipt, WorkflowAdapterError> =>
   Effect.gen(function* () {
-    const affectedPaths = [...new Set([...input.affected_paths, ...input.tree.changed_paths])].sort();
+    const affectedPaths = [
+      ...new Set([...input.affected_paths, ...input.tree.changed_paths]),
+    ].sort();
     const unknownAffectedPath =
       !input.tree.tracked ||
       affectedPaths.some(
-        (path) =>
-          !input.impact_graph.known_paths.some((knownPath) => pathWithin(path, knownPath)),
+        (path) => !input.impact_graph.known_paths.some((knownPath) => pathWithin(path, knownPath)),
       );
     const selectedDefinitions = unknownAffectedPath
       ? [...input.impact_graph.always_checks, ...input.impact_graph.full_checks]
@@ -467,7 +473,12 @@ const runCheckWorkflow: Effect.Effect<void, WorkflowAdapterError> = Effect.gen(f
   const repaired = yield* runRepairPass(repairInput);
   const afterRepair = yield* treeState();
   const definitions = checkDefinitions();
-  const checkInputValue = checkInput(afterRepair, repairPolicy(afterRepair.changedPaths), definitions, []);
+  const checkInputValue = checkInput(
+    afterRepair,
+    repairPolicy(afterRepair.changedPaths),
+    definitions,
+    [],
+  );
   const checked = yield* runChecks(checkInputValue);
   yield* Console.log(JSON.stringify({ repair: repaired, check: checked }, null, 2));
 });
@@ -481,12 +492,9 @@ const observePlan = (id: string, command: string): CommandPlan => ({
   declared_output_paths: [],
 });
 
-const canonicalAcceptancePath = (featureId: string): string =>
-  `features/${featureId}/accept.ts`;
+const canonicalAcceptancePath = (featureId: string): string => `features/${featureId}/accept.ts`;
 
-const acceptancePlan = (
-  featureId: string,
-): Effect.Effect<CommandPlan, WorkflowAdapterError> =>
+const acceptancePlan = (featureId: string): Effect.Effect<CommandPlan, WorkflowAdapterError> =>
   Effect.gen(function* () {
     if (!FEATURE_ID_PATTERN.test(featureId)) {
       return yield* new WorkflowAdapterError({
@@ -511,13 +519,16 @@ const acceptancePlan = (
 
 const verifyPlans = (
   acceptance: CommandPlan | undefined,
-): readonly [CommandPlan, ...CommandPlan[]] => [
-  ...(acceptance === undefined ? [] : [acceptance]),
-  observePlan("verify:format", "oxfmt --check"),
-  observePlan("verify:generated", "semproj generate --deterministic"),
-  observePlan("verify:lint", "oxlint --deny-warnings"),
-  observePlan("verify:types", "bun run typecheck"),
-];
+): readonly [CommandPlan, ...CommandPlan[]] => {
+  const plans: [CommandPlan, ...CommandPlan[]] = [
+    observePlan("verify:format", "oxfmt --check"),
+    observePlan("verify:generated", "semproj generate --deterministic"),
+    observePlan("verify:lint", "oxlint --deny-warnings"),
+    observePlan("verify:types", "bun run typecheck"),
+  ];
+  if (acceptance !== undefined) plans.push(acceptance);
+  return plans;
+};
 const verifyCommand = (id: string, featureId?: string): ReadonlyArray<string> => {
   switch (id) {
     case "verify:acceptance":
@@ -540,28 +551,16 @@ const verifyCommand = (id: string, featureId?: string): ReadonlyArray<string> =>
   }
 };
 
-const runVerifyWorkflow = (
-  featureId?: string,
-): Effect.Effect<void, WorkflowAdapterError> =>
+const runVerifyWorkflow = (featureId?: string): Effect.Effect<void, WorkflowAdapterError> =>
   Effect.gen(function* () {
     const acceptance = featureId === undefined ? undefined : yield* acceptancePlan(featureId);
     const plans = verifyPlans(acceptance);
     const tree = yield* treeState();
     const observedHead = tree.head;
-    const expectedHeadRef =
-      process.env.VERIFY_HEAD ?? process.env.GITHUB_SHA ?? observedHead;
-    const expectedHead = yield* gitOutput([
-      "rev-parse",
-      "--verify",
-      `${expectedHeadRef}^{commit}`,
-    ]);
-    const expectedBaseRef =
-      process.env.VERIFY_BASE ?? process.env.GITHUB_BASE_SHA ?? observedHead;
-    const resolvedBase = yield* gitOutput([
-      "rev-parse",
-      "--verify",
-      `${expectedBaseRef}^{commit}`,
-    ]);
+    const expectedHeadRef = process.env.VERIFY_HEAD ?? process.env.GITHUB_SHA ?? observedHead;
+    const expectedHead = yield* gitOutput(["rev-parse", "--verify", `${expectedHeadRef}^{commit}`]);
+    const expectedBaseRef = process.env.VERIFY_BASE ?? process.env.GITHUB_BASE_SHA ?? observedHead;
+    const resolvedBase = yield* gitOutput(["rev-parse", "--verify", `${expectedBaseRef}^{commit}`]);
     const observedBase = yield* gitOutput(["merge-base", resolvedBase, observedHead]);
     const expectedBase = resolvedBase;
     if (tree.changedPaths.length > 0 || !tree.tracked) {
@@ -720,9 +719,7 @@ export const runStartWorkflow = (featureId: string): Effect.Effect<void, Workflo
     const specificationFact = dossier.facts.find(
       (fact) => fact.kind === "specification" && fact.path === specificationPath,
     );
-    const planFact = dossier.facts.find(
-      (fact) => fact.kind === "plan" && fact.path === planPath,
-    );
+    const planFact = dossier.facts.find((fact) => fact.kind === "plan" && fact.path === planPath);
     const specification = yield* Effect.tryPromise({
       try: async () => Bun.file(`${root}/${specificationPath}`).text(),
       catch: (cause) =>
@@ -737,8 +734,7 @@ export const runStartWorkflow = (featureId: string): Effect.Effect<void, Workflo
           message: `cannot read compiled feature plan: ${String(cause)}`,
         }),
     });
-    const frozen =
-      specificationFact !== undefined && /^Status:\s*frozen\s*$/m.test(specification);
+    const frozen = specificationFact !== undefined && /^Status:\s*frozen\s*$/m.test(specification);
     const active =
       planFact !== undefined &&
       dossier.lifecycle.condition.value === "active" &&
@@ -879,6 +875,7 @@ export const compileLiveDossierForStart = (
         head: tree.head,
         clean: tree.changedPaths.length === 0,
       },
+      validate_design_lens: true,
     });
     return yield* compileFeatureDossier(input);
   }).pipe(

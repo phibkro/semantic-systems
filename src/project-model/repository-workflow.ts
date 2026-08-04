@@ -390,10 +390,7 @@ const asReceipt = ({
 const pathMatches = (path: string, root: string): boolean =>
   path === root || path.startsWith(`${root}/`);
 
-const pathsIntersect = (
-  left: ReadonlyArray<string>,
-  right: ReadonlyArray<string>,
-): boolean =>
+const pathsIntersect = (left: ReadonlyArray<string>, right: ReadonlyArray<string>): boolean =>
   left.some((candidate) =>
     right.some((affected) => pathMatches(candidate, affected) || pathMatches(affected, candidate)),
   );
@@ -453,10 +450,7 @@ export const selectRepairOutputPaths = (
 ): ReadonlyArray<string> => {
   const declared = repairOutputPaths(effect, policy);
   if (effect === "generated_view_regeneration") {
-    const generatedInputChanged = pathsIntersect(
-      policy.generated_view_input_paths,
-      affectedPaths,
-    );
+    const generatedInputChanged = pathsIntersect(policy.generated_view_input_paths, affectedPaths);
     const generatedOutputChanged = pathsIntersect(declared, affectedPaths);
     if (generatedInputChanged || generatedOutputChanged) return freezePaths(declared);
     return [];
@@ -689,8 +683,7 @@ const evaluateCheck = (input: CheckInput): Effect.Effect<WorkflowReceipt, Workfl
   Effect.gen(function* () {
     const affectedPaths = uniqueSorted([...input.affected_paths, ...input.tree.changed_paths]);
     const unknownAffectedPath =
-      !input.tree.tracked ||
-      hasUnknownAffectedPath(affectedPaths, input.impact_graph.known_paths);
+      !input.tree.tracked || hasUnknownAffectedPath(affectedPaths, input.impact_graph.known_paths);
     const selectedChecks = yield* mergeChecks([
       ...input.impact_graph.always_checks,
       ...(unknownAffectedPath

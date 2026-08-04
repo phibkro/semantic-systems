@@ -4,6 +4,7 @@ feature_id: 0005-autonomous-development-control-loop
 kind: specification
 legacy_entity_id: work.autonomous-development-loop
 ---
+
 # Design spec 0005: autonomous development control loop
 
 Status: active
@@ -112,10 +113,10 @@ A nontrivial feature is one user-visible or semantically falsifiable journey.
 It owns one feature ID across:
 
 ```text
-design-specs/<feature_id>.md
-plans/<active|completed|superseded>/<feature_id>.md
-model/work/features/<feature_id>.json
-scripts/accept/<feature_id>.ts
+features/<feature_id>/spec.md
+features/<feature_id>/plan.md
+features/<feature_id>/implementation-report.md
+features/<feature_id>/accept.ts
 one feature branch
 one pull request
 ```
@@ -413,16 +414,15 @@ and inert; changed declarations still fail on duplicate ownership.
 Path-custody semantic diff:
 
 ```text
-Before: model status + lifecycle directory + plan heading/status + caller literals
-After:  canonical model status -> checked resolution + generated projections
+Before: model work JSON + lifecycle directory + plan heading/status + caller literals
+After:  canonical features/<feature_id>/ dossier -> compiled IR -> generated projections
 ```
 
-Canonical feature-source identity is path-stable at
-`model/work/features/<feature_id>.json`, and design-spec identity is path-stable
-at `design-specs/<feature_id>.md`. The plan path is derived from canonical model
-status as `plans/<active|completed|superseded>/<feature_id>.md`; the directory
-does not independently author lifecycle state. Acceptance dispatch receives
-resolved canonical artifacts, and deployment observations remain separate from
-work completion metadata. This changes path custody and range ownership, not
-evidence meanings,
-feature identity, or merge authority.
+Canonical feature identity is the stable `features/<feature_id>/` directory.
+`spec.md`, `plan.md`, `implementation-report.md`, and optional `accept.ts`
+artifacts carry distinct responsibilities inside that directory. Compiled
+transition receipts derive lifecycle state; no directory name or model record
+authors it. Acceptance dispatch resolves only `features/<feature_id>/accept.ts`.
+Deployment observations remain separate from lifecycle receipts. This changes
+path custody and range ownership, not evidence meanings, feature identity, or
+merge authority.

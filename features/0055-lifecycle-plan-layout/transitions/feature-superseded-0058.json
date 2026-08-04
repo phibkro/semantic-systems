@@ -1,0 +1,14 @@
+{
+  "format": "semantic.feature-transition/v1",
+  "receipt_id": "0055-superseded-by-0058",
+  "feature_id": "0055-lifecycle-plan-layout",
+  "transition": "feature_superseded",
+  "issuer": {
+    "identity": "semantic-integration",
+    "role": "integration"
+  },
+  "observed_at": "2026-08-02T00:00:00Z",
+  "evidence_category": "assertion",
+  "reason": "Feature 0058 replaces path-derived lifecycle layout with canonical compiled feature dossiers.",
+  "replacement_feature_id": "0058-feature-dossier-workflow"
+}

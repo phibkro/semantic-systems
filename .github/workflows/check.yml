@@ -40,6 +40,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+          fetch-depth: 0
 
       - name: Report exact tested commit
         env:
@@ -71,8 +72,11 @@ jobs:
       - name: Assert TypeScript identity
         run: test "$(nix develop --command ./node_modules/.bin/tsc --version)" = "Version 7.0.2"
 
-      - name: Observe exact head
-        run: nix develop --command just verify
+      - name: Observe exact head and feature acceptance
+        env:
+          VERIFY_BASE: ${{ github.event.pull_request.base.sha || github.sha }}
+          VERIFY_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: nix develop --command just verify 0058-feature-dossier-workflow
 
       - name: Flake checks
         run: nix flake check
@@ -83,7 +87,6 @@ jobs:
             printf 'tracked artifacts changed during verification\n' >&2
             exit 1
           fi
-
 
   commit-policy:
     name: commit message + PR title policy

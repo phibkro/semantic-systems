@@ -131,10 +131,12 @@ const observeGit = (
     const canonicalMain = remoteMain !== "unobserved" ? remoteMain : localMain;
     let candidateReachable = false;
     if (head !== "unobserved" && canonicalMain !== "unobserved") {
-      candidateReachable = yield* runGit(
-        root,
-        ["merge-base", "--is-ancestor", head, canonicalMain],
-      ).pipe(
+      candidateReachable = yield* runGit(root, [
+        "merge-base",
+        "--is-ancestor",
+        head,
+        canonicalMain,
+      ]).pipe(
         Effect.map(() => true),
         Effect.orElseSucceed(() => false),
       );
@@ -209,7 +211,10 @@ const runFeatureValidation = (
 ): Effect.Effect<number, never, FileSystem.FileSystem | Path.Path | Crypto.Crypto> =>
   Effect.gen(function* () {
     const git = yield* observeGit(root, featureId);
-    const input = yield* loadFeatureDossier(root, featureId, { git });
+    const input = yield* loadFeatureDossier(root, featureId, {
+      git,
+      validate_design_lens: true,
+    });
     const dossier = yield* compileFeatureDossier(input);
     const crypto = yield* Crypto.Crypto;
     const digest = yield* crypto.digest("SHA-256", dossier.work_ir_bytes);
@@ -234,9 +239,9 @@ export const runSemproj = (
     const pathService = yield* Path.Path;
     const loadedProject = yield* loadProject(command.root);
     const git = yield* observeGit(loadedProject.root);
-    const dossiers = yield* (command.name === "generate"
+    const dossiers = yield* command.name === "generate"
       ? compileFeatureDossiers(loadedProject.root)
-      : compileFeatureDossiers(loadedProject.root, git));
+      : compileFeatureDossiers(loadedProject.root, git);
     const project = withFeatureDossiers(loadedProject, dossiers);
     const issues = validateProject(project);
     if (command.name === "validate") {

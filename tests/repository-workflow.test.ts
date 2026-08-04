@@ -168,36 +168,34 @@ describe("repository workflow runner", () => {
   test("schedules every generated projection for a canonical source edit", async () => {
     const receipt = await run(
       runRepositoryWorkflow(
-        generatedCheckInput(["src/project-model/repository-workflow.ts"], [
-          {
-            plan_id: "repair:generated-view-regeneration",
-            mode: "repair",
-            run: 1,
-            status: "succeeded",
-            input_tree_identity: "tree-001",
-            output_tree_identity: "tree-001",
-            changed_paths: [],
-          },
-        ]),
+        generatedCheckInput(
+          ["src/project-model/repository-workflow.ts"],
+          [
+            {
+              plan_id: "repair:generated-view-regeneration",
+              mode: "repair",
+              run: 1,
+              status: "succeeded",
+              input_tree_identity: "tree-001",
+              output_tree_identity: "tree-001",
+              changed_paths: [],
+            },
+          ],
+        ),
       ),
     );
 
     expect(receipt.verdict).toBe("clean");
     expect(receipt.command_plans).toHaveLength(1);
-    expect(receipt.command_plans[0]?.declared_output_paths).toEqual(
-      [...generated_paths].sort(),
-    );
+    expect(receipt.command_plans[0]?.declared_output_paths).toEqual([...generated_paths].sort());
   });
 
   test("does not expand generated repair outputs for unrelated paths", async () => {
-    const receipt = await run(
-      runRepositoryWorkflow(generatedCheckInput(["docs/new.md"], [])),
-    );
+    const receipt = await run(runRepositoryWorkflow(generatedCheckInput(["docs/new.md"], [])));
 
     expect(receipt.verdict).toBe("clean");
     expect(receipt.command_plans).toEqual([]);
   });
-
 
   test("rejects a repair that mutates an undeclared path", async () => {
     const error = await errorOf(
@@ -333,8 +331,6 @@ describe("repository workflow runner", () => {
 
     expect(error.code).toBe("verify_mutation");
   });
-
-
 
   test("unknown affected paths select the larger impact-graph check set", async () => {
     const input = checkInput({
