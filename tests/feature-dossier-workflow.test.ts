@@ -230,6 +230,34 @@ describe("feature dossier compiler", () => {
     expect(result.queues.closure).toEqual([]);
   });
 
+  test("requires an exact nonempty candidate revision for delivered candidates", async () => {
+    const withoutReceiptRevision = fullReceipts().map((value) => {
+      if (value.receipt_id !== "r-candidate") return value;
+      const copy = { ...value };
+      delete copy.candidate_revision;
+      return copy;
+    });
+    const missingReceiptRevision = await run({
+      ...baseInput(),
+      receipts: withoutReceiptRevision,
+    });
+    expect(missingReceiptRevision.lifecycle.delivery.value).toBe("unmerged");
+
+    const gitWithoutRevision = { ...gitObservation() };
+    delete gitWithoutRevision.candidate_revision;
+    const missingGitRevision = await run({
+      ...baseInput(),
+      observations: { git: gitWithoutRevision },
+    });
+    expect(missingGitRevision.lifecycle.delivery.value).toBe("unmerged");
+
+    const mismatchedRevision = await run({
+      ...baseInput(),
+      observations: { git: gitObservation(true, "candidate-2") },
+    });
+    expect(mismatchedRevision.lifecycle.delivery.value).toBe("unmerged");
+  });
+
   test("does not advance from artifact filenames without accepted receipts", async () => {
     const result = await run({
       ...baseInput(),
@@ -257,7 +285,9 @@ describe("feature dossier compiler", () => {
     const result = await run({ ...baseInput(), artifacts: changedArtifacts });
 
     expect(result.invalidations).toHaveLength(1);
+    expect(result.invalidations[0]?.cause).toBe("changed");
     expect(result.invalidations[0]?.artifact_path).toBe(byKind("specification").path);
+    expect(result.invalidations[0]?.current_hash).toBe(contentDigest("# changed\n"));
     expect(
       result.receipts
         .filter((value) => value.status === "accepted")
@@ -265,6 +295,33 @@ describe("feature dossier compiler", () => {
     ).toEqual(["design_accepted", "proposal_accepted", "research_accepted"]);
     expect(result.lifecycle.readiness.value).toBe("implementation_review_ready");
     expect(result.diagnostics.some((value) => value.code === "receipt.hash_mismatch")).toBeTrue();
+  });
+
+  test("invalidates dependent facts after an accepted artifact is removed", async () => {
+    const result = await run({
+      ...baseInput(),
+      artifacts: artifacts.filter((value) => value.kind !== "specification"),
+    });
+
+    expect(result.invalidations).toHaveLength(1);
+    expect(result.invalidations[0]?.cause).toBe("removed");
+    expect(result.invalidations[0]?.artifact_path).toBe(byKind("specification").path);
+    expect(result.invalidations[0]?.current_hash).toBeUndefined();
+    expect(
+      result.receipts
+        .filter((value) =>
+          [
+            "candidate_nominated",
+            "review_accepted",
+            "checks_accepted",
+            "verification_accepted",
+          ].includes(value.transition),
+        )
+        .every((value) => value.status === "rejected"),
+    ).toBeTrue();
+    expect(
+      result.diagnostics.filter((value) => value.code === "receipt.dependent_fact_invalidated"),
+    ).toHaveLength(4);
   });
 
   test("rejects self-accepted specification and independent review", async () => {

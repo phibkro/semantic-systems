@@ -350,15 +350,24 @@ export interface HistoricalImportFact {
   readonly source: SourceIdentity;
 }
 
-export interface Invalidation {
+interface InvalidationBase {
   readonly code: "accepted_artifact_changed";
   readonly artifact_kind: ArtifactKind;
   readonly artifact_path: string;
   readonly accepted_hash: string;
-  readonly current_hash: string;
   readonly invalidates: ReadonlyArray<"candidate" | "review" | "check" | "verification">;
   readonly sources: ReadonlyArray<SourceIdentity>;
 }
+
+export type Invalidation =
+  | (InvalidationBase & {
+      readonly cause: "changed";
+      readonly current_hash: string;
+    })
+  | (InvalidationBase & {
+      readonly cause: "removed";
+      readonly current_hash?: never;
+    });
 
 export interface FeatureDossierDiagnostic {
   readonly code: string;
@@ -979,9 +988,11 @@ const deriveLifecycle = (
   const gitReachable = git.candidate_reachable ?? git.reachable_from_main ?? false;
   const candidateRevision = candidateReceipt?.candidate_revision ?? candidateReceipt?.revision;
   const candidateMatches =
-    candidateReceipt === undefined ||
-    git.candidate_revision === undefined ||
-    candidateRevision === undefined ||
+    candidateReceipt !== undefined &&
+    candidateRevision !== undefined &&
+    candidateRevision.length > 0 &&
+    git.candidate_revision !== undefined &&
+    git.candidate_revision.length > 0 &&
     git.candidate_revision === candidateRevision;
   const providerObservationByRequest = new Map<string, ProviderObservation>();
   for (const request of providerRequests) {
@@ -1302,12 +1313,33 @@ const compileUnknown = (input: unknown): FeatureDossierArtifact | FeatureDossier
     ) {
       invalidations.push({
         code: "accepted_artifact_changed",
+        cause: "changed",
         artifact_kind: artifact.kind,
         artifact_path: artifact.path,
         accepted_hash: receipt.artifact_sha256 ?? "",
         current_hash: artifact.sha256,
         invalidates: ["candidate", "review", "check", "verification"],
         sources: sortSources([sourceReceipt(receipt), sourceArtifact(artifact)]),
+      });
+    } else if (
+      !accepted &&
+      reason === "receipt artifact is missing" &&
+      artifact === undefined &&
+      transitionRequiresArtifact(receipt.transition) &&
+      receipt.artifact_kind === expectedArtifactKind(receipt.transition) &&
+      receipt.artifact_kind !== undefined &&
+      receipt.artifact_path !== undefined &&
+      receipt.artifact_sha256 !== undefined &&
+      artifactPathBelongsToDirectory(receipt.artifact_path, expectedDirectory)
+    ) {
+      invalidations.push({
+        code: "accepted_artifact_changed",
+        cause: "removed",
+        artifact_kind: receipt.artifact_kind,
+        artifact_path: receipt.artifact_path,
+        accepted_hash: receipt.artifact_sha256,
+        invalidates: ["candidate", "review", "check", "verification"],
+        sources: [sourceReceipt(receipt)],
       });
     }
     if (!accepted) {
@@ -1351,8 +1383,13 @@ const compileUnknown = (input: unknown): FeatureDossierArtifact | FeatureDossier
       source: sourceReceipt(receipt),
     });
   }
-  const changedAcceptedPaths = new Set(invalidations.map((item) => item.artifact_path));
-  if (changedAcceptedPaths.size > 0) {
+  const invalidatedPaths = new Set(invalidations.map((item) => item.artifact_path));
+  const invalidationCauses = new Set(invalidations.map((item) => item.cause));
+  const dependentInvalidationMessage =
+    invalidationCauses.size === 1 && invalidationCauses.has("removed")
+      ? "dependent accepted facts invalidated by an accepted artifact removal"
+      : "dependent accepted facts invalidated by an accepted artifact change";
+  if (invalidatedPaths.size > 0) {
     for (const receipt of receipts) {
       const normalized = normalizedById.get(receipt.receipt_id);
       if (
@@ -1366,13 +1403,12 @@ const compileUnknown = (input: unknown): FeatureDossierArtifact | FeatureDossier
         normalizedById.set(receipt.receipt_id, {
           ...normalized,
           status: "rejected",
-          reason: "dependent accepted facts invalidated by an accepted artifact change",
+          reason: dependentInvalidationMessage,
         });
         diagnostics.push({
           code: "receipt.dependent_fact_invalidated",
           path: `/receipts/${receipt.receipt_id}`,
-          message:
-            "candidate, review, check, and verification facts are invalidated by an accepted artifact change",
+          message: dependentInvalidationMessage,
           source: sourceReceipt(receipt),
         });
       }
