@@ -332,6 +332,7 @@ export interface NormalizedReceiptFact {
   readonly artifact_sha256?: string;
   readonly candidate_revision?: string;
   readonly revision?: string;
+  readonly replacement_feature_id?: string;
   readonly issuer: AuthorityIdentity;
   readonly observed_at: string;
   readonly evidence_category: EvidenceCategory;
@@ -1109,6 +1110,9 @@ const makeIrBytes = (
         ? {}
         : { candidate_revision: receipt.candidate_revision }),
       ...(receipt.revision === undefined ? {} : { revision: receipt.revision }),
+      ...(receipt.replacement_feature_id === undefined
+        ? {}
+        : { replacement_feature_id: receipt.replacement_feature_id }),
       issuer: receipt.issuer,
       observed_at: receipt.observed_at,
       evidence_category: receipt.evidence_category,
@@ -1375,6 +1379,9 @@ const compileUnknown = (input: unknown): FeatureDossierArtifact | FeatureDossier
         ? {}
         : { candidate_revision: receipt.candidate_revision }),
       ...(receipt.revision === undefined ? {} : { revision: receipt.revision }),
+      ...(receipt.replacement_feature_id === undefined
+        ? {}
+        : { replacement_feature_id: receipt.replacement_feature_id }),
       issuer: receipt.issuer,
       observed_at: receipt.observed_at,
       evidence_category: receipt.evidence_category,

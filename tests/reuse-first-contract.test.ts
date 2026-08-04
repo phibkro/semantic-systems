@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dir, "..");
-const ACCEPTANCE = join(ROOT, "scripts", "accept", "0007-reuse-first-engineering.ts");
+const ACCEPTANCE = join(ROOT, "features", "0007-reuse-first-engineering", "accept.ts");
 const temporaryRoots: Array<string> = [];
 
 afterEach(async () => {

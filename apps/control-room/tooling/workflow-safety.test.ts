@@ -212,16 +212,16 @@ describe("Alchemy workflow safety", () => {
 
   test("the exact acceptance itself invokes the canonical full gate without recursion", () => {
     const acceptance = readFileSync(
-      path.join(root, "scripts/accept/0017-control-room-reconstruction.ts"),
+      path.join(root, "features/0017-control-room-reconstruction/accept.ts"),
       "utf8",
     );
     expect(acceptance).toContain('["nix", "develop", "--command", "just", "check"]');
     const portfolioAcceptance = readFileSync(
-      path.join(root, "scripts/accept/0021-pbk-portfolio-control-room.ts"),
+      path.join(root, "features/0021-pbk-portfolio-control-room/accept.ts"),
       "utf8",
     );
     expect(portfolioAcceptance).toContain(
-      '["bun", "scripts/accept/0017-control-room-reconstruction.ts"]',
+      '["bun", "features/0017-control-room-reconstruction/accept.ts"]',
     );
     expect(portfolioAcceptance).not.toContain('["just", "check"]');
     const check = readFileSync(path.join(root, "scripts/check.ts"), "utf8");

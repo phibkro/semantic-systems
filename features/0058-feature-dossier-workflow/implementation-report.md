@@ -12,3 +12,5 @@ Migrated legacy files: 124. Stable dossiers created: 33.
 Historical-import receipts retain exact pre-cutover hashes and prior evidence categories. No transition receipt for a legacy lifecycle state was invented. Runtime, proof, independent-review, merge, provider, and closure evidence remain unknown unless observed later by the compiler.
 
 See `verification/migration-manifest.md` for the complete before/after map and unresolved-conflict record.
+
+The independent-review correction set added canonical design-lens loading, strict dossier discovery, exact artifact-path and revision authority, typed provider correlation, removal-aware dependent invalidation, retained supersession targets, deterministic work IR, live Git-bound workflow verification, bounded repair checks, canonical acceptance routing, and migrated full-suite callers. Obsolete legacy gate registrations and the superseded development-control-loop test corpus were removed rather than retained as parallel authority.

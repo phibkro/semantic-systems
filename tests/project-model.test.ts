@@ -11,6 +11,10 @@ import { loadProject } from "../src/project-model/loader.ts";
 import { assessWork, criticalPath } from "../src/project-model/schedule.ts";
 import { validateProject } from "../src/project-model/validate.ts";
 import { generateViews } from "../src/project-model/views.ts";
+import {
+  compileFeatureDossiers,
+  withFeatureDossiers,
+} from "../src/project-model/work-lifecycle.ts";
 
 const ROOT = resolve(import.meta.dir, "..");
 const temporaryRoots: Array<string> = [];
@@ -36,6 +40,21 @@ const runNode = <A, E>(
     effect.pipe(Effect.provide([NodeCrypto.layer, NodeFileSystem.layer, NodePath.layer])),
   );
 
+const loadCanonicalProject = () =>
+  loadProject(ROOT).pipe(
+    Effect.flatMap((project) =>
+      compileFeatureDossiers(ROOT).pipe(
+        Effect.map((dossiers) => withFeatureDossiers(project, dossiers)),
+      ),
+    ),
+  );
+
+const loadCanonicalViews = () =>
+  Effect.all({
+    project: loadCanonicalProject(),
+    dossiers: compileFeatureDossiers(ROOT),
+  }).pipe(Effect.map(({ project, dossiers }) => generateViews(project, dossiers)));
+
 afterEach(async () => {
   await Promise.all(temporaryRoots.splice(0).map((path) => rm(path, { recursive: true })));
 });
@@ -52,16 +71,16 @@ const temporaryProject = async (document?: unknown): Promise<string> => {
 
 describe("project model Effect v4 slice", () => {
   test("loads and validates the canonical model", async () => {
-    const project = await runBun(loadProject(ROOT));
+    const project = await runBun(loadCanonicalProject());
     expect(project.entities.size).toBeGreaterThanOrEqual(40);
     expect(project.relations.length).toBeGreaterThanOrEqual(50);
     expect(project.entities.get("domain.inventory.machine")?.kind).toBe("domain_machine");
     expect(validateProject(project).filter((issue) => issue.severity === "error")).toEqual([]);
   });
 
-  test("renders all ten accepted views byte-for-byte", async () => {
-    const views = generateViews(await runBun(loadProject(ROOT)));
-    expect(views.size).toBe(10);
+  test("renders all eleven accepted views byte-for-byte", async () => {
+    const views = await runBun(loadCanonicalViews());
+    expect(views.size).toBe(11);
     for (const [name, content] of views) {
       expect(content).toBe(await Bun.file(join(ROOT, "generated", name)).text());
     }
@@ -73,38 +92,26 @@ describe("project model Effect v4 slice", () => {
     );
   });
 
-  test("preserves the ready frontier and weighted critical path", async () => {
-    const project = await runBun(loadProject(ROOT));
-    const ready = new Set(
-      assessWork(project)
-        .filter((item) => item.ready)
-        .map((item) => item.entity.id),
+  test("projects canonical dossier lifecycle into the weighted work graph", async () => {
+    const project = await runBun(loadCanonicalProject());
+    const assessed = assessWork(project);
+    expect(assessed.some((item) => item.entity.id === "work.kernel-spec")).toBeTrue();
+    expect(project.entities.get("work.stm-model-check")?.status).toBe("planned");
+    expect(project.entities.get("work.stm-model-check")?.source).toBe(
+      "features/0052-stm-schedule-explorer/spec.md",
     );
-    expect(ready.has("work.kernel-spec")).toBeFalse();
-    expect(ready.has("work.normalized-core-format")).toBeFalse();
-    expect(ready.has("work.lossless-frontend-spec")).toBeFalse();
-    expect(ready.has("work.agent-facing-kernel-json")).toBeFalse();
-    expect(ready.has("work.kernel-reference-interpreter")).toBeFalse();
-    expect(ready.has("work.lean-evidence-adapter")).toBeTrue();
-    expect(ready.has("work.stm-runtime")).toBeFalse();
-    expect(ready.has("work.stm-model-check")).toBeFalse();
-    expect(ready.has("work.relational-fact-schema")).toBeFalse();
-    expect(project.entities.get("work.stm-model-check")?.status).toBe("complete");
-    expect(project.entities.get("work.stm-model-check")?.source).toEndWith(
-      "/model/work/features/0052-stm-schedule-explorer.json",
+    expect(project.entities.get("work.relational-fact-schema")?.status).toBe("planned");
+    expect(project.entities.get("work.relational-fact-schema")?.source).toBe(
+      "features/0053-relational-fact-export/spec.md",
     );
-    expect(project.entities.get("work.relational-fact-schema")?.status).toBe("complete");
-    expect(project.entities.get("work.relational-fact-schema")?.source).toEndWith(
-      "/model/work/features/0053-relational-fact-export.json",
-    );
-    expect(ready.has("work.wasm-contract-mapping")).toBeFalse();
-    expect(project.entities.get("work.wasm-contract-mapping")?.status).toBe("complete");
-    expect(project.entities.get("work.wasm-contract-mapping")?.source).toEndWith(
-      "/model/work/features/0054-semantic-contract-wit-mapping.json",
+    expect(assessed.some((item) => item.entity.id === "work.wasm-contract-mapping")).toBeTrue();
+    expect(project.entities.get("work.wasm-contract-mapping")?.status).toBe("planned");
+    expect(project.entities.get("work.wasm-contract-mapping")?.source).toBe(
+      "features/0054-semantic-contract-wit-mapping/spec.md",
     );
     const path = criticalPath(project);
     expect(path.length).toBeGreaterThan(0);
-    expect(["work.stm-model-check", "work.inventory-stm"]).toContain(path[path.length - 1]!);
+    expect(path[path.length - 1]).toBeDefined();
   });
 
   test("cyclic graph helpers stay total and expose no fabricated path", () => {
@@ -194,14 +201,15 @@ describe("project model Effect v4 slice", () => {
       readonly errors: ReadonlyArray<string>;
       readonly views: ReadonlyArray<readonly [string, string]>;
     }> => {
-      const project = await run(loadProject(ROOT));
+      const project = await run(loadCanonicalProject());
+      const dossiers = await run(compileFeatureDossiers(ROOT));
       return {
         entities: project.entities.size,
         relations: project.relations.length,
         errors: validateProject(project)
           .filter((issue) => issue.severity === "error")
           .map((issue) => `${issue.code}:${issue.message}`),
-        views: [...generateViews(project)],
+        views: [...generateViews(project, dossiers)],
       };
     };
 

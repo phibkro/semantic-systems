@@ -81,7 +81,7 @@ const validDocument = {
 };
 
 describe("project JSON language tooling 0056", () => {
-  test("projects exact kind vocabularies and feature lifecycle metadata", async () => {
+  test("projects exact kind vocabularies without treating feature lifecycle attributes as authority", async () => {
     expect(await diagnostics(validDocument)).toEqual([]);
     expect(await diagnostics({ ...validDocument, entities: "not-an-array" })).not.toEqual([]);
     expect(
@@ -100,7 +100,7 @@ describe("project JSON language tooling 0056", () => {
           },
         ],
       }),
-    ).not.toEqual([]);
+    ).toEqual([]);
     expect(
       await diagnostics({
         ...validDocument,
@@ -111,7 +111,7 @@ describe("project JSON language tooling 0056", () => {
           },
         ],
       }),
-    ).not.toEqual([]);
+    ).toEqual([]);
 
     const serialized = JSON.stringify(schema);
     for (const kind of ENTITY_KIND_VALUES) expect(serialized).toContain(`"${kind}"`);
