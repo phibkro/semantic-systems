@@ -1,6 +1,6 @@
 /* oxlint-disable semantic-effect/portable-runtime-imports -- Git observation is a Bun CLI adapter, not portable semantic code */
 /* oxlint-disable semantic-effect/typed-failure-boundary -- Bun spawn failures are converted to the typed GitObservationError at this CLI boundary */
-import { Console, Data, Effect, Path, type Crypto, type FileSystem } from "effect";
+import { Console, Crypto, Data, Effect, Path, type FileSystem } from "effect";
 import { loadFeatureDossier, loadProject } from "./loader.ts";
 import {
   PROJECT_JSON_LANGUAGE_SERVER_CONFIG_PATH,
@@ -118,27 +118,89 @@ const observeGit = (
     const status = yield* runGit(root, ["status", "--porcelain", "--untracked-files=all"]).pipe(
       Effect.orElseSucceed(() => "unobserved"),
     );
+    const remoteMain = yield* runGit(root, [
+      "rev-parse",
+      "--verify",
+      "refs/remotes/origin/main^{commit}",
+    ]).pipe(Effect.orElseSucceed(() => "unobserved"));
+    const localMain = yield* runGit(root, [
+      "rev-parse",
+      "--verify",
+      "refs/heads/main^{commit}",
+    ]).pipe(Effect.orElseSucceed(() => "unobserved"));
+    const canonicalMain = remoteMain !== "unobserved" ? remoteMain : localMain;
+    let candidateReachable = false;
+    if (head !== "unobserved" && canonicalMain !== "unobserved") {
+      candidateReachable = yield* runGit(
+        root,
+        ["merge-base", "--is-ancestor", head, canonicalMain],
+      ).pipe(
+        Effect.map(() => true),
+        Effect.orElseSucceed(() => false),
+      );
+    }
     const clean = status === "";
     return {
       format: "semantic.feature-git-observation/v1",
       ...(featureId === undefined ? {} : { feature_id: featureId }),
       head,
+      ...(canonicalMain === "unobserved" ? {} : { canonical_main: canonicalMain }),
+      ...(head === "unobserved" ? {} : { candidate_revision: head }),
+      candidate_reachable: candidateReachable,
+      reachable_from_main: candidateReachable,
       clean,
     };
   });
 
-const dossierText = (dossier: FeatureDossierArtifact): ReadonlyArray<string> => {
+const sourceText = (source: {
+  readonly kind: string;
+  readonly id: string;
+  readonly path?: string;
+  readonly hash?: string;
+}): string =>
+  `${source.kind}:${source.id}${source.path === undefined ? "" : ` path=${source.path}`}${source.hash === undefined ? "" : ` hash=${source.hash}`}`;
+
+const dossierText = (
+  dossier: FeatureDossierArtifact,
+  irIdentity: string,
+): ReadonlyArray<string> => {
   const lifecycle = dossier.lifecycle;
-  return [
+  const lines = [
     `feature: ${dossier.feature_id}`,
     `directory: ${dossier.directory}`,
-    `phase: ${lifecycle.phase.value} [${lifecycle.phase.sources.map((source) => `${source.kind}:${source.id}`).join(", ")}]`,
-    `readiness: ${lifecycle.readiness.value} [${lifecycle.readiness.sources.map((source) => `${source.kind}:${source.id}`).join(", ")}]`,
-    `condition: ${lifecycle.condition.value} [${lifecycle.condition.sources.map((source) => `${source.kind}:${source.id}`).join(", ")}]`,
-    `delivery: ${lifecycle.delivery.value} [${lifecycle.delivery.sources.map((source) => `${source.kind}:${source.id}`).join(", ")}]`,
-    `closure: ${lifecycle.closure.value} [${lifecycle.closure.sources.map((source) => `${source.kind}:${source.id}`).join(", ")}]`,
+    `facts: ${dossier.facts.length}`,
+    `receipts: ${dossier.receipts.length}`,
+    `historical imports: ${dossier.historical_imports.length}`,
+    `ir: sha256:${irIdentity} bytes=${dossier.work_ir_bytes.byteLength}`,
+    `phase: ${lifecycle.phase.value} [${lifecycle.phase.sources.map(sourceText).join(", ")}]`,
+    `readiness: ${lifecycle.readiness.value} [${lifecycle.readiness.sources.map(sourceText).join(", ")}]`,
+    `condition: ${lifecycle.condition.value} [${lifecycle.condition.sources.map(sourceText).join(", ")}]`,
+    `delivery: ${lifecycle.delivery.value} [${lifecycle.delivery.sources.map(sourceText).join(", ")}]`,
+    `closure: ${lifecycle.closure.value} [${lifecycle.closure.sources.map(sourceText).join(", ")}]`,
+    `invalidations: ${dossier.invalidations.length}`,
+    `queues: active=${dossier.queues.active.join(",") || "none"} review=${dossier.queues.review.join(",") || "none"} merge=${dossier.queues.merge.join(",") || "none"} closure=${dossier.queues.closure.join(",") || "none"}`,
     `diagnostics: ${dossier.diagnostics.length}`,
   ];
+  for (const fact of dossier.facts) {
+    lines.push(`fact: ${fact.kind} ${fact.path} sha256:${fact.sha256}`);
+  }
+  for (const historical of dossier.historical_imports) {
+    lines.push(`historical: ${historical.import_id} [${sourceText(historical.source)}]`);
+  }
+  for (const receipt of dossier.receipts) {
+    lines.push(`receipt: ${receipt.receipt_id} ${receipt.status} [${sourceText(receipt.source)}]`);
+  }
+  for (const invalidation of dossier.invalidations) {
+    lines.push(
+      `invalidation: ${invalidation.artifact_path} ${invalidation.invalidates.join(",")} [${invalidation.sources.map(sourceText).join(", ")}]`,
+    );
+  }
+  for (const diagnostic of dossier.diagnostics) {
+    lines.push(
+      `diagnostic: ${diagnostic.code} (${diagnostic.path}): ${diagnostic.message}${diagnostic.source === undefined ? "" : ` [${sourceText(diagnostic.source)}]`}`,
+    );
+  }
+  return lines;
 };
 
 const runFeatureValidation = (
@@ -149,12 +211,10 @@ const runFeatureValidation = (
     const git = yield* observeGit(root, featureId);
     const input = yield* loadFeatureDossier(root, featureId, { git });
     const dossier = yield* compileFeatureDossier(input);
-    for (const line of dossierText(dossier)) yield* Console.log(line);
-    for (const diagnostic of dossier.diagnostics) {
-      yield* Console.log(
-        `diagnostic: ${diagnostic.code} (${diagnostic.path}): ${diagnostic.message}`,
-      );
-    }
+    const crypto = yield* Crypto.Crypto;
+    const digest = yield* crypto.digest("SHA-256", dossier.work_ir_bytes);
+    const irIdentity = Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join("");
+    for (const line of dossierText(dossier, irIdentity)) yield* Console.log(line);
     return dossier.diagnostics.some((diagnostic) => diagnostic.code.startsWith("receipt.")) ? 1 : 0;
   }).pipe(
     Effect.catch((error) =>
@@ -174,7 +234,9 @@ export const runSemproj = (
     const pathService = yield* Path.Path;
     const loadedProject = yield* loadProject(command.root);
     const git = yield* observeGit(loadedProject.root);
-    const dossiers = yield* compileFeatureDossiers(loadedProject.root, git);
+    const dossiers = yield* (command.name === "generate"
+      ? compileFeatureDossiers(loadedProject.root)
+      : compileFeatureDossiers(loadedProject.root, git));
     const project = withFeatureDossiers(loadedProject, dossiers);
     const issues = validateProject(project);
     if (command.name === "validate") {

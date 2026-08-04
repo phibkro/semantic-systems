@@ -1,4 +1,5 @@
 /* oxlint-disable semantic-effect/typed-failure-boundary -- this synchronous validator intentionally throws stable contract diagnostics for the command boundary to report */
+import { Data } from "effect";
 import {
   generate as generateCss,
   ident as cssIdentifier,
@@ -23,6 +24,16 @@ export const DESIGN_LENS_HEADINGS = [
   "Bounded autonomy and resources",
   "Evidence, assumptions, and unsupported claims",
 ] as const;
+
+export class DesignLensValidationError extends Data.TaggedError("DesignLensValidationError")<{
+  readonly path: string;
+  readonly message: string;
+  readonly cause?: unknown;
+}> {}
+
+export const isDesignLensValidationError = (
+  value: unknown,
+): value is DesignLensValidationError => value instanceof DesignLensValidationError;
 
 const PLACEHOLDER_WORDS = new Set([
   "todo",
@@ -228,54 +239,64 @@ const structuralHeadings = (
   });
 
 export const validateDesignLensText = (content: string, path: string): void => {
-  const document = fromMarkdown(content);
-  const children = document.children;
-  const markers = markerValues(content, children);
-  if (markers.length !== 1) {
-    throw new Error(
-      `${path} design-lens shape requires exactly one Design-Lens-Version marker; found ${markers.length}`,
-    );
-  }
-  if (markers[0] !== DESIGN_LENS_VERSION) {
-    throw new Error(
-      `${path} design-lens version must be ${DESIGN_LENS_VERSION}; received ${JSON.stringify(markers[0])}`,
-    );
-  }
-
-  const headings = structuralHeadings(content, children);
-  const levelTwo = headings.filter((heading) => heading.level === 2);
-  const lensHeadings = levelTwo.filter(
-    (heading) => heading.title === "Open semantic system design lens",
-  );
-  if (lensHeadings.length !== 1) {
-    throw new Error(
-      `${path} design-lens shape requires exactly one "Open semantic system design lens" section; found ${lensHeadings.length}`,
-    );
-  }
-  const lensHeading = lensHeadings[0]!;
-  const start = lensHeading.childIndex + 1;
-  const nextSectionBoundary = headings.find(
-    (candidate) => candidate.childIndex > lensHeading.childIndex && candidate.level <= 2,
-  );
-  const end = nextSectionBoundary?.childIndex ?? children.length;
-  const levelThree = headings.filter(
-    (heading) => heading.level === 3 && heading.childIndex >= start && heading.childIndex < end,
-  );
-
-  for (const required of DESIGN_LENS_HEADINGS) {
-    const matches = levelThree.filter((heading) => heading.title === required);
-    if (matches.length !== 1) {
+  try {
+    const document = fromMarkdown(content);
+    const children = document.children;
+    const markers = markerValues(content, children);
+    if (markers.length !== 1) {
       throw new Error(
-        `${path} design-lens subsection "${required}" must appear exactly once; found ${matches.length}`,
+        `${path} design-lens shape requires exactly one Design-Lens-Version marker; found ${markers.length}`,
       );
     }
-    const heading = matches[0]!;
-    const sectionStart = heading.childIndex + 1;
-    const next = levelThree.find((candidate) => candidate.childIndex > heading.childIndex);
-    const sectionEnd = next?.childIndex ?? end;
-    const visible = visibleDesignContent(content, children.slice(sectionStart, sectionEnd));
-    if (isPlaceholderOnly(visible)) {
-      throw new Error(`${path} design-lens subsection "${required}" is empty or placeholder-only`);
+    if (markers[0] !== DESIGN_LENS_VERSION) {
+      throw new Error(
+        `${path} design-lens version must be ${DESIGN_LENS_VERSION}; received ${JSON.stringify(markers[0])}`,
+      );
     }
+
+    const headings = structuralHeadings(content, children);
+    const levelTwo = headings.filter((heading) => heading.level === 2);
+    const lensHeadings = levelTwo.filter(
+      (heading) => heading.title === "Open semantic system design lens",
+    );
+    if (lensHeadings.length !== 1) {
+      throw new Error(
+        `${path} design-lens shape requires exactly one "Open semantic system design lens" section; found ${lensHeadings.length}`,
+      );
+    }
+    const lensHeading = lensHeadings[0]!;
+    const start = lensHeading.childIndex + 1;
+    const nextSectionBoundary = headings.find(
+      (candidate) => candidate.childIndex > lensHeading.childIndex && candidate.level <= 2,
+    );
+    const end = nextSectionBoundary?.childIndex ?? children.length;
+    const levelThree = headings.filter(
+      (heading) =>
+        heading.level === 3 && heading.childIndex >= start && heading.childIndex < end,
+    );
+
+    for (const required of DESIGN_LENS_HEADINGS) {
+      const matches = levelThree.filter((heading) => heading.title === required);
+      if (matches.length !== 1) {
+        throw new Error(
+          `${path} design-lens subsection "${required}" must appear exactly once; found ${matches.length}`,
+        );
+      }
+      const heading = matches[0]!;
+      const sectionStart = heading.childIndex + 1;
+      const next = levelThree.find((candidate) => candidate.childIndex > heading.childIndex);
+      const sectionEnd = next?.childIndex ?? end;
+      const visible = visibleDesignContent(content, children.slice(sectionStart, sectionEnd));
+      if (isPlaceholderOnly(visible)) {
+        throw new Error(`${path} design-lens subsection "${required}" is empty or placeholder-only`);
+      }
+    }
+  } catch (cause) {
+    if (isDesignLensValidationError(cause)) throw cause;
+    throw new DesignLensValidationError({
+      path,
+      message: cause instanceof Error ? cause.message : String(cause),
+      ...(cause instanceof Error ? { cause } : {}),
+    });
   }
 };

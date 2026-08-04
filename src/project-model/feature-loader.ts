@@ -6,9 +6,12 @@ import { Crypto, Data, Effect, FileSystem, Path, Schema } from "effect";
 import {
   FEATURE_ARTIFACT_FORMAT,
   FEATURE_HISTORICAL_IMPORT_FORMAT,
-  FEATURE_ID_PATTERN,
   type FeatureDossierInput,
 } from "./feature-dossier.ts";
+import {
+  DesignLensValidationError,
+  validateDesignLensText,
+} from "./design-lens-validation.ts";
 
 const FEATURE_DIRECTORY = "features";
 const MAX_ARTIFACT_BYTES = 2 * 1024 * 1024;
@@ -55,6 +58,22 @@ const loadError = (message: string, path?: string, cause?: unknown): FeatureDoss
     ...(path === undefined ? {} : { path }),
     ...(cause === undefined ? {} : { cause }),
   });
+
+const validateSpecification = (content: string, path: string): void => {
+  try {
+    validateDesignLensText(content, path);
+  } catch (cause) {
+    if (cause instanceof FeatureDossierLoadError) throw cause;
+    if (cause instanceof DesignLensValidationError) {
+      throw loadError(cause.message, cause.path, cause);
+    }
+    throw loadError(
+      `design-lens validation failed: ${cause instanceof Error ? cause.message : String(cause)}`,
+      path,
+      cause,
+    );
+  }
+};
 
 const parseScalar = (value: string): string => {
   const trimmed = value.trim();
@@ -212,6 +231,12 @@ const readFeatureFiles = (
         );
       files.push({ path: rawRelative, content });
     }
+    if (!files.some((file) => file.path === "spec.md")) {
+      return yield* loadError(
+        `feature dossier is missing required spec.md`,
+        `${FEATURE_DIRECTORY}/${featureId}/spec.md`,
+      );
+    }
     return files;
   });
 
@@ -246,6 +271,9 @@ const artifactFromFile = (
       `artifact kind ${JSON.stringify(metadata.kind)} does not match ${kind}`,
       file.path,
     );
+  }
+  if (file.path === "spec.md") {
+    validateSpecification(file.content, `${directory}/${file.path}`);
   }
   return { kind, path: `${directory}/${file.path}`, content: file.content, metadata };
 };
@@ -348,18 +376,34 @@ export const loadFeatureDossiers = (
         ),
       );
     if (!exists) return [];
-    const files = yield* fs
-      .glob("*/spec.md", { root: featuresRoot })
+    const entries = yield* fs
+      .glob("*", { root: featuresRoot })
       .pipe(
         Effect.mapError((cause) =>
           loadError(`cannot list feature dossiers ${featuresRoot}`, featuresRoot, cause),
         ),
       );
-    const ids = [
-      ...new Set(files.map((entry) => relativeToRoot(entry).split("/")[0]).filter(Boolean)),
-    ].sort();
+    const ids: Array<string> = [];
+    for (const rawEntry of entries.map(relativeToRoot).sort()) {
+      const featureId = rawEntry.replace(/\/+$/, "");
+      if (featureId.length === 0 || featureId.includes("/")) continue;
+      const absolute = path.join(featuresRoot, featureId);
+      const info = yield* fs
+        .stat(absolute)
+        .pipe(
+          Effect.mapError((cause) =>
+            loadError(`cannot inspect feature directory ${absolute}`, absolute, cause),
+          ),
+        );
+      if (info.type !== "Directory") continue;
+      if (!FEATURE_ID_PATTERN.test(featureId)) {
+        return yield* loadError(`invalid feature directory ${featureId}`, rawEntry);
+      }
+      ids.push(featureId);
+    }
+    const uniqueIds = [...new Set(ids)].sort();
     const dossiers: Array<FeatureDossierInput> = [];
-    for (const featureId of ids)
-      dossiers.push(yield* loadFeatureDossier(root, featureId!, options));
+    for (const featureId of uniqueIds)
+      dossiers.push(yield* loadFeatureDossier(root, featureId, options));
     return dossiers;
   });

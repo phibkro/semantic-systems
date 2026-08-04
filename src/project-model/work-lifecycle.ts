@@ -2,11 +2,12 @@ import { Data, Effect, Schema } from "effect";
 import type { Crypto, FileSystem, Path } from "effect";
 import {
   compileFeatureDossier,
+  FeatureDossierError,
   type FeatureDossierArtifact,
   type FeatureDossierDiagnostic,
   type FeatureDossierInput,
 } from "./feature-dossier.ts";
-import { loadFeatureDossiers } from "./feature-loader.ts";
+import { FeatureDossierLoadError, loadFeatureDossiers } from "./feature-loader.ts";
 import type { Entity, ProjectGraph } from "./types.ts";
 
 /** Canonical feature identity and repository-relative dossier path types. */
@@ -186,11 +187,7 @@ export const renderWorkFeatures = (
       facts: dossier.facts,
       receipts: dossier.receipts,
       historical_imports: dossier.historical_imports,
-      lifecycle: dossier.lifecycle,
-      invalidations: dossier.invalidations,
-      queues: dossier.queues,
       ir: bytesAsText(dossier.work_ir_bytes),
-      diagnostics: dossier.diagnostics,
     }));
   return `${JSON.stringify({ format: "semantic.feature-work-ir/v1", features }, null, 2)}\n`;
 };
@@ -203,11 +200,22 @@ const emptyGitObservation = {
 
 const diagnosticFor = (featureId: string | undefined, error: unknown): FeatureDiagnostic => {
   const message = error instanceof Error ? error.message : String(error);
+  const path =
+    error instanceof FeatureDossierLoadError || error instanceof FeatureDossierError
+      ? error.path
+      : undefined;
+  const code =
+    error instanceof FeatureDossierLoadError
+      ? "feature.load"
+      : error instanceof FeatureDossierError
+        ? `feature.${error.code}`
+        : "feature.dossier";
   return new FeatureDiagnostic({
     severity: "error",
-    code: "feature.dossier",
+    code,
     message,
     ...(featureId === undefined ? {} : { featureId }),
+    ...(path === undefined ? {} : { path }),
   });
 };
 
@@ -329,17 +337,177 @@ export const featuresForChangedPaths = (
   return [...ids].sort(compareText);
 };
 
-export const resolveFeature = (
-  _project: ProjectGraph,
-  featureId: FeatureId,
-): FeatureArtifacts | FeatureDiagnostic =>
+const canonicalDossierPath = (featureId: FeatureId, basename: string): string =>
+  `features/${featureId}/${basename}`;
+
+const resolutionDiagnostic = (
+  featureId: string | undefined,
+  code: string,
+  message: string,
+  path?: string,
+): FeatureDiagnostic =>
   new FeatureDiagnostic({
     severity: "error",
-    code: "feature.dossier_required",
-    featureId,
-    message: "feature lifecycle must be resolved from a canonical features/<id> dossier",
+    code,
+    message,
+    ...(featureId === undefined ? {} : { featureId }),
+    ...(path === undefined ? {} : { path }),
   });
 
+const replacementFor = (dossier: FeatureDossierArtifact): Replacement | undefined => {
+  const receipt = dossier.receipts.find((value) => value.transition === "feature_superseded");
+  if (receipt === undefined) return undefined;
+  const raw = receipt as unknown as Record<string, unknown>;
+  const target = raw.replacement_feature_id;
+  if (typeof target !== "string" || target.length === 0) return undefined;
+  const reason = raw.reason;
+  return {
+    target,
+    reason:
+      typeof reason === "string" && reason.length > 0
+        ? reason
+        : `feature ${dossier.feature_id} was superseded`,
+  };
+};
+
+const artifactsFromDossier = (
+  dossier: FeatureDossierArtifact,
+  featureId: FeatureId,
+): FeatureArtifacts | FeatureDiagnostic => {
+  if (!FEATURE_ID_PATTERN.test(featureId)) {
+    return resolutionDiagnostic(featureId, "feature.invalid_id", "feature ID is not canonical");
+  }
+  if (dossier.feature_id !== featureId) {
+    return resolutionDiagnostic(
+      featureId,
+      "feature.id_mismatch",
+      `compiled dossier is for ${dossier.feature_id}`,
+      dossier.directory,
+    );
+  }
+  const directory = `features/${featureId}`;
+  if (dossier.directory !== directory) {
+    return resolutionDiagnostic(
+      featureId,
+      "feature.noncanonical_directory",
+      `compiled dossier directory must be ${directory}`,
+      dossier.directory,
+    );
+  }
+  const specificationPath = canonicalDossierPath(featureId, "spec.md");
+  const specification = dossier.facts.find(
+    (fact) => fact.kind === "specification" && fact.path === specificationPath,
+  );
+  if (specification === undefined) {
+    return resolutionDiagnostic(
+      featureId,
+      "feature.specification_missing",
+      `compiled dossier is missing required ${specificationPath}`,
+      specificationPath,
+    );
+  }
+  const entityId = specification.metadata.legacy_entity_id;
+  if (entityId === undefined || entityId.length === 0) {
+    return resolutionDiagnostic(
+      featureId,
+      "feature.identity_missing",
+      `specification ${specificationPath} does not declare legacy_entity_id`,
+      specificationPath,
+    );
+  }
+  const acceptancePath = canonicalDossierPath(featureId, "accept.ts");
+  const acceptanceFact = dossier.facts.find(
+    (fact) => fact.kind === "acceptance" && fact.path === acceptancePath,
+  );
+  const condition = dossier.lifecycle.condition.value;
+  let acceptance: FeatureAcceptance;
+  if (condition === "superseded") {
+    const replacement = replacementFor(dossier);
+    if (replacement === undefined) {
+      return resolutionDiagnostic(
+        featureId,
+        "feature.supersession_missing_replacement",
+        "superseded feature has no typed replacement identity",
+        acceptancePath,
+      );
+    }
+    acceptance = { kind: "superseded", replacement };
+  } else if (condition === "withdrawn" || acceptanceFact === undefined) {
+    acceptance = { kind: "pre_loop" };
+  } else {
+    acceptance = { kind: "runnable", path: acceptancePath };
+  }
+  const status = projectedStatus(dossier);
+  const featureLoop: FeatureLoop =
+    condition === "superseded" || acceptanceFact !== undefined ? "managed" : "pre_loop";
+  const name = specification.metadata.title ?? featureId;
+  const summary = specification.metadata.summary ?? `Canonical feature dossier ${featureId}`;
+  return {
+    featureId,
+    entityId,
+    name,
+    summary,
+    status,
+    featureLoop,
+    modelSource: "generated/project-model/work-features.json",
+    designSpecPath: specificationPath,
+    planPath: canonicalDossierPath(featureId, "plan.md"),
+    acceptance,
+    featureDossier: dossier,
+    lifecycle: dossier.lifecycle,
+    queues: dossier.queues,
+    diagnostics: dossier.diagnostics,
+    dossier,
+  };
+};
+
+export const resolveFeature = (
+  dossiers: ReadonlyArray<FeatureDossierArtifact>,
+  featureId: FeatureId,
+): FeatureArtifacts | FeatureDiagnostic => {
+  if (!FEATURE_ID_PATTERN.test(featureId)) {
+    return resolutionDiagnostic(featureId, "feature.invalid_id", "feature ID is not canonical");
+  }
+  const matches = dossiers.filter((dossier) => dossier.feature_id === featureId);
+  if (matches.length === 0) {
+    return resolutionDiagnostic(
+      featureId,
+      "feature.not_found",
+      "no compiled canonical feature dossier matches the requested feature",
+    );
+  }
+  if (matches.length > 1) {
+    return resolutionDiagnostic(
+      featureId,
+      "feature.duplicate",
+      "multiple compiled dossiers claim the requested feature ID",
+    );
+  }
+  return artifactsFromDossier(matches[0]!, featureId);
+};
+
 export const resolveFeatures = (
-  _project: ProjectGraph,
-): ReadonlyArray<FeatureArtifacts | FeatureDiagnostic> => [];
+  dossiers: ReadonlyArray<FeatureDossierArtifact>,
+): ReadonlyArray<FeatureArtifacts | FeatureDiagnostic> => {
+  const sorted = [...dossiers].sort((left, right) =>
+    compareText(left.feature_id, right.feature_id),
+  );
+  const seen = new Set<string>();
+  const results: Array<FeatureArtifacts | FeatureDiagnostic> = [];
+  for (const dossier of sorted) {
+    if (seen.has(dossier.feature_id)) {
+      results.push(
+        resolutionDiagnostic(
+          dossier.feature_id,
+          "feature.duplicate",
+          "multiple compiled dossiers claim the same feature ID",
+          dossier.directory,
+        ),
+      );
+      continue;
+    }
+    seen.add(dossier.feature_id);
+    results.push(artifactsFromDossier(dossier, dossier.feature_id));
+  }
+  return results;
+};
