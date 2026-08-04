@@ -1,0 +1,13 @@
+{
+  "format": "semantic.feature-transition/v1",
+  "receipt_id": "0058-candidate-nominated",
+  "feature_id": "0058-feature-dossier-workflow",
+  "transition": "candidate_nominated",
+  "artifact_kind": "implementation_report",
+  "artifact_path": "features/0058-feature-dossier-workflow/implementation-report.md",
+  "artifact_sha256": "2af8111c11762f061714459e8f940417f9f1d99c6c45451296cb1e6a2de2b93f",
+  "candidate_revision": "234f692afe004bfecea89d2c13c688e630174f05",
+  "issuer": { "identity": "semantic-implementation-agent", "role": "implementation_agent" },
+  "observed_at": "2026-08-04T06:03:53+02:00",
+  "evidence_category": "runtime_check"
+}

@@ -1,0 +1,13 @@
+{
+  "format": "semantic.feature-transition/v1",
+  "receipt_id": "0058-review-accepted",
+  "feature_id": "0058-feature-dossier-workflow",
+  "transition": "review_accepted",
+  "artifact_kind": "review",
+  "artifact_path": "features/0058-feature-dossier-workflow/verification/independent-review.md",
+  "artifact_sha256": "bd0c9a6825e5177263f2194294a55dedc7a0ad1aa71897b5ecb94e1eca6ed1ab",
+  "candidate_revision": "234f692afe004bfecea89d2c13c688e630174f05",
+  "issuer": { "identity": "corrected-fallback-review", "role": "independent_reviewer" },
+  "observed_at": "2026-08-04T06:03:53+02:00",
+  "evidence_category": "analysis"
+}

@@ -19,7 +19,7 @@ Ready parallel work items: **27**.
 | 0046-effect-graph-execution-index | proposal | planned | yes | 0 | human-led design |  |
 | 0016-executable-semantic-system-kernel | proposal | planned | no | 0 | human-led design | 0012-minimal-actor-runtime |
 | Specify explorer query contract | design | ready | yes | 94 | delegate directly |  |
-| 0058-feature-dossier-workflow | proposal | planned | yes | 0 | human-led design |  |
+| 0058-feature-dossier-workflow | verification | in_progress | yes | 0 | human-led design |  |
 | 0003-independent-resolution-checker | proposal | planned | yes | 0 | human-led design |  |
 | Implement inventory actor realization | validation | complete | no | 94 | delegate directly | 0012-minimal-actor-runtime |
 | Complete inventory domain contract | design | complete | no | 82 | delegate with review |  |

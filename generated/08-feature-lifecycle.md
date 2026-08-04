@@ -36,7 +36,7 @@
 | 0055-lifecycle-plan-layout | proposal | drafting | superseded | unmerged | open |
 | 0056-project-json-language-tooling | proposal | drafting | active | unmerged | open |
 | 0057-control-room-agent-observation-correlation | proposal | drafting | active | unmerged | open |
-| 0058-feature-dossier-workflow | proposal | drafting | active | unmerged | open |
+| 0058-feature-dossier-workflow | verification | implementation_review_ready | active | unmerged | open |
 
 ### 0001-inventory-resolution-tracer
 
@@ -296,8 +296,8 @@
 
 ### 0058-feature-dossier-workflow
 
-- **phase**: proposal (source: artifact:features/0058-feature-dossier-workflow/proposal.md#1f6c57c236630a2461a8612b5910d8f6af67b16bca7cc87ec03a9bda2cbd111e)
-- **readiness**: drafting (source: artifact:features/0058-feature-dossier-workflow/proposal.md#1f6c57c236630a2461a8612b5910d8f6af67b16bca7cc87ec03a9bda2cbd111e)
-- **condition**: active (source: artifact:features/0058-feature-dossier-workflow/proposal.md#1f6c57c236630a2461a8612b5910d8f6af67b16bca7cc87ec03a9bda2cbd111e)
+- **phase**: verification (source: transition_receipt:0058-verification-accepted)
+- **readiness**: implementation_review_ready (source: transition_receipt:0058-candidate-nominated)
+- **condition**: active (source: transition_receipt:0058-proposal-accepted)
 - **delivery**: unmerged (source: none)
 - **closure**: open (source: none)

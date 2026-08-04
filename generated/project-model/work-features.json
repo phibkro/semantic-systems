@@ -3777,7 +3777,137 @@
           }
         }
       ],
-      "receipts": [],
+      "receipts": [
+        {
+          "receipt_id": "0058-candidate-nominated",
+          "feature_id": "0058-feature-dossier-workflow",
+          "transition": "candidate_nominated",
+          "artifact_kind": "implementation_report",
+          "artifact_path": "features/0058-feature-dossier-workflow/implementation-report.md",
+          "artifact_sha256": "2af8111c11762f061714459e8f940417f9f1d99c6c45451296cb1e6a2de2b93f",
+          "candidate_revision": "234f692afe004bfecea89d2c13c688e630174f05",
+          "issuer": {
+            "identity": "semantic-implementation-agent",
+            "role": "implementation_agent"
+          },
+          "observed_at": "2026-08-04T06:03:53+02:00",
+          "evidence_category": "runtime_check",
+          "status": "accepted",
+          "source": {
+            "kind": "transition_receipt",
+            "id": "0058-candidate-nominated",
+            "path": "features/0058-feature-dossier-workflow/implementation-report.md",
+            "hash": "2af8111c11762f061714459e8f940417f9f1d99c6c45451296cb1e6a2de2b93f"
+          }
+        },
+        {
+          "receipt_id": "0058-design-accepted",
+          "feature_id": "0058-feature-dossier-workflow",
+          "transition": "design_accepted",
+          "artifact_kind": "design",
+          "artifact_path": "features/0058-feature-dossier-workflow/design.md",
+          "artifact_sha256": "852ca03db065816242531a46e0509091aac1287e8f25b1fa0aa7e42d24c61f2b",
+          "issuer": {
+            "identity": "semantic-design-authority",
+            "role": "design_authority"
+          },
+          "observed_at": "2026-08-04T06:03:53+02:00",
+          "evidence_category": "analysis",
+          "status": "accepted",
+          "source": {
+            "kind": "transition_receipt",
+            "id": "0058-design-accepted",
+            "path": "features/0058-feature-dossier-workflow/design.md",
+            "hash": "852ca03db065816242531a46e0509091aac1287e8f25b1fa0aa7e42d24c61f2b"
+          }
+        },
+        {
+          "receipt_id": "0058-proposal-accepted",
+          "feature_id": "0058-feature-dossier-workflow",
+          "transition": "proposal_accepted",
+          "artifact_kind": "proposal",
+          "artifact_path": "features/0058-feature-dossier-workflow/proposal.md",
+          "artifact_sha256": "1f6c57c236630a2461a8612b5910d8f6af67b16bca7cc87ec03a9bda2cbd111e",
+          "issuer": {
+            "identity": "semantic-feature-owner",
+            "role": "feature_owner"
+          },
+          "observed_at": "2026-08-04T06:03:53+02:00",
+          "evidence_category": "assertion",
+          "status": "accepted",
+          "source": {
+            "kind": "transition_receipt",
+            "id": "0058-proposal-accepted",
+            "path": "features/0058-feature-dossier-workflow/proposal.md",
+            "hash": "1f6c57c236630a2461a8612b5910d8f6af67b16bca7cc87ec03a9bda2cbd111e"
+          }
+        },
+        {
+          "receipt_id": "0058-review-accepted",
+          "feature_id": "0058-feature-dossier-workflow",
+          "transition": "review_accepted",
+          "artifact_kind": "review",
+          "artifact_path": "features/0058-feature-dossier-workflow/verification/independent-review.md",
+          "artifact_sha256": "bd0c9a6825e5177263f2194294a55dedc7a0ad1aa71897b5ecb94e1eca6ed1ab",
+          "candidate_revision": "234f692afe004bfecea89d2c13c688e630174f05",
+          "issuer": {
+            "identity": "corrected-fallback-review",
+            "role": "independent_reviewer"
+          },
+          "observed_at": "2026-08-04T06:03:53+02:00",
+          "evidence_category": "analysis",
+          "status": "accepted",
+          "source": {
+            "kind": "transition_receipt",
+            "id": "0058-review-accepted",
+            "path": "features/0058-feature-dossier-workflow/verification/independent-review.md",
+            "hash": "bd0c9a6825e5177263f2194294a55dedc7a0ad1aa71897b5ecb94e1eca6ed1ab"
+          }
+        },
+        {
+          "receipt_id": "0058-specification-accepted",
+          "feature_id": "0058-feature-dossier-workflow",
+          "transition": "specification_accepted",
+          "artifact_kind": "specification",
+          "artifact_path": "features/0058-feature-dossier-workflow/spec.md",
+          "artifact_sha256": "fcc35acff55ff4542638f1a7a3a5b1ed2018ab936b22c41575bc09a59c25a604",
+          "issuer": {
+            "identity": "semantic-specification-authority",
+            "role": "specification_authority"
+          },
+          "observed_at": "2026-08-04T06:03:53+02:00",
+          "evidence_category": "analysis",
+          "status": "accepted",
+          "source": {
+            "kind": "transition_receipt",
+            "id": "0058-specification-accepted",
+            "path": "features/0058-feature-dossier-workflow/spec.md",
+            "hash": "fcc35acff55ff4542638f1a7a3a5b1ed2018ab936b22c41575bc09a59c25a604"
+          }
+        },
+        {
+          "receipt_id": "0058-verification-accepted",
+          "feature_id": "0058-feature-dossier-workflow",
+          "transition": "verification_accepted",
+          "artifact_kind": "verification",
+          "artifact_path": "features/0058-feature-dossier-workflow/verification/acceptance-report.md",
+          "artifact_sha256": "937b5079b5803dfaf92e0281c60abdb86119346bcca2a53f0bce3141376bd143",
+          "candidate_revision": "234f692afe004bfecea89d2c13c688e630174f05",
+          "issuer": {
+            "identity": "semantic-verification-authority",
+            "role": "verification_authority"
+          },
+          "observed_at": "2026-08-04T06:03:53+02:00",
+          "evidence_category": "test",
+          "status": "accepted",
+          "source": {
+            "kind": "transition_receipt",
+            "id": "0058-verification-accepted",
+            "path": "features/0058-feature-dossier-workflow/verification/acceptance-report.md",
+            "hash": "937b5079b5803dfaf92e0281c60abdb86119346bcca2a53f0bce3141376bd143"
+          }
+        }
+      ],
       "historical_imports": [
         {
           "import_id": "historical-import-0058-0058-feature-dossier-workflow",
@@ -3820,7 +3950,7 @@
           }
         }
       ],
-      "ir": "{\"artifacts\":[{\"feature_id\":\"0058-feature-dossier-workflow\",\"kind\":\"acceptance\",\"metadata\":{\"feature_id\":\"0058-feature-dossier-workflow\",\"format\":\"semantic.feature-artifact/v1\",\"kind\":\"acceptance\"},\"path\":\"features/0058-feature-dossier-workflow/accept.ts\",\"sha256\":\"4351bb99bad5dd8582fdb028118f66c57cf0a61b07169337603cd983847a7333\"},{\"feature_id\":\"0058-feature-dossier-workflow\",\"kind\":\"design\",\"metadata\":{\"feature_id\":\"0058-feature-dossier-workflow\",\"format\":\"semantic.feature-artifact/v1\",\"kind\":\"design\"},\"path\":\"features/0058-feature-dossier-workflow/design.md\",\"sha256\":\"852ca03db065816242531a46e0509091aac1287e8f25b1fa0aa7e42d24c61f2b\"},{\"feature_id\":\"0058-feature-dossier-workflow\",\"kind\":\"implementation_report\",\"metadata\":{\"feature_id\":\"0058-feature-dossier-workflow\",\"format\":\"semantic.feature-artifact/v1\",\"kind\":\"implementation_report\"},\"path\":\"features/0058-feature-dossier-workflow/implementation-report.md\",\"sha256\":\"2af8111c11762f061714459e8f940417f9f1d99c6c45451296cb1e6a2de2b93f\"},{\"feature_id\":\"0058-feature-dossier-workflow\",\"kind\":\"plan\",\"metadata\":{\"feature_id\":\"0058-feature-dossier-workflow\",\"format\":\"semantic.feature-artifact/v1\",\"kind\":\"plan\"},\"path\":\"features/0058-feature-dossier-workflow/plan.md\",\"sha256\":\"ab7bcf5c665153eae14ffc8545cef87eed92a304818e8f9bb765141d3e959591\"},{\"feature_id\":\"0058-feature-dossier-workflow\",\"kind\":\"proposal\",\"metadata\":{\"feature_id\":\"0058-feature-dossier-workflow\",\"format\":\"semantic.feature-artifact/v1\",\"kind\":\"proposal\"},\"path\":\"features/0058-feature-dossier-workflow/proposal.md\",\"sha256\":\"1f6c57c236630a2461a8612b5910d8f6af67b16bca7cc87ec03a9bda2cbd111e\"},{\"feature_id\":\"0058-feature-dossier-workflow\",\"kind\":\"review\",\"metadata\":{\"evidence_categories\":[\"analysis\"],\"feature_id\":\"0058-feature-dossier-workflow\",\"format\":\"semantic.feature-artifact/v1\",\"kind\":\"review\",\"unsupported_claims\":[\"Review does not establish merge, provider, deployment, or closure evidence.\"]},\"path\":\"features/0058-feature-dossier-workflow/verification/independent-review.md\",\"sha256\":\"bd0c9a6825e5177263f2194294a55dedc7a0ad1aa71897b5ecb94e1eca6ed1ab\"},{\"feature_id\":\"0058-feature-dossier-workflow\",\"kind\":\"specification\",\"metadata\":{\"feature_id\":\"0058-feature-dossier-workflow\",\"format\":\"semantic.feature-artifact/v1\",\"kind\":\"specification\",\"legacy_entity_id\":\"work.feature-dossier-workflow\"},\"path\":\"features/0058-feature-dossier-workflow/spec.md\",\"sha256\":\"fcc35acff55ff4542638f1a7a3a5b1ed2018ab936b22c41575bc09a59c25a604\"},{\"feature_id\":\"0058-feature-dossier-workflow\",\"kind\":\"verification\",\"metadata\":{\"evidence_categories\":[\"test\",\"analysis\",\"runtime_check\"],\"feature_id\":\"0058-feature-dossier-workflow\",\"format\":\"semantic.feature-artifact/v1\",\"kind\":\"verification\",\"unsupported_claims\":[\"Local acceptance does not establish merge, hosted-provider, deployment, or closure evidence.\",\"Tests and runtime checks do not establish proof or model-checking evidence.\"]},\"path\":\"features/0058-feature-dossier-workflow/verification/acceptance-report.md\",\"sha256\":\"937b5079b5803dfaf92e0281c60abdb86119346bcca2a53f0bce3141376bd143\"},{\"feature_id\":\"0058-feature-dossier-workflow\",\"kind\":\"verification\",\"metadata\":{\"evidence_categories\":[\"analysis\"],\"feature_id\":\"0058-feature-dossier-workflow\",\"format\":\"semantic.feature-artifact/v1\",\"kind\":\"verification\",\"unsupported_claims\":[\"Migration inspection does not establish runtime, proof, review, merge, provider, or closure evidence.\"]},\"path\":\"features/0058-feature-dossier-workflow/verification/migration-manifest.md\",\"sha256\":\"e067e34d96d67b94bb3ccc3188e3d837f92972149f7c4ce0925a6897609da5d9\"}],\"directory\":\"features/0058-feature-dossier-workflow\",\"feature_id\":\"0058-feature-dossier-workflow\",\"format\":\"semantic.feature-work-ir/v1\",\"historical_imports\":[{\"artifacts\":[{\"evidence_categories\":[],\"path\":\"design-specs/0058-feature-dossier-workflow.md\",\"sha256\":\"4ef45c878243d9cc5126ae1a0c542183c88dfeaed767973f666b90909169647c\",\"status\":\"in_progress\"},{\"evidence_categories\":[],\"path\":\"plans/active/0058-feature-dossier-workflow.md\",\"sha256\":\"ee44451a32d0a9d722bffb04e370dda86c110db64d7fd4b5c1d012322441d209\",\"status\":\"in_progress\"},{\"evidence_categories\":[],\"path\":\"model/work/features/0058-feature-dossier-workflow.json\",\"sha256\":\"50ee26712da8298e085ad96b4e2382a5a404bf73f6ca800f335dca697cc46f13\",\"status\":\"in_progress\"},{\"evidence_categories\":[],\"path\":\"scripts/accept/0058-feature-dossier-workflow.ts\",\"sha256\":\"8d5ac35515dddff47b64c25bcba0095a6d1286a90319341f7a0eed385f958256\",\"status\":\"in_progress\"}],\"evidence_categories\":[],\"feature_id\":\"0058-feature-dossier-workflow\",\"import_id\":\"historical-import-0058-0058-feature-dossier-workflow\",\"integration_revision\":\"0d99b81\",\"unsupported_claims\":[\"Historical status and completion assertions are preserved for inspection only.\",\"This import does not authorize a new lifecycle transition or establish current runtime, proof, review, merge, provider, or closure evidence.\"]}],\"receipts\":[]}"
+      "ir": "{\"artifacts\":[{\"feature_id\":\"0058-feature-dossier-workflow\",\"kind\":\"acceptance\",\"metadata\":{\"feature_id\":\"0058-feature-dossier-workflow\",\"format\":\"semantic.feature-artifact/v1\",\"kind\":\"acceptance\"},\"path\":\"features/0058-feature-dossier-workflow/accept.ts\",\"sha256\":\"4351bb99bad5dd8582fdb028118f66c57cf0a61b07169337603cd983847a7333\"},{\"feature_id\":\"0058-feature-dossier-workflow\",\"kind\":\"design\",\"metadata\":{\"feature_id\":\"0058-feature-dossier-workflow\",\"format\":\"semantic.feature-artifact/v1\",\"kind\":\"design\"},\"path\":\"features/0058-feature-dossier-workflow/design.md\",\"sha256\":\"852ca03db065816242531a46e0509091aac1287e8f25b1fa0aa7e42d24c61f2b\"},{\"feature_id\":\"0058-feature-dossier-workflow\",\"kind\":\"implementation_report\",\"metadata\":{\"feature_id\":\"0058-feature-dossier-workflow\",\"format\":\"semantic.feature-artifact/v1\",\"kind\":\"implementation_report\"},\"path\":\"features/0058-feature-dossier-workflow/implementation-report.md\",\"sha256\":\"2af8111c11762f061714459e8f940417f9f1d99c6c45451296cb1e6a2de2b93f\"},{\"feature_id\":\"0058-feature-dossier-workflow\",\"kind\":\"plan\",\"metadata\":{\"feature_id\":\"0058-feature-dossier-workflow\",\"format\":\"semantic.feature-artifact/v1\",\"kind\":\"plan\"},\"path\":\"features/0058-feature-dossier-workflow/plan.md\",\"sha256\":\"ab7bcf5c665153eae14ffc8545cef87eed92a304818e8f9bb765141d3e959591\"},{\"feature_id\":\"0058-feature-dossier-workflow\",\"kind\":\"proposal\",\"metadata\":{\"feature_id\":\"0058-feature-dossier-workflow\",\"format\":\"semantic.feature-artifact/v1\",\"kind\":\"proposal\"},\"path\":\"features/0058-feature-dossier-workflow/proposal.md\",\"sha256\":\"1f6c57c236630a2461a8612b5910d8f6af67b16bca7cc87ec03a9bda2cbd111e\"},{\"feature_id\":\"0058-feature-dossier-workflow\",\"kind\":\"review\",\"metadata\":{\"evidence_categories\":[\"analysis\"],\"feature_id\":\"0058-feature-dossier-workflow\",\"format\":\"semantic.feature-artifact/v1\",\"kind\":\"review\",\"unsupported_claims\":[\"Review does not establish merge, provider, deployment, or closure evidence.\"]},\"path\":\"features/0058-feature-dossier-workflow/verification/independent-review.md\",\"sha256\":\"bd0c9a6825e5177263f2194294a55dedc7a0ad1aa71897b5ecb94e1eca6ed1ab\"},{\"feature_id\":\"0058-feature-dossier-workflow\",\"kind\":\"specification\",\"metadata\":{\"feature_id\":\"0058-feature-dossier-workflow\",\"format\":\"semantic.feature-artifact/v1\",\"kind\":\"specification\",\"legacy_entity_id\":\"work.feature-dossier-workflow\"},\"path\":\"features/0058-feature-dossier-workflow/spec.md\",\"sha256\":\"fcc35acff55ff4542638f1a7a3a5b1ed2018ab936b22c41575bc09a59c25a604\"},{\"feature_id\":\"0058-feature-dossier-workflow\",\"kind\":\"verification\",\"metadata\":{\"evidence_categories\":[\"test\",\"analysis\",\"runtime_check\"],\"feature_id\":\"0058-feature-dossier-workflow\",\"format\":\"semantic.feature-artifact/v1\",\"kind\":\"verification\",\"unsupported_claims\":[\"Local acceptance does not establish merge, hosted-provider, deployment, or closure evidence.\",\"Tests and runtime checks do not establish proof or model-checking evidence.\"]},\"path\":\"features/0058-feature-dossier-workflow/verification/acceptance-report.md\",\"sha256\":\"937b5079b5803dfaf92e0281c60abdb86119346bcca2a53f0bce3141376bd143\"},{\"feature_id\":\"0058-feature-dossier-workflow\",\"kind\":\"verification\",\"metadata\":{\"evidence_categories\":[\"analysis\"],\"feature_id\":\"0058-feature-dossier-workflow\",\"format\":\"semantic.feature-artifact/v1\",\"kind\":\"verification\",\"unsupported_claims\":[\"Migration inspection does not establish runtime, proof, review, merge, provider, or closure evidence.\"]},\"path\":\"features/0058-feature-dossier-workflow/verification/migration-manifest.md\",\"sha256\":\"e067e34d96d67b94bb3ccc3188e3d837f92972149f7c4ce0925a6897609da5d9\"}],\"directory\":\"features/0058-feature-dossier-workflow\",\"feature_id\":\"0058-feature-dossier-workflow\",\"format\":\"semantic.feature-work-ir/v1\",\"historical_imports\":[{\"artifacts\":[{\"evidence_categories\":[],\"path\":\"design-specs/0058-feature-dossier-workflow.md\",\"sha256\":\"4ef45c878243d9cc5126ae1a0c542183c88dfeaed767973f666b90909169647c\",\"status\":\"in_progress\"},{\"evidence_categories\":[],\"path\":\"plans/active/0058-feature-dossier-workflow.md\",\"sha256\":\"ee44451a32d0a9d722bffb04e370dda86c110db64d7fd4b5c1d012322441d209\",\"status\":\"in_progress\"},{\"evidence_categories\":[],\"path\":\"model/work/features/0058-feature-dossier-workflow.json\",\"sha256\":\"50ee26712da8298e085ad96b4e2382a5a404bf73f6ca800f335dca697cc46f13\",\"status\":\"in_progress\"},{\"evidence_categories\":[],\"path\":\"scripts/accept/0058-feature-dossier-workflow.ts\",\"sha256\":\"8d5ac35515dddff47b64c25bcba0095a6d1286a90319341f7a0eed385f958256\",\"status\":\"in_progress\"}],\"evidence_categories\":[],\"feature_id\":\"0058-feature-dossier-workflow\",\"import_id\":\"historical-import-0058-0058-feature-dossier-workflow\",\"integration_revision\":\"0d99b81\",\"unsupported_claims\":[\"Historical status and completion assertions are preserved for inspection only.\",\"This import does not authorize a new lifecycle transition or establish current runtime, proof, review, merge, provider, or closure evidence.\"]}],\"receipts\":[{\"artifact_kind\":\"implementation_report\",\"artifact_path\":\"features/0058-feature-dossier-workflow/implementation-report.md\",\"artifact_sha256\":\"2af8111c11762f061714459e8f940417f9f1d99c6c45451296cb1e6a2de2b93f\",\"candidate_revision\":\"234f692afe004bfecea89d2c13c688e630174f05\",\"evidence_category\":\"runtime_check\",\"feature_id\":\"0058-feature-dossier-workflow\",\"issuer\":{\"identity\":\"semantic-implementation-agent\",\"role\":\"implementation_agent\"},\"observed_at\":\"2026-08-04T06:03:53+02:00\",\"receipt_id\":\"0058-candidate-nominated\",\"status\":\"accepted\",\"transition\":\"candidate_nominated\"},{\"artifact_kind\":\"design\",\"artifact_path\":\"features/0058-feature-dossier-workflow/design.md\",\"artifact_sha256\":\"852ca03db065816242531a46e0509091aac1287e8f25b1fa0aa7e42d24c61f2b\",\"evidence_category\":\"analysis\",\"feature_id\":\"0058-feature-dossier-workflow\",\"issuer\":{\"identity\":\"semantic-design-authority\",\"role\":\"design_authority\"},\"observed_at\":\"2026-08-04T06:03:53+02:00\",\"receipt_id\":\"0058-design-accepted\",\"status\":\"accepted\",\"transition\":\"design_accepted\"},{\"artifact_kind\":\"proposal\",\"artifact_path\":\"features/0058-feature-dossier-workflow/proposal.md\",\"artifact_sha256\":\"1f6c57c236630a2461a8612b5910d8f6af67b16bca7cc87ec03a9bda2cbd111e\",\"evidence_category\":\"assertion\",\"feature_id\":\"0058-feature-dossier-workflow\",\"issuer\":{\"identity\":\"semantic-feature-owner\",\"role\":\"feature_owner\"},\"observed_at\":\"2026-08-04T06:03:53+02:00\",\"receipt_id\":\"0058-proposal-accepted\",\"status\":\"accepted\",\"transition\":\"proposal_accepted\"},{\"artifact_kind\":\"review\",\"artifact_path\":\"features/0058-feature-dossier-workflow/verification/independent-review.md\",\"artifact_sha256\":\"bd0c9a6825e5177263f2194294a55dedc7a0ad1aa71897b5ecb94e1eca6ed1ab\",\"candidate_revision\":\"234f692afe004bfecea89d2c13c688e630174f05\",\"evidence_category\":\"analysis\",\"feature_id\":\"0058-feature-dossier-workflow\",\"issuer\":{\"identity\":\"corrected-fallback-review\",\"role\":\"independent_reviewer\"},\"observed_at\":\"2026-08-04T06:03:53+02:00\",\"receipt_id\":\"0058-review-accepted\",\"status\":\"accepted\",\"transition\":\"review_accepted\"},{\"artifact_kind\":\"specification\",\"artifact_path\":\"features/0058-feature-dossier-workflow/spec.md\",\"artifact_sha256\":\"fcc35acff55ff4542638f1a7a3a5b1ed2018ab936b22c41575bc09a59c25a604\",\"evidence_category\":\"analysis\",\"feature_id\":\"0058-feature-dossier-workflow\",\"issuer\":{\"identity\":\"semantic-specification-authority\",\"role\":\"specification_authority\"},\"observed_at\":\"2026-08-04T06:03:53+02:00\",\"receipt_id\":\"0058-specification-accepted\",\"status\":\"accepted\",\"transition\":\"specification_accepted\"},{\"artifact_kind\":\"verification\",\"artifact_path\":\"features/0058-feature-dossier-workflow/verification/acceptance-report.md\",\"artifact_sha256\":\"937b5079b5803dfaf92e0281c60abdb86119346bcca2a53f0bce3141376bd143\",\"candidate_revision\":\"234f692afe004bfecea89d2c13c688e630174f05\",\"evidence_category\":\"test\",\"feature_id\":\"0058-feature-dossier-workflow\",\"issuer\":{\"identity\":\"semantic-verification-authority\",\"role\":\"verification_authority\"},\"observed_at\":\"2026-08-04T06:03:53+02:00\",\"receipt_id\":\"0058-verification-accepted\",\"status\":\"accepted\",\"transition\":\"verification_accepted\"}]}"
     }
   ]
 }

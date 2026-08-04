@@ -1,0 +1,12 @@
+{
+  "format": "semantic.feature-transition/v1",
+  "receipt_id": "0058-specification-accepted",
+  "feature_id": "0058-feature-dossier-workflow",
+  "transition": "specification_accepted",
+  "artifact_kind": "specification",
+  "artifact_path": "features/0058-feature-dossier-workflow/spec.md",
+  "artifact_sha256": "fcc35acff55ff4542638f1a7a3a5b1ed2018ab936b22c41575bc09a59c25a604",
+  "issuer": { "identity": "semantic-specification-authority", "role": "specification_authority" },
+  "observed_at": "2026-08-04T06:03:53+02:00",
+  "evidence_category": "analysis"
+}
