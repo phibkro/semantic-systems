@@ -10,7 +10,7 @@ check:
     bun scripts/check.ts check
 
 verify feature="":
-    bun scripts/check.ts verify "$feature"
+    bun scripts/check.ts verify "$1"
 
 start feature:
     bun scripts/check.ts start "$1"
