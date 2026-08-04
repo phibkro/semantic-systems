@@ -2,7 +2,7 @@
 
 <!-- Generated. Edit model sources, not this file. -->
 
-Ready parallel work items: **9**.
+Ready parallel work items: **10**.
 
 | Work item | Phase | Status | Ready | Score | Recommendation | Blockers |
 |---|---|---|---:|---:|---|---|
@@ -19,6 +19,7 @@ Ready parallel work items: **9**.
 | Adopt Effect Graph as a portfolio execution index | implementation | complete | no | 90 | delegate with review |  |
 | Build the executable semantic system kernel | validation | complete | no | 72 | delegate with review |  |
 | Specify explorer query contract | design | ready | yes | 94 | delegate directly |  |
+| Implement the feature dossier workflow | implementation | in_progress | yes | 49 | bounded spike |  |
 | Implement the independent resolution-result checker | research | blocked | no | 72 | delegate with review |  |
 | Implement inventory actor realization | validation | complete | no | 94 | delegate directly |  |
 | Complete inventory domain contract | design | complete | no | 82 | delegate with review |  |

@@ -31,6 +31,15 @@
 - Plan: [execution ledger](../plans/active/0007-reuse-first-engineering.md)
 - Acceptance: [runnable program](../scripts/accept/0007-reuse-first-engineering.ts)
 
+### `0058-feature-dossier-workflow` — Implement the feature dossier workflow
+
+- Status: `in_progress`
+- Feature loop: `managed`
+- Model: [canonical record](../model/work/features/0058-feature-dossier-workflow.json)
+- Design: [design contract](../design-specs/0058-feature-dossier-workflow.md)
+- Plan: [execution ledger](../plans/active/0058-feature-dossier-workflow.md)
+- Acceptance: [runnable program](../scripts/accept/0058-feature-dossier-workflow.ts)
+
 ## Completed
 
 ### `0001-inventory-resolution-tracer` — Complete inventory evidence-resolution tracer

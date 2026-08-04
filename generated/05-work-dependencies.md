@@ -19,6 +19,7 @@ flowchart LR
     work_effect_graph_execution_index["Adopt Effect Graph as a portfolio execution index"]
     work_executable_semantic_system_kernel["Build the executable semantic system kernel"]
     work_explorer_query_contract["Specify explorer query contract"]
+    work_feature_dossier_workflow["Implement the feature dossier workflow"]
     work_inventory_actor["Implement inventory actor realization"]
     work_inventory_design["Complete inventory domain contract"]
     work_inventory_proof["Prove inventory invariant"]
@@ -29,6 +30,7 @@ flowchart LR
     work_kernel_reference_interpreter["Establish the kernel reference interpreter"]
     work_kernel_spec["Specify minimal kernel calculus"]
     work_lean_evidence_adapter["Specify Lean evidence adapter"]
+    work_lifecycle_plan_layout["Adopt lifecycle-derived plan layout"]
     work_lossless_frontend_spec["Design lossless incremental frontend"]
     work_normalized_core_format["Specify normalized core artifact"]
     work_package_resolver["Implement package and evidence resolver"]
@@ -48,6 +50,7 @@ flowchart LR
     decision_gated_autonomous_merges -->|informs| work_autonomous_development_loop
     work_effect_graph_execution_index -->|requires| work_pbk_portfolio_control_room
     work_executable_semantic_system_kernel -->|blocks| work_actor_runtime
+    work_feature_dossier_workflow -->|requires| work_lifecycle_plan_layout
     work_inventory_resolution_tracer -->|requires| decision_theory_identity
     work_kernel_finite_sums -->|requires| work_kernel_spec
     work_kernel_reference_interpreter -->|requires| work_agent_facing_kernel_json
