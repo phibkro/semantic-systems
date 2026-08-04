@@ -122,7 +122,7 @@ export const ENFORCEMENT_REGISTER: ReadonlyArray<EnforcementRegisterEntry> = Obj
   reviewOnly(
     "agents.theories-before-realizations",
     "Theories are specified before realizations.",
-    "AGENTS.md#13",
+    "AGENTS.md#17",
     "Ordering of semantic design work is not mechanically observable.",
   ),
   reviewOnly(

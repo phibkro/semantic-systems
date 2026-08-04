@@ -1,5 +1,9 @@
 # Semantic Systems agent map
 
+The operator-wide charter in `~/.codex/AGENTS.md` applies. In particular, never
+use Pagu. Older project documents that prescribe Pagu describe superseded
+infrastructure and are not an active execution path.
+
 ## Thesis
 
 Programs depend on semantic theories, not concrete representations. Realizations
@@ -94,22 +98,22 @@ semantic interface hiding substantial implementation freedom and surfacing
 composable abstractions. The integrating agent owns semantic decisions, reviews
 committed artifacts on a clean tree, and commissions independent review.
 
-Every developer or engineer assignment must also contain this implementation
-posture:
+Every developer or engineer assignment must also:
 
-- Work like a lazy senior engineer: search the repository and installed tooling
-  for an existing command, scaffold, generator, library, or established pattern
-  before hand-writing infrastructure.
-- Reuse or adapt license-compatible upstream code and techniques with source and
-  license provenance. Never copy an unattributed snippet or let copied code
-  silently define project semantics.
-- Automate deterministic, bounded, repeatable work when the automation is
-  cheaper to own than repeated manual execution.
-- Stop automating when it becomes an unbounded side quest; implement the
-  smallest direct solution that satisfies the frozen contract and record the
-  deferred automation opportunity.
+- Work like a lazy senior engineer: search before hand-writing infrastructure.
+- Reuse or adapt license-compatible upstream code and techniques with
+  attribution; reused code is never semantic authority.
+- Automate deterministic, bounded, repeatable work when it is cheaper to own.
+- Stop automating when it becomes an unbounded side quest.
 - Report which scaffold, command, dependency, or prior art was evaluated, what
-  was reused, and why any relevant established option was rejected.
+  was reused, and why relevant established options were rejected.
+
+When a Herdr lifecycle sequence is known in advance, encode the whole sequence
+in one bounded Bun program that uses `herdr-mcp/client`. The program owns the
+connection, stable agent and turn IDs, exact waits, receipts, and cleanup. Do
+not serialize predictable lifecycle steps as repeated interactive CLI calls.
+Reserve the CLI for exploration and decisions that genuinely require operator
+input between steps.
 
 ## Model routing
 
@@ -117,6 +121,9 @@ posture:
   other complex reasoning.
 - Prefer Sonnet 5 for bounded mechanical implementation after the contract,
   owned paths, and executable acceptance commands are frozen.
+- Use native subagents for GPT-family lanes by default and Herdr for Anthropic
+  lanes. Follow an explicit operator request to use another harness for a
+  particular lane, and never claim a named model or effort unless verified.
 - Launch delegated Claude Code sessions with `--permission-mode auto`. Do not
   use `dontAsk`: it converts routine read-only shell and network operations
   into silent evidence gaps instead of routing them through the permission
@@ -126,10 +133,21 @@ posture:
 - Model output is advisory or contributory evidence, never semantic authority.
   The integrating agent still gates committed artifacts and accepts decisions.
 
+## Preferred implementation stack
+
+Start applicable new work with TypeScript 7, Bun, Effect v4, Oxfmt, Oxlint, the
+Oxlint Effect plugin, and Alchemy v2 for infrastructure. This is a preferred
+default rather than an unconditional constraint; record the technical reason
+for deliberate divergence. Python may be used for disposable one-off
+investigation but not committed as project source or scripts.
+
 ## Completion and merge
 
-For nontrivial features, follow design spec 0005: one frozen spec, one active
-plan, one acceptance script, and one completion PR. The main integration agent
+For nontrivial features, follow design spec 0005: one frozen spec, one stable
+plan, one canonical feature record, one acceptance script, and one completion
+PR. Complete work by changing only its canonical record from `in_progress` to
+`complete` with typed completion evidence; do not move the plan or edit its
+heading/status prose. The main integration agent
 may merge after exact-head gates, independent review, preview, and evidence
 audit pass; operator-owned external effects still require approval. Report the
 merged commit and preview to the operator, then close harvested Herdr tabs and
