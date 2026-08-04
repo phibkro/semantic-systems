@@ -5,6 +5,10 @@ import {
   type ObservationSource,
 } from "../../../src/project-model/public-export.ts";
 import { loadProject } from "../../../src/project-model/loader.ts";
+import {
+  compileFeatureDossiers,
+  withFeatureDossiers,
+} from "../../../src/project-model/work-lifecycle.ts";
 import { buildPublicPortfolioArtifact, loadPortfolio } from "../../../src/portfolio-model/index.ts";
 
 const sourceFrom = (value: string | undefined): ObservationSource => {
@@ -40,7 +44,9 @@ const program = Effect.gen(function* () {
   const appRoot = path.resolve(import.meta.dirname, "..");
   const root = path.resolve(appRoot, "../..");
   const output = path.join(appRoot, "public", "data");
-  const project = yield* loadProject(root);
+  const loadedProject = yield* loadProject(root);
+  const dossiers = yield* compileFeatureDossiers(root);
+  const project = withFeatureDossiers(loadedProject, dossiers);
   const portfolio = yield* loadPortfolio(root);
   const commit = yield* exactCommit(root);
   const now = yield* Clock.currentTimeMillis;

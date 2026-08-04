@@ -211,16 +211,17 @@ const sourceUrl = (
 ): Effect.Effect<string, PublicExportError> =>
   Effect.gen(function* () {
     const root = yield* normalizeAbsolutePath(project.root);
-    const modelRoot = `${root}/model`;
-    const normalized = yield* normalizeAbsolutePath(source);
-    if (!normalized.startsWith(`${modelRoot}/`)) {
+    const normalized = source.startsWith("/")
+      ? yield* normalizeAbsolutePath(source)
+      : yield* normalizeAbsolutePath(`${root}/${source}`);
+    if (!normalized.startsWith(`${root}/`)) {
       return yield* new PublicExportError({
-        message: `canonical source is outside model/: ${identity}`,
+        message: `canonical source is outside repository: ${identity}`,
       });
     }
-    const relative = normalized.slice(modelRoot.length + 1);
+    const relative = normalized.slice(root.length + 1);
     const encodedPath = relative.split("/").map(encodeURIComponent).join("/");
-    return `${repositoryUrl}/blob/${observation.commit}/model/${encodedPath}`;
+    return `${repositoryUrl}/blob/${observation.commit}/${encodedPath}`;
   });
 
 const stringAttribute = (entity: Entity, key: string): ReadonlyArray<string> => {

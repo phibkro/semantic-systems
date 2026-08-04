@@ -287,7 +287,7 @@ const repairCommand = (effect: string, paths: ReadonlyArray<string>): ReadonlyAr
     case "oxfmt_write":
       return ["node_modules/.bin/oxfmt", "--write", ...paths];
     case "oxlint_safe_fix":
-      return ["node_modules/.bin/oxlint", "--fix", "--safe", ...paths];
+      return ["node_modules/.bin/oxlint", "--fix", ...paths];
     case "generated_view_regeneration":
       return ["bun", "run", "semproj", "--", "generate"];
     default:
@@ -301,7 +301,7 @@ const repairPlan = (
 ): CommandPlan => {
   const byEffect = {
     oxfmt_write: ["repair:oxfmt-write", "oxfmt --write"],
-    oxlint_safe_fix: ["repair:oxlint-safe-fix", "oxlint --fix --safe"],
+    oxlint_safe_fix: ["repair:oxlint-safe-fix", "oxlint --fix"],
     generated_view_regeneration: [
       "repair:generated-view-regeneration",
       "semproj generate --deterministic",

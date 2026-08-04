@@ -132,6 +132,23 @@ describe("strict public projection", () => {
     ]);
   });
 
+  test("projects repository-relative canonical feature sources", async () => {
+    const result = await run(
+      graph({
+        entities: new Map([
+          [
+            "component.alpha",
+            entity({ source: "features/0017-control-room-reconstruction/spec.md" }),
+          ],
+        ]),
+        relations: [],
+      }),
+    );
+    expect(result.snapshot.entities[0]?.source_url).toBe(
+      `https://github.com/phibkro/semantic-systems/blob/${COMMIT}/features/0017-control-room-reconstruction/spec.md`,
+    );
+  });
+
   test("uses explicit UTF-16 code-unit ordering without locale-dependent collation", async () => {
     const astral = entity({ id: "component.💩", name: "Astral" });
     const replacement = entity({ id: "component.�", name: "Replacement" });
@@ -154,12 +171,12 @@ describe("strict public projection", () => {
       run(
         graph({
           entities: new Map([
-            ["component.alpha", entity({ source: `${ROOT}/model/../private/secrets.json` })],
+            ["component.alpha", entity({ source: `${ROOT}/../private/secrets.json` })],
           ]),
           relations: [],
         }),
       ),
-    ).rejects.toThrow("outside model");
+    ).rejects.toThrow("outside repository");
     await expect(run(graph(), observation({ commit: "abc123" }))).rejects.toThrow(
       "exact lowercase",
     );

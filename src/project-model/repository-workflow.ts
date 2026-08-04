@@ -463,7 +463,7 @@ const repairCommand = (effect: RepairEffect): { readonly id: string; readonly co
     case "oxfmt_write":
       return { id: "repair:oxfmt-write", command: "oxfmt --write" };
     case "oxlint_safe_fix":
-      return { id: "repair:oxlint-safe-fix", command: "oxlint --fix --safe" };
+      return { id: "repair:oxlint-safe-fix", command: "oxlint --fix" };
     case "generated_view_regeneration":
       return {
         id: "repair:generated-view-regeneration",
