@@ -8,7 +8,7 @@ Semantic frontier: repository implementation language and effect boundary
 
 Design-Lens-Version: open-semantic-system-v1
 
-Migrates-Feature-IDs: 0002-reference-baselines-deep-research, 0005-autonomous-development-control-loop, 0007-reuse-first-engineering
+Migrates-Feature-IDs: 0012-minimal-actor-runtime, 0014-stm-effect-handler-laws, 0017-control-room-reconstruction
 
 ## Open semantic system design lens
 
@@ -103,8 +103,8 @@ evidence and are not rewritten by this migration.
   packages provide only live platform layers; semantic programs do not import
   Bun or Node capability APIs.
 - Language: strict TypeScript with the repository-pinned TypeScript release.
-- Effect: exact `effect@4.0.0-beta.102`, the npm `beta` tag observed on
-  2026-07-30. Because v4 is pre-stable, upgrades are explicit reviewed changes,
+- Effect: exact `effect@4.0.0-rc.108`, the reviewed RC observed on
+  2026-08-13. Because v4 is pre-stable, upgrades are explicit reviewed changes,
   never a range update.
 - Formatting and linting: Oxfmt and Oxlint. Correctness, suspicious, and
   performance categories are denied, with explicit reviewed exceptions.

@@ -64,7 +64,7 @@ export const decodeObservationScriptBytes = (bytes: Uint8Array): ObservationScri
     });
   }
 
-  const parsed = Schema.decodeUnknownExit(Schema.UnknownFromJsonString)(text);
+  const parsed = Schema.decodeUnknownExit(Schema.fromJsonString(Schema.Unknown))(text);
   if (Exit.isFailure(parsed)) {
     return rejected({
       code: "external-observation-script.byte.json-grammar",

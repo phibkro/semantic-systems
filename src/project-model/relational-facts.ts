@@ -561,7 +561,9 @@ const decodeExport = (
     );
     if (issue !== undefined)
       return yield* new RelationalFactExportRejected({ reason: issue.message });
-    const parsed = yield* Schema.decodeUnknownEffect(Schema.UnknownFromJsonString)(text).pipe(
+    const parsed = yield* Schema.decodeUnknownEffect(Schema.fromJsonString(Schema.Unknown))(
+      text,
+    ).pipe(
       Effect.mapError((cause) => new RelationalFactExportRejected({ reason: cause.message })),
       Effect.catchDefect(() =>
         Effect.fail(

@@ -75,7 +75,9 @@ const readDocument = (source: string) =>
             new ProjectLoadError({ message: `cannot read model document: ${source}`, cause }),
         ),
       );
-    const input = yield* Schema.decodeUnknownEffect(Schema.UnknownFromJsonString)(text).pipe(
+    const input = yield* Schema.decodeUnknownEffect(Schema.fromJsonString(Schema.Unknown))(
+      text,
+    ).pipe(
       Effect.mapError(
         (cause) =>
           new ProjectLoadError({

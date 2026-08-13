@@ -179,7 +179,9 @@ describe("semantic.normalized-core version 1", () => {
       new URL("../examples/normalized-core/handled-program.expected.json", import.meta.url),
     ).text();
     expect(result.artifact).toEqual(
-      Schema.decodeUnknownSync(Schema.UnknownFromJsonString)(expected) as NormalizedCoreArtifact,
+      Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Unknown))(
+        expected,
+      ) as NormalizedCoreArtifact,
     );
     expect(result.bytes).toEqual(await expectedHandledBytes());
     const decoded = await run(decodeNormalizedCoreBytes(result.bytes));

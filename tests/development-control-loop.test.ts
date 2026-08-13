@@ -895,7 +895,7 @@ describe("autonomous development control loop", () => {
       "schedule:",
       "workflow_dispatch:",
       "tracked artifacts changed during verification",
-      "Version 7.0.2+effect-tsgo.0.24.3",
+      "Version 7.0.2+effect-tsgo.0.36.4",
     ]) {
       expect(workflow).toContain(observation);
     }

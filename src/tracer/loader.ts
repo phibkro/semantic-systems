@@ -89,7 +89,9 @@ const readJson = (
       .pipe(
         Effect.mapError((cause) => new DocumentError({ message: `cannot read ${path}`, cause })),
       );
-    const input = yield* Schema.decodeUnknownEffect(Schema.UnknownFromJsonString)(text).pipe(
+    const input = yield* Schema.decodeUnknownEffect(Schema.fromJsonString(Schema.Unknown))(
+      text,
+    ).pipe(
       Effect.mapError((cause) => new DocumentError({ message: `invalid JSON in ${path}`, cause })),
     );
     return yield* Schema.decodeUnknownEffect(schema)(input).pipe(

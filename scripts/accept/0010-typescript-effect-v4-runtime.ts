@@ -8,7 +8,7 @@ class AcceptanceFailure extends Data.TaggedError("AcceptanceFailure")<{
 }> {}
 
 const root = resolve(import.meta.dirname, "../..");
-const expectedEffect = "4.0.0-beta.102";
+const expectedEffect = "4.0.0-rc.108";
 const activeToolchainFiles = async (): Promise<string[]> => {
   const files = [
     ".github/workflows/check.yml",

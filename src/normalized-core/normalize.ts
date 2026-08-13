@@ -155,7 +155,7 @@ const parseJson = (input: string): Attempt<unknown> => {
   try {
     return {
       status: "success",
-      value: Schema.decodeUnknownSync(Schema.UnknownFromJsonString)(input),
+      value: Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Unknown))(input),
     };
   } catch {
     return {

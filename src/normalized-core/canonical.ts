@@ -173,7 +173,7 @@ class JsonScanner {
       if (code === 0x22) {
         this.#index += 1;
         try {
-          const value = Schema.decodeUnknownSync(Schema.UnknownFromJsonString)(
+          const value = Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Unknown))(
             this.text.slice(start, this.#index),
           );
           return typeof value === "string"

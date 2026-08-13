@@ -259,7 +259,7 @@ describe("Semantic Systems Effect Oxlint rules", () => {
       [
         {
           message:
-            "Use Schema.fromJsonString or Schema.UnknownFromJsonString at external JSON boundaries",
+            "Use Schema.fromJsonString with the intended value schema at external JSON boundaries",
         },
       ],
     );
@@ -460,7 +460,7 @@ describe("Semantic Systems Effect Oxlint rules", () => {
       [
         {
           message:
-            "Use Schema.fromJsonString or Schema.UnknownFromJsonString at external JSON boundaries",
+            "Use Schema.fromJsonString with the intended value schema at external JSON boundaries",
         },
       ],
     );

@@ -9,7 +9,7 @@ Owner: main integration agent
 ## Current state
 
 - Frozen migration contract: complete.
-- Exact Effect v4 pin: `effect@4.0.0-beta.102`.
+- Exact Effect v4 pin: `effect@4.0.0-rc.108`.
 - Existing reusable tooling: Bun 1.3.13, TypeScript 7.0.2, Oxfmt 0.61.0,
   Oxlint 1.76.0.
 - Operator amendment: Bun remains the default runtime and package manager;
@@ -285,8 +285,8 @@ accepted; no new Python implementation is permitted.
   confirmed the defect closed. Annotated tags and a possible
   `refs/heads/custody` namespace collision remain fail-closed follow-ups.
 - 2026-07-30: operator selected TypeScript, Bun, and specifically Effect v4.
-- 2026-07-30: npm registry independently reported `beta` as
-  `4.0.0-beta.102`; exact dependency installed.
+- 2026-08-13: reviewed and installed exact `effect@4.0.0-rc.108`, with
+  `@effect/tsgo@0.36.4` and the matching TypeScript compiler identity.
 - 2026-07-30: inventory found 35 repository-owned Python source modules and
   five Python test modules across project model, tracer, custody, and controls.
 - 2026-07-30: project-model Bun tests passed 7/7; all eight views matched

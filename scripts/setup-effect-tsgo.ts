@@ -28,6 +28,27 @@ const resolvePackageDirectory = (name: string) =>
         cause,
       }),
   });
+const resolvePackageExecutable = (name: string, command: string) =>
+  Effect.try({
+    try: () => {
+      const packageJsonPath = require.resolve(`${name}/package.json`);
+      const packageDirectory = dirname(packageJsonPath);
+      const packageJson = require(packageJsonPath) as {
+        bin?: string | Record<string, string>;
+      };
+      const bin =
+        typeof packageJson.bin === "string" ? packageJson.bin : packageJson.bin?.[command];
+      if (bin === undefined) {
+        throw new Error(`package ${name} does not declare a ${command} executable`);
+      }
+      return join(packageDirectory, bin);
+    },
+    catch: (cause) =>
+      new EffectTsgoSetupError({
+        message: `effect-tsgo setup: cannot resolve executable ${name}`,
+        cause,
+      }),
+  });
 
 const digest = (path: string) =>
   Effect.tryPromise({
@@ -69,10 +90,9 @@ const setup = (checkOnly: boolean) =>
   Effect.gen(function* () {
     const effectPlatform = yield* resolvePackageDirectory(`@effect/tsgo-${platform}`);
     const typescriptPlatform = yield* resolvePackageDirectory(`@typescript/typescript-${platform}`);
-    const effectTsgo = yield* resolvePackageDirectory("@effect/tsgo");
+    const effectTsgoCli = yield* resolvePackageExecutable("@effect/tsgo", "effect-tsgo");
     const source = join(effectPlatform, "lib", executableName);
     const target = join(typescriptPlatform, "lib", executableName);
-
     if ((yield* digest(source)) === (yield* digest(target))) {
       yield* Console.log("effect-tsgo setup: TypeScript 7 already uses Effect diagnostics");
       return;
@@ -84,7 +104,7 @@ const setup = (checkOnly: boolean) =>
       });
     }
 
-    yield* runPatch(join(effectTsgo, "dist", "effect-tsgo.js"));
+    yield* runPatch(effectTsgoCli);
     if ((yield* digest(source)) !== (yield* digest(target))) {
       return yield* new EffectTsgoSetupError({
         message: "effect-tsgo setup: patched compiler does not match the packaged Effect binary",

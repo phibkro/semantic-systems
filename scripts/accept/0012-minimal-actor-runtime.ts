@@ -90,7 +90,7 @@ const actorPortableClosure = (): Effect.Effect<ReadonlyArray<string>, Acceptance
   });
 
 const decodeObservation = (text: string) =>
-  Schema.decodeUnknownEffect(Schema.UnknownFromJsonString)(text).pipe(
+  Schema.decodeUnknownEffect(Schema.fromJsonString(Schema.Unknown))(text).pipe(
     Effect.flatMap((value) =>
       typeof value === "object" && value !== null && !Array.isArray(value)
         ? Effect.succeed(value as JsonObject)
