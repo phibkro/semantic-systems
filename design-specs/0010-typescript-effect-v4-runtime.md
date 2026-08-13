@@ -8,7 +8,7 @@ Semantic frontier: repository implementation language and effect boundary
 
 Design-Lens-Version: open-semantic-system-v1
 
-Migrates-Feature-IDs: 0002-reference-baselines-deep-research, 0005-autonomous-development-control-loop, 0007-reuse-first-engineering
+Migrates-Feature-IDs: 0002-reference-baselines-deep-research, 0005-autonomous-development-control-loop, 0007-reuse-first-engineering, 0012-minimal-actor-runtime, 0014-stm-effect-handler-laws, 0017-control-room-reconstruction
 
 ## Open semantic system design lens
 
