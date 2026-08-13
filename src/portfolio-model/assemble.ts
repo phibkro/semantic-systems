@@ -166,7 +166,7 @@ export const loadPortfolio = (
             new PortfolioLoadFailure({ message: `cannot read portfolio row ${name}`, cause }),
         ),
         Effect.flatMap((text) =>
-          Schema.decodeUnknownEffect(Schema.UnknownFromJsonString)(text).pipe(
+          Schema.decodeUnknownEffect(Schema.fromJsonString(Schema.Unknown))(text).pipe(
             Effect.mapError(
               (cause) => new PortfolioLoadFailure({ message: `invalid JSON in ${name}`, cause }),
             ),

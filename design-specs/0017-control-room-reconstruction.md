@@ -153,7 +153,7 @@ responses do not accumulate retained candidates.
 
 Local acceptance performs no provider apply, destroy, secret write, DNS
 change, or repository mutation. Alchemy is pinned exactly to
-`2.0.0-beta.64`; any version change requires refreshed type, plan-shape,
+`2.0.0-beta.72`; any version change requires refreshed type, plan-shape,
 workflow, browser, and independent-review evidence. Effect dependencies must
 use one repository-compatible v4 line rather than silently installing an
 independent semantic runtime.

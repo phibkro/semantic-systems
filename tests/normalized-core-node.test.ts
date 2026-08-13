@@ -76,9 +76,9 @@ test("genuine Node emits and validates the frozen host-neutral bytes", async () 
   );
   assert.deepEqual(
     result.artifact,
-    Schema.decodeUnknownSync(Schema.UnknownFromJsonString)(expected.toString("utf8")),
+    Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Unknown))(expected.toString("utf8")),
   );
-  const expectedBase64 = Schema.decodeUnknownSync(Schema.UnknownFromJsonString)(
+  const expectedBase64 = Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Unknown))(
     await readFile(
       new URL("../examples/normalized-core/handled-program.expected.bytes.json", import.meta.url),
       "utf8",
@@ -98,7 +98,7 @@ test("genuine Node emits and validates the frozen host-neutral bytes", async () 
     summary: result.artifact.summary,
     validation_status: validation.status,
   };
-  const expectedReport = Schema.decodeUnknownSync(Schema.UnknownFromJsonString)(
+  const expectedReport = Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Unknown))(
     await readFile(
       new URL("../examples/normalized-core/handled-program.expected.report.json", import.meta.url),
       "utf8",

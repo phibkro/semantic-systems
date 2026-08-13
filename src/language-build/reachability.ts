@@ -161,7 +161,9 @@ const decodeJsonText = <S extends Schema.Constraint>(
       reachabilityBounds.maximumJsonValues,
     );
     if (scanIssue !== undefined) return yield* rejection(scanIssue.message);
-    const parsed = yield* Schema.decodeUnknownEffect(Schema.UnknownFromJsonString)(input).pipe(
+    const parsed = yield* Schema.decodeUnknownEffect(Schema.fromJsonString(Schema.Unknown))(
+      input,
+    ).pipe(
       Effect.mapError((cause) => rejection(cause.message)),
       Effect.catchDefect(() => Effect.fail(rejection("JSON input could not be decoded"))),
     );

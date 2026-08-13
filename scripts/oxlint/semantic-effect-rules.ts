@@ -241,7 +241,7 @@ export const schemaJsonBoundary = Rule.define({
           ? report(
               ctx,
               node,
-              "Use Schema.fromJsonString or Schema.UnknownFromJsonString at external JSON boundaries",
+              "Use Schema.fromJsonString with the intended value schema at external JSON boundaries",
             )
           : Effect.void,
       ),
